@@ -2,7 +2,9 @@
 
 Differences from ``urllib.robotparser`` that matter here: the longest
 matching rule wins (not the first one), ``*`` and ``$`` are understood in
-path patterns, and ``Crawl-delay`` accepts fractional seconds.
+path patterns, and ``Crawl-delay`` accepts fractional seconds. A byte order
+mark at the start of the file is ignored, so that it cannot hide the first
+group (which would silently drop its ``Disallow`` and ``Crawl-delay`` lines).
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from urllib.parse import unquote
 
 WILDCARD_AGENT: Final = "*"
 ROBOTS_PATH: Final = "/robots.txt"
+_BOM: Final = chr(0xFEFF)
 
 
 @dataclass(frozen=True)
@@ -82,7 +85,7 @@ def _parse_groups(text: str) -> list[_Group]:
     groups: list[_Group] = []
     current: _Group | None = None
     collecting_agents = False
-    for raw_line in text.splitlines():
+    for raw_line in text.removeprefix(_BOM).splitlines():
         line = raw_line.split("#", 1)[0].strip()
         if ":" not in line:
             continue

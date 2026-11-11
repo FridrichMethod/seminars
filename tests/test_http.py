@@ -224,6 +224,19 @@ class TestRobots:
             client.get(f"{PAGE}?page={page}")
         assert robots.call_count == 1
 
+    def test_robots_with_a_byte_order_mark_is_still_obeyed(
+        self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
+    ) -> None:
+        body = b"\xef\xbb\xbfUser-agent: *\nCrawl-delay: 30\nDisallow: /private/\n"
+        respx_router.get(ROBOTS).respond(200, content=body)
+        private = respx_router.get(f"{HOST}/private/x").respond(200, text="secret")
+        respx_router.get(PAGE).respond(200, text="ok")
+        with pytest.raises(RobotsDisallowedError):
+            client.get(f"{HOST}/private/x")
+        assert private.call_count == 0
+        client.get(PAGE)
+        assert fake_clock.sleeps == [30.0]
+
     def test_missing_robots_allows_everything(
         self, client: PoliteClient, respx_router: respx.MockRouter
     ) -> None:

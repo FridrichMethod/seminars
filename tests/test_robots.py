@@ -7,6 +7,7 @@ import pytest
 from seminars.robots import ALLOW_ALL, DISALLOW_ALL, parse_robots
 
 BOT = "seminars-bot"
+BOM = chr(0xFEFF)
 
 
 def allows(robots_txt: str, path: str, agent: str = BOT) -> bool:
@@ -110,6 +111,17 @@ class TestGroups:
 
     def test_crlf_line_endings(self) -> None:
         assert not allows("User-agent: *\r\nDisallow: /x\r\n", "/x")
+
+    def test_byte_order_mark_does_not_hide_the_first_group(self) -> None:
+        text = BOM + "User-agent: *\nCrawl-delay: 30\nDisallow: /private/\n"
+        policy = parse_robots(text, BOT)
+        assert policy.crawl_delay == 30.0
+        assert not policy.allows("/private/x")
+        assert policy.allows("/public")
+
+    def test_byte_order_mark_before_a_comment_or_blank_line(self) -> None:
+        assert not allows(BOM + "# robots\nUser-agent: *\nDisallow: /x\n", "/x")
+        assert not allows(BOM + "\nUser-agent: *\nDisallow: /x\n", "/x")
 
 
 class TestCrawlDelay:
