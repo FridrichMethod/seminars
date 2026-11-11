@@ -19,6 +19,9 @@ What a run guarantees:
 * One source cannot fail or stall the run. A run fails only when every
   source failed (exit status 1) or an output check found something (exit
   status 3).
+* No LLM is no reason for a run to fail. An error of the optional LLM
+  parts (the tagger, its usage, the counters and the pruning of the
+  cache) becomes a warning of the report, whatever kind of error it is.
 * The time of the run is the ``now`` it is given, for every stage.
   ``timer`` only measures how long things take.
 * The files the pipeline writes itself are checked before they are
@@ -48,7 +51,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from seminars.config import AppConfig, ProjectPaths
-from seminars.contracts import IssueClient, PicksScorer
+from seminars.contracts import IssueClient, LLMCache, PicksScorer
 from seminars.models import (
     Candidate,
     Event,
@@ -290,11 +293,40 @@ def _counts(
     )
 
 
-def _llm_usage(services: Services) -> LLMUsage:
+def _llm_failure(what: str, error: Exception) -> str:
+    """The warning about a failed call of the optional LLM parts; logs the type only."""
+    logger.warning("%s failed (%s)", what, type(error).__name__)
+    return f"{what} failed ({type(error).__name__})"
+
+
+def _llm_usage(services: Services) -> tuple[LLMUsage, list[str]]:
+    """What the LLM did in this run, and warnings when that could not be read."""
     if services.llm is None:
-        return LLMUsage(enabled=False)
-    hits = services.llm_cache.stats().hits if services.llm_cache is not None else 0
-    return services.llm.usage().evolve(cache_hits=hits)
+        return LLMUsage(enabled=False), []
+    warnings: list[str] = []
+    try:
+        usage = services.llm.usage()
+    except Exception as error:  # the optional LLM must not fail the run
+        usage = LLMUsage(enabled=True)
+        warnings.append(_llm_failure("reading the LLM usage", error))
+    hits = 0
+    if services.llm_cache is not None:
+        try:
+            hits = services.llm_cache.stats().hits
+        except Exception as error:  # as above
+            warnings.append(_llm_failure("reading the LLM cache counters", error))
+    return usage.evolve(cache_hits=hits), warnings
+
+
+def _prune(cache: LLMCache | None) -> list[str]:
+    """Drop the stale entries of the LLM cache; a failure is a warning."""
+    if cache is None:
+        return []
+    try:
+        cache.prune()
+    except Exception as error:  # the optional LLM must not fail the run
+        return [_llm_failure("pruning the LLM cache", error)]
+    return []
 
 
 def _retarget(files: Mapping[Path, str], source: Path, target: Path) -> dict[Path, str]:
@@ -326,6 +358,15 @@ def _write_outputs(
     return []
 
 
+@dataclass(frozen=True)
+class _Published:
+    """What writing the outputs of a run gave."""
+
+    checks: CheckResult
+    problems: tuple[str, ...] = ()  # outputs that are missing: the run failed
+    warnings: tuple[str, ...] = ()
+
+
 def _publish(
     config: AppConfig,
     services: Services,
@@ -335,7 +376,7 @@ def _publish(
     state: State,
     health: HealthFile,
     report: RunReport,
-) -> tuple[CheckResult, list[str]]:
+) -> _Published:
     """Check and write the data files, write the outputs, check what is on disk."""
     uid_map = state.uid_map.with_aliases(processed.aliases)
     planned = data_files(
@@ -348,12 +389,52 @@ def _publish(
     files = _retarget(planned, config.paths.root, target.root)
     before = check_texts(files, services.secret_scanner, root=target.root)
     if not before.ok:
-        return before, ["the data files were not written: the output check found something"]
+        return _Published(
+            before, ("the data files were not written: the output check found something",)
+        )
     write_files(files)
-    if services.llm_cache is not None:
-        services.llm_cache.prune()
+    warnings = _prune(services.llm_cache)
     problems = _write_outputs(config, services, target, reconciled.events, health, report)
-    return before.plus(check_tree(target, services.secret_scanner)), problems
+    checks = before.plus(check_tree(target, services.secret_scanner))
+    return _Published(checks, tuple(problems), tuple(warnings))
+
+
+def _first_report(
+    services: Services,
+    options: RunOptions,
+    gathered: _Gathered,
+    processed: _Processed,
+    reconciled: Reconciled,
+    *,
+    now: datetime,
+    finished_at: datetime,
+) -> RunReport:
+    """The report of a run before its outputs are written (what health is updated with)."""
+    usage, llm_warnings = _llm_usage(services)
+    return RunReport(
+        started_at=now,
+        finished_at=finished_at,
+        mode=options.mode,
+        dry_run=options.dry_run,
+        ok=any(result.status != "failed" for result in gathered.results),
+        sources=list(gathered.results),
+        excluded=list(processed.excluded),
+        counts=_counts(gathered, processed, reconciled, services.picks_scorer.threshold),
+        llm=usage,
+        warnings=[*services.warnings, *processed.warnings, *llm_warnings],
+    )
+
+
+def _final_report(report: RunReport, published: _Published, finished_at: datetime) -> RunReport:
+    """The report of a run after its outputs were written and checked."""
+    checks = published.checks
+    return report.evolve(
+        finished_at=finished_at,
+        ok=report.ok and checks.ok and not published.problems,
+        secret_findings=list(checks.secret_findings),
+        charset_findings=list(checks.charset_findings),
+        warnings=[*report.warnings, *published.warnings, *published.problems],
+    )
 
 
 def run_pipeline(
@@ -374,6 +455,10 @@ def run_pipeline(
     """
     options = options or RunOptions()
     started = timer()
+
+    def elapsed() -> datetime:
+        return now + timedelta(seconds=max(timer() - started, 0.0))
+
     sources = select_sources(config, options.source_ids)
     destination = target or config.paths
     state = load_state(config.paths)
@@ -390,32 +475,16 @@ def run_pipeline(
         absorbed=processed.absorbed,
     )
     issues: IssueClient | None = None if options.dry_run else services.issues
-    report = RunReport(
-        started_at=now,
-        finished_at=now + timedelta(seconds=max(timer() - started, 0.0)),
-        mode=options.mode,
-        dry_run=options.dry_run,
-        ok=any(result.status != "failed" for result in gathered.results),
-        sources=list(gathered.results),
-        excluded=list(processed.excluded),
-        counts=_counts(gathered, processed, reconciled, services.picks_scorer.threshold),
-        llm=_llm_usage(services),
-        warnings=[*services.warnings, *processed.warnings],
+    report = _first_report(
+        services, options, gathered, processed, reconciled, now=now, finished_at=elapsed()
     )
     health = services.update_health(state.health, report, issues, config=config)
-    checks, problems = _publish(
+    published = _publish(
         config, services, destination, reconciled, processed, state, health, report
     )
-    final = report.evolve(
-        finished_at=now + timedelta(seconds=max(timer() - started, 0.0)),
-        ok=report.ok and checks.ok and not problems,
-        llm=_llm_usage(services),
-        secret_findings=list(checks.secret_findings),
-        charset_findings=list(checks.charset_findings),
-        warnings=[*report.warnings, *problems],
-    )
+    final = _final_report(report, published, elapsed())
     write_files(report_files(destination, final))
-    sync_check_issue(issues, checks)
+    sync_check_issue(issues, published.checks)
     return final
 
 

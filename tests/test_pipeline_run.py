@@ -30,6 +30,8 @@ from seminars.models import (
     Event,
     EventDraft,
     LastRun,
+    LLMCacheStats,
+    LLMUsage,
     RunReport,
     SourceConfig,
     UidMap,
@@ -457,6 +459,32 @@ class TestOutputChecks:
         assert config.paths.events_file.is_file()
 
 
+class BuggyLLM(FakeLLMClient):
+    """An LLM chain whose usage cannot be read."""
+
+    def usage(self) -> LLMUsage:
+        raise RuntimeError("usage is broken")
+
+
+class BuggyCache(FakeLLMCache):
+    """An LLM cache whose counters or pruning fail."""
+
+    def __init__(self, *, fail_stats: bool = False, fail_prune: bool = False) -> None:
+        super().__init__()
+        self._fail_stats = fail_stats
+        self._fail_prune = fail_prune
+
+    def stats(self) -> LLMCacheStats:
+        if self._fail_stats:
+            raise RuntimeError("stats are broken")
+        return super().stats()
+
+    def prune(self) -> int:
+        if self._fail_prune:
+            raise RuntimeError("prune is broken")
+        return super().prune()
+
+
 class TestHealthAndLLM:
     def test_the_health_history_grows_with_every_run(
         self, config: AppConfig, fake_adapter: FakeAdapter, fake_issues: FakeIssueClient
@@ -485,6 +513,38 @@ class TestHealthAndLLM:
         report = run(config, services(FakeEmitters(), warnings=("no LLM",)))
         assert not report.llm.enabled
         assert report.warnings == ["no LLM"]
+
+    def test_unreadable_llm_usage_is_a_warning(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        fake_adapter.drafts = [draft("sites-a", "1")]
+        report = run(config, services(FakeEmitters(), llm=BuggyLLM(), llm_cache=FakeLLMCache()))
+        assert exit_status(report) == EXIT_OK
+        assert (report.llm.enabled, report.llm.calls) == (True, 0)
+        assert report.warnings == ["reading the LLM usage failed (RuntimeError)"]
+        assert config.paths.run_report_file.is_file()
+
+    def test_unreadable_cache_counters_are_a_warning(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        fake_adapter.drafts = [draft("sites-a", "1")]
+        cache = BuggyCache(fail_stats=True)
+        report = run(config, services(FakeEmitters(), llm=FakeLLMClient(), llm_cache=cache))
+        assert exit_status(report) == EXIT_OK
+        assert report.llm.cache_hits == 0
+        assert report.warnings == ["reading the LLM cache counters failed (RuntimeError)"]
+
+    def test_a_cache_that_cannot_be_pruned_leaves_the_run_whole(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        fake_adapter.drafts = [draft("sites-a", "1")]
+        emitters = FakeEmitters()
+        cache = BuggyCache(fail_prune=True)
+        report = run(config, services(emitters, llm=FakeLLMClient(), llm_cache=cache))
+        assert exit_status(report) == EXIT_OK
+        assert report.warnings == ["pruning the LLM cache failed (RuntimeError)"]
+        assert [name for name, _ in emitters.calls][-2:] == ["write_ics_feeds", "write_site_data"]
+        assert read_model(config.paths.run_report_file, RunReport) == report
 
 
 class TestDryRun:

@@ -20,16 +20,17 @@ here is the order of things:
    otherwise empty the feeds of everything only the LLM had recognised.
 
 The LLM tagger never raises ``LLMError`` by contract. Should it raise one
-anyway, the stage goes on as if there were no tagger and says so in a
-warning: no LLM is no reason for a run to fail.
+anyway, or fail with any other error, the stage goes on as if there were
+no tagger and says so in a warning: no LLM is no reason for a run to fail.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 
-from seminars.contracts import FieldTagger, LLMError, LLMFieldTagger
+from seminars.contracts import FieldTagger, LLMFieldTagger
 from seminars.models import (
     Candidate,
     Event,
@@ -37,6 +38,8 @@ from seminars.models import (
     LLMTagResult,
     TagDecision,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -55,7 +58,8 @@ def _ask(
         return {}, []
     try:
         return dict(llm_tagger.tag_batch(open_cases)), []
-    except LLMError as error:
+    except Exception as error:  # the optional LLM must not fail the run
+        logger.warning("the LLM tagger failed (%s)", type(error).__name__)
         return {}, [f"the LLM tagger failed ({type(error).__name__}); the rules decided alone"]
 
 

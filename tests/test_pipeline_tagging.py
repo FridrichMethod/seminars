@@ -26,6 +26,13 @@ class RaisingTagger:
         raise LLMUnavailableError("every provider failed")
 
 
+class BuggyTagger:
+    """An LLM tagger with a bug: it fails with an error of no LLM kind."""
+
+    def tag_batch(self, candidates: Sequence[Candidate]) -> dict[str, LLMTagResult]:
+        raise RuntimeError("index out of range")
+
+
 class TestRules:
     def test_the_decision_of_the_rules_is_used(self) -> None:
         result = tag_candidates([candidate("a", fields=["chem"])], tagger=FakeFieldTagger())
@@ -107,6 +114,20 @@ class TestLLM:
         assert result.warnings == (
             "the LLM tagger failed (LLMUnavailableError); the rules decided alone",
         )
+
+    def test_a_tagger_with_a_bug_is_treated_as_absent(self) -> None:
+        stored = make_event(uid="a", fields=["math"], field_tag_method="llm")
+        result = tag_candidates(
+            [candidate("a"), candidate("b", fields=["chem"])],
+            tagger=FakeFieldTagger(),
+            llm_tagger=BuggyTagger(),
+            previous={"a": stored},
+        )
+        assert [(event.uid, event.fields) for event in result.events] == [
+            ("a", ["math"]),
+            ("b", ["chem"]),
+        ]
+        assert result.warnings == ("the LLM tagger failed (RuntimeError); the rules decided alone",)
 
 
 class TestPreviousAnswers:
