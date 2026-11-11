@@ -19,8 +19,9 @@ naive one, a date, a string). This module applies those rules:
   for a talk that runs past midnight. It moves to the next day when the
   talk is then at most six hours long.
 
-Nothing in here reads the clock; ``reference`` supplies the year for a
-string that has none.
+Nothing in here reads the clock. ``reference`` supplies the year for a
+string that has none: the year that puts the date closest to it, so that
+"Jan 15" read in December is next January, not the one before.
 """
 
 from __future__ import annotations
@@ -34,6 +35,12 @@ from zoneinfo import ZoneInfo
 from dateutil import parser as date_parser
 
 MAX_TEXT_LENGTH: Final = 120
+_PROBE_DEFAULTS: Final = (datetime(2004, 1, 1, 0, 0), datetime(2008, 3, 2, 11, 0))
+"""Two defaults that differ in every field: what a text leaves out differs between them.
+
+Both years are leap years, so "Feb 29" without a year can be read, and
+both days exist in every month.
+"""
 MAX_ROLLOVER: Final = timedelta(hours=6)
 _ONE_DAY: Final = timedelta(days=1)
 _ZONE_ABBREVIATIONS: Final[dict[str, str]] = {
@@ -73,24 +80,45 @@ class EventTimes:
     all_day: bool
 
 
+def _parse(text: str, default: datetime) -> datetime:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return date_parser.parse(text, default=default, tzinfos=_TZINFOS)
+
+
+def _nearest_year(moment: datetime, reference: datetime) -> datetime:
+    """``moment`` in the year next to ``reference`` that puts it closest to ``reference``."""
+    day = reference.date()
+    options = []
+    for year in (day.year - 1, day.year, day.year + 1):
+        try:
+            options.append(moment.replace(year=year))
+        except ValueError:  # February 29 in a year that has none
+            continue
+    if not options:
+        raise TimeError("the date does not exist in the years around the reference")
+    return min(options, key=lambda option: (abs((option.date() - day).days), option.year))
+
+
 def parse_moment(text: str, *, reference: datetime) -> datetime | date:
     """A free-form time such as "Nov 17, 2026 4:00 PM" as a datetime, or a date without one.
 
-    The year of ``reference`` fills in for a missing year. Common North
-    American zone abbreviations are understood; an unknown one is ignored
-    and the time is then taken as wall time of the source.
+    A missing year is the one that puts the date closest to ``reference``
+    (the year before, of, or after it); a text without month and day, such
+    as "4pm" or "Thursday", is an error. Common North American zone
+    abbreviations are understood; an unknown one is ignored and the time is
+    then taken as wall time of the source.
     """
     if len(text) > MAX_TEXT_LENGTH:
         raise TimeError("time text is too long")
-    year = reference.year
     try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            first = date_parser.parse(text, default=datetime(year, 1, 1, 0, 0), tzinfos=_TZINFOS)
-            other = date_parser.parse(text, default=datetime(year, 1, 1, 11, 0), tzinfos=_TZINFOS)
+        first, other = (_parse(text, default) for default in _PROBE_DEFAULTS)
     except (ValueError, OverflowError, TypeError) as error:
         raise TimeError("time text cannot be parsed") from error
-    return first.date() if first != other else first  # the hour came from the default: a date
+    if (first.month, first.day) != (other.month, other.day):
+        raise TimeError("time text has no day")
+    moment = first if first.year == other.year else _nearest_year(first, reference)
+    return moment.date() if first.time() != other.time() else moment  # no time of day: a date
 
 
 def _typed(moment: Moment, reference: datetime) -> datetime | date:

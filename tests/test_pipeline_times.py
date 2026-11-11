@@ -208,6 +208,48 @@ class TestFreeText:
     def test_the_reference_supplies_a_missing_year(self) -> None:
         assert parse_moment("Nov 17 4pm", reference=REFERENCE_NOW) == datetime(2026, 11, 17, 16)
 
+    @pytest.mark.parametrize(
+        ("text", "reference", "expected"),
+        [
+            (
+                "Jan 15, 4:00 PM",
+                datetime(2026, 12, 10, 9, tzinfo=PST),
+                datetime(2027, 1, 15, 16),
+            ),
+            ("Dec 30 4pm", datetime(2027, 1, 4, 9, tzinfo=PST), datetime(2026, 12, 30, 16)),
+            ("June 3 at 2 pm", datetime(2026, 11, 11, 9, tzinfo=PST), datetime(2026, 6, 3, 14)),
+            ("June 3 at 2 pm", datetime(2027, 1, 20, 9, tzinfo=PST), datetime(2027, 6, 3, 14)),
+        ],
+    )
+    def test_a_missing_year_is_the_one_closest_to_the_reference(
+        self, text: str, reference: datetime, expected: datetime
+    ) -> None:
+        assert parse_moment(text, reference=reference) == expected
+
+    def test_a_missing_year_of_a_date_without_time(self) -> None:
+        december = datetime(2026, 12, 20, 9, tzinfo=PST)
+        assert parse_moment("Thursday, January 7", reference=december) == date(2027, 1, 7)
+
+    def test_a_given_year_is_kept_however_far_away(self) -> None:
+        december = datetime(2026, 12, 20, 9, tzinfo=PST)
+        assert parse_moment("Jan 7, 2026 4 PM", reference=december) == datetime(2026, 1, 7, 16)
+
+    def test_february_29_without_a_year_needs_a_leap_year_nearby(self) -> None:
+        winter = datetime(2027, 12, 1, 9, tzinfo=PST)
+        assert parse_moment("Feb 29 4pm", reference=winter) == datetime(2028, 2, 29, 16)
+        with pytest.raises(TimeError):
+            parse_moment("Feb 29 4pm", reference=datetime(2026, 6, 1, 9, tzinfo=PST))
+
+    @pytest.mark.parametrize("text", ["4pm", "Thursday 4pm", "March 2026", "the 15th at noon"])
+    def test_a_text_without_month_and_day_is_an_error(self, text: str) -> None:
+        with pytest.raises(TimeError):
+            parse_moment(text, reference=REFERENCE_NOW)
+
+    def test_an_end_with_only_a_time_is_dropped(self) -> None:
+        times = resolve("Jan 1, 2027 4pm", "5pm")
+        assert iso(times.start) == "2027-01-01T16:00:00-08:00"
+        assert times.end is None
+
     def test_zone_abbreviations(self) -> None:
         times = resolve("November 17, 2026 at 7:00 pm ET")
         assert iso(times.start) == "2026-11-17T16:00:00-08:00"
