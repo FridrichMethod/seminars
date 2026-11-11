@@ -71,17 +71,20 @@ class CliRequest:
 class CliResult:
     """What a finished child left behind. ``stderr`` is for classification only.
 
-    The standard error output can name the account, so the ``repr`` of a
-    result gives only its length.
+    The standard error output can name the account, and the standard output
+    of the claude CLI carries details of the login (when it expires, the id
+    of the session) next to the answer. The ``repr`` of a result, which a
+    traceback or a failed assertion prints, therefore gives only the length
+    of either.
     """
 
     returncode: int
-    stdout: str
+    stdout: str = field(repr=False)
     stderr: str = field(repr=False)
 
     def __repr__(self) -> str:
         return (
-            f"CliResult(returncode={self.returncode!r}, stdout={self.stdout!r}, "
+            f"CliResult(returncode={self.returncode!r}, stdout=<{len(self.stdout)} characters>, "
             f"stderr=<{len(self.stderr)} characters>)"
         )
 
