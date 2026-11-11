@@ -192,7 +192,7 @@ class LLMCache(Protocol):
     An implementation must therefore write every file as ASCII-only JSON
     (``seminars.models.dump_ascii_json``, or ``json.dumps`` with
     ``ensure_ascii=True``) and must not clean the values: ``get`` returns
-    exactly what ``put`` received. tests/test_llm_cache_contract.py checks
+    exactly what ``put`` received. tests/test_contract_llm_cache.py checks
     this and the age rules below against the real implementation.
 
     The age of an entry

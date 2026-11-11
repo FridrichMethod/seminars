@@ -131,6 +131,30 @@ class TestRepositoryFiles:
         for line in ("charset = utf-8", "end_of_line = lf", "insert_final_newline = true"):
             assert line in editorconfig
 
+    def test_the_llm_cache_conformance_test_has_a_name_of_its_own(self) -> None:
+        """Test files named test_llm_*.py belong to the LLM layer, which is written later.
+
+        The conformance test is part of the shared foundation, so its name
+        must not fit that pattern, and whoever points at it must name the
+        file that exists.
+        """
+        assert (REPO_ROOT / "tests" / "test_contract_llm_cache.py").is_file()
+        llm = (REPO_ROOT / "src" / "seminars" / "contracts" / "llm.py").read_text(encoding="utf-8")
+        assert "tests/test_contract_llm_cache.py" in llm
+        assert "tests/test_llm_" not in llm
+
+    def test_every_test_file_that_is_pointed_at_exists(self) -> None:
+        """Docstrings and the fixtures README name test files by path; a rename has to follow."""
+        tests = REPO_ROOT / "tests"
+        readers = [*(REPO_ROOT / "src").rglob("*.py"), *(REPO_ROOT / "scripts").glob("*.py")]
+        readers += [path for path in tests.glob("*.py") if not path.name.startswith("test_")]
+        readers.append(tests / "fixtures" / "README.md")
+        named: set[str] = set()
+        for path in readers:
+            named.update(re.findall(r"tests/[a-z_]+\.py", path.read_text(encoding="utf-8")))
+        assert len(named) >= 5
+        assert sorted(name for name in named if not (REPO_ROOT / name).is_file()) == []
+
     def test_license(self) -> None:
         text = (REPO_ROOT / "LICENSE").read_text(encoding="utf-8")
         assert text.startswith("MIT License\n\nCopyright (c) 2026 FridrichMethod\n")
