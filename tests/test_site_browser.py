@@ -334,11 +334,20 @@ class TestUntrustedText:
         xss["speakers"][0]["url"] = "vbscript:msgbox(1)"
         online = next(event for event in payload["events"] if event["uid"] == "sample-online")
         online["url"] = "https://user:secret@example.org/talk"
+        # Schemes with a host name are refused as well: only http(s) becomes a link.
+        hybrid = next(event for event in payload["events"] if event["uid"] == "sample-hybrid-med")
+        hybrid["url"] = "file://example.org/etc/passwd"
+        hybrid["stream_url"] = "ftp://example.org/stream"
+        hybrid["speakers"][0]["url"] = "ftp://example.org/x"
+        hybrid["speakers"][1]["url"] = "x-app://example.org/talk"
         current = session()
         serve_json(current, "events.json", payload)
         current.open("index.html")
         page = current.page
         assert page.locator('article[data-uid="sample-xss"] a').count() == 0
+        assert page.locator('article[data-uid="sample-hybrid-med"] a').count() == 0
+        hybrid_names = page.locator('article[data-uid="sample-hybrid-med"] .speaker-name')
+        assert hybrid_names.all_text_contents() == ["Maria Chen", "Omar Haddad"]
         assert page.locator('article[data-uid="sample-online"] .event-title a').count() == 0
         assert page.locator('article[data-uid="sample-online"] .stream a').count() == 1
         links = page.eval_on_selector_all(
@@ -707,7 +716,12 @@ class TestPanels:
                     "consecutive_failures": -1,
                     "error": "",
                 },
-                {"id": "custom-off", "name": "Switched off", "state": "disabled"},
+                {
+                    "id": "custom-off",
+                    "name": "Switched off",
+                    "url": "file://example.org/etc/passwd",
+                    "state": "disabled",
+                },
             ],
         }
         current = session()
@@ -727,6 +741,9 @@ class TestPanels:
         assert ids == ["custom-odd", "custom-off"]
         odd = page.locator('article[data-source="custom-odd"]')
         assert odd.locator(".source-name a").count() == 0
+        off = page.locator('article[data-source="custom-off"]')
+        assert off.locator(".source-name a").count() == 0
+        assert off.locator(".source-name").text_content() == "Switched off"
         assert odd.locator(".badge-state").text_content() == english["site.status.states.unknown"]
         assert odd.locator("dt").all_text_contents() == [
             english["site.status.columns.events"],
