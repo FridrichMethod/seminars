@@ -37,7 +37,10 @@ model behaving:
   as numbers: a plausibility check, not proof. A talk is only taken as
   cancelled when the text says that something is cancelled or postponed.
 * Link markers are written after the page text is collected, and every
-  ``[[`` of the page is broken up first, so a page cannot fake a marker.
+  ``[[`` of the page is broken up first (also one written with fullwidth
+  or vertical brackets or with invisible characters in between), so a
+  page cannot spell a marker. A number in an answer can only ever name a
+  real link of the page.
 * Requests never go to a provider that is limited to closed vocabularies
   (``seminars.config.TAG_ONLY_PROVIDERS``): when the client is the provider
   chain, the extractor works on ``client.restricted(...)``.
@@ -53,6 +56,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+import unicodedata
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -200,6 +204,8 @@ _LINK_SLOT: Final = "\x00"
 
 _SLOT: Final = re.compile("\x00([0-9]+)\x00")
 _DOUBLE_BRACKET: Final = re.compile(r"\[(?=\[)")
+_BRACKET_FORMS: Final = str.maketrans({0xFF3B: "[", 0xFE47: "[", 0xFF3D: "]", 0xFE48: "]"})
+"""Fullwidth and vertical brackets: they read as ``[`` and ``]``, so they are written as such."""
 _HTML_TYPES: Final = frozenset({"text/html", "application/xhtml+xml"})
 _HTML_START: Final = re.compile(r"\s*(<!doctype html|<html|<head|<body)", re.IGNORECASE)
 _YEARS: Final = range(2000, 2101)
@@ -286,16 +292,27 @@ def _tidy_lines(parts: Sequence[str]) -> str:
     return "\n".join(line for line in lines if line)
 
 
+def _without_format_characters(text: str) -> str:
+    """``text`` without invisible format characters (Unicode category Cf, such as U+200B)."""
+    if text.isascii():
+        return text
+    return "".join(char for char in text if unicodedata.category(char) != "Cf")
+
+
 def _with_link_markers(text: str) -> str:
     """``text`` with every link slot written as its marker ``[[n]]``.
 
     The walk leaves a slot (the number between two ``_LINK_SLOT``
     characters, which it removes from the text of the page) and the markers
     are written only now, after every ``[[`` of the page text has been
-    broken up. So a page cannot spell a marker, not even by spreading the
-    brackets over several elements.
+    broken up. Before that, invisible format characters are dropped and
+    fullwidth or vertical brackets become ``[`` and ``]``, so that what
+    looks like ``[[`` is broken up as well. A page cannot spell a marker,
+    not even by spreading the brackets over several elements; and a number
+    in an answer can only ever name a real link of the page.
     """
-    broken = _DOUBLE_BRACKET.sub("[ ", text)
+    plain = _without_format_characters(text).translate(_BRACKET_FORMS)
+    broken = _DOUBLE_BRACKET.sub("[ ", plain)
     return _SLOT.sub(lambda match: f" [[{match.group(1)}]]", broken)
 
 

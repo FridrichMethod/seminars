@@ -96,6 +96,18 @@ class TestPageText:
         assert page.text.count("[[") == 1
         assert page.text.endswith("real [[1]]")
 
+    def test_a_page_cannot_fake_a_marker_with_lookalike_or_invisible_characters(self) -> None:
+        document = html_document(
+            "<p>Talk [\u200b[2]] and \uff3b\uff3b3\uff3d\uff3d"
+            " and \ufe47\ufe474\ufe48\ufe48 and [\u2060[5]]"
+            " <a href='/real'>real</a></p>"
+        )
+        page = page_text(document)
+        assert re.findall(r"\[\[(\d+)\]\]", page.text) == ["1"]
+        assert page.text.count("[[") == 1
+        assert "[ [3]]" in page.text
+        assert page.text.endswith("real [[1]]")
+
     def test_the_null_character_of_a_page_is_dropped(self) -> None:
         document = html_document("<p>a\x001\x00b <a href='/x'>x</a></p>")
         page = page_text(document)
