@@ -75,7 +75,7 @@ class RobotsDisallowedError(HttpError):
 
 
 class RobotsUnavailableError(HttpError):
-    """robots.txt could not be fetched, so the host is treated as off limits."""
+    """robots.txt could not be fetched, so its origin is off limits for the rest of the run."""
 
 
 class CrawlDelayTooLongError(HttpError):

@@ -15,16 +15,20 @@ Rules of the live client:
 * only ``http`` and ``https`` URLs of public hosts (no localhost, no private
   addresses); a fixed User-Agent from the settings;
 * robots.txt is fetched once per origin and honoured for ``Disallow`` and
-  ``Crawl-delay``; an unreachable robots.txt (network error, 5xx, 429)
-  blocks the host, a missing one (other 4xx) allows everything (RFC 9309);
+  ``Crawl-delay``; a missing one (4xx other than 429) allows everything
+  (RFC 9309). An unreachable one (network error, 5xx, 429, or not a text
+  file) blocks the origin for the rest of the run: the failure is
+  remembered, so every later request to that origin raises
+  ``RobotsUnavailableError`` at once, without contacting the host again;
 * the pause between two requests to one host is
   ``max(min_interval_seconds, Crawl-delay)``, measured from the end of the
   previous request, and it also holds across processes through the cache;
 * requests to one host are strictly serial, different hosts may be used
   concurrently from several threads;
 * every host has a request budget per client (``max_requests_per_host``,
-  retries included, robots.txt excluded); exceeding it raises
-  ``HostBudgetExceededError``;
+  retries included); exceeding it raises ``HostBudgetExceededError``.
+  robots.txt does not count: it costs at most ``retries + 1`` requests per
+  origin and run, whether it can be fetched or not;
 * network errors and 408/425/429/5xx answers are retried with exponential
   backoff (``Retry-After`` is respected);
 * redirects are followed hop by hop so that each hop obeys the rules of its
@@ -142,7 +146,8 @@ class _HostState:
 
     record: HostRecord
     lock: threading.Lock = field(default_factory=threading.Lock)
-    policies: dict[str, RobotsPolicy] = field(default_factory=dict)
+    policies: dict[str, RobotsPolicy] = field(default_factory=dict)  # by origin
+    robots_failures: dict[str, str] = field(default_factory=dict)  # origin -> why it is blocked
     blocked_until: float = 0.0  # end of the current retry backoff
     requests: int = 0  # budgeted requests issued by this client
 
@@ -280,6 +285,9 @@ class PoliteClient:
     def _policy(self, state: _HostState, host: str, origin: str) -> RobotsPolicy:
         policy = state.policies.get(origin)
         if policy is None:
+            failure = state.robots_failures.get(origin)
+            if failure is not None:
+                raise RobotsUnavailableError(origin + ROBOTS_PATH, failure)
             robots = state.record.robots.get(origin)
             age = None if robots is None else self._clock() - robots.fetched_at
             if robots is None or age is None or not 0 <= age <= self._settings.robots_cache_seconds:
@@ -304,19 +312,28 @@ class PoliteClient:
                 follow_redirects=True,
             )
         except HttpRequestError as error:
-            raise RobotsUnavailableError(url, "robots.txt is unreachable; host skipped") from error
+            reason = "robots.txt is unreachable; host skipped"
+            raise self._block_origin(state, origin, reason) from error
+        except UnsupportedContentTypeError as error:
+            reason = "robots.txt is not a text file; host skipped"
+            raise self._block_origin(state, origin, reason) from error
         if 200 <= exchange.status < 300:
             text: str | None = exchange.text
         elif 400 <= exchange.status < 500 and exchange.status != 429:
             text = None
         else:
-            raise RobotsUnavailableError(
-                url, f"robots.txt answered HTTP {exchange.status}; host skipped"
-            )
+            reason = f"robots.txt answered HTTP {exchange.status}; host skipped"
+            raise self._block_origin(state, origin, reason)
         robots = CachedRobots(fetched_at=self._clock(), text=text)
         state.record = state.record.evolve(robots={**state.record.robots, origin: robots})
         self._cache.store_host(host, state.record)
         return robots
+
+    @staticmethod
+    def _block_origin(state: _HostState, origin: str, reason: str) -> RobotsUnavailableError:
+        """Remember that ``origin`` is off limits for this run; return the error to raise."""
+        state.robots_failures[origin] = reason
+        return RobotsUnavailableError(origin + ROBOTS_PATH, reason)
 
     def _interval(self, url: str, policy: RobotsPolicy) -> float:
         delay = policy.crawl_delay or 0.0

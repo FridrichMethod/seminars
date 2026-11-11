@@ -264,6 +264,77 @@ class TestRobots:
             client.get(PAGE)
         assert page.call_count == 0
 
+    @pytest.mark.parametrize(
+        "failure",
+        [httpx.Response(503), httpx.Response(429), httpx.ConnectError("boom")],
+        ids=["503", "429", "network"],
+    )
+    def test_unreachable_robots_is_remembered_for_the_run(
+        self,
+        client: PoliteClient,
+        respx_router: respx.MockRouter,
+        fake_clock: FakeClock,
+        failure: httpx.Response | Exception,
+    ) -> None:
+        robots = respx_router.get(ROBOTS)
+        if isinstance(failure, Exception):
+            robots.mock(side_effect=failure)
+        else:
+            robots.mock(return_value=failure)
+        page = respx_router.get(url__startswith=PAGE).respond(200, text="ok")
+        messages = []
+        for number in range(5):
+            with pytest.raises(RobotsUnavailableError) as caught:
+                client.get(f"{PAGE}?page={number}")
+            messages.append(str(caught.value))
+        assert robots.call_count == 4
+        assert page.call_count == 0
+        assert len(set(messages)) == 1
+        assert messages[0].endswith(ROBOTS)
+        assert fake_clock.sleeps == [1.0, 2.0, 4.0]
+        assert client.request_counts() == {"dept.example.edu": 0}
+
+    def test_robots_failure_is_not_carried_over_to_the_next_run(
+        self, http_settings: HttpSettings, respx_router: respx.MockRouter, fake_clock: FakeClock
+    ) -> None:
+        robots = respx_router.get(ROBOTS).mock(
+            side_effect=[httpx.Response(503)] * 4 + [httpx.Response(404)]
+        )
+        respx_router.get(PAGE).respond(200, text="ok")
+        first = PoliteClient(http_settings, clock=fake_clock, sleep=fake_clock.sleep)
+        with pytest.raises(RobotsUnavailableError):
+            first.get(PAGE)
+        second = PoliteClient(http_settings, clock=fake_clock, sleep=fake_clock.sleep)
+        assert second.get(PAGE).status == 200
+        assert robots.call_count == 5
+
+    def test_robots_failure_is_per_origin(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        plain = "http://dept.example.edu"
+        broken = respx_router.get(ROBOTS).respond(503)
+        respx_router.get(f"{plain}/robots.txt").respond(404)
+        respx_router.get(f"{plain}/events").respond(200, text="ok")
+        with pytest.raises(RobotsUnavailableError):
+            client.get(PAGE)
+        assert client.get(f"{plain}/events").status == 200
+        with pytest.raises(RobotsUnavailableError):
+            client.get(PAGE)
+        assert broken.call_count == 4
+
+    def test_binary_robots_blocks_the_host_and_is_remembered(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        robots = respx_router.get(ROBOTS).respond(
+            200, content=b"\x00\x01", headers={"Content-Type": "application/octet-stream"}
+        )
+        page = respx_router.get(PAGE).respond(200, text="ok")
+        for _ in range(3):
+            with pytest.raises(RobotsUnavailableError, match="not a text file"):
+                client.get(PAGE)
+        assert robots.call_count == 1
+        assert page.call_count == 0
+
 
 class TestRateLimit:
     def test_crawl_delay_is_honoured(
