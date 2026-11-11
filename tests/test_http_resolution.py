@@ -307,7 +307,7 @@ class TestResolvedAddresses:
             "xn--bcher-kva.example",
         ]
 
-    def test_a_url_the_transport_cannot_parse_is_rejected_before_any_lookup(
+    def test_a_string_that_is_not_a_url_is_rejected_before_any_lookup(
         self, client: PoliteClient, resolver: StubResolver, respx_router: respx.MockRouter
     ) -> None:
         with pytest.raises(UnsupportedSchemeError, match="invalid URL"):
@@ -317,8 +317,8 @@ class TestResolvedAddresses:
         respx_router.get(ROBOTS).respond(404)
         with pytest.raises(UnsupportedSchemeError, match="invalid URL"):
             client.get(f"{HOST}/a\x00b")
-        assert resolver.calls == [NAME]
-        assert respx_router.calls.call_count == 1
+        assert resolver.calls == []
+        assert respx_router.calls.call_count == 0
 
 
 class TestNamesWithoutAnAddress:

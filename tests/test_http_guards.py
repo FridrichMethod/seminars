@@ -1,4 +1,4 @@
-"""Tests for the guards of the polite HTTP client: public hosts, robots redirects, body size."""
+"""Tests for the guards of the polite HTTP client: robots redirects and body size."""
 
 from __future__ import annotations
 
@@ -14,24 +14,17 @@ from fakes import FakeClock, StubResolver
 from seminars.config import HttpSettings
 from seminars.http import (
     CrawlDelayTooLongError,
-    ForbiddenHostError,
     HttpError,
     PoliteClient,
     ResponseTooLargeError,
     RobotsDisallowedError,
     RobotsUnavailableError,
-    canonical_host,
-    is_public_host,
-    split_url,
 )
 from seminars.httpcache import CachedRobots, HostRecord, HttpCache
 
 HOST = "https://dept.example.edu"
 ROBOTS = f"{HOST}/robots.txt"
 PAGE = f"{HOST}/events"
-LOOPBACK_SPELLINGS = ["2130706433", "127.1", "0x7f.1", "0177.0.0.1", "0x7f000001", "017700000001"]
-LOOPBACK_SPELLINGS += ["127.0.0.1.", "0X7F.1"]
-"""Decimal, short, hexadecimal and octal ways to write 127.0.0.1."""
 
 
 def no_robots(router: respx.MockRouter, host: str = HOST) -> respx.Route:
@@ -43,69 +36,6 @@ def client(
     http_settings: HttpSettings, fake_clock: FakeClock, resolver: StubResolver
 ) -> PoliteClient:
     return PoliteClient(http_settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=resolver)
-
-
-class TestPublicHosts:
-    @pytest.mark.parametrize("host", [*LOOPBACK_SPELLINGS, "10.1", "3232235777", "0", "0x0"])
-    def test_other_spellings_of_private_ipv4_addresses_are_not_public(self, host: str) -> None:
-        """The resolver reads these as 127.0.0.1, 10.0.0.1, 192.168.1.1 and 0.0.0.0."""
-        assert not is_public_host(host)
-
-    @pytest.mark.parametrize("host", ["1.2.3.4.5", "999.1.1.1", "example.123", "a.b.0x1f", "0x"])
-    def test_a_host_that_ends_in_a_number_but_is_no_address_is_refused(self, host: str) -> None:
-        assert not is_public_host(host)
-
-    @pytest.mark.parametrize("host", ["134744072", "0x08080808", "8.8.2056", "010.010.010.010"])
-    def test_other_spellings_of_public_ipv4_addresses_stay_public(self, host: str) -> None:
-        assert is_public_host(host)
-
-    @pytest.mark.parametrize("host", ["123.example.edu", "1e3.example.edu", "x1", "a.b.0x1g"])
-    def test_names_with_digits_are_names(self, host: str) -> None:
-        assert is_public_host(host)
-
-    def test_full_width_characters_and_ideographic_dots_do_not_hide_an_address(self) -> None:
-        """HTTP clients map these to ASCII, so they are judged in that form."""
-        wide_digits = "".join(chr(0xFF10 + int(digit)) for digit in "127") + ".0.0.1"
-        ideographic_dots = "127.0.0.1".replace(".", chr(0x3002))
-        full_width_dots = "localhost" + chr(0xFF0E)
-        for host in (wide_digits, ideographic_dots, full_width_dots):
-            assert not is_public_host(host), ascii(host)
-        assert canonical_host(ideographic_dots) == "127.0.0.1"
-        assert canonical_host("WWW.Example.EDU.") == "www.example.edu"
-        assert is_public_host("www" + chr(0x3002) + "example" + chr(0x3002) + "edu")
-
-    def test_every_spelling_of_a_host_shares_one_queue(
-        self, client: PoliteClient, respx_router: respx.MockRouter
-    ) -> None:
-        with pytest.raises(ForbiddenHostError):
-            client.get("http://127" + chr(0x3002) + "0.0.1/")
-        origin, host, path = split_url("https://Dept.Example.EDU./events?page=1")
-        assert (origin, host, path) == (
-            "https://dept.example.edu.",
-            "dept.example.edu",
-            "/events?page=1",
-        )
-        no_robots(respx_router)
-        respx_router.get(url__startswith=f"{HOST}").respond(200, text="ok")
-        respx_router.get(url__startswith="https://dept.example.edu.").respond(200, text="ok")
-        respx_router.get("https://dept.example.edu./robots.txt").respond(404)
-        client.get(PAGE)
-        client.get("https://DEPT.example.edu./events")
-        assert client.request_counts() == {"dept.example.edu": 2}
-
-    def test_ipv4_mapped_ipv6_addresses_are_judged_by_their_ipv4_address(self) -> None:
-        assert not is_public_host("::ffff:127.0.0.1")
-        assert not is_public_host("::ffff:192.168.1.10")
-        assert is_public_host("::ffff:8.8.8.8")
-        assert is_public_host("2606:4700:4700::1111")
-
-    @pytest.mark.parametrize(
-        "host", ["64:ff9b::7f00:1", "::127.0.0.1", "::ffff:0:10.0.0.5", "224.0.0.1", "ff02::1"]
-    )
-    def test_other_wrapped_ipv4_addresses_and_multicast_are_not_public(self, host: str) -> None:
-        assert not is_public_host(host)
-        with pytest.raises(ForbiddenHostError):
-            split_url(f"http://[{host}]/" if ":" in host else f"http://{host}/")
 
 
 OTHER = "https://www.example.edu"

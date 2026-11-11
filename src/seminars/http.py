@@ -159,7 +159,13 @@ from seminars.httpbase import (
 )
 from seminars.httpcache import CachedPage, CachedRobots, HostRecord, HttpCache
 from seminars.httptext import decode_body
-from seminars.httpurl import canonical_host, is_public_address, is_public_host, split_url
+from seminars.httpurl import (
+    canonical_host,
+    is_public_address,
+    is_public_host,
+    parse_url,
+    split_url,
+)
 from seminars.models import FetchedDocument
 from seminars.robots import ALLOW_ALL, ROBOTS_PATH, RobotsPolicy, parse_robots
 from seminars.textrules import ascii_safe
@@ -350,17 +356,20 @@ class PoliteClient:
     # --- one hop ---------------------------------------------------------------------------
 
     def _fetch_hop(self, url: str, extra_headers: Mapping[str, str] | None) -> _Hop:
-        origin, host, path = split_url(url)
-        state = self._state(host)
-        policy = self._policy(state, host, origin)
-        if not policy.allows(path):
+        """One request of a ``get``: ``url`` as written, sent and cached in its canonical form."""
+        target = parse_url(url)
+        state = self._state(target.host)
+        policy = self._policy(state, target.host, target.origin)
+        if not policy.allows(target.path):
             raise RobotsDisallowedError(url, "disallowed by robots.txt")
         interval = self._interval(url, policy)
-        with self._turn(state, host):
-            cached = self._cache.page(url)
+        with self._turn(state, target.host):
+            cached = self._cache.page(target.url)
             request_headers = self._request_headers(extra_headers, cached)
-            exchange = self._send(state, host, url, request_headers, interval=interval)
-            return self._to_hop(url, exchange, cached)
+            exchange = self._send(
+                state, target.host, target.url, request_headers, interval=interval
+            )
+            return self._to_hop(target.url, exchange, cached)
 
     @contextlib.contextmanager
     def _turn(self, state: _HostState, host: str) -> Iterator[None]:
@@ -459,12 +468,12 @@ class PoliteClient:
             if target is None:
                 with self._turn(state, host):
                     return self._store_robots(state, host, origin, exchange)
-            url = target
             try:
-                _, hop_host, _ = split_url(url)
+                hop_target = parse_url(target)
             except HttpError as error:
                 reason = "robots.txt redirects to an address that must not be fetched; host skipped"
                 raise self._block_origin(state, origin, reason) from error
+            url, hop_host = hop_target.url, hop_target.host
             hop_state = self._state(hop_host)
         limit = self._settings.max_redirects
         reason = f"robots.txt redirects more than {limit} times; host skipped"
