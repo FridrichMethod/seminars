@@ -1,0 +1,16 @@
+# Run manually with: pre-commit run --all-files
+# The ruff revision is kept equal to the ruff version locked in uv.lock.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
+  - repo: local
+    hooks:
+      - id: check-ascii
+        name: check_ascii (charset rules)
+        entry: python3 scripts/check_ascii.py
+        language: system
+        pass_filenames: false
+        always_run: true

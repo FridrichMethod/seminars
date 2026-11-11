@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+"""Charset gate for this repository.
+
+Scans every git-tracked file and enforces the charset rules of the project:
+
+* every text file is UTF-8 without BOM, uses LF line endings and ends with a
+  newline;
+* outside the allow-list a file may only contain printable ASCII (0x20-0x7E)
+  and newlines (tabs are tolerated in Makefiles only);
+* the allow-list is ``*.zh-CN.md``, ``locales/zh-CN.json``, ``data/**`` and
+  ``tests/fixtures/**``;
+* emoji and other decorative code points stay forbidden in the two zh-CN
+  entries of the allow-list; ``data/**`` and ``tests/fixtures/**`` hold real
+  scraped content and may contain anything that is valid UTF-8.
+
+Binary files (detected by a NUL byte) are skipped. Violations are printed as
+``path:line:col U+XXXX NAME`` and the exit status is non-zero.
+
+The script uses the standard library only and runs under any Python 3.
+Usage: ``python3 scripts/check_ascii.py [--root DIR]``
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import subprocess
+import sys
+import unicodedata
+
+MODE_STRICT = "strict"
+MODE_ZH = "zh"
+MODE_FREE = "free"
+
+FREE_PREFIXES = ("data/", "tests/fixtures/")
+ZH_PATHS = ("locales/zh-CN.json",)
+ZH_SUFFIX = ".zh-CN.md"
+TAB_BASENAMES = ("Makefile", "makefile", "GNUmakefile")
+TAB_SUFFIXES = (".mk",)
+
+BOM = b"\xef\xbb\xbf"
+BINARY_SNIFF_BYTES = 8000
+MAX_REPORTS_PER_FILE = 20
+
+# Inclusive code point ranges treated as emoji.
+EMOJI_RANGES: tuple[tuple[int, int], ...] = (
+    (0x1F000, 0x1FAFF),  # Mahjong tiles .. Symbols and Pictographs Extended-A
+    (0x2600, 0x27BF),  # Miscellaneous Symbols and Dingbats
+    (0x231A, 0x231B),
+    (0x2328, 0x2328),
+    (0x23CF, 0x23CF),
+    (0x23E9, 0x23F3),
+    (0x23F8, 0x23FA),
+    (0x25AA, 0x25AB),
+    (0x25B6, 0x25B6),
+    (0x25C0, 0x25C0),
+    (0x25FB, 0x25FE),
+    (0x2934, 0x2935),
+    (0x2B05, 0x2B07),
+    (0x2B1B, 0x2B1C),
+    (0x2B50, 0x2B50),
+    (0x2B55, 0x2B55),
+    (0x3030, 0x3030),
+    (0x303D, 0x303D),
+    (0x3297, 0x3297),
+    (0x3299, 0x3299),
+    (0x20E3, 0x20E3),  # combining enclosing keycap
+    (0xFE0F, 0xFE0F),  # emoji variation selector
+    (0xE0020, 0xE007F),  # tag characters
+)
+
+# Inclusive ranges that are not emoji but are still decorative or invisible.
+DECORATIVE_RANGES: tuple[tuple[int, int], ...] = (
+    (0x00A0, 0x00A0),  # no-break space
+    (0x00AD, 0x00AD),  # soft hyphen
+    (0x2007, 0x2007),  # figure space
+    (0x200B, 0x200F),  # zero width characters and direction marks
+    (0x202A, 0x202F),  # bidi embedding controls, narrow no-break space
+    (0x2060, 0x2064),  # word joiner and invisible operators
+    (0x2066, 0x2069),  # bidi isolates
+    (0xFB00, 0xFB06),  # Latin ligatures
+    (0xFEFF, 0xFEFF),  # zero width no-break space
+)
+
+
+def _in_ranges(code_point: int, ranges: tuple[tuple[int, int], ...]) -> bool:
+    return any(low <= code_point <= high for low, high in ranges)
+
+
+def is_emoji(char: str) -> bool:
+    """Return True when ``char`` is an emoji or an emoji modifier."""
+    return _in_ranges(ord(char), EMOJI_RANGES)
+
+
+def is_decorative(char: str) -> bool:
+    """Return True for ligatures, invisible characters and no-break spaces."""
+    return _in_ranges(ord(char), DECORATIVE_RANGES)
+
+
+def classify(path: str) -> str:
+    """Map a repository-relative POSIX path to its charset mode."""
+    if path.startswith(FREE_PREFIXES):
+        return MODE_FREE
+    if path in ZH_PATHS or path.endswith(ZH_SUFFIX):
+        return MODE_ZH
+    return MODE_STRICT
+
+
+def allows_tab(path: str) -> bool:
+    """Tabs are only acceptable where the file format requires them."""
+    name = os.path.basename(path)
+    return name in TAB_BASENAMES or name.endswith(TAB_SUFFIXES)
+
+
+def is_binary(data: bytes) -> bool:
+    """Use the same heuristic as git: a NUL byte near the start means binary."""
+    return b"\0" in data[:BINARY_SNIFF_BYTES]
+
+
+def _is_bad_char(char: str, mode: str, tab_ok: bool) -> bool:
+    if char == "\n":
+        return False
+    if mode == MODE_STRICT:
+        if char == "\t":
+            return not tab_ok
+        return not 0x20 <= ord(char) <= 0x7E
+    if is_emoji(char) or is_decorative(char):
+        return True
+    return unicodedata.category(char) == "Cc"
+
+
+def _describe(char: str) -> str:
+    name = unicodedata.name(char, "")
+    label = f"U+{ord(char):04X}"
+    return f"{label} {name}" if name else label
+
+
+def _scan_chars(path: str, text: str, mode: str) -> list[str]:
+    messages: list[str] = []
+    tab_ok = allows_tab(path)
+    for line_number, line in enumerate(text.split("\n"), start=1):
+        if line.endswith("\r"):
+            line = line[:-1]  # reported once as a CRLF line ending
+        for column, char in enumerate(line, start=1):
+            if _is_bad_char(char, mode, tab_ok):
+                messages.append(f"{path}:{line_number}:{column} {_describe(char)}")
+    return messages
+
+
+def check_bytes(path: str, data: bytes) -> list[str]:
+    """Return the list of violation messages for one file."""
+    if not data or is_binary(data):
+        return []
+    messages: list[str] = []
+    if data.startswith(BOM):
+        messages.append(f"{path}:1:1 U+FEFF byte order mark at start of file")
+        data = data[len(BOM) :]
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        messages.append(f"{path}: not valid UTF-8 (byte offset {error.start})")
+        return messages
+    crlf_lines = [n for n, line in enumerate(text.split("\n"), start=1) if line.endswith("\r")]
+    if crlf_lines:
+        count = len(crlf_lines)
+        messages.append(f"{path}:{crlf_lines[0]}: CRLF line ending ({count} line(s) in total)")
+    if not text.endswith("\n"):
+        messages.append(f"{path}: missing final newline")
+    mode = classify(path)
+    if mode != MODE_FREE:
+        messages.extend(_scan_chars(path, text, mode))
+    return messages
+
+
+def tracked_files(root: str) -> list[str]:
+    """List git-tracked files below ``root`` as POSIX paths."""
+    output = subprocess.check_output(["git", "ls-files", "-z"], cwd=root)
+    names = [name for name in output.decode("utf-8", "surrogateescape").split("\0") if name]
+    return sorted(names)
+
+
+def check_tree(root: str) -> tuple[int, list[tuple[str, list[str]]]]:
+    """Check every tracked file. Returns (number of files checked, messages per file)."""
+    checked = 0
+    failures: list[tuple[str, list[str]]] = []
+    for name in tracked_files(root):
+        full_path = os.path.join(root, name)
+        if os.path.islink(full_path) or not os.path.isfile(full_path):
+            continue
+        with open(full_path, "rb") as handle:
+            data = handle.read()
+        checked += 1
+        messages = check_bytes(name, data)
+        if messages:
+            failures.append((name, messages))
+    return checked, failures
+
+
+def _print_failures(failures: list[tuple[str, list[str]]]) -> int:
+    total = 0
+    for _name, messages in failures:
+        total += len(messages)
+        for message in messages[:MAX_REPORTS_PER_FILE]:
+            print(message)
+        hidden = len(messages) - MAX_REPORTS_PER_FILE
+        if hidden > 0:
+            print(f"    ... and {hidden} more in this file")
+    return total
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Check the charset rules of the repository.")
+    parser.add_argument("--root", default=".", help="directory inside the git work tree")
+    args = parser.parse_args(argv)
+    try:
+        toplevel = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=args.root)
+        checked, failures = check_tree(toplevel.decode("utf-8").strip())
+    except (OSError, subprocess.CalledProcessError) as error:
+        print(f"check_ascii: cannot list git-tracked files: {error}", file=sys.stderr)
+        return 2
+    if failures:
+        total = _print_failures(failures)
+        files = len(failures)
+        print(f"check_ascii: {total} violation(s) in {files} of {checked} file(s)", file=sys.stderr)
+        return 1
+    print(f"check_ascii: OK ({checked} files)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
