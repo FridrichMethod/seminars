@@ -49,8 +49,9 @@ _DEFAULT_FORBIDDEN: Final = parse_networks(DEFAULT_FORBIDDEN_NETWORKS)
 _DEFAULT_PORTS: Final = {"http": 80, "https": 443}
 _INTERNAL_SUFFIXES: Final = (".localhost", ".local", ".internal", ".lan", ".home.arpa")
 _IPV4_PART: Final = re.compile(r"0x[0-9a-f]*|[0-9]+")  # a number the way inet_aton reads it
-_LABEL: Final = re.compile(r"[a-z0-9_-]{1,63}")
+_MAX_LABEL_LENGTH: Final = 63
 _MAX_NAME_LENGTH: Final = 253
+_LABEL: Final = re.compile(r"[a-z0-9_-]{1,63}")
 _UNICODE_NAME: Final = re.compile("[a-z0-9._\\-\u0080-\U0010ffff]+")
 _CONTROL_CHARACTER: Final = re.compile(r"[\x00-\x1f\x7f]")
 _ENCODED_DOT: Final = re.compile("%2e", re.IGNORECASE)
@@ -165,7 +166,16 @@ def _a_labels(name: str) -> str:
 
 
 def _dns_name(name: str) -> str:
-    """``name`` as a DNS name in ASCII; ``ValueError`` when it is not one."""
+    """``name`` as a DNS name in ASCII; ``ValueError`` when it is not one.
+
+    The lengths are checked before the name is encoded and again after it:
+    an A-label is never shorter than the label it stands for, and the
+    encoder is not meant for text of arbitrary length.
+    """
+    if len(name) > _MAX_NAME_LENGTH or any(
+        len(label) > _MAX_LABEL_LENGTH for label in name.split(".")
+    ):
+        raise ValueError(f"{name[:80]!r} is too long for a host name")
     ascii_name = name if name.isascii() else _a_labels(name)
     labels = ascii_name.split(".")
     if len(ascii_name) > _MAX_NAME_LENGTH or not all(_LABEL.fullmatch(label) for label in labels):

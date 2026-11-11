@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import itertools
+import time
+from urllib.parse import unquote
+
 import httpx
 import pytest
 import respx
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from fakes import FakeClock, StubResolver
 from seminars.config import HttpSettings
@@ -138,6 +144,109 @@ class TestCanonicalHost:
     def test_every_spelling_has_one_canonical_form(self, host: str, canonical: str) -> None:
         assert canonical_host(host) == canonical
         assert canonical_host(canonical) == canonical
+
+
+class TestHostileHosts:
+    def test_a_very_long_host_is_refused_without_being_encoded(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The IDNA encoder is not meant for text of arbitrary length."""
+        encoded: list[str] = []
+
+        def recording(url: str) -> httpx.URL:
+            encoded.append(url)
+            return real_url(url)
+
+        real_url = httpx.URL
+        monkeypatch.setattr(httpx, "URL", recording)
+        marks = chr(0x301) + chr(0x316)
+        hosts = ["a" + marks * 4000 + ".edu", U_UMLAUT * 64 + ".edu", (U_UMLAUT * 60 + ".") * 5]
+        started = time.perf_counter()
+        for host in hosts:
+            with pytest.raises(ValueError, match="is not a host name or an IP address"):
+                canonical_host(host)
+            with pytest.raises(UnsupportedSchemeError):
+                parse_url(f"https://{host[:8000]}/x")
+        assert time.perf_counter() - started < 1.0
+        assert encoded == []
+        assert canonical_host(U_UMLAUT * 20 + ".edu").startswith("xn--")
+        assert len(encoded) == 1
+
+
+def sent_host(url: str) -> str:
+    """The host a request for ``url`` goes to, as the HTTP library works it out."""
+    return httpx.URL(url).raw_host.decode("ascii")
+
+
+SEPARATORS = ["@", "\\", "#", "?", "/", ":", "[", "]", "%", " ", "\t", ";", "&", "%40", "%2f"]
+SEPARATORS += [
+    "%5c",
+    "%23",
+    "..",
+    "\x0b",
+    "\x7f",
+    chr(0xFF20),
+    chr(0xFF0F),
+    chr(0xFF1A),
+    chr(0x2044),
+]
+SEPARATORS += [chr(0xFE55), chr(0xFF03), ".", "-", "_", chr(0x3002), chr(0xAD), "xn--"]
+FUZZ_HOSTS = [
+    "a.example",
+    "b.example",
+    "1.1.1.1",
+    "8.8.8.8",
+    "0x8.8.8.8",
+    f"b{U_UMLAUT}cher.example",
+]
+URL_PIECES = st.sampled_from([*SEPARATORS, *FUZZ_HOSTS, "http://", "https://", "//", "443", "x"])
+
+
+class TestWhatIsCheckedIsWhatIsSent:
+    """Two URL parsers that disagree on the host are how a check gets bypassed.
+
+    The client never sends a URL as it was written. It sends the canonical
+    URL, and for that URL the HTTP library must find exactly the host,
+    port and path that were checked.
+    """
+
+    @staticmethod
+    def check(url: str) -> bool:
+        try:
+            parts = parse_url(url)
+        except HttpError:
+            return False
+        sent = httpx.URL(parts.url)
+        assert sent.raw_host.decode("ascii") == parts.host, ascii(url)
+        assert sent.userinfo == b"", ascii(url)
+        assert sent.scheme in ("http", "https")
+        origin = f"{sent.scheme}://{sent.netloc.decode('ascii')}"
+        assert origin == parts.origin, ascii(url)
+        assert unquote(sent.raw_path.decode("ascii")) == unquote(parts.path), ascii(url)
+        assert is_public_host(parts.host)
+        assert parse_url(parts.url) == parts
+        return True
+
+    def test_for_hosts_glued_together_in_every_way(self) -> None:
+        accepted = 0
+        for scheme in ("http://", "HTTPS://", "http:/", "http:", "http:\\\\", " http://"):
+            for first, second in itertools.permutations(FUZZ_HOSTS[:4], 2):
+                for one in SEPARATORS:
+                    accepted += self.check(f"{scheme}{first}{one}{second}/p")
+                    for other in SEPARATORS:
+                        accepted += self.check(f"{scheme}{first}{one}{other}{second}/p")
+        assert accepted > 1000
+
+    @settings(max_examples=500, deadline=None)
+    @given(st.lists(URL_PIECES, min_size=1, max_size=9).map("".join))
+    def test_for_urls_made_of_arbitrary_pieces(self, url: str) -> None:
+        self.check(url)
+
+    @settings(max_examples=300, deadline=None)
+    @given(st.text(max_size=30))
+    def test_for_arbitrary_text_after_a_scheme(self, tail: str) -> None:
+        self.check("https://" + tail)
+        self.check("http://example.edu" + tail)
 
 
 class TestParseUrl:
