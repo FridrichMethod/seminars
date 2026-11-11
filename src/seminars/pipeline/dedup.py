@@ -221,6 +221,63 @@ def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidat
     return Candidate(event=merged, hints=EventHints.model_validate(hints))
 
 
+def adopt_stored_uids(
+    candidates: Sequence[Candidate],
+    stored: Sequence[Event],
+    *,
+    settings: DedupSettings,
+    listing_urls: Collection[str] = (),
+) -> list[Candidate]:
+    """Let a new candidate take over the uid of a stored event that is the same talk.
+
+    A source sometimes changes the key of an event: a page gets a new
+    address, a talk gains a speaker. The event then arrives under a uid
+    that was never seen, while its stored self is no longer delivered, and
+    a subscriber would see the talk twice until the old entry expires.
+
+    A candidate whose uid is not stored therefore takes the uid of a stored
+    event that no candidate of this run claims, when the two are the same
+    talk by the rules of de-duplication (start within the limit and a
+    similar title, a shared speaker or the same detail page). Of several
+    such events the one seen first is taken, and each is taken once. The
+    candidates come back in their order; the choice does not depend on it.
+    """
+    claimed = {candidate.event.uid for candidate in candidates}
+    known = {event.uid for event in stored}
+    orphans = sorted(
+        (event for event in stored if event.uid not in claimed),
+        key=lambda event: (event.first_seen, event.uid),
+    )
+    profiles = [(event, _profile(Candidate(event=event), listing_urls)) for event in orphans]
+    limit = timedelta(minutes=settings.max_start_difference_minutes)
+    adopted: dict[int, str] = {}
+    taken: set[str] = set()
+    order = sorted(
+        range(len(candidates)), key=lambda position: event_to_line(candidates[position].event)
+    )
+    for position in order:
+        candidate = candidates[position]
+        if candidate.event.uid in known or not profiles:
+            continue
+        profile = _profile(candidate, listing_urls)
+        for event, other in profiles:
+            close = abs(other.start - profile.start) <= limit
+            if (
+                event.uid not in taken
+                and close
+                and _similar(other, profile, settings.title_similarity)
+            ):
+                adopted[position] = event.uid
+                taken.add(event.uid)
+                break
+    return [
+        candidate.evolve(event=candidate.event.evolve(uid=adopted[position]))
+        if position in adopted
+        else candidate
+        for position, candidate in enumerate(candidates)
+    ]
+
+
 def dedupe(
     candidates: Sequence[Candidate],
     *,
