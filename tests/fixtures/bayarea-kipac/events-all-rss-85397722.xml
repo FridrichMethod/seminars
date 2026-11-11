@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://kipac.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://kipac.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/astrophysics-colloquium/astrophysics-colloquium-what-jwst-spectra-are-teaching-us-about" hreflang="en">Astrophysics Colloquium: What JWST Spectra are Teaching us About Atmospheric Physics </a></h2></title>
+  <link>https://kipac.stanford.edu/events/astrophysics-colloquium/astrophysics-colloquium-what-jwst-spectra-are-teaching-us-about</link>
+  <description>Campus, PAB 102/103</description>
+  <pubDate>Thu, 12 Nov 2026 11:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">5e0031ae-1609-4929-846a-8ab5b615e734</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/other/pto-patio-time-obviously-5" hreflang="en">PTO (Patio Time, Obviously)</a></h2></title>
+  <link>https://kipac.stanford.edu/events/other/pto-patio-time-obviously-5</link>
+  <description>PAB Patio</description>
+  <pubDate>Thu, 12 Nov 2026 17:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">1479cfa7-7d7e-4dbe-8b3b-d5da3b1484c0</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/kipac-tea-talk/kipac-tea-talk-mujica-reconstructing-cosmological-initial-conditions" hreflang="en">KIPAC Tea Talk: Mujica: Reconstructing Cosmological Initial Conditions from Incomplete Galaxy Surveys with Statistically Regularized Optimization / Intrinsic alignments in the FLAMINGO simulations and consequences for weak lensing</a></h2></title>
+  <link>https://kipac.stanford.edu/events/kipac-tea-talk/kipac-tea-talk-mujica-reconstructing-cosmological-initial-conditions</link>
+  <description>SLAC, Kavli 3rd Floor Conf. Rm.</description>
+  <pubDate>Fri, 13 Nov 2026 10:40:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">3bd2fada-2552-4619-94e5-363ff94669aa</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/kipac-seminar/kipac-seminar-toward-holistic-picture-low-mass-baryon-cycle" hreflang="en">KIPAC Seminar: Toward a Holistic Picture of the Low-Mass Baryon Cycle</a></h2></title>
+  <link>https://kipac.stanford.edu/events/kipac-seminar/kipac-seminar-toward-holistic-picture-low-mass-baryon-cycle</link>
+  <description>Campus, Varian 206</description>
+  <pubDate>Mon, 16 Nov 2026 11:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">b70efc83-3982-4367-8e73-97f97253e1ec</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/kipac-tea-talk/kipac-tea-talk-electromagnetic-precursors-binary-neutron-star-mergers" hreflang="en">KIPAC Tea Talk: Electromagnetic Precursors to Binary Neutron Star Mergers / Revealing the Magnetic Field Structure of M83 using Optical Polarimetry</a></h2></title>
+  <link>https://kipac.stanford.edu/events/kipac-tea-talk/kipac-tea-talk-electromagnetic-precursors-binary-neutron-star-mergers</link>
+  <description>Campus, PAB 102/103</description>
+  <pubDate>Tue, 17 Nov 2026 10:40:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">3850ab98-baf7-4a57-b15d-e9eb81503d82</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/astrophysics-colloquium/astrophysics-colloquium-circumgalactic-medium-0" hreflang="en">Astrophysics Colloquium: Circumgalactic Medium</a></h2></title>
+  <link>https://kipac.stanford.edu/events/astrophysics-colloquium/astrophysics-colloquium-circumgalactic-medium-0</link>
+  <description>Campus, PAB 102/103</description>
+  <pubDate>Thu, 19 Nov 2026 11:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">822f508b-9716-46b3-a1db-6039b08910c3</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/other/pto-patio-time-obviously-6" hreflang="en">PTO (Patio Time, Obviously)</a></h2></title>
+  <link>https://kipac.stanford.edu/events/other/pto-patio-time-obviously-6</link>
+  <description>PAB Patio</description>
+  <pubDate>Thu, 19 Nov 2026 17:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">c00591ee-7dfb-4ddc-bef8-d4d914c01e05</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/kipac-tea-talk/kipac-tea-talk-uncovering-collisionally-ionized-relativistic-and-bal-0" hreflang="en">KIPAC Tea Talk: Uncovering Collisionally Ionized, Relativistic, and BAL-like Outflows in MCG-6-30-15 with Chandra HETG, XRISM, and Bayesian Framework / Turning a Dark Matter Detector into a Neutrino Observatory: Latest Results from XENONnT</a></h2></title>
+  <link>https://kipac.stanford.edu/events/kipac-tea-talk/kipac-tea-talk-uncovering-collisionally-ionized-relativistic-and-bal-0</link>
+  <description>SLAC, Kavli 3rd Floor Conf. Rm.</description>
+  <pubDate>Fri, 20 Nov 2026 10:40:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">7cd6f672-bf67-4512-ad1c-1572932ccda2</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/other/kipac-friendsgiving" hreflang="en">KIPAC Friendsgiving</a></h2></title>
+  <link>https://kipac.stanford.edu/events/other/kipac-friendsgiving</link>
+  <description>Join us at the Lake Lagunita BBQ Pits</description>
+  <pubDate>Fri, 20 Nov 2026 17:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">99f85f4e-e850-45b1-ad21-9b26f03861ba</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/kipac-seminar/kipac-seminar" hreflang="en">KIPAC Seminar</a></h2></title>
+  <link>https://kipac.stanford.edu/events/kipac-seminar/kipac-seminar</link>
+  <description>Campus, Varian 206</description>
+  <pubDate>Mon, 30 Nov 2026 11:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">ce091972-e797-42ae-a3c3-bb4262619566</guid>
+    </item>
+
+  </channel>
+</rss>

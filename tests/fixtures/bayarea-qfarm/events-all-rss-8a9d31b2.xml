@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://qfarm.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://qfarm.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/alicia-kollar-university-maryland" hreflang="en">Alicia Kollár [University of Maryland]</a></h2></title>
+  <link>https://qfarm.stanford.edu/events/alicia-kollar-university-maryland</link>
+  <description/>
+  <pubDate>Wed, 11 Nov 2026 11:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">8643725f-fd56-4595-9db7-2002d08dc838</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/q-farm-seminars/alicia-kollar-university-maryland" hreflang="en">Alicia Kollár [University of Maryland]</a></h2></title>
+  <link>https://qfarm.stanford.edu/events/q-farm-seminars/alicia-kollar-university-maryland</link>
+  <description/>
+  <pubDate>Wed, 11 Nov 2026 11:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">534900a9-139e-47d4-863e-b613bfcec7f2</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/q-farm-seminars/tian-xie-stanford-university-yugo-onishi-stanford-university" hreflang="en">Tian Xie [Stanford University] &amp; Yugo Onishi [Stanford University]</a></h2></title>
+  <link>https://qfarm.stanford.edu/events/q-farm-seminars/tian-xie-stanford-university-yugo-onishi-stanford-university</link>
+  <description/>
+  <pubDate>Wed, 18 Nov 2026 11:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">7024b328-f559-4a18-9b10-e0c60c1ff4c2</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/conference-workshop/quantum-sensing-detection-coherent-neutrino-scattering-workshop" hreflang="en"> Quantum Sensing for the Detection of Coherent Neutrino Scattering Workshop</a></h2></title>
+  <link>https://qfarm.stanford.edu/events/conference-workshop/quantum-sensing-detection-coherent-neutrino-scattering-workshop</link>
+  <description/>
+  <pubDate>Thu, 19 Nov 2026 00:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">501df0a9-cc56-4a81-b65b-f189fa18f454</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/conference-workshop/geoflow-workshop" hreflang="en">Geoflow Workshop</a></h2></title>
+  <link>https://qfarm.stanford.edu/events/conference-workshop/geoflow-workshop</link>
+  <description/>
+  <pubDate>Wed, 02 Dec 2026 09:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">c2bd9c2b-a35b-4b66-a125-b3659bd2d1a3</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/q-farm-seminars/frank-verstraete-university-cambridge" hreflang="en">Frank Verstraete [University of Cambridge]</a></h2></title>
+  <link>https://qfarm.stanford.edu/events/q-farm-seminars/frank-verstraete-university-cambridge</link>
+  <description/>
+  <pubDate>Wed, 02 Dec 2026 11:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">fe8736c7-d103-43aa-aac4-eabd921127bd</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/q-farm-seminars/andrew-higginbotham-university-chicago" hreflang="en">Andrew Higginbotham [University of Chicago]</a></h2></title>
+  <link>https://qfarm.stanford.edu/events/q-farm-seminars/andrew-higginbotham-university-chicago</link>
+  <description/>
+  <pubDate>Wed, 09 Dec 2026 11:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">11854b68-3d2a-4489-9280-aba7a4c3b118</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/q-farm-seminars/vedika-khemani-stanford-university" hreflang="en">Vedika Khemani [Stanford University]</a></h2></title>
+  <link>https://qfarm.stanford.edu/events/q-farm-seminars/vedika-khemani-stanford-university</link>
+  <description/>
+  <pubDate>Wed, 06 Jan 2027 11:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">298e3243-d337-4bca-aaa5-e6c7cd95da47</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/q-farm-seminars/sergey-bravyi-ibm" hreflang="en">Sergey Bravyi [IBM]</a></h2></title>
+  <link>https://qfarm.stanford.edu/events/q-farm-seminars/sergey-bravyi-ibm</link>
+  <description/>
+  <pubDate>Wed, 13 Jan 2027 11:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">96dee19e-e7c7-498c-936f-44f65e7ab861</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/q-farm-seminars/nathalie-de-leon-princeton-university" hreflang="en">Nathalie de Leon [Princeton University]</a></h2></title>
+  <link>https://qfarm.stanford.edu/events/q-farm-seminars/nathalie-de-leon-princeton-university</link>
+  <description/>
+  <pubDate>Wed, 20 Jan 2027 11:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">ab068e64-a92f-45dd-9311-2e0c471449ee</guid>
+    </item>
+
+  </channel>
+</rss>

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "source_id": "bayarea-kipac",
+  "entries": {
+    "https://kipac.stanford.edu/events/all/rss": {
+      "file": "events-all-rss-a0cd73b7.xml",
+      "status": 200,
+      "content_type": "application/rss+xml",
+      "fetched_at": "2026-11-11T17:28:43Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://kipac.stanford.edu/events/all/rss?page=1": {
+      "file": "events-all-rss-85397722.xml",
+      "status": 200,
+      "content_type": "application/rss+xml",
+      "fetched_at": "2026-11-11T20:21:46Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://kipac.stanford.edu/events/upcoming-events": {
+      "file": "events-upcoming-events-67a837f4.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T17:29:13Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://kipac.stanford.edu/events/upcoming-events?page=1": {
+      "file": "events-upcoming-events-ce5f7424.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T20:20:44Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://kipac.stanford.edu/events/upcoming-events?page=2": {
+      "file": "events-upcoming-events-cfb570e9.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T20:21:15Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "source_id": "bayarea-suncat",
+  "entries": {
+    "https://suncat.stanford.edu/events": {
+      "file": "events-fb92e9c2.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T20:20:44Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://suncat.stanford.edu/events/dr-hyeonjung-jung": {
+      "file": "events-dr-hyeonjung-jung-85bd8375.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T20:21:34Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://suncat.stanford.edu/events/dr-ruchika-mahajan": {
+      "file": "events-dr-ruchika-mahajan-9f08bd1a.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T20:21:35Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://suncat.stanford.edu/events/seminars": {
+      "file": "events-seminars-f87b9193.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T20:21:33Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

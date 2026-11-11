@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://glam.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://glam.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/glam-special-seminar/deforming-wigner-crystal-and-self-doping-instability-mexican-hat" hreflang="en">Deforming the Wigner crystal and self-doping instability at Mexican-hat dispersion</a></h2></title>
+  <link>https://glam.stanford.edu/events/glam-special-seminar/deforming-wigner-crystal-and-self-doping-instability-mexican-hat</link>
+  <description>Hosted by Yugo Onishi, Post Doc</description>
+  <pubDate>Mon, 16 Nov 2026 14:15:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">640dfb46-7c46-4ab1-82de-00013bdd8877</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cmp-seminar/non-equilibrium-dynamics-polaron-formation-and-polaron-polaron-interaction-nio" hreflang="en">Non-equilibrium dynamics of polaron formation and polaron-polaron interaction in NiO</a></h2></title>
+  <link>https://glam.stanford.edu/events/cmp-seminar/non-equilibrium-dynamics-polaron-formation-and-polaron-polaron-interaction-nio</link>
+  <description>Host: Zhi-Xun Shen</description>
+  <pubDate>Thu, 19 Nov 2026 15:15:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">e4057372-d8d0-4654-8687-d355275b569c</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cmp-seminar/coming-soon-4" hreflang="en">Coming soon</a></h2></title>
+  <link>https://glam.stanford.edu/events/cmp-seminar/coming-soon-4</link>
+  <description>Host: Xiaodong Xu</description>
+  <pubDate>Thu, 03 Dec 2026 15:15:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">3efff45f-6ca5-4f0b-b1f7-cbb54cac5ea8</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cmp-seminar/coming-soon-9" hreflang="en">Coming soon</a></h2></title>
+  <link>https://glam.stanford.edu/events/cmp-seminar/coming-soon-9</link>
+  <description>Host: Aharon Kapitulnik</description>
+  <pubDate>Thu, 07 Jan 2027 15:15:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">0928b7ea-692b-4de2-a686-c71d7573673e</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cmp-seminar/coming-soon-7" hreflang="en">Coming soon</a></h2></title>
+  <link>https://glam.stanford.edu/events/cmp-seminar/coming-soon-7</link>
+  <description>Host: Steve Kivelson</description>
+  <pubDate>Thu, 21 Jan 2027 15:15:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">91fd25ae-f1a2-41a6-b6a8-0ed6e7dcc66f</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cmp-seminar/coming-soon-13" hreflang="en">Coming soon</a></h2></title>
+  <link>https://glam.stanford.edu/events/cmp-seminar/coming-soon-13</link>
+  <description>Host: Aharon Kapitulnik</description>
+  <pubDate>Thu, 11 Feb 2027 15:15:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">661d6910-82a4-460b-8b08-82f30157c420</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cmp-seminar/coming-soon-15" hreflang="en">Coming soon</a></h2></title>
+  <link>https://glam.stanford.edu/events/cmp-seminar/coming-soon-15</link>
+  <description>Host: Aharon Kapitulnik</description>
+  <pubDate>Thu, 25 Feb 2027 15:15:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">afd8d4db-c413-428d-927a-b9432ced6afb</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cmp-seminar/coming-soon-1" hreflang="en">Coming soon</a></h2></title>
+  <link>https://glam.stanford.edu/events/cmp-seminar/coming-soon-1</link>
+  <description>Host: Xiaodong Xu</description>
+  <pubDate>Thu, 04 Mar 2027 15:15:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">3fe4f655-bdd6-4b85-8504-24fd6439bd73</guid>
+    </item>
+
+  </channel>
+</rss>

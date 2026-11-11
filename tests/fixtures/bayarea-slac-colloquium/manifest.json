@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "source_id": "bayarea-slac-colloquium",
+  "entries": {
+    "https://colloquium.slac.stanford.edu/events/2026-10-22-how-spot-supernova-deep-underground": {
+      "file": "events-2026-10-22-how-spot-supernova-dee-7a4078ad.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T17:27:17Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://colloquium.slac.stanford.edu/events/2026-10-22-no-slac-colloquium-1123-0": {
+      "file": "events-2026-10-22-no-slac-colloquium-112-bb307be7.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T17:27:16Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://colloquium.slac.stanford.edu/events/2026-10-22-talk-phil-bucksbaum": {
+      "file": "events-2026-10-22-talk-phil-bucksbaum-2573c448.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T17:27:18Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://colloquium.slac.stanford.edu/events/2026-10-22-talk-thomas-feurer": {
+      "file": "events-2026-10-22-talk-thomas-feurer-f90e36e0.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T17:27:19Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://colloquium.slac.stanford.edu/events/2026-11-09-single-crystal-halide-perovskite-heterostructures": {
+      "file": "events-2026-11-09-single-crystal-halide-20d22f47.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T17:27:15Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://colloquium.slac.stanford.edu/upcoming-events": {
+      "file": "upcoming-events-476d3e71.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T17:27:14Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

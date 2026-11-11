@@ -1,0 +1,267 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+
+<head>
+<title>Advanced Instrumentation Seminars (AIS)</title>
+<link rel="stylesheet" type="text/css" href="includes/general.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
+<script type="text/javascript" language="javascript" src="includes/leftnavJS.js"></script>
+<script type="text/javascript" language="javascript">
+var imagenumber = 4 ; 
+var randomnumber = Math.random() ; 
+var rand1 = Math.round( (imagenumber-1) * randomnumber) + 1 ; 
+images = new Array 
+images[1] = "includes/left_nav_image_01.jpg"
+images[2] = "includes/left_nav_image_02.jpg"
+images[3] = "includes/left_nav_image_03.jpg"
+images[4] = "includes/left_nav_image_04.jpg"
+var image = images[rand1]
+
+
+// -- End Hiding Here -->
+</script>
+
+<script type="text/javascript" language="javascript">
+function checkEmail(myForm) {
+if (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(myForm.subscriberEmail.value)){
+return (true)
+}
+alert("Invalid email address! Please re-enter.")
+document.MLLForm.subscriberEmail.focus()
+return (false)
+}
+function showDiv(id) {
+	HideAll();
+	document.getElementById(id).style.display='block';
+}
+
+function HideAll() {
+
+}
+
+</script>
+
+</head>
+
+<body id="home">
+
+<!-- stopindex --><a href="#content" class="doNotDisplay doNotPrint">Skip to main 
+content.</a>
+<!-- top global nav area starts here - do not edit -->
+
+
+<table width="100%" border="0" id="top" cellspacing="0" cellpadding="0">
+	<tbody>
+	<tr>
+		<td align="left" valign="bottom" width="356">
+		<div class="logo">
+			<a href="default.asp"><img border="0" src="includes/ais_header_logo.jpg" alt="Advanced Instrumentation Seminars Home" height="68" /></a></div>
+		</td>
+		<td align="right" valign="bottom" nowrap="nowrap">
+		<div id="SLACstdnav">
+			<ul id="globalnav">
+				<li>Go to &gt; </li>
+				<li><a href="http://www.slac.stanford.edu/">SLAC Home</a> |</li>
+				<li><a href="http://today.slac.stanford.edu/">SLAC Today</a> |</li>
+				<li><a href="http://home.slac.stanford.edu/forstaff.html">For Staff</a> 
+				|</li>
+				<li><a href="http://home.slac.stanford.edu/forusers.html">For Users</a>
+				<br />
+				</li>
+				<li><a href="http://home.slac.stanford.edu/photonscience.html">Photon 
+				Science</a> |</li>
+				<li><a href="http://home.slac.stanford.edu/ppap.html">Particle Physics and Astrophysics</a> |</li>
+				<li><a href="../operations/">Operations</a></li>
+			</ul>
+		</div>
+		</td>
+		<td align="right" valign="bottom" width="250">
+		<div id="SLAC">
+			<div class="SLACstdsearch" id="search">
+				<form name="form1" method="get" onsubmit="doSearch(); return false;" action="http://www-psearch.slac.stanford.edu/SLACSearch/app/slac/index">
+					<input type="hidden" name="qc" /><input id="searchbox" type="text" maxlength="2047" class="searchbox" name="qt" size="20" value="Search" onfocus="value=''" /> <input type="image" name="submit" src="includes/go.gif" alt="go" width="20" height="20" /><br />
+					<div style="display:inline; ">
+						<input type="radio" id="web" name="searchType" value="public" /><a href="http://www-psearch.slac.stanford.edu/SLACSearch/app/slac/index">SLAC 
+						WEB</a>&nbsp; <input type="radio" name="searchType" value="people" checked="checked" /><a class="search" href="http://www-public.slac.stanford.edu/phonebook/search.html">PEOPLE</a>&nbsp;
+						<input type="radio" name="searchType" value="ais" /><a href="includes/default.asp">AIS</a>&nbsp; </div>
+				</form>
+				<script type="text/javascript">
+					var f = document.form1;
+					f.searchType[1].disabled = false;
+		
+					function doSearch() {
+						var peopleurl = "http://www-public.slac.stanford.edu/phonebook/dirsearch.aspx?lf=1%26url=&amp;gone=active%26NAME="+f.qt.value
+					  	var fixedurl = unescape(peopleurl)
+							if (f.searchType[0].checked)
+								document.location = "http://www-psearch.slac.stanford.edu/SLACSearch/app/slac/index?style=mainSite&qt="+f.qt.value;
+							else if (f.searchType[2].checked)
+								document.location = "http://www-psearch.slac.stanford.edu/SLACSearch/app/slac/index?style=AIS&amp;qt="+f.qt.value;
+							else
+								document.location = fixedurl;
+					}
+				</script>
+			</div>
+		</div>
+		</td>
+	</tr>
+	<tr>
+		<td valign="bottom" colspan="2" style="background-image: url('includes/topbg.gif'); background-repeat: repeat-x; background-position-y: bottom" class="headerLogoBg"><img border="0" src="includes/AISslogan.jpg" height="27" alt="__" class="doNotPrint" /></td>
+		<td valign="bottom" style="background-image: url('includes/topbg.gif'); background-repeat: repeat-x; background-position-y: bottom" class="headerLogoBg"><img border="0" src="includes/smallSlacLogo.gif" align="left" alt="__" class="doNotPrint" width="75" height="27" /></td>
+	</tr>
+</tbody>
+</table>
+
+<!-- top global nav area ends here --><!-- ##### Main Content ##### --><!-- startindex --><table width="100%" cellpadding="0" cellspacing="0" border="0">
+	<tbody>
+	<tr valign="top">
+		<td width="180px" id="leftnav">
+		<!-- start left nav -->
+		
+
+<ul id="nav">
+	<li class="home"><a href="default.asp">AIS Home</a></li>
+	<li class="aboutAIS"><a href="aboutAIS.asp">About AIS</a></li>
+	<li class="speakers"><a href="listPastSpeakers.asp">Speakers</a></li>
+	<li class="seminarArchive"><a href="listPastSeminars.asp">Seminar Archive</a></li>
+	<li class="infoForSpeakers"><a href="infoForSpeakers.asp">Info for Speakers</a></li>
+	<li class="subscribe"><a href="emailSubscribe.asp">Subscribe to Our Mailing List</a></li>
+	<li class="contactAIS"><a href="contactAIS.asp">Contact AIS</a></li>
+</ul>
+
+<p>
+<script language="JavaScript" type="text/javascript">
+<!-- Hide this script from old browsers --
+document.write('<p id="images"><img alt="Click on the image for a description of the photograph." src="' + image + '" border="0"></p>')
+// -- End Hiding Here --></script>
+<noscript><p id="images"><a href="includes/default.asp">
+<img src="images/left_nav_image_01.jpg" alt="Magnet Photo" border="0" width="108" height="143">
+</p>
+</noscript>
+<!-- end rotating images --></p>
+
+<!--
+<div class="mailListOutterBox">
+	<div class="mailListInnerBox">
+	<p>Join the AIS Mailing List
+	<form action="../joinMLL.asp" name="MLLForm" method="post" onSubmit="return checkEmail(this)">
+	<input type="text" value="enter email address" name="subscriberEmail" onfocus="value=''" style="margin:8px;">
+	<input type="submit" value="subscribe" name="submitButton">
+	</form>
+	</p>
+	</div>
+</div>
+-->
+
+<p>
+		<!-- end left nav --></p>
+		</td>
+		<td id="content">
+		<div id="maincontent">
+			
+			<!-- start page content -->
+			<div class="newsColumn">
+				<div class="newscolumnHeader">Upcoming Seminars</div>
+				<div class="newscolumnText">
+					
+					<p><b>Tuesday, September 10, 2019</b><br />
+					Radiation Hard Integrated Circuit Design<br />
+					<i style="color:#333333;">Valentijn De Smedt  & Jeffrey Prinzie  - Katholieke Universiteit Leuven </i>
+					</p>
+					
+				<br />
+				</div>
+			</div>
+			<h1>WELCOME to AIS</h1>
+			<p>Advanced Instrumentation Seminars (AIS) cover topics of interest to the broad commnunity of experimenters at SLAC. Invited speakers represent all facets of technology related to SLAC research. &nbsp;<a href="aboutAIS.htm" style="text-decoration:none;color:#00536F">more&nbsp;&#187</a> </p>
+
+
+			<p></p>
+
+
+				<div class="nextSeminarHeader">Next Seminar:</div>
+				<div class="nextSeminarText">
+				<h3 style="background-color:#FAF4E8;color:#00536F;margin-left:10px;">Radiation Hard Integrated Circuit Design</h3>
+
+				<p style="color:#00536F;margin-left:9px;">Valentijn De Smedt  & Jeffrey Prinzie  - Katholieke Universiteit Leuven </p>
+
+				<table>
+					<tr>
+						
+						<td><img alt="speaker" border="1" style="border-color:#005367;border:1px;margin-left:10px;width:115px;" src="publicDocs/large237.jpg" vspace="5"/><br />
+						</td>
+						<td valign="top">
+							<p style="color:#00536F;margin:15px;"><b>Tuesday, September 10, 2019</b></p>
+							<p style="color:#00536F;margin:15px;"><b>1:30 PM</b></p>
+							<p style="color:#00536F;margin:15px;"><b>Kavli Building 3rd Floor Conference Room</b></p>
+							<p style="color:#00536F;margin:15px;"><b>
+						<a style="text-decoration:none;" target="_blank" href="publicDocs/poster237.pdf">View Poster</a> (PDF)
+							</b></p>
+						</td>
+					</tr>
+				</table>
+				<table>
+					<tr>
+						<td colspan="2">
+						<div id="abstract" style="text-decoration:none;font-size:9pt;color:#00536F;padding-left:10px;">
+							<p style="margin-bottom:5px;"><b>Abstract:</b></p>
+							In the era of complex systems on chip (SoCs), clock and timing generation is required in nearly any application. These timing generators supply clock signals to digital modules, act as heartbeats for serial communication links or provide picosecond accurate reference information to time-interval sensors. Phase Locked Loops are the main building block that provide clock signals. However, in the nuclear, space and high-energy physics applications, ionizing radiation effects degrade these circuits significantly and produce soft-errors which can disturb an entire system. In this seminar, the application of these timing blocks in harsh environment. 
+ This seminar focuses on the design issues of ultra-high voltage (up to 1000 V), high-power integrated circuit design for radiation environments. Starting from a 1kV integrated motor driver, the impact of ionizing radiation is discussed and challenges are identified. A comparison is made between SoI and bulk silicon technologies in terms of hardness towards particle strikes and total ionizing dose. Circuit- as well as technology solutions will be discussed, showing the trade-off between HV and Radiation tolerance. Special attention will go to simulation issues in switched converters. The seminar ends with the (system) design of a 200V radiation tolerant GaN driver for space applications<br /><br />
+						</div>
+						<div id="speakerBio" style="text-decoration:none;font-size:9pt;color:#00536F;padding-left:10px;">
+							<p style="margin-bottom:5px;"><b>Speaker's Biography:</b></p>
+							Prof. Valentijn De Smedt was born in Lubbeek, Belgium, in 1984. He received the M.Sc. degree in electrical engineering from the Katholieke Universiteit Leuven in 2007. The subject of his Master thesis was the design of an accurate integrated frequency reference. From 2007 to 2014 he was working as a research assistant at the MICAS laboratories of the Katholieke Universiteit Leuven towards a PhD degree on the design of ultra-low-power time-based building blocks for wireless sensor networks, which he received in April 2014. At KU Leuven, he was involved in and has set up several extra-curricular educational projects, some of them in co-operation with the IEEE Student Branch of Leuven. Between February 2014 and July 2017 he was employed at MinDCet as a Senior Design Engineer. At MinDCet he was responsible for the IP development of ultra-high voltage (1 kV) high-power integrated power converters and motor drivers. Apart from this, he was responsible for the further development of the MaDMix and MaDCap inductor and capacitor measurement system. From September 2016 to October 2017 he was part-time post-doctoral researcher at the KU Leuven technology campus in Geel. Since November 2017 he is appointed as assistant professor in the ADVISE research group. The focus of his research is on radiation-tolerant control systems for power and sensing applications.
+He has been vice-chair technical activities of the IEEE student branch of Leuven between 2009 and 2013 and chaired the IEEE Student Branch and GOLD congress 2010 (SBC2010). Between 2011 and 2015, he was IEEE Benelux GOLD (Young Professionals) chair and co-chair of the IEEE SSCS Benelux chapter. Since 2015 he is treasurer of the IEEE Benelux Young Professionals and Membership Development Officer in the IEEE Benelux ExCom. In November 2017 he founded the IEEE Benelux NPSS chapter, which he currently chairs. Since 2009 he is a guest lecturer at ACE Group-T on UWB standards and Zigbee.
+
+Dr. Jeffrey Prinzie received is M.Sc. degree and PhD degree from KU Leuven association in 2013 and 2017 respectively. The subject of his Master Thesis was a 50 GSa/s clock generator for subsampling RF receivers and UWB systems. He worked as a PhD researcher in the field of radiation tolerant integrated circuits with the ADVISE research group. His main interest goes to time-based mixed-signal and RF integrated circuits, especially PLLs, TDCs and high-speed complex digital systems on chip. He gained experience in the design and experimental testing of these circuits in nuclear facilities. During his PhD, he was part of the CERN micro-electronics research group in which he was collaborating on a TDC SoC and high speed multi-gigabit transceiver. His current research focuses on highly digital integrated circuits, digitally assisted analog- and RF integrated systems and time accurate circuits for high-energy physics, space and nuclear energy applications.
+Currently, he is working as a post-doctoral researcher at KU Leuven and visiting researcher in industry at Mediatek wireless (United Kingdom) on ultra-fast locking digital RF-frequency synthesizers for 5G mobile systems and is chair of the IEEE BeNeLux Young-Professionals organization. He enjoys research on integrated circuits, electronics reliability aspects and teaching analog and digital design techniques to the new generation of young engineers.<br /><br />
+						</div>
+						</td>
+					</tr>
+				</table>
+	
+				</div>
+
+			
+			
+			</div>
+		</td>
+	</tr>
+</tbody>
+</table>
+<!-- global footer area starts here - do not edit -->
+<!-- stopindex --><html><body>
+
+    <script type="text/javascript">
+    <!--
+	    slac_search_and_links = "no";
+	    search_default = "custom";
+	    custom_search = "no";
+	    custom_search_type = "ais";
+	    custom_search_label = "ais";
+	    slac_footer = "yes";
+    //-->
+    </script>
+    <script type="text/javascript" src="https://www-project.slac.stanford.edu/centralNav/slac_global_090212.js"></script>
+    
+<div class="contact">
+	<script type="text/javascript">
+<!--//
+var zap_domain = "slac.stanford.edu"
+var zap_user = "websiteservices"
+var zap_recipient = zap_user + "@" + zap_domain
+var zap_url = "mailto:" + zap_recipient +"?subject=AIS Website Question/Comment&body=My comments concern the page at: " + " " + escape(top.parent.location.href) 
+document.write('<a href="' + zap_url + '" target=>Page Contact</a>')
+//-->
+</script>
+	</div></body></html>
+<!-- startindex -->
+
+<p>
+<!-- global footer area ends here --></p>
+</div>
+
+</body>
+
+</html>

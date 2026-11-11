@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_id": "bayarea-qfarm",
+  "entries": {
+    "https://qfarm.stanford.edu/events": {
+      "file": "events-7921539a.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T17:29:15Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://qfarm.stanford.edu/events/all/rss": {
+      "file": "events-all-rss-8a9d31b2.xml",
+      "status": 200,
+      "content_type": "application/rss+xml",
+      "fetched_at": "2026-11-11T17:28:45Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

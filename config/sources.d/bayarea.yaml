@@ -1,0 +1,748 @@
+# Bay Area institutes: SLAC National Accelerator Laboratory and the SLAC-Stanford
+# series linked from its seminar index, CZ Biohub, and (no source) Arc Institute.
+# Schema of one entry: seminars.models.SourceConfig. Researched on 2026-11-11; every
+# URL below was requested through the project's polite client and recorded under
+# tests/fixtures/<id>/ (see the README.md there for markup details).
+#
+# research.crawl_delay 0 means robots.txt sets none (the client still waits 1 s).
+#
+# Adapters that do not exist yet are named after the module that should define them
+# (research.proposed_adapter says "custom:<module>" for those); the registry checks
+# the name at run time, not at load time.
+#
+# Stanford Sites standard template (template B, class prefix "su-event-"): the sources
+# bayarea-kipac, bayarea-pulse, bayarea-glam and bayarea-qfarm. Their params use the keys
+# and selectors of the template B block ("x-su-event-params") of
+# config/sources.d/stanford-sites.yaml, so that one rss adapter reads every template B
+# site. YAML anchors do not reach across files, so the block is repeated below; every
+# selector in it was checked on the recordings of all four sources (KIPAC 3 pages of
+# 20 cards, PULSE 3, GLAM 8, Q-FARM 20 cards). How a card maps to a draft (location,
+# else the address with its lines joined by ", "; date-only times for all-day events;
+# links with external_link_class) is as described under that block. What differs from
+# it, for all four sources:
+#
+# - The list page is the primary record (list_page.primary). These lists run months
+#   ahead (KIPAC to May 2027, Q-FARM to June 2027), while the feed holds only the next
+#   10 items and ignores ?page=N (page 1 of the KIPAC feed is byte-identical to page 0).
+#   Every list card whose start lies in the run window becomes one draft, whether or
+#   not the feed has an item for it; a feed item without a card is dropped (Q-FARM
+#   lists a stray copy of one talk). A card and a feed item still join on title and
+#   start, but the feed adds nothing that the card lacks.
+# - Identity: feed.native_id is "none", so the key of an event is the source plus its
+#   detail URL (site root plus the href of the card), the one key that every card has.
+#   With the feed guid as native id only the next 10 items would have one, and every
+#   later event would change its key on the day it enters the feed. The URL key has a
+#   risk of its own: the URL alias follows the title ("/events/cmp-seminar/coming-
+#   soon-4"), so a site that renews the alias when a TBA title is filled in changes
+#   the key; start time and speaker stay the same then.
+# - Paging (list_page.pager, max_list_pages per source): fetch the list, then the page
+#   that the "Load More Events" link names (?page=1, ?page=2, ...), and stop at the
+#   first page that has no such link, has no card, or whose last card starts at or
+#   after the window end, or after max_list_pages pages.
+# - detail_page.fetch is "never": no detail page of these sites was recorded, and a
+#   card has everything but the abstract.
+# - Per source: event_type_names, card_fields (which part of a card holds which field;
+#   type_card_fields for one card type only), speaker_patterns (regular expressions
+#   tried in order; the first one that matches is applied repeatedly, re.finditer,
+#   and each match is one speaker with the named groups speaker and affiliation,
+#   stripped), title_patterns (named groups series and title) and tba_title_patterns
+#   (a title that only names the series: the talk has no title yet). A card type in
+#   exclude_types is dropped. series_from: type means that the card type is the series.
+
+x-bayarea: &bayarea
+  group: bayarea
+  timezone: America/Los_Angeles
+
+x-su-event-params: &su-event-params
+  feed:
+    # <title> holds unescaped markup: <h2><a href="/events/...">Title</a></h2>.
+    title_is_markup: true
+    start: pubDate  # the start, with offset; 00:00 for an all-day event
+    native_id: none  # stanford-sites uses guid here; see above
+  list_page:
+    item: 'div.view.stanford-events:not(.past-events-list-block) article.su-event-list-item'
+    title: 'h3 a'
+    link: 'h3 a'  # href: a path on the site, or an absolute URL elsewhere
+    external_link_class: su-link--external
+    type: '.su-event-type a'
+    times: 'time[datetime]'  # first is the start, second (if any) the end; a date only means all day
+    location: '.views-field-su-event-location'
+    address: '.views-field-su-event-address'
+    subheadline: '.event-list-item__subheadline'
+    dek: '.event-list_item__dek'
+    join_on: [title, start]
+    primary: true
+    pager: '.js-pager__items a[href^="?page="]'  # "Load More Events"
+  detail_page:
+    fetch: never
+
+# Series that were looked at and are NOT collected, with the reason. Kept here so that
+# nobody has to repeat the research. The loader ignores top-level "x-" keys.
+x-not-collected:
+  - series: SLAC Accelerator Seminar
+    url: https://indico.slac.stanford.edu/category/121/
+    reason: indico.slac.stanford.edu robots.txt is "User-agent * / Disallow /".
+  - series: SLAC Experimental Seminar Series
+    url: https://indico.slac.stanford.edu/category/14/
+    reason: same Indico host, disallowed for every robot.
+  - series: SLAC EPP Theory Seminars
+    url: https://indico.slac.stanford.edu/category/129/
+    reason: >-
+      theory.slac.stanford.edu/events is empty and points to this Indico category,
+      which robots.txt disallows (source bayarea-slac-theory is kept disabled).
+  - series: AI at SLAC Seminar
+    url: https://confluence.slac.stanford.edu/display/AI/AI+Seminar
+    reason: >-
+      confluence.slac.stanford.edu is not reachable from outside (robots.txt
+      unreachable, the client skips the host); the wiki is staff-facing.
+  - series: Advanced Instrumentation Seminars (AIS)
+    url: https://www-group.slac.stanford.edu/ais/default.asp
+    reason: dormant, the "next seminar" is from 2019-09-10 (bayarea-slac-ais, disabled).
+  - series: SIMES events
+    url: https://simes.stanford.edu/
+    reason: >-
+      no events section; /events is 404 and /events/all/rss is an empty channel.
+  - series: SLAC Photon Science Seminar (SSRL page)
+    url: https://www-ssrl.slac.stanford.edu/ssrl/web/outreach/events/photon-science-seminar-series
+    reason: >-
+      the page says the Stanford PULSE Institute now publishes these events; they are
+      collected by bayarea-pulse. The index link /content/events/... is a 404.
+  - series: KIPAC calendar ICS
+    url: https://s3df.slac.stanford.edu/data/kipac/calendar/events.ics
+    reason: >-
+      served as application/octet-stream, which the HTTP client refuses as binary;
+      bayarea-kipac uses the RSS and the list page instead.
+  - series: Applied Physics/Physics Colloquium
+    url: https://physics.stanford.edu/news-events/applied-physicsphysics-colloquium
+    reason: >-
+      covered elsewhere: the Stanford Physics department site (stanford-sites group)
+      imports it from the Stanford Events calendar (localist group). bayarea-kipac
+      lists it too (type "AP/Physics Colloquium", linking to physics.stanford.edu)
+      and drops it through exclude_types; bayarea-litp has the same talks as imports
+      from events.stanford.edu and drops them through exclude_localist_imports.
+  - series: SUNCAT Center for Interface Science and Catalysis events
+    url: https://suncat.stanford.edu/events
+    reason: >-
+      no public seminar at present (source bayarea-suncat, disabled): the "Seminars"
+      list is empty, and the 6 upcoming entries are internal group meetings (tag
+      "Group meetings", title = speaker name, no abstract). SUNCAT is not a
+      department of the Stanford Events calendar, so nothing else covers it.
+  - series: Stanford Energy Seminar and Precourt Institute for Energy events
+    url: https://energy.stanford.edu/news-events/events/upcoming-events
+    reason: >-
+      covered elsewhere (localist group). The SLAC index links
+      energy.stanford.edu/energy-seminar/... and /events/upcoming-events (which
+      redirects to /news-events/events/upcoming-events, Crawl-delay 30). All 42
+      upcoming cards there link to events.stanford.edu (8 distinct events; 35 cards
+      are dates of one "Understand Energy Staff Learning Series"), and the Stanford
+      Events recording of the localist group holds the Energy Seminar of 2026-11-09
+      and 2026-11-16 under the department "Precourt Institute for Energy".
+  - series: TomKat Center for Sustainable Energy events
+    url: https://tomkat.stanford.edu/events
+    reason: >-
+      no events: the page says "No events at this time" (2026-11-11, Crawl-delay
+      30). "TomKat Center for Sustainable Energy" is a department of the Stanford
+      Events calendar (no event of it in the localist recording).
+  - series: Stanford Doerr School of Sustainability events
+    url: https://sustainability.stanford.edu/about-school/news-and-events
+    reason: >-
+      covered elsewhere (localist group). The link of the SLAC index redirects to
+      the school's news page (/news/, WordPress, no event list); the school's events
+      are on the Stanford Events calendar under the department "Stanford Doerr School
+      of Sustainability" (three in the localist recording: a finance workshop for
+      students, a lecture on Indigenous guardianship and an environmental behavioural
+      science seminar).
+  - series: Arc Institute seminars
+    url: https://arcinstitute.org/
+    reason: >-
+      no public seminar calendar. /events and /seminars are 404, the sitemap
+      (sitemap-0.xml, every public page) has no events page, and the only mention is
+      the internal "Arc's seminar series" on /programs/innovation-investigators.
+
+sources:
+  # --- SLAC -----------------------------------------------------------------------
+
+  - <<: *bayarea
+    id: bayarea-slac-colloquium
+    name: SLAC Colloquium Series
+    adapter: slac_drupal
+    url: https://colloquium.slac.stanford.edu/upcoming-events
+    homepage: https://colloquium.slac.stanford.edu/
+    institution: slac
+    host_org: SLAC National Accelerator Laboratory
+    default_fields: [physics]
+    default_event_type: colloquium
+    series: SLAC Colloquium
+    params:
+      # The list gives the detail links; each detail page embeds an "iCal" link whose
+      # href is a data:text/calendar URI with one VEVENT (UID, SUMMARY, DTSTART and
+      # DTEND with TZID=America/Los_Angeles, DESCRIPTION).
+      #
+      # Identity: the VEVENT UID (a UUID) is the native id of every event. A card whose
+      # detail page cannot be fetched, has no VEVENT, or lies beyond max_detail_pages
+      # is dropped for this run (and counted in health), never emitted under a fallback
+      # key: the slug of the detail URL contains the title ("2026-10-22-talk-phil-
+      # bucksbaum"), so a URL key would change when a TBA talk gets its title.
+      #
+      # Times: DTSTART and DTEND of the VEVENT. Resolve TZID=America/Los_Angeles with
+      # zoneinfo and ignore the embedded VTIMEZONE: it has a STANDARD component only
+      # (-0800), so a parser that trusts it would put every summer talk an hour off.
+      # All recorded events fall in PST, so no fixture shows the difference. The
+      # "Outlook" link of the page carries the same times in UTC (startdt=...Z,
+      # enddt=...Z) and can serve as a cross-check; so can the card date text.
+      # The DESCRIPTION repeats the abstract and ends with " Link to event page: <url>";
+      # the detail abstract below is preferred, the DESCRIPTION without that tail is
+      # the fallback.
+      native_id: vevent_uid
+      list:
+        card: div.c-view__row div.c-card
+        title: h3.c-card__title a
+        link: h3.c-card__title a
+        speaker: .slac-speaker .speaker-name
+        affiliation: .slac-speaker .speaker-affiliation
+        abstract: .c-field--name-field-body
+        date_text: .c-card__date
+      detail:
+        # Below the event, every detail page shows the cards of 3 OTHER events in this
+        # block (div.c-card with .c-card__date and .c-field--name-field-body, the same
+        # classes as on the list). No detail selector may read a match inside it.
+        exclude: div.c-view--pre-filtered-content-lists
+        ical_link: a[href^="data:text/calendar"]
+        title: .c-page-title h1
+        # "Kate Scholberg" or "Hemamala (Hema) Karunadasa, Stanford Univerisity" (name,
+        # then ", " and the affiliation); present on 2 of the 5 recorded pages, missing
+        # on the placeholder and on the "Talk by ..." pages.
+        speaker: .c-page-title .c-lede
+        # Starts with "Abstract: " on talks; "Info coming soon!" on TBA talks.
+        abstract: .event-detail__content .c-wysiwyg
+      max_detail_pages: 12
+      # "No SLAC Colloquium 11/23" marks a week without a talk.
+      skip_title_patterns: ["^No (SLAC )?Colloquium\\b"]
+      # "Talk by <name>" with "Info coming soon!" is a talk without a title yet.
+      tba_title_patterns: ["^Talk by "]
+    research:
+      verified: 2026-11-11
+      sample_events: 4
+      has_rss: false
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: html
+      crawl_delay: 0
+      proposed_adapter: custom:slac_drupal
+      template: SLAC Drupal 10 theme (c-card)
+      requests_per_run: 6  # the list and one detail page per card (5 on 2026-11-11)
+      notes:
+        - 5 cards on the list, one of them the "No SLAC Colloquium 11/23" placeholder.
+        - /jsonapi is 404 (JSON error document); no RSS link in the page head.
+        - The VEVENT is embedded per detail page, there is no ICS feed URL.
+        - No location anywhere on the site; do not invent one.
+        - Card date text looks like "Monday, November 16, 2026", a middle dot,
+          "4:00 p.m.", an en dash, "5:00 p.m.", two no-break spaces, "PT"; the text of
+          .c-card__date also starts with "Date", the title of its SVG icon.
+        - A speaker is on 2 of the 5 cards, a non-empty affiliation on 1 of them; the
+          TBA talks name the speaker only in the title ("Talk by Phil Bucksbaum").
+        - The embedded VTIMEZONE claims -0800 all year (no DAYLIGHT part); use zoneinfo
+          for TZID=America/Los_Angeles.
+        - Monday 16:00 PT, roughly weekly; topics span all of SLAC science.
+
+  - <<: *bayarea
+    id: bayarea-slac-theory
+    name: SLAC Theory Group seminars (EPP Theory)
+    adapter: slac_drupal
+    enabled: false
+    url: https://theory.slac.stanford.edu/events
+    institution: slac
+    host_org: SLAC Theory Group
+    default_fields: [physics]
+    series: SLAC Theory Seminar
+    params:
+      list:
+        card: div.c-view__row div.c-card
+        title: h3.c-card__title a
+        link: h3.c-card__title a
+        date_text: .c-card__date
+    research:
+      verified: 2026-11-11
+      sample_events: 0
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: html
+      crawl_delay: 0
+      proposed_adapter: custom:slac_drupal
+      notes:
+        - Disabled. "Upcoming Theory Events" shows "No items to display." and sends
+          readers to Indico category 129, which robots.txt disallows.
+        - The last past event on this site is 2024-12-04 (8 pages of past events);
+          the card layout is the same as on the SLAC Colloquium site.
+        - Enable only if the list carries events again.
+
+  - <<: *bayarea
+    id: bayarea-slac-ais
+    name: SLAC Advanced Instrumentation Seminars (AIS)
+    adapter: llm_page
+    enabled: false
+    url: https://www-group.slac.stanford.edu/ais/default.asp
+    institution: slac
+    host_org: SLAC National Accelerator Laboratory
+    default_fields: [physics]
+    series: Advanced Instrumentation Seminar
+    research:
+      verified: 2026-11-11
+      sample_events: 0
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: llm
+      crawl_delay: 0
+      notes:
+        - Disabled. Classic ASP page whose "Next Seminar" is still Tuesday,
+          September 10, 2019; the series has not been updated since.
+
+  - <<: *bayarea
+    id: bayarea-kipac
+    name: KIPAC Seminars and Events
+    adapter: rss
+    url: https://kipac.stanford.edu/events/all/rss
+    urls:
+      - https://kipac.stanford.edu/events/upcoming-events
+    homepage: https://kipac.stanford.edu/events
+    institution: slac
+    host_org: Kavli Institute for Particle Astrophysics and Cosmology (KIPAC)
+    default_fields: [physics]
+    default_event_type: seminar
+    params:
+      <<: *su-event-params
+      # 3 pages cover the window of 2026-11-11: page 0 ends on 2026-12-11, page 1 on
+      # 2027-02-25, page 2 runs to 2027-05-13, past the window end (2027-03-12).
+      max_list_pages: 3
+      series_from: type
+      event_type_names:
+        Astrophysics Colloquium: colloquium
+        KIPAC Seminar: seminar
+        KIPAC Tea Talk: seminar
+        KIPAC Workshops: workshop
+      # "Other" is social (patio time, Friendsgiving, BBQ). "AP/Physics Colloquium"
+      # cards link off the site to physics.stanford.edu; that colloquium comes from the
+      # physics department site and the Stanford Events calendar.
+      exclude_types: [Other, AP/Physics Colloquium]
+      # The dek repeats the location; .views-field-su-event-location has the same text.
+      card_fields: {speakers: subheadline}
+      # "Ava Polzin (Univ. of Toronto)", "Chenze Dong (Kavli IPMU) / Aniruddh Herle
+      # (Leiden Observatory)", "Zorawar Wadiasingh (GSFC / UMD)": one match per speaker;
+      # a " / " inside the brackets belongs to the affiliation. One tea talk names a
+      # group sharing one affiliation: "Xinnan Du, Alex Mitchell, Leo Sajkov, and Toby
+      # Satterthwaite (KIPAC)"; split such a speaker group on ", " and ", and ".
+      speaker_patterns:
+        - '(?P<speaker>[^()/]+?)\s*\((?P<affiliation>[^()]*)\)'
+      # Most titles repeat the series in front: "KIPAC Tea Talk: <title>".
+      title_patterns:
+        - '^(?P<series>KIPAC Seminar|KIPAC Tea Talk|Astrophysics Colloquium):\s*(?P<title>.+?)\s*$'
+      # The bare series name means that the talk has no title yet.
+      tba_title_patterns: ['^(?:KIPAC Seminar|KIPAC Tea Talk|Astrophysics Colloquium)$']
+    research:
+      verified: 2026-11-11
+      sample_events: 60
+      has_rss: true
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 4
+      notes:
+        - Joint Stanford-SLAC institute; talks are on campus (PAB, Varian) and at SLAC.
+        - 'Recorded list pages 0, 1 and 2 (20 cards each, 2026-11-12 to 2027-05-13):
+          45 cards start before the window end of 2027-03-12: 26 talks (13
+          Astrophysics Colloquium, 8 KIPAC Tea Talk, 5 KIPAC Seminar), 1 all-day
+          workshop (date-only times), 17 of type Other and 1 AP/Physics Colloquium.'
+        - 'Two Astrophysics Colloquia share 2027-01-21 11:00 (Charlotte Ward, untitled,
+          and Ami Choi, "Roman Space Telescope"), and Charlotte Ward is listed again on
+          2027-02-25: entries of the site itself, not a parsing problem.'
+        - 'The feed (/events/all/rss) holds the next 10 items only, and ?page=1 returns
+          the same 10 (fixture events-all-rss-85397722.xml): no feed paging.'
+        - The ICS link on /events points to s3df.slac.stanford.edu, served as
+          application/octet-stream and refused by the client.
+        - /jsonapi/node/hs_event is 404.
+
+  - <<: *bayarea
+    id: bayarea-pulse
+    name: SLAC Photon Science Seminar Series (Stanford PULSE Institute)
+    adapter: rss
+    url: https://ultrafast.stanford.edu/events/all/rss
+    urls:
+      - https://ultrafast.stanford.edu/pulse-events
+    homepage: https://ultrafast.stanford.edu/pulse-events
+    institution: slac
+    host_org: Stanford PULSE Institute
+    default_fields: [physics]
+    default_event_type: seminar
+    series: Photon Science Seminar
+    params:
+      <<: *su-event-params
+      max_list_pages: 2
+      series_from: type
+      event_type_names: {Photon Science Seminars: seminar}
+      # Subheadline "Ke-Jun Xu", dek "UC Berkeley".
+      card_fields: {speakers: subheadline, affiliation: dek}
+    research:
+      verified: 2026-11-11
+      sample_events: 3
+      has_rss: true
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 2
+      notes:
+        - Also the home of the SLAC Photon Science Seminar Series (SSRL's page says
+          PULSE now publishes it); all 3 upcoming items are of that type.
+        - Wednesday or Thursday 15:00 PT at SLAC; the room is only on the mailing list,
+          the address block holds just "United States".
+        - Feed description is the speaker's affiliation, as in the dek.
+        - No pager on the list (3 cards).
+
+  - <<: *bayarea
+    id: bayarea-suncat
+    name: SUNCAT Center for Interface Science and Catalysis seminars
+    adapter: html_list
+    enabled: false
+    url: https://suncat.stanford.edu/events
+    homepage: https://suncat.stanford.edu/events
+    institution: slac
+    host_org: SUNCAT Center for Interface Science and Catalysis
+    default_fields: [chem]
+    default_event_type: seminar
+    params:
+      # Selectors in the html_list form of config/sources.d/stanford-custom.yaml,
+      # checked on /events (7 rows). The tag list /events/seminars would need no tag
+      # filter, but it was empty, so its markup is not verified.
+      selectors:
+        item: 'main div.views-row'
+        title: 'h5 a'
+        link: 'h5 a'
+        date: '.views-field-field-events-date .field-content'
+        location: '.views-field-field-events-location .field-content'
+      link_attribute: href
+      # "Friday, November 20, 2026 - 10:00am-11:00am (PT)"; a multi-day event:
+      # "Monday, August 2, 2027 - 10:00am - Friday, August 6, 2027 - 02:00pm".
+      date_pattern: '^(?P<date>[A-Z][a-z]+, [A-Z][a-z]+ \d{1,2}, \d{4}) - (?P<start>\d{1,2}:\d{2}[ap]m)\s*-\s*(?:(?P<end_date>[A-Z][a-z]+, [A-Z][a-z]+ \d{1,2}, \d{4}) - )?(?P<end>\d{1,2}:\d{2}[ap]m)(?:\s*\(PT\))?$'
+      date_format: '%A, %B %d, %Y'
+      time_format: '%I:%M%p'
+      require: [title, date]
+      # Keep only rows whose detail page has the tag "Seminars"; the site has no
+      # Crawl-delay, so one detail request per row is cheap. Only 2 of the 7 detail
+      # pages are recorded, so offline runs need more recordings before enabling.
+      detail_page:
+        tag: '.field--name-field-events-tag .field__item'
+      keep_tags: [Seminars]
+    research:
+      verified: 2026-11-11
+      sample_events: 7
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: html
+      crawl_delay: 0
+      requests_per_run: 8
+      notes:
+        - Disabled. No public seminar is listed. /events/seminars is empty; the 6
+          upcoming Friday talks on /events are tagged "Group meetings" and have only
+          the speaker's name as title (no talk title, no abstract), and the 7th entry
+          is the Summer Institute of August 2027.
+        - Not on the Stanford Events calendar either (no SUNCAT department there).
+        - Enable when /events/seminars lists events again; catalysis talks are chem.
+        - Linked from the SLAC seminar index; not in the seed list.
+
+  # --- Stanford-side series linked from the SLAC index ------------------------------
+
+  - <<: *bayarea
+    id: bayarea-glam
+    name: Condensed Matter Physics Seminars (GLAM)
+    adapter: rss
+    url: https://glam.stanford.edu/events/all/rss
+    urls:
+      - https://glam.stanford.edu/events
+    homepage: https://glam.stanford.edu/events
+    institution: stanford
+    host_org: Geballe Laboratory for Advanced Materials (GLAM)
+    default_fields: [physics]
+    default_event_type: seminar
+    series: CMP Seminar
+    params:
+      <<: *su-event-params
+      max_list_pages: 2
+      series_from: type
+      event_type_names: {CMP Seminar: seminar, GLAM Special Seminar: seminar}
+      # Subheadline "Speaker - Affiliation" or "Speaker, Affiliation"; the dek names
+      # the host ("Host: Zhi-Xun Shen", "Hosted by Yugo Onishi, Post Doc"), who is not
+      # a speaker.
+      card_fields: {speakers: subheadline, host: dek}
+      speaker_patterns:
+        # "Uwe Bovensiepen - University of Duisburg-Essen, Germany": the first " - ".
+        - '^(?P<speaker>.+?) - (?P<affiliation>.+)$'
+        # "Minho "Luke" Kim, MIT" (GLAM Special Seminar): the first ", ".
+        - '^(?P<speaker>[^,]+), (?P<affiliation>.+)$'
+        - '^(?P<speaker>.+)$'
+      tba_title_patterns: ['^Coming soon$']
+    research:
+      verified: 2026-11-11
+      sample_events: 8
+      has_rss: true
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 2
+      notes:
+        - Linked from the SLAC index as "Condensed Matter Physics Seminars".
+        - Types seen are CMP Seminar and GLAM Special Seminar; 6 of 8 titles are the
+          placeholder "Coming soon" (speaker and date known, title not yet).
+        - CMP Seminar is Thursday 15:15 PT, 476 Lomita Mall room 115.
+        - The aliases coming-soon-2 and coming-soon-3 belong to unpublished events
+          (both answer with a redirect to the login page, which robots.txt disallows).
+        - No pager on the list (8 cards).
+
+  - <<: *bayarea
+    id: bayarea-qfarm
+    name: Q-FARM Seminars and Events
+    adapter: rss
+    url: https://qfarm.stanford.edu/events/all/rss
+    urls:
+      - https://qfarm.stanford.edu/events
+    homepage: https://qfarm.stanford.edu/events
+    institution: stanford
+    host_org: Stanford Q-FARM
+    default_fields: [physics]
+    default_event_type: seminar
+    series: Q-FARM Seminar
+    params:
+      <<: *su-event-params
+      # Page 0 already runs to 2027-06-02, past the window end, so the pager is not
+      # followed on 2026-11-11.
+      max_list_pages: 2
+      series_from: type
+      event_type_names: {Q-FARM Seminars: seminar, Conference / Workshop: workshop}
+      # On cards of the type "Q-FARM Seminars" the title (h3) names the speakers and
+      # the subheadline is the talk title, often missing (then the talk is TBA). On
+      # "Conference / Workshop" cards the title is the title.
+      type_card_fields:
+        Q-FARM Seminars: {speakers: title, title: subheadline}
+      # "Alicia Kollar [University of Maryland]"; two speakers are joined with " & ":
+      # "Tian Xie [Stanford University] & Yugo Onishi [Stanford University]".
+      speaker_patterns:
+        - '(?P<speaker>[^\[\]&]+?)\s*\[(?P<affiliation>[^\[\]]+)\]'
+    research:
+      verified: 2026-11-11
+      sample_events: 20
+      has_rss: true
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B (soe_profile)
+      requests_per_run: 2
+      notes:
+        - Linked from the SLAC index as "Q-Farm Events" (quantum science).
+        - 20 list cards = 18 Q-FARM Seminars and 2 workshops (one all-day with
+          date-only times), 15 of them before the window end of 2027-03-12; the feed
+          holds the next 10 only and shows the all-day workshop at 00:00.
+        - The feed also lists a stray node /events/alicia-kollar-university-maryland at
+          11:00 next to the real card at 11:30; the list does not show it.
+        - Wednesday 11:00 or 11:30 PT, PAB 102/103.
+
+  - <<: *bayarea
+    id: bayarea-litp
+    name: Leinweber Institute for Theoretical Physics (LITP, formerly SITP) seminars
+    adapter: drupal_jsonapi
+    url: https://sitp.stanford.edu/jsonapi/node/hs_event
+    homepage: https://sitp.stanford.edu/events/sitp-seminar-schedule
+    institution: stanford
+    host_org: Leinweber Institute for Theoretical Physics
+    default_fields: [physics]
+    default_event_type: seminar
+    params:
+      # The request scheme, field list and mapping of the template A sources in
+      # config/sources.d/stanford-sites.yaml ("x-hs-jsonapi-params"), repeated here
+      # because YAML anchors do not reach across files. One addition: the speaker's
+      # affiliation is the site's own attribute custm_speaker_affiliation, so it is
+      # appended to fields[node--hs_event]. The fixture hs-event-window.json holds
+      # exactly the request this builds for the window of 2026-11-11.
+      page_limit: 50
+      max_pages: 4
+      sort: [field_hs_event_date.value, drupal_internal__nid]
+      window_filter:
+        path: field_hs_event_date.value
+        value_format: unix_seconds
+      include:
+        - field_hs_event_speaker
+        - field_hs_event_series
+        - field_hs_event_type
+        - field_hs_event_status
+        - field_hs_event_category
+        - field_hs_event_audience
+      fields:
+        node--hs_event:
+          - title
+          - path
+          - body
+          - status
+          - changed
+          - field_hs_event_date
+          - field_hs_event_instances
+          - field_hs_event_location
+          - field_hs_event_map_link
+          - field_hs_event_link
+          - field_hs_event_stream
+          - field_hs_event_stream_info
+          - field_hs_event_experience
+          - field_hs_event_sponsor
+          - field_hs_event_admission
+          - field_hs_event_registration
+          - field_hs_event_speaker
+          - field_hs_event_series
+          - field_hs_event_type
+          - field_hs_event_status
+          - field_hs_event_category
+          - field_hs_event_audience
+          - custm_speaker_affiliation
+        hs_entity--event_collections__speaker: [label]
+        node--hs_event_series: [title, path]
+        taxonomy_term--hs_event_type: [name]
+        taxonomy_term--hs_event_status: [name]
+        taxonomy_term--hs_event_category: [name]
+        taxonomy_term--hs_event_audience: [name]
+      # Speakers: the included hs_entity--event_collections__speaker labels hold the
+      # name only ("Sean Hartnoll"); custm_speaker_affiliation of the event is the
+      # affiliation ("University of Cambridge"). Each of the 9 events of the institute
+      # in the sample has exactly one speaker; the imports have none.
+      speaker_affiliation_attribute: custm_speaker_affiliation
+      event_type_names:
+        LITP Seminars: seminar
+        LITP Monday Colloquia: colloquium
+        Friday Phenomenology Group Seminars: seminar
+        Colloquia: colloquium
+      status_names: {live: confirmed, Published: confirmed, canceled: cancelled}
+      title_status_pattern: '(?i)\b(cancell?ed|postponed)\b'
+      title_status_names: {canceled: cancelled, cancelled: cancelled, postponed: cancelled}
+      localist_link_prefix: https://events.stanford.edu/event/
+      # Drop every event whose field_hs_event_link.uri starts with localist_link_prefix.
+      # These are imports from the Stanford Events calendar: here all 5 of them are the
+      # Applied Physics/Physics Colloquium, which the Localist source and the physics
+      # department site already list (3 carry the series "Applied Physics/Physics
+      # Colloquia", 2 no series at all, so a series filter alone would miss them).
+      exclude_localist_imports: true
+    research:
+      verified: 2026-11-11
+      sample_events: 14
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: true
+      extraction: api
+      crawl_delay: 30
+      template: A
+      requests_per_run: 1
+      series_seen:
+        - LITP Seminars
+        - LITP Monday Colloquia
+        - Friday Phenomenology Group Seminars
+        - Applied Physics/Physics Colloquia
+      notes:
+        - Found through the SITP link on theory.slac.stanford.edu; not in the seed list.
+          It is a Stanford H&S department site (template A) and fits the stanford-sites
+          group better; it is kept here with the same request scheme so that moving it
+          only changes its id and group.
+        - '14 events in the window of 2026-11-11 (2026-10-30 to 2027-02-23), one page:
+          9 of the institute itself (LITP Seminars, LITP Monday Colloquia, Friday
+          Phenomenology Group Seminars) and 5 imported Applied Physics/Physics
+          Colloquia (status term "live", field_hs_event_link on events.stanford.edu).'
+        - The 9 own events have a speaker relationship and custm_speaker_affiliation;
+          the type term "Colloquia" is set on one Monday colloquium only.
+        - Rooms are Varian 355 and Varian 312; imported events have three lines joined
+          with CR LF.
+        - /events/all/rss is 404.
+
+  # --- CZ Biohub --------------------------------------------------------------------
+
+  - <<: *bayarea
+    id: bayarea-biohub
+    name: Biohub events
+    adapter: html_list
+    url: https://biohub.org/events/
+    homepage: https://biohub.org/events/
+    institution: biohub
+    host_org: Biohub
+    default_fields: [bio]
+    default_event_type: conference
+    params:
+      # Selectors in the html_list form of config/sources.d/stanford-custom.yaml
+      # (selectors.item plus one selector per field), plus a detail_page block. The
+      # item selector takes only the upcoming block; the page lists past events below
+      # it (ul.content-type-past_events, 12 cards).
+      selectors:
+        item: 'ul.content-type-events li.multisite-query-loop-item'
+        title: 'h3.card-title'
+        link: '.card-button a'
+        date: '.wp-block-heading-event-date'  # "November 18, 2026": no time of day
+        region: '.wp-block-post-date'  # "San Francisco Bay Area", "Other Locations"
+        summary: 'p.card-excerpt'
+      link_attribute: href
+      # Order of work for every card: first apply exclude_regions and the skip_*
+      # patterns, then require a link, and only then fetch the detail page. A card
+      # without a link (the "(Invite Only)" symposium has none) is dropped. Links to
+      # other hosts (booth cards point to ascb.org and neurips.cc) are never fetched:
+      # the skip patterns drop those cards first, and a remaining card whose link is
+      # not on biohub.org is dropped as well.
+      exclude_regions: [Chicago, New York]
+      skip_title_patterns: ['\(Invite Only\)']
+      skip_summary_patterns: ['will be at booth']
+      require: [title, link]
+      # Times are only on the detail page; a card whose detail page fails is dropped
+      # for this run.
+      detail_page:
+        times: '.event-meta--date-time-location time[datetime]'  # first = start, second = end
+        location: '.event-meta__value--location'  # "Zoom", "San Francisco, CA (...)"
+        # Native id: the WordPress post id from the shortlink "https://biohub.org/?p=52744"
+        # (also the body class postid-52744); it stays when the slug changes.
+        native_id: 'link[rel="shortlink"]'
+        native_id_attribute: href
+        native_id_pattern: '[?&]p=(?P<native_id>\d+)'
+      title_event_types:
+        Webinar: seminar
+        Symposium: conference
+        Conference: conference
+        Workshop: workshop
+    research:
+      verified: 2026-11-11
+      sample_events: 1
+      has_rss: true
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: html
+      crawl_delay: 0
+      requests_per_run: 2  # the list and one detail page per kept upcoming card
+      notes:
+        - Canonical host biohub.org (www.czbiohub.org redirects here).
+        - One upcoming event (an online webinar on 2026-11-18) and 12 past cards on the
+          list; the list's year filter goes back to 2018.
+        - JSON-LD is the Yoast WebPage graph only, no schema.org/Event.
+        - wp-json is closed to anonymous users (401 rest_not_logged_in on /wp-json/).
+        - /feed/?post_type=event is a 527 KB RSS of 36 items (33 of them with an
+          /events/ link), mostly symposia, conferences and webinars; pubDate is the
+          publication date and there is no event date, so it is not usable.
+        - The GET filter events-event_type=... works for past events but empties the
+          upcoming block, so the list is fetched unfiltered.
+        - Region labels are San Francisco Bay Area, Chicago, New York, Other Locations
+          (online webinars and outside conferences such as NeurIPS booths).

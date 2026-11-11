@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://ultrafast.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://ultrafast.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/photon-science-seminars/x-ray-spectroscopy-many-body-states-and-interactions" hreflang="en">X-ray Spectroscopy of Many-Body States and Interactions</a></h2></title>
+  <link>https://ultrafast.stanford.edu/events/photon-science-seminars/x-ray-spectroscopy-many-body-states-and-interactions</link>
+  <description>UC Berkeley</description>
+  <pubDate>Wed, 11 Nov 2026 15:00:00 -0800</pubDate>
+    <dc:creator>SLAC</dc:creator>
+    <guid isPermaLink="false">2f2be16e-2e82-4e5e-bf62-e37e8be38a2b</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/photon-science-seminars/scientific-instrument-control-age-ai" hreflang="en">Scientific Instrument Control in the Age of AI</a></h2></title>
+  <link>https://ultrafast.stanford.edu/events/photon-science-seminars/scientific-instrument-control-age-ai</link>
+  <description>Caltech</description>
+  <pubDate>Thu, 12 Nov 2026 15:00:00 -0800</pubDate>
+    <dc:creator>SLAC</dc:creator>
+    <guid isPermaLink="false">9333a30a-72ee-4612-8e94-596a39e830fc</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/photon-science-seminars/learning-liquids-molecular-forces-phase-behavior" hreflang="en">Learning Liquids: from molecular forces to phase behavior</a></h2></title>
+  <link>https://ultrafast.stanford.edu/events/photon-science-seminars/learning-liquids-molecular-forces-phase-behavior</link>
+  <description>Stanford University</description>
+  <pubDate>Wed, 18 Nov 2026 15:00:00 -0800</pubDate>
+    <dc:creator>SLAC</dc:creator>
+    <guid isPermaLink="false">330ded07-ed99-4993-8ea9-2af9988925e9</guid>
+    </item>
+
+  </channel>
+</rss>

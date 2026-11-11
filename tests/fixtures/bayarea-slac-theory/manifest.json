@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_id": "bayarea-slac-theory",
+  "entries": {
+    "https://theory.slac.stanford.edu/events": {
+      "file": "events-f2c294be.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T17:27:38Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://theory.slac.stanford.edu/events/past-events": {
+      "file": "events-past-events-d309f721.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T17:27:39Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}
