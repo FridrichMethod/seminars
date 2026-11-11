@@ -16,7 +16,9 @@ unknown keys; use ``model.evolve(...)`` to derive a changed copy.
 
 Most of these models are written to files below data/, which are committed
 and checked by the charset gate. ``seminars.textrules`` states the rule and
-what each writer has to do about it.
+what each writer has to do about it. One part of it is built into every
+model: a lone surrogate, which no file can hold, is dropped from all strings
+when a model is built (see ``Model``), so any model can be dumped and written.
 """
 
 from seminars.models.base import (

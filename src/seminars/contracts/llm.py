@@ -224,6 +224,12 @@ class LLMCache(Protocol):
     more days after the recorded date renews it, and with such use that hit
     comes at most ``ttl_days - 1`` days after that date.) With the defaults,
     ``ttl_days`` 180 and R 30, that is one hit in every 150 days.
+
+    The other side of the trade: because a hit within R days of the
+    recorded date does not move it, an entry that stops being used can be
+    pruned up to R - 1 days sooner than ``ttl_days`` after its last hit.
+    Once more than ``ttl_days`` have passed since its last hit, the next
+    ``prune`` always removes it.
     """
 
     def get(self, key: str) -> dict[str, Any] | None:
