@@ -650,7 +650,7 @@ class TestFilters:
         after.assert_clean()
 
 
-# --- subscription and status ----------------------------------------------------------------
+# --- subscription and notices ---------------------------------------------------------------
 
 
 class TestPanels:
@@ -691,94 +691,6 @@ class TestPanels:
         note = item.locator(".copy-note", has_text=re.compile(r"\S"))
         note.wait_for()
         assert note.text_content() == catalog("en")["site.subscribe.copy_failed"]
-        current.assert_clean()
-
-    def test_status_values_that_cannot_be_shown_are_left_out(
-        self, session: Callable[..., Session]
-    ) -> None:
-        payload = {
-            "generated_at": "not a time",
-            "last_run_at": None,
-            "last_run_ok": False,
-            "event_count": -3,
-            "llm_provider": None,
-            "sources": [
-                None,
-                "text",
-                {"id": "custom-nameless", "state": "ok"},
-                {
-                    "id": "custom-odd",
-                    "name": "Odd source",
-                    "group": 5,
-                    "url": "javascript:alert(1)",
-                    "state": "exploded",
-                    "events": 2.5,
-                    "last_run_at": "yesterday",
-                    "consecutive_failures": -1,
-                    "error": "",
-                },
-                {
-                    "id": "custom-off",
-                    "name": "Switched off",
-                    "url": "file://example.org/etc/passwd",
-                    "state": "disabled",
-                },
-            ],
-        }
-        current = session()
-        serve_json(current, "status.json", payload)
-        current.open("status.html")
-        page = current.page
-        english = catalog("en")
-        assert page.locator("#updated").text_content() == ""
-        assert page.locator("#summary li").all_text_contents() == [
-            english["site.status.no_run"],
-            english["site.status.last_run_failed"],
-            "0 talks on the site",
-            "0 of 1 active sources are healthy.",
-            english["site.status.llm_none"],
-        ]
-        ids = page.eval_on_selector_all("#sources article", "es => es.map((e) => e.dataset.source)")
-        assert ids == ["custom-odd", "custom-off"]
-        odd = page.locator('article[data-source="custom-odd"]')
-        assert odd.locator(".source-name a").count() == 0
-        off = page.locator('article[data-source="custom-off"]')
-        assert off.locator(".source-name a").count() == 0
-        assert off.locator(".source-name").text_content() == "Switched off"
-        assert odd.locator(".badge-state").text_content() == english["site.status.states.unknown"]
-        assert odd.locator("dt").all_text_contents() == [
-            english["site.status.columns.events"],
-            english["site.status.columns.last_run"],
-            english["site.status.columns.last_success"],
-            english["site.status.columns.failures"],
-        ]
-        never = english["site.status.never"]
-        assert odd.locator("dd").all_text_contents() == ["0", never, never, "0"]
-        current.assert_clean()
-
-        empty = session()
-        serve_json(empty, "status.json", {"generated_at": "2026-11-10T12:30:00Z"})
-        empty.open("status.html")
-        notice = empty.page.locator("#sources .notice").text_content()
-        assert notice == english["site.status.empty"]
-        empty.assert_clean()
-
-    def test_status_page_lists_every_source(self, session: Callable[..., Session]) -> None:
-        current = session().open("status.html")
-        page = current.page
-        ids = page.eval_on_selector_all("#sources article", "es => es.map((e) => e.dataset.source)")
-        assert ids == [source["id"] for source in sample("status.json")["sources"]]
-        states = page.locator("#sources .badge-state").all_text_contents()
-        english = catalog("en")
-        assert states == [
-            english[f"site.status.states.{source['state']}"]
-            for source in sample("status.json")["sources"]
-        ]
-        summary = page.locator("#summary").text_content() or ""
-        assert "2 of 5 active sources are healthy." in summary
-        assert "claude-cli" in summary
-        unlinked = page.locator('article[data-source="rsorg-new-series"] .source-name a')
-        assert unlinked.count() == 0
         current.assert_clean()
 
     @pytest.mark.parametrize(
