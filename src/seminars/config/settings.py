@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import ipaddress
 from datetime import datetime
 from typing import Annotated, Self
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import AfterValidator, Field, StringConstraints, model_validator
 
+from seminars.httpurl import DEFAULT_FORBIDDEN_NETWORKS
 from seminars.models import Model, TimeWindow
 from seminars.models.base import HttpUrlStr, NonEmptyStr, TimezoneName
 
@@ -15,6 +17,15 @@ NonNegativeInt = Annotated[int, Field(ge=0)]
 PositiveFloat = Annotated[float, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0)]
 Hostname = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$")]
+
+
+def _network(value: str) -> str:
+    """``value`` as a network in CIDR notation, in its one standard spelling."""
+    return str(ipaddress.ip_network(value, strict=False))
+
+
+CidrNetwork = Annotated[str, AfterValidator(_network)]
+"""An IPv4 or IPv6 network such as ``203.0.113.0/24``; a single address means that address."""
 
 
 class WindowSettings(Model):
@@ -41,6 +52,13 @@ class HttpSettings(Model):
 
     The effective interval between two requests to one host is
     ``max(min_interval_seconds, Crawl-delay of that host's robots.txt)``.
+
+    ``forbidden_networks`` lists networks whose addresses are never
+    contacted although they are globally routable: nothing is fetched from
+    a URL, a redirect or a name that leads into one of them. Private,
+    loopback and link-local addresses are refused in any case and need no
+    entry. Add the public address ranges of your own network when internal
+    services live in them.
     """
 
     user_agent: NonEmptyStr
@@ -54,6 +72,7 @@ class HttpSettings(Model):
     max_redirects: NonNegativeInt = 5  # per request, and per robots.txt
     max_body_bytes: PositiveInt = 5_000_000  # larger responses are given up, not read
     robots_cache_seconds: NonNegativeFloat = 86400.0  # reuse a cached robots.txt this long
+    forbidden_networks: list[CidrNetwork] = list(DEFAULT_FORBIDDEN_NETWORKS)
 
     @property
     def robots_token(self) -> str:

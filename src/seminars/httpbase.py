@@ -29,6 +29,13 @@ The live client asks it before every request; tests pass a stub, so they
 never touch DNS.
 """
 
+OwnAddressCheck = Callable[[str], bool]
+"""Says whether an IP address, given as text, is one of the machine the client runs on.
+
+The live client asks it about every address a host name resolves to and
+about the peer of every connection; tests pass a stub.
+"""
+
 REDIRECT_STATUSES: Final = frozenset({301, 302, 303, 307, 308})
 RETRY_STATUSES: Final = frozenset({408, 425, 429, 500, 502, 503, 504})
 BINARY_MEDIA_PREFIXES: Final = ("image/", "audio/", "video/", "font/")
@@ -73,7 +80,10 @@ class ForbiddenHostError(HttpError, ValueError):
     """The URL leads to this machine or a private network, never to a public site.
 
     Raised for a host that is written as a local or private address, for a
-    name that resolves to one, and for an answer that came from one.
+    name that resolves to one, and for an answer that came from one. An
+    address of the machine the client runs on and the addresses of
+    ``http.forbidden_networks`` count as such, although they may be
+    globally routable.
     """
 
 

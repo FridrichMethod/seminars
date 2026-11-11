@@ -28,6 +28,12 @@ http:
   max_redirects: 5
   max_body_bytes: 5000000
   robots_cache_seconds: 86400
+  # Networks that are never contacted although their addresses are public
+  # (CIDR notation). Private, loopback and link-local addresses are refused
+  # anyway. 168.63.129.16 is the platform address of Azure, which the hosted
+  # runners of GitHub Actions can reach.
+  forbidden_networks:
+    - 168.63.129.16/32
 
 events:
   default_duration_minutes: 60

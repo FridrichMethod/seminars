@@ -15,6 +15,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import unicodedata
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Final
 from urllib.parse import urlsplit
@@ -24,6 +25,26 @@ from seminars.textrules import strip_surrogates
 
 MAX_URL_LENGTH: Final = 8192
 """Longer URLs are refused; servers do not take them either."""
+
+Network = ipaddress.IPv4Network | ipaddress.IPv6Network
+
+DEFAULT_FORBIDDEN_NETWORKS: Final = ("168.63.129.16/32",)
+"""Globally routable addresses that are no public site all the same (CIDR notation).
+
+The default of ``http.forbidden_networks``. 168.63.129.16 is the platform
+address of Azure: every virtual machine there (the hosted runners of GitHub
+Actions are such machines) reaches metadata and agent services of the
+platform through it. The metadata addresses of the other clouds are
+link-local or otherwise not global and need no entry.
+"""
+
+
+def parse_networks(values: Iterable[str]) -> tuple[Network, ...]:
+    """The networks written in ``values`` (CIDR notation); ``ValueError`` for anything else."""
+    return tuple(ipaddress.ip_network(value, strict=False) for value in values)
+
+
+_DEFAULT_FORBIDDEN: Final = parse_networks(DEFAULT_FORBIDDEN_NETWORKS)
 
 _DEFAULT_PORTS: Final = {"http": 80, "https": 443}
 _INTERNAL_SUFFIXES: Final = (".localhost", ".local", ".internal", ".lan", ".home.arpa")
@@ -53,8 +74,11 @@ def _embedded_ipv4(address: ipaddress.IPv6Address) -> ipaddress.IPv4Address | No
     return None
 
 
-def _is_global(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    """True for a globally routable unicast address.
+def _is_global(
+    address: ipaddress.IPv4Address | ipaddress.IPv6Address,
+    forbidden: Sequence[Network] = _DEFAULT_FORBIDDEN,
+) -> bool:
+    """True for a globally routable unicast address outside the ``forbidden`` networks.
 
     An IPv6 address that wraps an IPv4 address (IPv4-mapped, IPv4-translated,
     IPv4-compatible, NAT64) counts as that IPv4 address. Multicast and the
@@ -64,24 +88,36 @@ def _is_global(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     if isinstance(address, ipaddress.IPv6Address):
         wrapped = _embedded_ipv4(address)
         if wrapped is not None:
-            return _is_global(wrapped)
+            return _is_global(wrapped, forbidden)
         if address.is_site_local:
             return False
+    if any(address in network for network in forbidden):
+        return False
     return address.is_global and not address.is_multicast
 
 
-def is_public_address(address: str) -> bool:
-    """True when ``address``, an IP address as text, is globally routable.
+def is_public_address(address: str, forbidden: Sequence[Network] | None = None) -> bool:
+    """True when ``address``, an IP address as text, may be the address of a public site.
 
     This is how the answers of a resolver and the peer of a connection are
     judged. A zone id (``fe80::1%eth0``) is ignored, and an IPv6 address
     that wraps an IPv4 address (IPv4-mapped, NAT64, ...) counts as that IPv4
     address. Loopback, link-local, private, carrier-grade NAT, multicast,
     documentation and other reserved ranges are not public, and neither is
-    text that is not an IP address.
+    text that is not an IP address. An address in one of the ``forbidden``
+    networks is not public either; without the argument these are
+    ``DEFAULT_FORBIDDEN_NETWORKS``, and the live client passes the networks
+    of ``http.forbidden_networks``.
+
+    What this cannot tell: an internal host that has a globally routable
+    address. Machines on a network that uses public addresses behind a
+    firewall look like any site on the internet. Put such networks on the
+    list. The address of the machine the client runs on is a case of this;
+    the live client finds that one out by itself (``system_own_address``).
     """
+    networks = _DEFAULT_FORBIDDEN if forbidden is None else forbidden
     try:
-        return _is_global(ipaddress.ip_address(address.partition("%")[0]))
+        return _is_global(ipaddress.ip_address(address.partition("%")[0]), networks)
     except ValueError:
         return False
 
@@ -194,7 +230,9 @@ def is_public_host(host: str) -> bool:
     a host at all is not a public host either.
 
     What this guarantees: a True answer means the host is not WRITTEN as a
-    local or private address. It says nothing about where a name leads,
+    local or private address or as one of ``DEFAULT_FORBIDDEN_NETWORKS``
+    (the networks of the settings are applied by the live client, which
+    looks every host up). It says nothing about where a name leads,
     because this function looks nothing up and does no I/O. A public name
     can resolve to 127.0.0.1 or to 169.254.169.254. Closing that is the job
     of the live client, which resolves every name before each request and

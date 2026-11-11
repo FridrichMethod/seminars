@@ -95,8 +95,12 @@ passes three checks:
    before anything else happens.
 2. The name is looked up through ``resolver`` (default: the system resolver,
    ``socket.getaddrinfo``) right before the request is sent. When ANY
-   address of the answer is not globally routable (``is_public_address``),
-   the request is not sent and ``ForbiddenHostError`` is raised. A refused
+   address of the answer is not globally routable, lies in one of the
+   networks of ``http.forbidden_networks`` (``is_public_address``) or is
+   an address of this machine (``own_address``, default
+   ``system_own_address``), the request is not sent and
+   ``ForbiddenHostError`` is raised. A host written as an IP address is
+   looked up and judged the same way. A refused
    host costs no request and no budget. (When the refused host is the
    target of a robots.txt redirect, the origin is blocked with
    ``RobotsUnavailableError``, like for any redirect that cannot be
@@ -105,7 +109,9 @@ passes three checks:
    ``HttpRequestError`` in the end.
 3. Once the connection exists and before the body is read, the address of
    the peer the connection really goes to is checked (the ``network_stream``
-   extension of httpx). An answer from a non-global address raises
+   extension of httpx). An answer from a non-global or forbidden address,
+   from an address of this machine, or over a connection whose two ends
+   have the same address raises
    ``ForbiddenHostError``: its body is not read, nothing is cached and
    nothing is retried. The host is then refused for the rest of the run
    without another lookup or request, whichever URL or origin of it is
@@ -121,6 +127,15 @@ the fixed User-Agent and, when the host is the one the caller asked for,
 the headers the caller passed; it never carries a cookie, and this project
 holds no credentials for any site. Its answer is never read and nothing
 of it is kept.
+
+What cannot be recognised at all: an internal host with a globally
+routable address. A machine of a network that uses public addresses behind
+a firewall, or a service of a cloud platform at a public address, looks
+like any site on the internet to every check above. The address of the
+machine the client runs on is found out (checks 2 and 3); for everything
+else there is ``http.forbidden_networks`` in config/settings.yaml, which
+holds the platform address of Azure by default. List the address ranges of
+your own network there when the client runs inside it.
 
 Proxies are not supported. The client ignores the proxy variables of the
 environment (``HTTP_PROXY``, ``HTTPS_PROXY``, ``ALL_PROXY``, ``NO_PROXY``)
@@ -163,6 +178,7 @@ from seminars.httpbase import (
     HttpError,
     HttpRequestError,
     HttpStatusError,
+    OwnAddressCheck,
     Resolver,
     ResponseTooLargeError,
     RobotsDisallowedError,
@@ -183,7 +199,7 @@ from seminars.httpurl import (
     parse_url,
     split_url,
 )
-from seminars.httpwire import AttemptFailed, Exchange, Wire, system_resolver
+from seminars.httpwire import AttemptFailed, Exchange, Wire, system_own_address, system_resolver
 from seminars.models import FetchedDocument
 from seminars.robots import ALLOW_ALL, ROBOTS_PATH, RobotsPolicy, parse_robots
 from seminars.textrules import ascii_safe
@@ -205,6 +221,7 @@ __all__ = [
     "HttpRequestError",
     "HttpStatusError",
     "OfflineHttpClient",
+    "OwnAddressCheck",
     "PoliteClient",
     "Resolver",
     "ResponseTooLargeError",
@@ -223,6 +240,7 @@ __all__ = [
     "media_type",
     "offline_client",
     "split_url",
+    "system_own_address",
     "system_resolver",
 ]
 
@@ -309,8 +327,11 @@ class PoliteClient:
     (in one process or in several) coordinate through a common ``cache_dir``.
 
     ``resolver`` looks host names up before every request (default:
-    ``system_resolver``). Tests always pass a stub. Proxy settings of the
-    environment are ignored; see "Public hosts only" in the module docstring.
+    ``system_resolver``), and ``own_address`` says whether an address is one
+    of this machine (default: ``system_own_address``). Tests always pass a
+    stub resolver, and the test suite replaces the default of the second.
+    Proxy settings of the environment are ignored; see "Public hosts only"
+    in the module docstring.
     """
 
     def __init__(
@@ -322,12 +343,13 @@ class PoliteClient:
         sleep: Sleeper = time.sleep,
         transport: httpx.BaseTransport | None = None,
         resolver: Resolver | None = None,
+        own_address: OwnAddressCheck | None = None,
     ) -> None:
         self._settings = settings
         self._clock = clock
         self._sleep = sleep
         self._cache = HttpCache(cache_dir)
-        self._wire = Wire(settings, transport=transport, resolver=resolver)
+        self._wire = Wire(settings, transport=transport, resolver=resolver, own_address=own_address)
         self._hosts: dict[str, _HostState] = {}
         self._hosts_lock = threading.Lock()
 

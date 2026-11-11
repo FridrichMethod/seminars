@@ -10,6 +10,7 @@ docstring of ``seminars.http`` describes them.
 
 from __future__ import annotations
 
+import ipaddress
 import socket
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ import httpx
 from seminars.config import HttpSettings
 from seminars.httpbase import (
     ForbiddenHostError,
+    OwnAddressCheck,
     Resolver,
     ResponseTooLargeError,
     UnsupportedContentTypeError,
@@ -28,7 +30,7 @@ from seminars.httpbase import (
     media_type,
 )
 from seminars.httptext import decode_body
-from seminars.httpurl import is_public_address
+from seminars.httpurl import is_public_address, parse_networks
 
 
 def system_resolver(host: str) -> list[str]:
@@ -40,6 +42,44 @@ def system_resolver(host: str) -> list[str]:
     """
     answers = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
     return list(dict.fromkeys(str(answer[4][0]) for answer in answers))
+
+
+def _ip(address: object) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """``address`` as an IP address without its zone id; ``None`` when it is not one."""
+    if not isinstance(address, str):
+        return None
+    try:
+        return ipaddress.ip_address(address.partition("%")[0])
+    except ValueError:
+        return None
+
+
+def system_own_address(address: str) -> bool:
+    """True when ``address`` is an address of this machine; nothing is sent to find out.
+
+    The default ``OwnAddressCheck`` of the live client. A UDP socket is
+    connected to the address, which only makes the kernel choose a route
+    and a source address for it. For an address that sits on one of the
+    machine's own interfaces the source is that very address. The public
+    address of a host is globally routable like any other, so this is the
+    only way to tell it from a site on the internet.
+    """
+    target = _ip(address)
+    if target is None:
+        return False
+    family = socket.AF_INET6 if target.version == 6 else socket.AF_INET
+    try:
+        with socket.socket(family, socket.SOCK_DGRAM) as probe:
+            probe.connect((str(target), 9))
+            source = probe.getsockname()[0]
+    except OSError:  # no route, or no such address family here: not reachable at all
+        return False
+    return _ip(source) == target
+
+
+def _end(address: object) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """The IP address of one end of a connection, as ``getpeername`` and ``getsockname`` give it."""
+    return _ip(address[0]) if isinstance(address, tuple) and address else None
 
 
 class AttemptFailed(Exception):
@@ -75,9 +115,12 @@ class Wire:
         *,
         transport: httpx.BaseTransport | None = None,
         resolver: Resolver | None = None,
+        own_address: OwnAddressCheck | None = None,
     ) -> None:
         self._settings = settings
         self._resolver = system_resolver if resolver is None else resolver
+        self._own_address = system_own_address if own_address is None else own_address
+        self._forbidden = parse_networks(settings.forbidden_networks)
         self._client = httpx.Client(
             headers={"User-Agent": settings.user_agent},
             timeout=settings.timeout_seconds,
@@ -95,9 +138,12 @@ class Wire:
         """Look up the host of ``url``; False when it has no address.
 
         Raises ``ForbiddenHostError`` when any address it resolves to is not
-        public. The name is taken from httpx, so it is exactly the one the
-        connection will be made to (IDNA-encoded, IPv6 without brackets); a
-        URL that httpx cannot parse is rejected here.
+        public (``is_public_address`` with the forbidden networks of the
+        settings) or belongs to this machine. The name is taken from httpx,
+        so it is exactly the one the connection will be made to
+        (IDNA-encoded, IPv6 without brackets); a URL that httpx cannot parse
+        is rejected here. An IP address in place of a name goes the same
+        way: the resolver hands it back and it is judged like any answer.
         """
         try:
             name = httpx.URL(url).raw_host.decode("ascii")
@@ -107,10 +153,15 @@ class Wire:
             addresses = list(self._resolver(name))
         except (OSError, UnicodeError):  # no such name, or not a name the resolver accepts
             return False
-        if not all(is_public_address(address) for address in addresses):
-            raise ForbiddenHostError(
-                url, "refusing a host name that resolves to a local or private network address"
-            )
+        for address in addresses:
+            if not is_public_address(address, self._forbidden):
+                raise ForbiddenHostError(
+                    url, "refusing a host name that resolves to a local or private network address"
+                )
+            if self._own_address(address):
+                raise ForbiddenHostError(
+                    url, "refusing a host name that resolves to an address of this machine"
+                )
         return bool(addresses)
 
     def exchange(self, url: str, headers: Mapping[str, str]) -> Exchange:
@@ -132,27 +183,31 @@ class Wire:
         except httpx.RequestError as error:
             raise AttemptFailed(type(error).__name__) from error
 
-    @staticmethod
-    def _check_peer(url: str, response: httpx.Response) -> None:
+    def _check_peer(self, url: str, response: httpx.Response) -> None:
         """Refuse an answer that did not come from a public address; the body is still unread.
 
         The address is the one of the connection itself, so it holds
-        whatever the lookup before the request said. Without a network
-        connection (mock transports) there is nothing to check; with one
-        whose peer cannot be told, the answer is refused.
+        whatever the lookup before the request said. A connection whose two
+        ends have the same address, or whose peer is an address of this
+        machine, goes to a service on this machine, however public that
+        address is. Without a network connection (mock transports) there
+        is nothing to check; with one whose peer cannot be told, the answer
+        is refused.
         """
         stream = response.extensions.get("network_stream")
         if stream is None:
             return
         try:
-            peer = stream.get_extra_info("server_addr")
+            peer = _end(stream.get_extra_info("server_addr"))
+            local = _end(stream.get_extra_info("client_addr"))
         except OSError as error:  # the connection is gone already
             raise AttemptFailed("connection lost") from error
-        address = peer[0] if isinstance(peer, tuple) and peer else None
-        if not isinstance(address, str) or not is_public_address(address):
+        if peer is None or not is_public_address(str(peer), self._forbidden):
             raise ForbiddenHostError(
                 url, "refusing an answer from a local or private network address"
             )
+        if peer == local or self._own_address(str(peer)):
+            raise ForbiddenHostError(url, "refusing an answer from this machine")
 
     def _read_body(self, url: str, response: httpx.Response) -> bytes:
         """Read the body in pieces and stop as soon as it is larger than ``max_body_bytes``."""

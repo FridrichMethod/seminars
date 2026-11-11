@@ -404,6 +404,8 @@ class Connection:
 
     def get_extra_info(self, info: str) -> object:
         self.asked.append(info)
+        if info != "server_addr":
+            return ("192.0.2.10", 50000) if info == "client_addr" else None
         peer = self._peers.pop(0) if len(self._peers) > 1 else self._peers[0]
         if isinstance(peer, Exception):
             raise peer
@@ -612,7 +614,7 @@ class TestPeerAddress:
 
         client = self.build(http_settings, fake_clock, resolver, handler)
         assert client.get(PAGE).text == "ok\n"
-        assert connection.asked == ["server_addr", "server_addr"]
+        assert connection.asked == ["server_addr", "client_addr"] * 2
 
     def test_a_connection_that_is_gone_before_the_check_is_a_failed_attempt(
         self, http_settings: HttpSettings, fake_clock: FakeClock, resolver: StubResolver
