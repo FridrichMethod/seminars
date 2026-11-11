@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Self
+from typing import Annotated, Final, Self
 
 from pydantic import AfterValidator, Field, FiniteFloat, HttpUrl, model_validator
 
@@ -28,6 +28,9 @@ def _sorted_unique_urls(values: list[HttpUrl]) -> list[HttpUrl]:
 
 SortedUrlList = Annotated[list[HttpUrl], AfterValidator(_sorted_unique_urls)]
 
+TBA_TITLE: Final = "TBA"
+"""Title of an event whose real title has not been announced yet."""
+
 
 class Speaker(Model):
     """One speaker of an event."""
@@ -50,6 +53,13 @@ class Event(Model):
     * ``fields`` is validated against FIELD_IDS and kept in canonical order;
       ``source_ids`` and ``source_urls`` are kept sorted and unique. The order
       of ``speakers`` and ``picks_reasons`` is meaningful and preserved.
+    * ``title`` is exactly TBA_TITLE ("TBA") while the source has not announced
+      one; ``is_tba`` tests for it.
+    * An all-day event has ``all_day=True``, ``start`` at local midnight of its
+      first day and ``end`` either ``None`` (one day) or local midnight after
+      its last day (exclusive, like DTEND in ICS). A timed event without a
+      known end has ``end=None``; outputs apply the default duration.
+    * ``is_online`` with a ``location`` means hybrid; without one, online only.
     * ``stream_url`` never carries a credential (see ``url_has_credential``).
     * Between normalization and classification ``fields`` is empty and
       ``field_tag_method`` is the placeholder ``"source"``.
@@ -91,6 +101,11 @@ class Event(Model):
         if self.stream_url is not None and url_has_credential(self.stream_url):
             raise ValueError("stream_url carries a credential; drop it and set is_online instead")
         return self
+
+    @property
+    def is_tba(self) -> bool:
+        """True while the title is still the "to be announced" placeholder."""
+        return self.title == TBA_TITLE
 
     def is_pick(self, threshold: float) -> bool:
         """True when the event belongs in the picks feed (score >= threshold)."""

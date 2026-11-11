@@ -55,7 +55,7 @@ from seminars.models.draft import (
     SpeakerDraft,
     TimeWindow,
 )
-from seminars.models.event import Event, Speaker
+from seminars.models.event import TBA_TITLE, Event, Speaker
 from seminars.models.health import (
     HEALTH_HISTORY_LIMIT,
     HealthFile,
@@ -135,6 +135,7 @@ __all__ = [
     "PUBLIC_SCHEMA_VERSION",
     "SOURCE_GROUP_PREFIXES",
     "SOURCE_ID_PATTERN",
+    "TBA_TITLE",
     "UID_PATTERN",
     "Candidate",
     "DigestDocument",

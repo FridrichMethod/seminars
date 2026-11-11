@@ -22,6 +22,7 @@ from seminars.models import (
     FEED_IDS,
     FIELD_IDS,
     HEALTH_HISTORY_LIMIT,
+    TBA_TITLE,
     Event,
     EventDraft,
     EventHints,
@@ -214,6 +215,11 @@ class TestEventCanonicalForm:
         with pytest.raises(ValidationError, match="credential"):
             make_event(stream_url="https://stanford.zoom.us/j/123?pwd=abc")
         assert make_event(stream_url="https://stanford.zoom.us/j/123").stream_url is not None
+
+    def test_is_tba(self) -> None:
+        assert TBA_TITLE == "TBA"
+        assert make_event(title="TBA").is_tba
+        assert not make_event(title="TBA: details to follow").is_tba
 
     def test_is_pick(self) -> None:
         event = make_event(picks_score=3.0)

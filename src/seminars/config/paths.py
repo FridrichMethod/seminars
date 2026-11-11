@@ -14,7 +14,17 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class ProjectPaths:
-    """All well-known paths. Nothing else in the code spells these names out."""
+    """All well-known paths. Nothing else in the code spells these names out.
+
+    The build output is a self-contained static site; pages load everything
+    with relative URLs::
+
+        public/
+          index.html, status.html, ...   copied from site/
+          locales/<lang>.json            copied from locales/
+          feeds/<feed id>.ics            the nine calendar feeds
+          events.json, status.json       the public payloads
+    """
 
     root: Path
 

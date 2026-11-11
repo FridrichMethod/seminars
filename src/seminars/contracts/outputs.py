@@ -97,6 +97,8 @@ class DigestPublisher(Protocol):
     ) -> DigestOutcome:
         """Open this week's digest issue and close the previous one.
 
+        "This week" is the Monday-to-Sunday week that contains ``now`` in the
+        configured time zone; its Monday is the ``week_start`` of the renderer.
         Idempotent per week: if an issue with this week's title exists,
         nothing is changed. The creation time of the previous digest issue
         becomes ``previous_issue_at`` of the renderer and ``owner`` is passed
