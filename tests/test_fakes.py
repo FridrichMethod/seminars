@@ -1,0 +1,325 @@
+"""Tests for the shared fakes and fixtures, so that other test modules can trust them."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from datetime import timedelta
+from pathlib import Path
+
+import pytest
+from pydantic import BaseModel
+
+from factories import (
+    REFERENCE_NOW,
+    make_candidate,
+    make_draft,
+    make_event,
+    make_payload,
+    make_source,
+)
+from fakes import (
+    FakeClock,
+    FakeEventFilter,
+    FakeFieldTagger,
+    FakeHttpClient,
+    FakeIssueClient,
+    FakePicksScorer,
+    FakeSecretScanner,
+)
+from fakes_llm import FakeLLMCache, FakeLLMClient, FakeLLMFieldTagger, FakePageExtractor, LLMCall
+from fakes_outputs import FakeEmitters
+from seminars.config import AppConfig
+from seminars.contracts import (
+    LABEL_DIGEST,
+    LLMAuthError,
+    LLMInvalidOutputError,
+    LLMRateLimitError,
+)
+from seminars.http import FixtureNotFoundError, HttpStatusError
+from seminars.models import (
+    FEED_IDS,
+    Event,
+    HealthFile,
+    LLMTagResult,
+    PublicEventsPayload,
+    PublicStatusPayload,
+    RunReport,
+    SourceRunResult,
+    TagDecision,
+    read_model,
+)
+
+
+class Fields(BaseModel):
+    fields: list[str]
+
+
+class TestFakeClock:
+    def test_sleep_advances_time_without_waiting(self, fake_clock: FakeClock) -> None:
+        start = fake_clock()
+        fake_clock.sleep(30.0)
+        fake_clock.advance(5.0)
+        assert fake_clock() == start + 35.0
+        assert fake_clock.sleeps == [30.0]
+        assert fake_clock.now() == REFERENCE_NOW + timedelta(seconds=35)
+
+
+class TestFakeHttpClient:
+    def test_serves_pages_and_records_requests(self, fake_http: FakeHttpClient) -> None:
+        fake_http.add("https://a.example.edu/x", "hello", content_type="text/plain")
+        document = fake_http.get("https://a.example.edu/x")
+        assert (document.text, document.content_type, document.status) == (
+            "hello",
+            "text/plain",
+            200,
+        )
+        assert fake_http.requests == ["https://a.example.edu/x"]
+
+    def test_unknown_url_and_error_status(self, fake_http: FakeHttpClient) -> None:
+        fake_http.add("https://a.example.edu/gone", "gone", status=410)
+        with pytest.raises(FixtureNotFoundError):
+            fake_http.get("https://a.example.edu/other")
+        with pytest.raises(HttpStatusError):
+            fake_http.get("https://a.example.edu/gone")
+        assert fake_http.get("https://a.example.edu/gone", allow_statuses=[410]).status == 410
+
+
+class TestFakeLLMClient:
+    def test_scripted_replies_are_consumed_in_order(self, fake_llm: FakeLLMClient) -> None:
+        fake_llm.script({"fields": ["bio"]}, Fields(fields=["chem"]))
+        first = fake_llm.complete_json("system", "user 1", Fields, max_tokens=100)
+        second = fake_llm.complete_json("system", "user 2", Fields, max_tokens=100)
+        assert (first.fields, second.fields) == (["bio"], ["chem"])
+        assert [call.user for call in fake_llm.calls] == ["user 1", "user 2"]
+        assert fake_llm.calls[0] == LLMCall("system", "user 1", Fields, 100)
+
+    def test_unscripted_call_is_a_test_bug(self, fake_llm: FakeLLMClient) -> None:
+        with pytest.raises(AssertionError, match="no scripted reply"):
+            fake_llm.complete_json("s", "u", Fields, max_tokens=1)
+
+    def test_always_and_callable_replies(self) -> None:
+        def echo(call: LLMCall) -> dict[str, list[str]]:
+            return {"fields": [call.user]}
+
+        llm = FakeLLMClient().always(echo)
+        assert llm.complete_json("s", "math", Fields, max_tokens=1).fields == ["math"]
+        assert llm.complete_json("s", "cs", Fields, max_tokens=1).fields == ["cs"]
+
+    def test_failure_injection(self) -> None:
+        llm = FakeLLMClient({"fields": ["bio"]}, name="claude-cli")
+        llm.fail(LLMRateLimitError("slow down", provider="claude-cli"), times=2)
+        for _ in range(2):
+            with pytest.raises(LLMRateLimitError):
+                llm.complete_json("s", "u", Fields, max_tokens=1)
+        assert llm.complete_json("s", "u", Fields, max_tokens=1).fields == ["bio"]
+        usage = llm.usage()
+        assert (usage.calls, usage.provider) == (3, "claude-cli")
+        assert usage.providers[0].failures == 2
+        assert usage.providers[0].status == "ok"
+
+    def test_invalid_reply_raises_invalid_output(self, fake_llm: FakeLLMClient) -> None:
+        fake_llm.script({"wrong": 1})
+        with pytest.raises(LLMInvalidOutputError, match="does not match Fields"):
+            fake_llm.complete_json("s", "u", Fields, max_tokens=1)
+
+    def test_usage_of_a_failing_or_unused_client(self) -> None:
+        assert FakeLLMClient().usage().providers[0].status == "unused"
+        llm = FakeLLMClient().always(LLMAuthError("expired", provider="fake-llm"))
+        with pytest.raises(LLMAuthError):
+            llm.complete_json("s", "u", Fields, max_tokens=1)
+        result = llm.usage().providers[0]
+        assert (result.status, result.failure_kind) == ("failed", "auth")
+        assert llm.usage().provider is None
+
+
+class TestClassificationFakes:
+    def test_cache(self, fake_llm_cache: FakeLLMCache) -> None:
+        assert fake_llm_cache.get("k") is None
+        fake_llm_cache.put("k", {"fields": ["bio"]})
+        assert fake_llm_cache.get("k") == {"fields": ["bio"]}
+        assert (fake_llm_cache.hits, fake_llm_cache.misses, fake_llm_cache.writes) == (1, 1, 1)
+        assert fake_llm_cache.prune() == 0
+
+    def test_field_tagger_uses_hints_and_overrides(self) -> None:
+        with_hints = make_candidate()
+        without = make_candidate(make_event(uid="no-hints", fields=[]), default_fields=[])
+        override = TagDecision(fields=["math"], method="rules")
+        tagger = FakeFieldTagger({"forced": override})
+        assert tagger.tag(with_hints) == TagDecision(fields=["bio"], method="source")
+        assert tagger.tag(without).needs_llm
+        assert tagger.tag(make_candidate(make_event(uid="forced", fields=[]))) == override
+        assert tagger.tagged == [with_hints.event.uid, "no-hints", "forced"]
+
+    def test_llm_tagger_answers_only_known_uids(self) -> None:
+        tagger = FakeLLMFieldTagger({"a": LLMTagResult(fields=["cs"])})
+        batch = [make_candidate(make_event(uid=uid, fields=[])) for uid in ("a", "b")]
+        assert tagger.tag_batch(batch) == {"a": LLMTagResult(fields=["cs"])}
+        assert tagger.batches == [["a", "b"]]
+
+    def test_event_filter(self) -> None:
+        candidates = [make_candidate(make_event(uid=uid, fields=[])) for uid in ("a", "b", "c")]
+        result = FakeEventFilter(exclude={"b": "office_hours"}, uncertain={"c"}).filter(candidates)
+        assert [candidate.event.uid for candidate in result.kept] == ["a", "c"]
+        assert [(item.reason, item.detail) for item in result.excluded] == [
+            ("office_hours", "fake filter")
+        ]
+        assert result.uncertain == ["c"]
+
+    def test_out_of_scope_rule(self, fake_event_filter: FakeEventFilter) -> None:
+        events = [make_event(uid="tagged"), make_event(uid="untagged", fields=[])]
+        result = fake_event_filter.drop_out_of_scope(events)
+        assert [event.uid for event in result.kept] == ["tagged"]
+        assert [item.reason for item in result.excluded] == ["out_of_scope"]
+
+    def test_picks_scorer(self) -> None:
+        scorer = FakePicksScorer({"hot": 4.5}, threshold=3.0)
+        assert scorer.score(make_event(uid="hot")).score == 4.5
+        assert scorer.score(make_event(uid="cold")).reasons == []
+        assert scorer.threshold == 3.0
+
+    def test_page_extractor(self) -> None:
+        draft = make_draft(extraction="llm", source_text="Talk by Jane Doe")
+        extractor = FakePageExtractor([draft])
+        assert extractor.extract(make_payload(), make_source(id="custom-x", group="other")) == [
+            draft
+        ]
+        assert extractor.requested == ["custom-x"]
+
+
+class TestFakeIssueClient:
+    def test_open_find_update_close(
+        self, fake_issues: FakeIssueClient, fake_clock: FakeClock
+    ) -> None:
+        fake_issues.ensure_label(LABEL_DIGEST)
+        first = fake_issues.open("Seminars - week of 2026-11-09", "body", labels=["digest"])
+        fake_clock.advance(7 * 86400)
+        second = fake_issues.open("Seminars - week of 2026-11-16", "body", labels=["digest"])
+        assert (first.number, second.number) == (1, 2)
+        assert [issue.number for issue in fake_issues.find_by_label("digest")] == [2, 1]
+        assert fake_issues.find_by_title("Seminars - week of 2026-11-09") == first
+        assert fake_issues.find_by_title("missing") is None
+        assert fake_issues.update(1, body="new body").body == "new body"
+        fake_issues.close(1, comment="superseded")
+        assert fake_issues.get(1).state == "closed"
+        assert fake_issues.comments == {1: ["superseded"]}
+        assert [issue.number for issue in fake_issues.find_by_label("digest")] == [2]
+        assert [issue.number for issue in fake_issues.find_by_label("digest", state="all")] == [
+            2,
+            1,
+        ]
+        assert fake_issues.find_by_label("source-broken") == []
+        assert [name for name, _ in fake_issues.calls][:3] == ["ensure_label", "open", "open"]
+        assert fake_issues.labels == {"digest": LABEL_DIGEST}
+
+    def test_seed_is_not_recorded_as_a_call(self, fake_issues: FakeIssueClient) -> None:
+        issue = fake_issues.seed("Source broken: sites-x", labels=["source-broken"])
+        assert fake_issues.calls == []
+        assert issue.created_at == REFERENCE_NOW
+        assert fake_issues.find_by_title("Source broken: sites-x", state="open") == issue
+
+
+class TestFakeSecretScanner:
+    def test_reports_lines_with_needles(self, tmp_path: Path) -> None:
+        scanner = FakeSecretScanner(["sk-fake-123"])
+        (tmp_path / "data").mkdir()
+        (tmp_path / "data" / "a.json").write_text("ok\ntoken sk-fake-123\n", encoding="utf-8")
+        findings = scanner.scan_paths([tmp_path])
+        assert [(finding.line, finding.rule) for finding in findings] == [(2, "fake-needle")]
+        assert findings[0].origin.endswith("a.json")
+        assert scanner.scan_text("clean", origin="memory") == []
+
+
+class TestFakeEmitters:
+    def test_ics_feeds(self, fake_emitters: FakeEmitters, app_config: AppConfig) -> None:
+        events = [make_event(uid="a", picks_score=9.0), make_event(uid="b", fields=["math", "cs"])]
+        out_dir = app_config.paths.public_feeds_dir
+        paths = fake_emitters.write_ics_feeds(events, out_dir, config=app_config)
+        assert [path.name for path in paths] == [f"{feed}.ics" for feed in FEED_IDS]
+        assert "X-FAKE-EVENTS:2" in (out_dir / "all.ics").read_text(encoding="utf-8")
+        assert "X-FAKE-EVENTS:1" in (out_dir / "picks.ics").read_text(encoding="utf-8")
+        assert "X-FAKE-EVENTS:1" in (out_dir / "math.ics").read_text(encoding="utf-8")
+        assert fake_emitters.validate_ics(paths[0].read_text(encoding="utf-8")) == []
+        assert fake_emitters.validate_ics("<html>") != []
+
+    def test_site_data_is_schema_valid(
+        self, fake_emitters: FakeEmitters, app_config: AppConfig
+    ) -> None:
+        events = [make_event(uid="b"), make_event(uid="a", missing_runs=2)]
+        paths = fake_emitters.write_site_data(
+            events,
+            HealthFile(),
+            None,
+            app_config.paths.public_dir,
+            config=app_config,
+            generated_at=REFERENCE_NOW,
+        )
+        events_payload = read_model(paths[0], PublicEventsPayload)
+        status_payload = read_model(paths[1], PublicStatusPayload)
+        assert events_payload is not None
+        assert status_payload is not None
+        assert [event.uid for event in events_payload.events] == ["a", "b"]
+        assert "missing_runs" not in paths[0].read_text(encoding="utf-8")
+        assert status_payload.event_count == 2
+
+    def test_digest_is_idempotent_and_closes_the_previous_issue(
+        self, fake_emitters: FakeEmitters, fake_issues: FakeIssueClient, app_config: AppConfig
+    ) -> None:
+        previous = fake_issues.seed(
+            "Seminars - week of 2026-11-02",
+            labels=["digest"],
+            created_at=REFERENCE_NOW - timedelta(days=8),
+        )
+        events = [make_event()]
+
+        def publish(dry_run: bool = False) -> str:
+            outcome = fake_emitters.publish_digest(
+                events,
+                HealthFile(),
+                fake_issues,
+                config=app_config,
+                now=REFERENCE_NOW,
+                owner="octocat",
+                dry_run=dry_run,
+            )
+            assert outcome.document.title == "Seminars - week of 2026-11-09"
+            assert "cc @octocat" in outcome.document.body
+            return outcome.action
+
+        assert publish(dry_run=True) == "dry_run"
+        assert len(fake_issues.issues) == 1
+        assert publish() == "created"
+        assert fake_issues.get(previous.number).state == "closed"
+        assert publish() == "exists"
+        assert len(fake_issues.issues) == 2
+
+    def test_health_update_and_probe(
+        self, fake_emitters: FakeEmitters, fake_http: FakeHttpClient, app_config: AppConfig
+    ) -> None:
+        report = RunReport(
+            started_at=REFERENCE_NOW,
+            finished_at=REFERENCE_NOW,
+            mode="offline",
+            ok=True,
+            sources=[SourceRunResult(source_id="sites-a", status="ok", events=3)],
+        )
+        health = fake_emitters.update_health(HealthFile(), report, None, config=app_config)
+        assert health.sources["sites-a"].last_success_at == REFERENCE_NOW
+        fake_http.add("https://a.example.edu/feed", "<rss/>", content_type="application/rss+xml")
+        assert (
+            fake_emitters.probe_source(fake_http, "https://a.example.edu/feed").format == "unknown"
+        )
+        assert [name for name, _ in fake_emitters.calls] == ["update_health", "probe_source"]
+
+
+class TestFixtures:
+    def test_app_config_is_a_scratch_project(self, app_config: AppConfig, tmp_path: Path) -> None:
+        assert app_config.paths.root == tmp_path
+        assert app_config.settings.uid_domain == "seminars.fridrichmethod.github.io"
+        assert app_config.sources == ()
+        assert not app_config.paths.data_dir.exists()
+
+    def test_factory_fixtures(
+        self, make_event: Callable[..., Event], make_source: Callable[..., object]
+    ) -> None:
+        assert make_event(uid="x").uid == "x"
+        assert make_source() is not None

@@ -7,12 +7,29 @@ defined in conftest.py. Nothing in here touches the network or the clock.
 from __future__ import annotations
 
 import threading
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
 
 from factories import REFERENCE_NOW
 from seminars.http import FixtureNotFoundError, HttpStatusError
-from seminars.models import FetchedDocument
+from seminars.models import (
+    Candidate,
+    Event,
+    ExcludedEvent,
+    ExclusionReason,
+    FetchedDocument,
+    FilterResult,
+    Issue,
+    IssueLabel,
+    IssueState,
+    IssueStateFilter,
+    PicksResult,
+    ScopeResult,
+    SecretFinding,
+    TagDecision,
+)
 
 
 class FakeClock:
@@ -95,3 +112,176 @@ class FakeHttpClient:
         if not 200 <= document.status < 300 and document.status not in allow_statuses:
             raise HttpStatusError(url, document.status)
         return document.evolve(fetched_at=self._clock.now())
+
+
+class FakeFieldTagger:
+    """``FieldTagger`` that trusts the hints.
+
+    The decision is ``hints.suggested_fields`` with method ``"source"``, and
+    ``needs_llm`` when there are none. ``decisions`` overrides this per uid.
+    """
+
+    def __init__(self, decisions: Mapping[str, TagDecision] | None = None) -> None:
+        self.decisions = dict(decisions or {})
+        self.tagged: list[str] = []
+
+    def tag(self, candidate: Candidate) -> TagDecision:
+        uid = candidate.event.uid
+        self.tagged.append(uid)
+        if uid in self.decisions:
+            return self.decisions[uid]
+        fields = candidate.hints.suggested_fields
+        return TagDecision(fields=fields, method="source", needs_llm=not fields)
+
+
+class FakeEventFilter:
+    """``EventFilter`` driven by tables keyed by event uid.
+
+    ``exclude`` maps uids to the reason they are dropped; ``uncertain`` uids
+    are kept and flagged. ``drop_out_of_scope`` applies the real rule: an
+    event without fields is excluded as ``out_of_scope``.
+    """
+
+    def __init__(
+        self,
+        exclude: Mapping[str, ExclusionReason] | None = None,
+        uncertain: Collection[str] = (),
+    ) -> None:
+        self.exclude: dict[str, ExclusionReason] = dict(exclude or {})
+        self.uncertain = set(uncertain)
+
+    def filter(self, candidates: Sequence[Candidate]) -> FilterResult:
+        kept = [c for c in candidates if c.event.uid not in self.exclude]
+        excluded = [
+            ExcludedEvent.from_event(c.event, self.exclude[c.event.uid], detail="fake filter")
+            for c in candidates
+            if c.event.uid in self.exclude
+        ]
+        uncertain = [c.event.uid for c in kept if c.event.uid in self.uncertain]
+        return FilterResult(kept=kept, excluded=excluded, uncertain=uncertain)
+
+    def drop_out_of_scope(self, events: Sequence[Event]) -> ScopeResult:
+        return ScopeResult(
+            kept=[event for event in events if event.fields],
+            excluded=[
+                ExcludedEvent.from_event(event, "out_of_scope")
+                for event in events
+                if not event.fields
+            ],
+        )
+
+
+class FakePicksScorer:
+    """``PicksScorer`` with a fixed score per event uid (0.0 for unknown uids)."""
+
+    def __init__(self, scores: Mapping[str, float] | None = None, *, threshold: float = 1.0):
+        self.scores = dict(scores or {})
+        self.threshold = threshold
+
+    def score(self, event: Event) -> PicksResult:
+        score = self.scores.get(event.uid, 0.0)
+        return PicksResult(score=score, reasons=[f"fake score {score:g}"] if score else [])
+
+
+class FakeIssueClient:
+    """In-memory ``IssueClient``.
+
+    ``issues`` holds every issue in creation order, ``calls`` every protocol
+    call as ``(method name, arguments)``, ``comments`` the closing comments.
+    Use ``seed`` to put an already existing issue in place.
+    """
+
+    def __init__(self, clock: FakeClock | None = None) -> None:
+        self._clock = clock or FakeClock()
+        self.issues: list[Issue] = []
+        self.labels: dict[str, IssueLabel] = {}
+        self.comments: dict[int, list[str]] = {}
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    def seed(
+        self,
+        title: str,
+        *,
+        body: str = "",
+        labels: Sequence[str] = (),
+        state: IssueState = "open",
+        created_at: datetime | None = None,
+    ) -> Issue:
+        """Add an issue as if it had been created earlier (not recorded in ``calls``)."""
+        number = len(self.issues) + 1
+        issue = Issue(
+            number=number,
+            title=title,
+            body=body,
+            state=state,
+            labels=list(labels),
+            created_at=created_at or self._clock.now(),
+            url=f"https://github.com/example/seminars/issues/{number}",
+        )
+        self.issues.append(issue)
+        return issue
+
+    def get(self, number: int) -> Issue:
+        """The current state of issue ``number``."""
+        return self.issues[number - 1]
+
+    def _matching(self, state: IssueStateFilter) -> list[Issue]:
+        chosen = [issue for issue in self.issues if state in ("all", issue.state)]
+        return sorted(chosen, key=lambda issue: (issue.created_at, issue.number), reverse=True)
+
+    def ensure_label(self, label: IssueLabel) -> None:
+        self.calls.append(("ensure_label", {"label": label}))
+        self.labels.setdefault(label.name, label)
+
+    def find_by_label(self, label: str, *, state: IssueStateFilter = "open") -> list[Issue]:
+        self.calls.append(("find_by_label", {"label": label, "state": state}))
+        return [issue for issue in self._matching(state) if label in issue.labels]
+
+    def find_by_title(self, title: str, *, state: IssueStateFilter = "all") -> Issue | None:
+        self.calls.append(("find_by_title", {"title": title, "state": state}))
+        return next((issue for issue in self._matching(state) if issue.title == title), None)
+
+    def open(self, title: str, body: str, *, labels: Sequence[str] = ()) -> Issue:
+        self.calls.append(("open", {"title": title, "body": body, "labels": list(labels)}))
+        return self.seed(title, body=body, labels=labels)
+
+    def update(self, number: int, *, title: str | None = None, body: str | None = None) -> Issue:
+        self.calls.append(("update", {"number": number, "title": title, "body": body}))
+        current = self.get(number)
+        changed = current.evolve(
+            title=current.title if title is None else title,
+            body=current.body if body is None else body,
+        )
+        self.issues[number - 1] = changed
+        return changed
+
+    def close(self, number: int, *, comment: str | None = None) -> None:
+        self.calls.append(("close", {"number": number, "comment": comment}))
+        self.issues[number - 1] = self.get(number).evolve(state="closed")
+        if comment is not None:
+            self.comments.setdefault(number, []).append(comment)
+
+
+class FakeSecretScanner:
+    """``SecretScanner`` that reports every line containing one of ``needles``."""
+
+    def __init__(self, needles: Sequence[str] = ()) -> None:
+        self.needles = list(needles)
+        self.scanned: list[str] = []
+
+    def scan_text(self, text: str, *, origin: str) -> list[SecretFinding]:
+        self.scanned.append(origin)
+        return [
+            SecretFinding(origin=origin, line=number, rule="fake-needle")
+            for number, line in enumerate(text.splitlines(), start=1)
+            if any(needle in line for needle in self.needles)
+        ]
+
+    def scan_paths(self, paths: Iterable[Path]) -> list[SecretFinding]:
+        findings: list[SecretFinding] = []
+        for path in paths:
+            files = sorted(p for p in path.rglob("*") if p.is_file()) if path.is_dir() else [path]
+            for file in files:
+                text = file.read_text(encoding="utf-8", errors="replace")
+                findings.extend(self.scan_text(text, origin=str(file)))
+        return findings
