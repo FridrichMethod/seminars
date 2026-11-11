@@ -67,6 +67,10 @@ logger = logging.getLogger(__name__)
 
 MAX_NODES: Final = 100_000
 """Nodes of one JSON-LD block that are looked at; bounds the work on a hostile page."""
+VALUE_DEPTH: Final = 4
+"""Levels of lists and value objects a plain value is looked for in."""
+VALUE_ITEMS: Final = 16
+"""Items of one list a plain value is looked for in."""
 
 _MARKUP: Final = re.compile(r"<[a-zA-Z/][^<>]{0,200}>")
 _STATUS: Final[dict[str, EventStatus]] = {
@@ -162,12 +166,20 @@ def node_ids(root: Any) -> dict[str, dict[str, Any]]:
 # --- values ------------------------------------------------------------------------------
 
 
-def text_of(value: Any) -> str | None:
-    """A plain value: a string, the first string of a list, or ``{"@value": ...}``."""
+def text_of(value: Any, depth: int = VALUE_DEPTH) -> str | None:
+    """A plain value: a string, the first string of a list, or ``{"@value": ...}``.
+
+    Lists and value objects are entered at most ``depth`` levels deep and
+    only their first VALUE_ITEMS items are looked at: a value nested deeper
+    than that is no value, and never exhausts the stack.
+    """
+    if isinstance(value, list | dict) and depth <= 0:
+        return None
     if isinstance(value, list):
-        return next((text for item in value if (text := text_of(item))), None)
+        items = value[:VALUE_ITEMS]
+        return next((text for item in items if (text := text_of(item, depth - 1))), None)
     if isinstance(value, dict):
-        return text_of(value.get("@value"))
+        return text_of(value.get("@value"), depth - 1)
     if isinstance(value, int | float) and not isinstance(value, bool):
         return str(value)
     return collapse(value) if isinstance(value, str) else None
@@ -343,8 +355,9 @@ class JsonLdAdapter:
             for event, ids in events:
                 try:
                     draft = event_draft(event, ids, source, document, only_event=len(events) == 1)
-                except ValidationError:
-                    logger.debug("source %s: a malformed Event was skipped", source.id)
+                except (ValidationError, RecursionError) as error:
+                    kind = type(error).__name__
+                    logger.warning("source %s: a malformed Event was skipped (%s)", source.id, kind)
                     continue
                 if draft is not None:
                     drafts.append(draft)

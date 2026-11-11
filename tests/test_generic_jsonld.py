@@ -150,6 +150,24 @@ class TestContainers:
     def test_deep_nesting_is_not_json_here(self) -> None:
         assert decode("[" * 100_000 + "]" * 100_000) is None
 
+    @pytest.mark.parametrize("key", ["name", "description", "location", "performer"])
+    def test_a_deeply_nested_value_does_not_lose_the_other_events(self, key: str) -> None:
+        deep: Any = "Deep text"
+        for _ in range(600):
+            deep = [deep]
+        drafts = parse_page([event(name="Kept"), {**event(name="Deep"), key: deep}])
+        assert len(drafts) == 2
+        assert drafts[0].title == "Kept"
+        assert drafts[1].abstract is None
+        assert drafts[1].location is None
+        assert drafts[1].speakers == []
+
+    def test_wide_and_moderately_deep_values(self) -> None:
+        wide = [*([{}] * 50), "Too late"]
+        [draft] = parse_page(event(name=[[["Found"]]], description=wide))
+        assert draft.title == "Found"
+        assert draft.abstract is None
+
     def test_references_by_id_are_resolved(self) -> None:
         venue = {"@type": "Place", "@id": "#venue", "name": "Room 9"}
         talk = event(location={"@id": "#venue"}, performer={"@id": "#jane"})
