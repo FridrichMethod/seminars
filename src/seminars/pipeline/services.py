@@ -201,6 +201,13 @@ def build_issues(env: Mapping[str, str]) -> tuple[IssueClient | None, tuple[str,
         )
 
 
+def release_issues(issues: IssueClient | None) -> None:
+    """Let go of the connections of an issue client that holds any (``release``)."""
+    release = getattr(issues, "release", None)
+    if callable(release):
+        release()
+
+
 def build_services(
     config: AppConfig,
     env: Mapping[str, str],
@@ -227,7 +234,12 @@ def build_services(
     cache_dir = llm_cache_dir or config.paths.llm_cache_dir
     llm, llm_warnings = _llm(config, env, now, cache_dir) if use_llm else (_LLMParts(), ())
     issues, issue_warnings = build_issues(env) if with_issues else (None, ())
-    http_for, close = _http(config, env, offline)
+    http_for, close_http = _http(config, env, offline)
+
+    def close() -> None:
+        close_http()
+        release_issues(issues)
+
     return Services(
         http_for=http_for,
         event_filter=build_filter(config.taxonomy, config.settings),
