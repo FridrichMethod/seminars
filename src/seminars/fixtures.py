@@ -625,7 +625,7 @@ def _record_command(
             http = live = _live_client(paths, resolver)
         outcomes = [_record_one(args, http, store, url) for url in args.url]
     except FixtureError as error:
-        print(f"error: {error}", file=sys.stderr)
+        _say(f"error: {error}", file=sys.stderr)
         return 1
     finally:
         if live is not None:
@@ -701,7 +701,7 @@ def _fetch_command(
             http = live = _live_client(paths, resolver)
         outcomes = [_fetch_one(http, url, args.allow_status, save_dir) for url in args.url]
     except FixtureError as error:
-        print(f"error: {error}", file=sys.stderr)
+        _say(f"error: {error}", file=sys.stderr)
         return 1
     finally:
         if live is not None:

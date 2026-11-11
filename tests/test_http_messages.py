@@ -348,6 +348,28 @@ class TestCommandLine:
             "https://www.example.edu/binary\\nforged line"
         ]
 
+    @pytest.mark.parametrize("command", [["record", "--source-id", "broken", PAGE], ["check"]])
+    def test_a_broken_manifest_is_reported_on_one_line(
+        self,
+        fake_http: FakeHttpClient,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+        command: list[str],
+    ) -> None:
+        """The reason comes from the validation of the manifest and has several lines."""
+        broken = tmp_path / "tests" / "fixtures" / "broken"
+        broken.mkdir(parents=True)
+        (broken / "manifest.json").write_text(
+            '{"schema_version": 1, "source_id": "broken", "entries": "\\u001b[2J\\nforged"}\n',
+            encoding="utf-8",
+        )
+        code, out, err = run(capsys, tmp_path, fake_http, *command)
+        assert code == 1
+        problems = err if command[0] == "record" else out[:-1]
+        assert len(problems) == 1
+        assert "invalid fixture manifest" in problems[0]
+        assert fake_http.requests == []
+
     def test_check_escapes_file_names_and_manifest_content(
         self, fake_http: FakeHttpClient, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
