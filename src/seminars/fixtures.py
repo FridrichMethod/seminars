@@ -591,10 +591,10 @@ def _live_client(paths: ProjectPaths, resolver: Resolver | None) -> PoliteClient
 
     The directory decides who this process keeps the crawl delay with, so
     it is shown once, before the first request. A client goes on with a
-    warning when the directory cannot be used; a command that a person or
-    an agent runs by hand must not, because nothing would then keep it
-    from using a host at the same time as another call. It raises
-    ``FixtureError`` instead, before anything is fetched.
+    warning when the directory cannot be used; a command that is run by
+    hand must not, because nothing would then keep it from using a host at
+    the same time as another call. It raises ``FixtureError`` instead,
+    before anything is fetched.
     """
     from seminars.http import PoliteClient  # seminars.http imports this module
 
