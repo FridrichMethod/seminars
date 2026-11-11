@@ -29,10 +29,10 @@ Rules of the live client:
 * robots.txt is fetched once per origin and honoured for ``Disallow`` and
   ``Crawl-delay``; a missing one (4xx other than 429) allows everything
   (RFC 9309). An unreachable one (network error, 5xx, 429, not a text
-  file, too large, or a redirect that cannot be followed) blocks the origin
-  for the rest of the run: the failure is remembered, so every later
-  request to that origin raises ``RobotsUnavailableError`` at once, without
-  contacting the host again;
+  file, packed in a way that is not undone, too large, or a redirect that
+  cannot be followed) blocks the origin for the rest of the run: the
+  failure is remembered, so every later request to that origin raises
+  ``RobotsUnavailableError`` at once, without contacting the host again;
 * a redirect of robots.txt is followed like any other, one hop at a time
   and at most ``max_redirects`` times: every hop must point at a public
   http(s) address and waits for its turn on the host it goes to;
