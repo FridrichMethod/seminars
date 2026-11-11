@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import icalendar
 import pytest
 
 from factories import make_document, make_payload, make_source, make_window
@@ -22,9 +23,11 @@ from seminars.sources.generic import ics
 from seminars.sources.generic.ics import (
     MAX_OCCURRENCES,
     MAX_PATTERN_INPUT,
+    MAX_RECURRING_EVENTS,
     IcsAdapter,
     IcsCalendar,
     IcsOccurrence,
+    check_rule,
     ics_params,
     instance_key,
     occurrence_draft,
@@ -670,10 +673,60 @@ class TestRecurrence:
         ]
 
     def test_expansion_is_capped(self) -> None:
-        hourly = expand(vevent("RRULE:FREQ=HOURLY", start="DTSTART:20261020T070000Z"))
-        assert len(hourly) == MAX_OCCURRENCES
-        ancient = expand(vevent("RRULE:FREQ=HOURLY", start="DTSTART:19900101T000000Z"))
-        assert ancient == []
+        two_years = TimeWindow(start=WINDOW.start, end=WINDOW.start + timedelta(days=730))
+        daily = vevent("RRULE:FREQ=DAILY", start="DTSTART:20261020T230000Z")
+        assert len(parse(calendar(daily), window=two_years)) == MAX_OCCURRENCES
+        # from 1990 the window is more than MAX_EXPANSION_STEPS days away
+        assert expand(vevent("RRULE:FREQ=DAILY", start="DTSTART:19900101T230000Z")) == []
+        many = [
+            vevent("RRULE:FREQ=WEEKLY;COUNT=1", uid=f"e{n}")
+            for n in range(MAX_RECURRING_EVENTS + 1)
+        ]
+        many_drafts = expand(*[event.replace("20261117", "20261020") for event in many])
+        assert len(many_drafts) == MAX_RECURRING_EVENTS
+
+    @pytest.mark.parametrize(
+        "rule",
+        [
+            "FREQ=HOURLY",
+            "FREQ=SECONDLY;BYMONTH=2;BYMONTHDAY=30",
+            "BYDAY=MO",
+            "FREQ=YEARLY;BYYEARDAY=100",
+            "FREQ=YEARLY;BYWEEKNO=20",
+            "FREQ=WEEKLY;BYDAY=MO;BYSETPOS=2",
+            "FREQ=DAILY;BYMONTH=2;BYMONTHDAY=30",
+            "FREQ=YEARLY;BYMONTH=4,6;BYMONTHDAY=31,-31",
+            "FREQ=MONTHLY;BYDAY=MO;BYSETPOS=6",
+            "FREQ=MONTHLY;BYMONTHDAY=1,15;BYSETPOS=3",
+            "FREQ=YEARLY;BYMONTH=3;BYDAY=1MO,-1MO;BYSETPOS=-3",
+            "FREQ=MONTHLY;BYDAY=6MO",
+            "FREQ=YEARLY;BYDAY=54MO",
+            "FREQ=YEARLY;BYMONTH=2;BYDAY=-6FR",
+            "FREQ=WEEKLY;BYDAY=2MO",
+            "FREQ=YEARLY;BYMONTH=13",
+        ],
+    )
+    def test_rules_the_expansion_cannot_bound_are_skipped(self, rule: str) -> None:
+        assert expand(vevent(f"RRULE:{rule}", start="DTSTART:20261020T230000Z")) == []
+        with pytest.raises(ValueError, match=r"unsupported|BYSETPOS|BYMONTH|BYDAY"):
+            check_rule(dict(icalendar.vRecur.from_ical(rule)))
+
+    @pytest.mark.parametrize(
+        "rule",
+        [
+            "FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29",
+            "FREQ=MONTHLY;BYDAY=TU;BYSETPOS=-1",
+            "FREQ=MONTHLY;BYMONTH=4,5;BYMONTHDAY=31",
+            "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;WKST=SU",
+            "FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1",
+            "FREQ=YEARLY;BYDAY=MO;BYSETPOS=50",
+            "FREQ=MONTHLY;BYDAY=MO;BYHOUR=9,14;BYSETPOS=10",
+            "FREQ=MONTHLY;BYDAY=-1FR",
+            "FREQ=YEARLY;BYDAY=20TH",
+        ],
+    )
+    def test_rules_of_talk_calendars_are_accepted(self, rule: str) -> None:
+        check_rule(dict(icalendar.vRecur.from_ical(rule)))
 
     def test_a_recurring_event_without_uid_has_no_native_id(self) -> None:
         drafts = expand(

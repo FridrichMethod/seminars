@@ -25,11 +25,12 @@ Times, as the draft conventions want them:
 * Recurring events (``RRULE``, ``RDATE``, ``EXDATE``) are expanded inside
   the run window only (occurrences that start in it), at most
   ``MAX_OCCURRENCES`` per event and after at most ``MAX_EXPANSION_STEPS``
-  steps of the rule from ``DTSTART``. An occurrence keeps the duration of
-  the first one. A VEVENT with ``RECURRENCE-ID`` replaces the occurrence it
-  names; one whose occurrence is not generated (it was moved into the
-  window, or the rule is gone) stands on its own when it starts in the
-  window.
+  steps of the rule from ``DTSTART``, for at most ``MAX_RECURRING_EVENTS``
+  recurring events per feed; a rule the expansion cannot bound is skipped
+  (``check_rule``). An occurrence keeps the duration of the first one. A
+  VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names; one whose
+  occurrence is not generated (it was moved into the window, or the rule is
+  gone) stands on its own when it starts in the window.
 
 Fields of a draft, without parameters: ``native_id`` = ``UID`` (an
 occurrence of a recurring event: ``<UID>/<RECURRENCE-ID>``, the original
@@ -114,6 +115,9 @@ MAX_OCCURRENCES: Final = 500
 MAX_EXPANSION_STEPS: Final = 10_000
 """Most steps through the recurrence of one event, counted from its DTSTART."""
 
+MAX_RECURRING_EVENTS: Final = 50
+"""Most recurring VEVENTs of one feed that are expanded; the others are skipped."""
+
 MAX_PATTERN_INPUT: Final = 20_000
 """Longest text a configured regular expression is applied to."""
 
@@ -144,6 +148,10 @@ _HTML_TAGS: Final = frozenset(
     }
 )
 _LINK_TARGETS: Final[tuple[Target, ...]] = ("url", "stream_url")
+_UNSUPPORTED_RULE_PARTS: Final = frozenset({"BYYEARDAY", "BYWEEKNO", "BYEASTER"})
+_DAYS_IN_MONTH: Final = {
+    month: 29 if month == 2 else 30 if month in (4, 6, 9, 11) else 31 for month in range(1, 13)
+}
 _BLOCK_TAGS: Final = "p, div, li, tr, h1, h2, h3, h4, h5, h6, blockquote, pre, hr"
 
 
@@ -340,7 +348,12 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
         else:
             masters.append(vevent)
     found: list[IcsOccurrence] = []
+    recurring = 0
     for vevent in masters:
+        if _is_recurring(vevent):
+            recurring += 1
+            if recurring > MAX_RECURRING_EVENTS:
+                continue
         try:
             found += _occurrences_of(vevent, window, timezone, overrides)
         except (ValueError, TypeError, OverflowError):
@@ -403,11 +416,76 @@ def _align(value: Moment, anchor: datetime, timezone: str) -> datetime:
     return value.replace(tzinfo=anchor.tzinfo) if value.tzinfo is None else value
 
 
+def check_rule(parts: dict[str, list[Any]]) -> None:
+    """Refuse a recurrence rule that the expansion does not support (``ValueError``).
+
+    The recurrence library steps through every period from DTSTART until
+    the year 9999 when its filters never match, whatever UNTIL says, which
+    takes seconds per event. So only the rule parts that calendars of talks
+    use are accepted: ``FREQ`` of ``DAILY``, ``WEEKLY``, ``MONTHLY`` or
+    ``YEARLY``, no ``BYYEARDAY``, ``BYWEEKNO`` or ``BYEASTER``, ``BYSETPOS``
+    only with a monthly or yearly rule and only for positions that a month
+    or a year of the rule can have, ``BYDAY`` ordinals likewise, months 1 to
+    12, and ``BYMONTH`` with ``BYMONTHDAY`` only when one of the days exists
+    in one of the months. What still has no occurrence costs at most a
+    fraction of a second.
+    """
+    keys = {str(key).upper(): value for key, value in parts.items()}
+    frequency = [str(value).upper() for value in keys.get("FREQ", [])]
+    if frequency not in (["DAILY"], ["WEEKLY"], ["MONTHLY"], ["YEARLY"]):
+        raise ValueError(f"unsupported recurrence frequency {frequency}")
+    unsupported = sorted(set(keys) & _UNSUPPORTED_RULE_PARTS)
+    if unsupported:
+        raise ValueError(f"unsupported recurrence rule part(s) {', '.join(unsupported)}")
+    if "BYSETPOS" in keys:
+        if frequency[0] not in ("MONTHLY", "YEARLY"):
+            raise ValueError("BYSETPOS is only supported with a monthly or yearly rule")
+        largest = max(abs(int(position)) for position in keys["BYSETPOS"])
+        if largest > _set_size_bound(keys, yearly=frequency[0] == "YEARLY"):
+            raise ValueError("BYSETPOS names a position that no period has")
+    months, days = keys.get("BYMONTH"), keys.get("BYMONTHDAY")
+    if any(not 1 <= int(month) <= 12 for month in months or []):
+        raise ValueError("BYMONTH names no month")
+    _check_ordinals(keys, frequency[0])
+    if months and days:
+        possible = any(
+            abs(int(day)) <= _DAYS_IN_MONTH.get(int(month), 0) for month in months for day in days
+        )
+        if not possible:
+            raise ValueError("BYMONTHDAY names no day of the months in BYMONTH")
+
+
+def _check_ordinals(keys: dict[str, list[Any]], frequency: str) -> None:
+    """BYDAY with an ordinal (``2MO``, ``-1FR``) only where a period has that many weekdays."""
+    ordinals = [abs(int(day[:-2])) for day in map(str, keys.get("BYDAY", [])) if day[:-2]]
+    if not ordinals:
+        return
+    if frequency in ("DAILY", "WEEKLY"):
+        raise ValueError("BYDAY with an ordinal is only valid in a monthly or yearly rule")
+    limit = 5 if frequency == "MONTHLY" or keys.get("BYMONTH") else 53
+    if max(ordinals) > limit:
+        raise ValueError("BYDAY names an ordinal that no period has")
+
+
+def _set_size_bound(keys: dict[str, list[Any]], *, yearly: bool) -> int:
+    """An upper bound of the number of occurrences in one month or year of a rule."""
+    months = len(set(keys.get("BYMONTH", []))) or (12 if yearly else 1)
+    weekdays = [str(day) for day in keys.get("BYDAY", [])]
+    by_weekday = sum(1 if day[:1] in "+-0123456789" else 5 for day in weekdays) * months
+    by_monthday = len(set(keys.get("BYMONTHDAY", []))) * months
+    counts = [count for count in (by_weekday, by_monthday) if count] or [months]
+    times = 1
+    for part in ("BYHOUR", "BYMINUTE", "BYSECOND"):
+        times *= len(set(keys.get(part, []))) or 1
+    return min(counts) * times
+
+
 def _rule_text(rule: object, anchor: datetime, timezone: str) -> str:
     """The RRULE as text, with UNTIL written the way dateutil accepts it for ``anchor``."""
     if not isinstance(rule, icalendar.vRecur):
         raise ValueError("the RRULE cannot be read")
     parts = dict(rule)
+    check_rule(parts)
     until = parts.get("UNTIL")
     if until:
         value = until[0]
