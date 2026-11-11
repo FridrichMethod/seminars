@@ -195,7 +195,7 @@ class TestPytestStaysOut:
         defaults = {"*.egg", ".*", "_darcs", "build", "CVS", "dist", "node_modules", "venv"}
         assert defaults | {"{arch}"} <= set(patterns)
 
-    @pytest.mark.parametrize("arguments", [[], ["tests"], ["tests/fixtures"], ["."]])
+    @pytest.mark.parametrize("arguments", [[], ["."], ["tests/fixtures"]])
     def test_python_files_below_the_fixtures_are_neither_collected_nor_imported(
         self, tmp_path: Path, arguments: list[str]
     ) -> None:

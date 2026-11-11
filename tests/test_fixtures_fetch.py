@@ -403,9 +403,14 @@ class TestLiveClientOfTheCommand:
 
 
 def project(root: Path) -> Path:
-    """Make ``root`` a project with the settings of this repository; returns ``root``."""
+    """Make ``root`` a project with the settings of this repository; returns ``root``.
+
+    The pause between requests is switched off: the commands sleep for real.
+    """
     (root / "config").mkdir(parents=True)
     settings = (REPO_ROOT / "config" / "settings.yaml").read_text(encoding="utf-8")
+    assert "min_interval_seconds: 1.0" in settings
+    settings = settings.replace("min_interval_seconds: 1.0", "min_interval_seconds: 0")
     (root / "config" / "settings.yaml").write_text(settings, encoding="utf-8")
     return root
 
