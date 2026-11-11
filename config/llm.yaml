@@ -20,7 +20,7 @@ providers:
 # default of the CLI and reports a warning.
 models:
   claude-cli: haiku             # alias; resolved by the CLI to the current Haiku model
-  codex-cli: gpt-6-luna
+  codex-cli: gpt-6-luna         # accepted by the ChatGPT login of the owner (2026-11-11)
   anthropic: claude-haiku-5-5
   openai: gpt-6-luna
   openai-compat: null
