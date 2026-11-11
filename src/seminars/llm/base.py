@@ -22,7 +22,7 @@ none            NoneProvider (below)                   none
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Protocol
+from typing import Protocol
 
 from pydantic import BaseModel
 
@@ -100,8 +100,13 @@ class NoneProvider(ProviderBase):
     go on without the LLM.
     """
 
-    name: Final = NO_PROVIDER
-    model: Final = None
+    @property
+    def name(self) -> str:
+        return NO_PROVIDER
+
+    @property
+    def model(self) -> None:
+        return None
 
     def complete[T: BaseModel](
         self, system: str, user: str, schema: type[T], *, max_tokens: int
