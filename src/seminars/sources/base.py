@@ -39,6 +39,12 @@ Rules for adapters:
   ``params.extra_hosts`` of the source. Links found in a page (detail
   pages, the next page) are checked before they are fetched and skipped
   otherwise; ``fetch_urls`` does the check and raises ``ForeignHostError``.
+  A host that a configured URL redirects to (``example.edu`` to
+  ``www.example.edu``) is foreign as well, and so are the links of that
+  page: the source lists the address the site redirects to, or the other
+  host under ``params.extra_hosts``. An adapter that needs links of a
+  page and may fetch none of them raises ``ForeignHostError`` instead of
+  returning less than the source has.
   The pauses and request budgets of the HTTP client are kept per host
   name, so a page that lists links to other hosts could otherwise steer
   requests at third parties or use up the budget of another source.
@@ -172,7 +178,8 @@ class Adapter(Protocol):
 
         An adapter requests only URLs for which ``on_source_host(source,
         url)`` is true. A source that needs another host (detail pages on a
-        campus-wide calendar, for example) names it in ``params.extra_hosts``.
+        campus-wide calendar, or the host its own address redirects to)
+        names it in ``params.extra_hosts``.
         """
         ...
 
@@ -405,9 +412,18 @@ def absolute_url(base: str, link: str | None) -> str | None:
 
 
 def _host_of(url: str) -> str | None:
-    """The host of ``url`` in canonical form; ``None`` when the text has no host."""
+    """The host of an absolute http(s) ``url`` in canonical form; ``None`` for any other text.
+
+    Text with a space or a control character is no URL here: ``urlsplit``
+    would drop some of them silently and find a host in what is left.
+    """
+    if any(character <= " " or character == "\x7f" for character in url):
+        return None
     try:
-        return canonical_host(urlsplit(url).hostname or "")
+        parts = urlsplit(url)
+        if parts.scheme not in ("http", "https"):
+            return None
+        return canonical_host(parts.hostname or "")
     except ValueError:
         return None
 
@@ -440,7 +456,13 @@ def on_source_host(source: SourceConfig, url: str) -> bool:
     did not take from the configuration: a detail link, the next page, a
     feed that a page points to. Only the host counts, whatever the scheme,
     the port and the path are; ``www.example.edu`` and ``example.edu`` are
-    two hosts. Text that is no absolute URL is on no host.
+    two hosts. Text that is no absolute http(s) URL (a relative link, a
+    link without a scheme, another scheme) is on no host.
+
+    The host a configured URL redirects to is not a host of the source
+    either. Links of such a page resolve against ``document.final_url``
+    and are then foreign: configure the address the site redirects to, or
+    name the other host under ``params.extra_hosts``.
     """
     return _host_of(url) in source_hosts(source)
 

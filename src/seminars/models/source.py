@@ -106,7 +106,10 @@ class SourceConfig(Model):
     * ``llm_fallback``: allow the LLM page extractor when rule-based parsing
       yields nothing or fails. Always on for ``adapter: llm_page``, whose
       adapter never yields anything itself.
-    * ``params``: free-form mapping read only by the adapter.
+    * ``params``: free-form mapping read only by the adapter, with one key
+      that the shared helpers read too: ``extra_hosts``, a list of host
+      names the adapter may fetch besides the hosts of ``url`` / ``urls`` /
+      ``homepage`` (see ``seminars.sources.base.source_hosts``).
     * ``research``: see ResearchInfo.
     """
 

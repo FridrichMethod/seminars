@@ -592,6 +592,41 @@ class TestSourceHosts:
     def test_any_other_url_is_not(self, url: str) -> None:
         assert not on_source_host(make_source(), url)
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "//bioengineering.stanford.edu/x",
+            "ftp://bioengineering.stanford.edu/x",
+            "file://bioengineering.stanford.edu/etc/passwd",
+            "javascript://bioengineering.stanford.edu/%0aalert(1)",
+            " https://bioengineering.stanford.edu/x",
+            "https://bioengineering.stanford.edu/x ",
+            "ht\ntps://bioengineering.stanford.edu/x",
+            "https://bioengineering.stanford.edu/a\tb",
+            "https://bioengineering.stanford.edu/a\x7fb",
+        ],
+    )
+    def test_text_that_is_no_absolute_web_address_is_on_no_host(self, url: str) -> None:
+        """The host alone does not make such text a URL of the source."""
+        assert not on_source_host(make_source(), url)
+
+    def test_fetch_urls_refuses_such_text_before_it_requests_anything(self) -> None:
+        http = FakeHttpClient({f"{SITE}/events": "<p>x</p>"})
+        urls = [f"{SITE}/events", "ftp://bioengineering.stanford.edu/x"]
+        with pytest.raises(ForeignHostError):
+            fetch_urls(http, make_source(), window=make_window(), urls=urls)
+        assert http.requests == []
+
+    def test_the_rules_say_that_the_target_of_a_redirect_is_foreign(self) -> None:
+        source = make_source()
+        final_url = "https://www.bioengineering.stanford.edu/events"
+        next_page = absolute_url(final_url, "?page=2")
+        assert next_page is not None
+        assert not on_source_host(source, next_page)
+        assert "redirects to" in (on_source_host.__doc__ or "")
+        assert "redirects to" in (base.__doc__ or "")
+        assert "extra_hosts" in (SourceConfig.__doc__ or "")
+
     def test_an_extra_host_makes_its_urls_fetchable(self) -> None:
         source = make_source(params={"extra_hosts": ["events.stanford.edu"]})
         assert on_source_host(source, "https://events.stanford.edu/api/2/events")
