@@ -464,6 +464,9 @@ def _record_one(args: argparse.Namespace, http: HttpClient, store: FixtureStore,
     except (HttpError, FixtureError) as error:
         print(f"error: {error}", file=sys.stderr)
         return False
+    except OSError as error:
+        print(f"error: cannot store {ascii_safe(url)}: {error.strerror or error}", file=sys.stderr)
+        return False
     size = (store.directory / entry.file).stat().st_size
     print(f"recorded {args.source_id}/{entry.file} (HTTP {entry.status}, {size} bytes)")
     if size > MAX_FIXTURE_BYTES:

@@ -1,7 +1,8 @@
 """HTTP access for adapters: the polite live client and the offline client.
 
 Adapters only ever see the ``HttpClient`` protocol: ``get(url)`` returns a
-``FetchedDocument`` or raises a subclass of ``HttpError``. The text of a
+``FetchedDocument`` or raises a subclass of ``HttpError``, whatever a site
+sends and whatever the cache directory does. The text of a
 document is always in canonical form (no byte order mark, LF line endings,
 final newline), so a live response and its recorded fixture give an adapter
 exactly the same text. There are two implementations:
@@ -122,6 +123,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import math
 import threading
 import time
 from collections.abc import Collection, Iterator, Mapping
@@ -161,7 +163,7 @@ from seminars.httpbase import (
     is_binary_media_type,
     media_type,
 )
-from seminars.httpcache import CachedPage, CachedRobots, HostRecord, HttpCache
+from seminars.httpcache import CachedPage, CachedRobots, HostRecord, HttpCache, header_safe
 from seminars.httptext import decode_body
 from seminars.httpurl import (
     canonical_host,
@@ -213,6 +215,20 @@ __all__ = [
     "system_resolver",
 ]
 
+
+_UNFORESEEN: Final = (
+    ValueError,  # UnicodeError is one
+    OSError,
+    OverflowError,
+    httpx.HTTPError,
+    httpx.InvalidURL,
+    httpx.StreamError,
+)
+"""What ``get`` turns into ``HttpRequestError`` as a last resort.
+
+Not ``Exception``: a failed assertion or a programming error must stay
+visible.
+"""
 
 _ROBOTS_COPIES_KEPT: Final = 4
 """How many robots.txt copies of one host are kept in the cache directory (the newest ones)."""
@@ -323,6 +339,20 @@ class PoliteClient:
         headers: Mapping[str, str] | None = None,
         allow_statuses: Collection[int] = (),
     ) -> FetchedDocument:
+        try:
+            return self._get(url, headers, allow_statuses)
+        except HttpError:
+            raise
+        except _UNFORESEEN as error:
+            # The promise to callers: a document or an HttpError, whatever a site sends.
+            logger.warning("unexpected %s: %s", type(error).__name__, ascii_safe(url))
+            raise HttpRequestError(
+                url, f"request failed unexpectedly ({type(error).__name__})"
+            ) from error
+
+    def _get(
+        self, url: str, headers: Mapping[str, str] | None, allow_statuses: Collection[int]
+    ) -> FetchedDocument:
         current = url
         for _ in range(self._settings.max_redirects + 1):
             hop = self._fetch_hop(current, headers)
@@ -380,11 +410,19 @@ class PoliteClient:
 
     @staticmethod
     def _redirect_target(url: str, exchange: Exchange) -> str | None:
-        """The absolute URL a redirect response points to; ``None`` for any other response."""
+        """The absolute URL a redirect response points to; ``None`` for any other response.
+
+        Raises ``UnsupportedSchemeError`` when the Location cannot be read
+        as a URL at all. Whether the result may be fetched is for
+        ``parse_url`` to say.
+        """
         location = exchange.headers.get("location")
         if exchange.status not in REDIRECT_STATUSES or not location:
             return None
-        return urljoin(url, location)
+        try:
+            return urljoin(url, location)
+        except ValueError as error:
+            raise UnsupportedSchemeError(location, "invalid URL in a redirect") from error
 
     def _to_hop(self, url: str, exchange: Exchange, cached: CachedPage | None) -> _Hop:
         status = exchange.status
@@ -394,8 +432,8 @@ class PoliteClient:
         if status == 304 and cached is not None:
             return _Hop(200, cached.content_type, cached.text, from_cache=True)
         content_type = media_type(exchange.headers.get("content-type"))
-        etag = exchange.headers.get("etag")
-        last_modified = exchange.headers.get("last-modified")
+        etag = header_safe(exchange.headers.get("etag"))
+        last_modified = header_safe(exchange.headers.get("last-modified"))
         if status == 200 and (etag or last_modified):
             self._cache.store_page(
                 CachedPage(
@@ -457,18 +495,20 @@ class PoliteClient:
                 if known is not None:
                     return known
                 exchange = self._robots_exchange(state, origin, hop_state, hop_host, url)
-                target = self._redirect_target(url, exchange)
-                if target is None and hop_state is state:
+                try:
+                    target = self._redirect_target(url, exchange)
+                    next_hop = None if target is None else parse_url(target)
+                except HttpError as error:
+                    reason = (
+                        "robots.txt redirects to an address that must not be fetched; host skipped"
+                    )
+                    raise self._block_origin(state, origin, reason) from error
+                if next_hop is None and hop_state is state:
                     return self._store_robots(state, host, origin, exchange)
-            if target is None:
+            if next_hop is None:
                 with self._turn(state, host):
                     return self._store_robots(state, host, origin, exchange)
-            try:
-                hop_target = parse_url(target)
-            except HttpError as error:
-                reason = "robots.txt redirects to an address that must not be fetched; host skipped"
-                raise self._block_origin(state, origin, reason) from error
-            url, hop_host = hop_target.url, hop_target.host
+            url, hop_host = next_hop.url, next_hop.host
             hop_state = self._state(hop_host)
         limit = self._settings.max_redirects
         reason = f"robots.txt redirects more than {limit} times; host skipped"
@@ -679,6 +719,8 @@ class PoliteClient:
         except ValueError:
             try:
                 seconds = parsedate_to_datetime(value).timestamp() - self._clock()
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 return 0.0
+        if math.isnan(seconds):  # "nan" is a float to Python; it would switch every wait off
+            return 0.0
         return min(max(seconds, 0.0), self._settings.backoff_max_seconds)

@@ -22,19 +22,23 @@ The lock is an advisory ``flock``. It exists on POSIX systems; on Windows
 process.
 
 The cache is disposable: unreadable or outdated files are treated as absent.
-With ``directory=None`` nothing is read, written or locked.
+With ``directory=None`` nothing is read, written or locked. A directory
+that cannot be written to (read-only, full, a file in its place) is the
+same as none: the failure is logged once and the client goes on without a
+cache and without the lock between processes.
 """
 
 from __future__ import annotations
 
 import contextlib
 import hashlib
+import logging
 import os
 import re
 import sys
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Self
+from typing import Final, Self
 
 from pydantic import BaseModel, ValidationError
 
@@ -43,6 +47,22 @@ from seminars.textio import read_text, write_text_atomic
 
 if sys.platform != "win32":
     import fcntl
+
+logger = logging.getLogger(__name__)
+
+_MAX_HOST_FILE_STEM: Final = 80
+
+
+def header_safe(value: str | None) -> str | None:
+    """``value`` when it can be sent as a request header, otherwise ``None``.
+
+    An ETag or Last-Modified value is sent back in the next request. A
+    server can put bytes outside printable ASCII into it, which no request
+    header may contain; such a validator is useless and is dropped.
+    """
+    if value and value.isascii() and value.isprintable():
+        return value
+    return None
 
 
 class CachedPage(Model):
@@ -53,6 +73,16 @@ class CachedPage(Model):
     last_modified: str | None = None
     content_type: str | None = None
     text: str
+
+    @property
+    def usable(self) -> bool:
+        """Whether a conditional request can be made from this entry.
+
+        It needs a validator, and every validator it has must be fit for a
+        request header (``header_safe``).
+        """
+        validators = [value for value in (self.etag, self.last_modified) if value is not None]
+        return bool(validators) and all(header_safe(value) for value in validators)
 
 
 class CachedRobots(Model):
@@ -109,6 +139,7 @@ class HttpCache:
 
     def __init__(self, directory: Path | None) -> None:
         self._directory = directory
+        self._complained = False
 
     def _page_path(self, url: str) -> Path | None:
         if self._directory is None:
@@ -117,9 +148,31 @@ class HttpCache:
         return self._directory / "pages" / f"{digest}.json"
 
     def _host_path(self, host: str, suffix: str = ".json") -> Path | None:
+        """The file of ``host``: its name when that is a short, plain file name.
+
+        Any other host (an IPv6 address, a name of up to 253 characters)
+        gets a readable prefix and a digest, so that the name is valid on
+        every file system and two hosts never share a file.
+        """
         if self._directory is None:
             return None
-        return self._directory / "hosts" / (re.sub(r"[^a-z0-9.-]", "_", host.lower()) + suffix)
+        name = host.lower()
+        stem = re.sub(r"[^a-z0-9.-]", "_", name).strip(".") or "host"
+        if stem != name or len(stem) > _MAX_HOST_FILE_STEM:
+            digest = hashlib.sha256(name.encode("utf-8", "surrogatepass")).hexdigest()[:16]
+            stem = f"{stem[:_MAX_HOST_FILE_STEM]}-{digest}"
+        return self._directory / "hosts" / (stem + suffix)
+
+    def _complain(self, action: str, error: OSError) -> None:
+        """Say once that the directory cannot be used; the client goes on without it."""
+        if not self._complained:
+            self._complained = True
+            logger.warning(
+                "HTTP cache directory %s cannot be used (%s: %s); going on without it",
+                self._directory,
+                action,
+                error.strerror or type(error).__name__,
+            )
 
     @staticmethod
     def _read[T: BaseModel](path: Path | None, model: type[T]) -> T | None:
@@ -130,15 +183,18 @@ class HttpCache:
         except (OSError, ValueError, ValidationError):
             return None
 
-    @staticmethod
-    def _write(path: Path | None, record: BaseModel) -> None:
-        if path is not None:
+    def _write(self, path: Path | None, record: BaseModel) -> None:
+        if path is None:
+            return
+        try:
             write_text_atomic(path, dump_json(record))
+        except OSError as error:
+            self._complain("writing", error)
 
     def page(self, url: str) -> CachedPage | None:
-        """The cached response of ``url``, if any."""
+        """The cached response of ``url``, if there is one that can be revalidated."""
         page = self._read(self._page_path(url), CachedPage)
-        return page if page is not None and page.url == url else None
+        return page if page is not None and page.url == url and page.usable else None
 
     def store_page(self, page: CachedPage) -> None:
         self._write(self._page_path(page.url), page)
@@ -158,14 +214,20 @@ class HttpCache:
         allowed to send a request to ``host``; take it before reading the
         host record and keep it until the record is written back. The lock
         is released when the block ends and also when the process dies.
-        Without a directory, and on Windows, this is a no-op.
+        Without a directory, with one that cannot be written to, and on
+        Windows, this is a no-op.
         """
         path = self._host_path(host, ".lock")
         if path is None or sys.platform == "win32":
             yield
             return
-        path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+        except OSError as error:
+            self._complain("locking", error)
+            yield
+            return
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX)
             try:
