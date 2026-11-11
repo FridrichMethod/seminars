@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source_id": "sites-biochemistry",
+  "entries": {
+    "https://biochemistry.stanford.edu/events": {
+      "file": "events.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:40:00Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://biochemistry.stanford.edu/events/all/rss": {
+      "file": "events-all-rss.xml",
+      "status": 200,
+      "content_type": "application/rss+xml",
+      "fetched_at": "2026-11-11T15:36:37Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://biochemistry.stanford.edu/events/seminar/frontiers-biology-steve-blacklow-harvard-molecular-mechanisms-signal-transduction": {
+      "file": "detail-native.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:48:13Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

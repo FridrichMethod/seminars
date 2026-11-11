@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source_id": "sites-bioengineering",
+  "entries": {
+    "https://bioengineering.stanford.edu/events": {
+      "file": "events.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:36:37Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://bioengineering.stanford.edu/events/all/rss": {
+      "file": "events-all-rss.xml",
+      "status": 200,
+      "content_type": "application/rss+xml",
+      "fetched_at": "2026-11-11T15:34:27Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://bioengineering.stanford.edu/events/lecturepresentationtalk/stanford-energy-seminar-electrified-metamaterial-reactors-process": {
+      "file": "detail-localist-redirect.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:37:09Z",
+      "final_url": "https://events.stanford.edu/event/stanford-energy-seminar-11162026",
+      "volatile_params": []
+    }
+  }
+}

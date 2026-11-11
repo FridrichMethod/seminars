@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://bioengineering.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://bioengineering.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/phd-defense/phd-dissertation-defense-danielle-klinger" hreflang="en">PhD Dissertation Defense: Danielle Klinger</a></h2></title>
+  <link>https://bioengineering.stanford.edu/events/phd-defense/phd-dissertation-defense-danielle-klinger</link>
+  <description/>
+  <pubDate>Fri, 13 Nov 2026 13:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">9c161082-f718-4872-96bf-d89a57d08ac7</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/lecturepresentationtalk/stanford-energy-seminar-electrified-metamaterial-reactors-process" hreflang="en">Stanford Energy Seminar | Electrified metamaterial reactors for process intensified thermochemistry | Jonathan Fan, Stanford University</a></h2></title>
+  <link>https://bioengineering.stanford.edu/events/lecturepresentationtalk/stanford-energy-seminar-electrified-metamaterial-reactors-process</link>
+  <description/>
+  <pubDate>Mon, 16 Nov 2026 16:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">3bdcd942-9efc-4211-8d64-fb5e1fd6fa86</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/lecturepresentationtalk/stanford-energy-seminar-soft-materials-hard-sustainability" hreflang="en">Stanford Energy Seminar | Soft Materials for Hard Sustainability Challenges: Water production, Data center Sustainability, and High-Temperature Heat | Carlos Diaz-Marin, Stanford University</a></h2></title>
+  <link>https://bioengineering.stanford.edu/events/lecturepresentationtalk/stanford-energy-seminar-soft-materials-hard-sustainability</link>
+  <description/>
+  <pubDate>Mon, 30 Nov 2026 16:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">cd716545-18ff-46cc-9a94-b306d41495ea</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/conferencesymposium/berkeleystanford-computational-mechanics-festival-compfest" hreflang="en">Berkeley/Stanford Computational Mechanics Festival (CompFest)</a></h2></title>
+  <link>https://bioengineering.stanford.edu/events/conferencesymposium/berkeleystanford-computational-mechanics-festival-compfest</link>
+  <description/>
+  <pubDate>Sat, 30 Jan 2027 09:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">d656281c-c2bb-43b3-b032-62ec98243196</guid>
+    </item>
+
+  </channel>
+</rss>

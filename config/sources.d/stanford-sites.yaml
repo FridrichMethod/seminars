@@ -1,0 +1,731 @@
+# Stanford department sites on Stanford Sites (Drupal): the "stanford-sites" group.
+# Schema of one entry: seminars.models.SourceConfig. Everything below was checked
+# against the live sites on 2026-11-11; the answers are stored in tests/fixtures/sites-*/,
+# and the README.md of each fixture directory describes what was recorded.
+#
+# The department sites use two templates with different interfaces.
+#
+# Template A, the H&S template (Drupal 11, class prefix "hs-event-"):
+#   mathematics, mrc, statistics, chemistry, physics, biology.
+#   Drupal JSON:API is open: GET <site>/jsonapi/node/hs_event. One request returns up to
+#   50 events with everything expanded. The drupal_jsonapi adapter builds its request
+#   from "params" like this (it is exactly the request the fixtures hold):
+#
+#     <url>?page[limit]=<page_limit>
+#          &sort=<sort, joined with ",">
+#          &include=<include, joined with ",">
+#          &filter[start][condition][path]=<window_filter.path>
+#          &filter[start][condition][operator]=>=
+#          &filter[start][condition][value]=<window.start as Unix seconds>
+#          &filter[end][condition][path]=<window_filter.path>
+#          &filter[end][condition][operator]=<
+#          &filter[end][condition][value]=<window.end as Unix seconds>
+#          &fields[<resource type>]=<names, joined with ","> for every entry of "fields"
+#
+#   and then follows links.next.href of each answer while there is one (at most
+#   max_pages requests). The two filter values change with the day of the run; the
+#   fixtures record them as volatile parameters. The date field is a Smart Date field
+#   (properties duration, rrule, rrule_index, timezone), and the filter was verified
+#   with Unix seconds as the value. An ISO 8601 value was not tried.
+#
+# Template B, the Stanford Sites standard template (Drupal 11, class prefix "su-event-"):
+#   bioengineering, chemh, cheme, icme, cs, biochemistry.
+#   JSON:API is closed (HTTP 502). /events/all/rss lists the upcoming events
+#   with a title, the start time, a link and a guid, nothing else. The list page /events
+#   shows the same events, in the same order, as cards with start, end, type and
+#   location. The rss adapter reads the feed ("url") and the list page ("urls") and joins
+#   the two on title and start time. Speaker and abstract exist only on the detail page
+#   of an event that the site itself hosts ("detail_page"); see the notes of each source.
+#   Two sources need a parameter beyond the shared ones: sites-cheme (colloquium_fields)
+#   and sites-icme (expand_schedule); sites-icme stays disabled until it is supported.
+#
+# Not in this file: appliedphysics, ee, structuralbio and genetics use neither template
+# and list no events of their own at present; sb and datascience belong to other groups.
+
+x-site: &site
+  group: stanford-sites
+  institution: stanford
+  timezone: America/Los_Angeles
+
+# Shared by the six template A sources. Site-specific keys are added next to the merge.
+x-hs-jsonapi-params: &hs-jsonapi-params
+  page_limit: 50
+  max_pages: 4
+  sort: [field_hs_event_date.value, drupal_internal__nid]
+  window_filter:
+    path: field_hs_event_date.value
+    value_format: unix_seconds
+  include:
+    - field_hs_event_speaker
+    - field_hs_event_series
+    - field_hs_event_type
+    - field_hs_event_status
+    - field_hs_event_category
+    - field_hs_event_audience
+  fields:
+    node--hs_event:
+      - title
+      - path
+      - body
+      - status
+      - changed
+      - field_hs_event_date
+      - field_hs_event_instances
+      - field_hs_event_location
+      - field_hs_event_map_link
+      - field_hs_event_link
+      - field_hs_event_stream
+      - field_hs_event_stream_info
+      - field_hs_event_experience
+      - field_hs_event_sponsor
+      - field_hs_event_admission
+      - field_hs_event_registration
+      - field_hs_event_speaker
+      - field_hs_event_series
+      - field_hs_event_type
+      - field_hs_event_status
+      - field_hs_event_category
+      - field_hs_event_audience
+    hs_entity--event_collections__speaker: [label]
+    node--hs_event_series: [title, path]
+    taxonomy_term--hs_event_type: [name]
+    taxonomy_term--hs_event_status: [name]
+    taxonomy_term--hs_event_category: [name]
+    taxonomy_term--hs_event_audience: [name]
+  # How an answer maps to a draft (verified on the fixtures of all six sites):
+  #   native_id      data[].id (UUID of the node)
+  #   url            site root + attributes.path.alias
+  #   start / end    attributes.field_hs_event_date.value / .end_value, UTC with "+00:00".
+  #                  end_value equal to value (duration 0) means "no end time".
+  #                  duration 1439 from local midnight is an all-day event.
+  #   location       attributes.field_hs_event_location (plain text; events imported
+  #                  from events.stanford.edu have three lines joined with CR LF)
+  #   abstract_html  attributes.body.value (may be null)
+  #   speakers       included hs_entity--event_collections__speaker, attributes.label:
+  #                  one string, "Name (Affiliation)" or "Name, Affiliation"
+  #   series         included node--hs_event_series, attributes.title (0 to 3 per event)
+  #   categories     names of the included type, category and audience terms
+  #   status         included taxonomy_term--hs_event_status, attributes.name; set only
+  #                  on events imported from events.stanford.edu
+  #   is_online      attributes.field_hs_event_experience: "inperson", "hybrid" or
+  #                  "virtual" on imported events, null otherwise
+  #   stream_url     attributes.field_hs_event_stream is null in every sample. Zoom
+  #                  addresses are in the body and in field_hs_event_map_link instead,
+  #                  most of them with a passcode ("pwd=") that must not be published.
+  #   field_hs_event_instances is filled on imported events only: one entry per
+  #   occurrence, each shaped like field_hs_event_date. Every sample has exactly one
+  #   entry, equal to field_hs_event_date. field_hs_event_date.rrule is null everywhere.
+  #   Names: term names, series titles and speaker labels may have leading, trailing or
+  #   doubled spaces (series "Geometry ", type " Lecture", speaker label
+  #   "Thomas Hou (Caltech) "). Collapse and strip whitespace before matching a name
+  #   against event_type_names, status_names or title_patterns, and before using it.
+  status_names: {live: confirmed, Published: confirmed, canceled: cancelled}
+  # Events entered on the site itself have no status term; a cancellation is written
+  # into the title: "(CANCELED) ...", "... (POSTPONED)", "... (Cancelled)". The word
+  # that matched, lower-cased, gives the status through title_status_names. An event is
+  # cancelled when either its status term or its title says so. A postponed event is
+  # "cancelled": the announced date does not take place, EventStatus has no
+  # "postponed", and "tentative" would suggest that it may still happen then. The
+  # title keeps the word, so readers see that it is postponed. Normalization looks
+  # for the same words in the title of every source.
+  title_status_pattern: '(?i)\b(cancell?ed|postponed)\b'
+  title_status_names: {canceled: cancelled, cancelled: cancelled, postponed: cancelled}
+  # An event imported from events.stanford.edu carries the address of its page there in
+  # attributes.field_hs_event_link.uri; the Localist source lists the same event.
+  localist_link_prefix: https://events.stanford.edu/event/
+  # event_type_names (set per source): names of series and of type or category terms,
+  # and the event type they stand for. Precedence: series titles first, then type
+  # terms, then category terms; within one kind the first name, in the order of the
+  # relationship, that has an entry wins; without any match default_event_type
+  # applies. Series come first because they are the more specific name: on
+  # mathematics the series "Department Colloquium" has the type term "Seminar".
+
+# Shared by the six template B sources.
+x-su-event-params: &su-event-params
+  feed:
+    # <title> holds unescaped markup: <h2><a href="/events/...">Title</a></h2>.
+    title_is_markup: true
+    start: pubDate  # the start time of the event, with offset
+    native_id: guid  # UUID, isPermaLink="false"
+  list_page:
+    item: 'div.view.stanford-events:not(.past-events-list-block) article.su-event-list-item'
+    title: 'h3 a'
+    link: 'h3 a'  # href: a path on the site, or an absolute URL elsewhere
+    external_link_class: su-link--external
+    type: '.su-event-type a'
+    times: 'time[datetime]'  # first is the start, second (if any) the end; a date only means all day
+    location: '.views-field-su-event-location'
+    address: '.views-field-su-event-address'
+    subheadline: '.event-list-item__subheadline'
+    dek: '.event-list_item__dek'
+    join_on: [title, start]  # a card and a feed item are the same event when both agree
+  detail_page:
+    # Only for a card whose link stays on the site. The link of a feed item always
+    # points at the site, but for an event taken from somewhere else it redirects to
+    # that other host (events.stanford.edu, another department, a PDF).
+    fetch: native_only
+    max_pages: 6
+    root: 'section.node-page--stanford-event'
+    # Inside root, below the event: cards of OTHER events. No selector below may read
+    # a match inside this block (see "detail page" in the mapping further down).
+    exclude: '.stanford-events-more-events-block'
+    end_attribute: data-end-date  # on the root element, Unix seconds
+    type: '.su-event-type a'
+    title: '.su-event-headline h1'
+    subheadline: '.su-event-subheadline'
+    dek: '.su-event-dek'
+    date_text: '.su-event-date'  # "Monday, November 16, 2026"; no machine-readable time here
+    time_text: '.su-event-time'  # "4:30pm - 5:30pm PST"
+    location: '.su-event-alt-location, .su-event-location'
+    audience: '.su-event-audience div'
+    body: '.su-event-body'
+    # Sessions of an event with a schedule (see sites-icme): a date heading, then one
+    # or more items below it.
+    schedule:
+      date: '.stanford-events-schedule h3'  # "Tuesday, September 22, 2026"
+      item: '.su-event-schedule'
+      time: '.su-event-schedule__time'  # "1:30pm - 2:45pm PDT"
+      headline: '.su-event-schedule__headline'
+      description: '.su-event-schedule__description'  # the speakers, as free text
+  # Names of event types and the event type they stand for; a source may replace the
+  # whole mapping with its own. The type of the card is the only name this template
+  # has (no series terms); without a match default_event_type applies.
+  event_type_names:
+    Class/Seminar: seminar
+    Lecture/Presentation/Talk: lecture
+    Conference/Symposium: conference
+    Workshop: workshop
+    PhD Defense: defense
+    Seminar: seminar
+  # How the two documents map to a draft (verified on the fixtures of all six sites):
+  #   native_id      feed <guid>
+  #   url            for a card whose link has external_link_class: that link, an
+  #                  absolute URL on another host (events.stanford.edu, another
+  #                  department, a PDF) and the address the feed <link> redirects to.
+  #                  It is not fetched; on events.stanford.edu it is also the url of the
+  #                  Localist source, which helps de-duplication. For every other card:
+  #                  the feed <link>, which is the site root plus the card's href.
+  #   title          the card title (h3 a); the markup in the feed title says the same.
+  #   start / end    the datetime attributes of the card's <time> elements, with offset.
+  #                  Date-only values make an all-day event, and the second date is its
+  #                  last day, inclusive. No second <time> means no end time.
+  #   location       the card's location text, else its address. An address is a
+  #                  p.address whose lines are separated by <br>: join the lines with
+  #                  ", " and collapse whitespace ("Stanford Campus, United States";
+  #                  "Stanford University - Huang Bldg., 475 Via Ortega, Stanford, CA
+  #                  94305-4042, United States"). A plain text() of the element runs the
+  #                  lines together ("Stanford CampusUnited States"). The same applies
+  #                  to the location of a detail page.
+  #   categories     the card's type
+  #   status         neither document has one; normalization reads a cancellation in
+  #                  the title, as for every source (postponed means cancelled, see
+  #                  title_status_names of template A).
+  #   detail page    root also holds, below the event, a "more events" block
+  #                  (detail_page.exclude) with the cards of OTHER events
+  #                  (article.su-event-list-item: 3 on biochemistry, 1 on cheme and
+  #                  icme). Every detail selector ignores matches inside that block and
+  #                  takes the first match outside it ('.su-event-type a' matches twice
+  #                  in the event itself, both with the same text; on icme
+  #                  '.su-event-location' also matches the address on the other
+  #                  event's card). Audience is the list of all matches outside it.
+
+sources:
+  # --- template A: H&S template, Drupal JSON:API -------------------------------------
+
+  - <<: *site
+    id: sites-mathematics
+    name: Stanford Mathematics
+    adapter: drupal_jsonapi
+    url: https://mathematics.stanford.edu/jsonapi/node/hs_event
+    homepage: https://mathematics.stanford.edu/events/upcoming-events
+    host_org: Stanford Mathematics
+    default_fields: [math]
+    default_event_type: seminar
+    params:
+      <<: *hs-jsonapi-params
+      event_type_names: {Seminar: seminar, Lectures: lecture, Department Colloquium: colloquium}
+    research:
+      verified: 2026-11-11
+      sample_events: 56
+      has_rss: false
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: true
+      extraction: api
+      crawl_delay: 30
+      template: A
+      requests_per_run: 2
+      series_seen:
+        - Applied Math
+        - Student Algebraic Geometry
+        - Geometry
+        - Combinatorics
+        - Student Geometry
+        - Student Learning Seminar on Mathematics and Computation
+        - Student Analysis
+        - Student Probability
+        - Faculty Area Research (FARS)
+        - Probability
+        - Symplectic Geometry
+        - Analysis & PDE
+        - Discrete Analysis and Number Theory
+        - Algebraic Geometry
+        - Number Theory
+        - AI for Mathematics
+        - Topology
+        - Department Colloquium
+      notes:
+        - 56 events in the window of 2026-11-11 (14 days back, 120 ahead), so two pages.
+        - The speaker is a relationship (52 of 56 events); the label reads "Name (Affiliation)".
+        - 6 titles are "TBA" or end in "TBA"; the talk is not announced yet.
+        - 4 of 56 events have no end time (end_value equals value).
+        - One event of the window is an import from events.stanford.edu (MRC Public Lecture).
+        - /events/ical also answered (text/calendar) on 2026-11-10; it has no speaker
+          and no series, so JSON:API is used.
+        - No event of the whole site has a recurrence rule (rrule is always null).
+
+  - <<: *site
+    id: sites-mrc
+    name: Stanford Mathematics Research Center
+    adapter: drupal_jsonapi
+    url: https://mrc.stanford.edu/jsonapi/node/hs_event
+    homepage: https://mrc.stanford.edu/events/all-upcoming-events
+    host_org: Stanford Mathematics Research Center
+    default_fields: [math]
+    default_event_type: lecture
+    params:
+      <<: *hs-jsonapi-params
+      event_type_names: {Lectures: lecture}
+    research:
+      verified: 2026-11-11
+      sample_events: 2
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: true
+      extraction: api
+      crawl_delay: 30
+      template: A
+      requests_per_run: 1
+      series_seen:
+        - Stefan and Adele Bergman Memorial Lecture Series
+        - Public Lectures
+      notes:
+        - Few events (2 in the window), public lectures and named lecture series.
+        - Both have a speaker relationship, label "Name (Affiliation)".
+        - The weekly seminars of the mathematics department are on sites-mathematics.
+        - A public lecture can also appear on sites-mathematics as an import from
+          events.stanford.edu, under another title; de-duplication has to merge them.
+
+  - <<: *site
+    id: sites-statistics
+    name: Stanford Statistics
+    adapter: drupal_jsonapi
+    url: https://statistics.stanford.edu/jsonapi/node/hs_event
+    homepage: https://statistics.stanford.edu/seminars-events/all-upcoming-events
+    host_org: Stanford Statistics
+    default_fields: [math]
+    default_event_type: seminar
+    params:
+      <<: *hs-jsonapi-params
+      event_type_names: {Conferences: conference}
+    research:
+      verified: 2026-11-11
+      sample_events: 10
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: true
+      extraction: api
+      crawl_delay: 30
+      template: A
+      requests_per_run: 1
+      series_seen:
+        - Statistics Seminar
+        - Probability Seminar
+        - Special Events
+        - Conferences
+        - Industrial Affiliates Conference Series
+      notes:
+        - 9 of 10 events have no end time (end_value equals value, duration 0).
+        - One all-day event, duration 1439 starting at local midnight (08:00 UTC in winter).
+        - The speaker label reads "Name, Affiliation" here, with a comma instead of brackets.
+        - The title is "Title to come" until the talk is announced.
+        - No event type terms are used; the series says what kind of event it is.
+
+  - <<: *site
+    id: sites-chemistry
+    name: Stanford Chemistry
+    adapter: drupal_jsonapi
+    url: https://chemistry.stanford.edu/jsonapi/node/hs_event
+    homepage: https://chemistry.stanford.edu/events/upcoming-events
+    host_org: Stanford Chemistry
+    default_fields: [chem]
+    default_event_type: seminar
+    params:
+      <<: *hs-jsonapi-params
+      event_type_names:
+        Thesis Defense: defense
+        Student Hosted Colloquia: colloquium
+        Stauffer Lecture Series: lecture
+      # The speaker is not a relationship on this site; it is part of the title.
+      # Optional hint, matches all 19 titles of the fixture. The honorific in front of
+      # the name ("Professor Connor Coley") stays outside the speaker group. The series
+      # group is only the prefix of the title ("31st Annual Stauffer Lectureship (Day 1
+      # of 2)", "Student Hosted Colloquium"); every event of this site also has a series
+      # relationship ("Stauffer Lecture Series"), and a series from a relationship
+      # always wins over one parsed from the title.
+      title_patterns:
+        - '^(?P<series>[^:]+):\s*(?:(?:Professor|Prof\.|Dr\.)\s+)?(?P<speaker>[^,]+?)\s*,\s*(?P<affiliation>.+?)\s*$'
+    research:
+      verified: 2026-11-11
+      sample_events: 19
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: true
+      extraction: api
+      crawl_delay: 30
+      template: A
+      requests_per_run: 1
+      series_seen:
+        - Physical Chemistry Seminar
+        - Organic Chemistry Seminar
+        - Chemical Biology Seminar
+        - Materials Chemistry Seminar
+        - Student Hosted Colloquia
+        - Stauffer Lecture Series
+        - Thesis Defense
+      notes:
+        - 'No speaker relationship at all; the title reads "Series: Speaker, Affiliation"
+          (see title_patterns).'
+        - The talk title is the first quoted line of the body, after "About the Seminar".
+        - An event can belong to up to three series.
+        - 10 of 19 events are thesis defenses (series "Thesis Defense").
+        - The body of many events links to a Zoom meeting whose address carries a passcode.
+
+  - <<: *site
+    id: sites-physics
+    name: Stanford Physics
+    adapter: drupal_jsonapi
+    url: https://physics.stanford.edu/jsonapi/node/hs_event
+    homepage: https://physics.stanford.edu/news-events/upcoming-events
+    host_org: Stanford Physics
+    default_fields: [physics]
+    default_event_type: colloquium
+    params:
+      <<: *hs-jsonapi-params
+      # "Colloquium" is the series of the cancelled colloquia (fixture
+      # hs-event-canceled-sample.json), whose type terms are " Lecture" and
+      # "Colloquium Event"; through the series they are colloquia, not lectures.
+      event_type_names:
+        Colloquium: colloquium
+        PhD Defenses: defense
+        Colloquium Event: colloquium
+        Lecture: lecture
+      # Optional hints, match all 10 titles of the fixtures. A cancellation marker
+      # in front ("Canceled:", "CANCELED") or at the end ("- CANCELED") stays outside
+      # the groups; the status itself comes from the status term and the title.
+      title_patterns:
+        - '^(?:Canceled:\s*)?(?:CANCELL?ED\s+)?(?P<series>Applied Physics/Physics Colloquium):\s*(?P<speaker>.+?)\s*-\s*"?\s*(?P<title>.+?)\s*"?\s*(?:-\s*CANCELL?ED)?\s*$'
+        - '^(?:DEPARTMENT OF PHYSICS DISSERTATION DEFENSE|Thesis Defense):\s*(?P<speaker>.+?)\s*$'
+    research:
+      verified: 2026-11-11
+      sample_events: 7
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: true
+      extraction: api
+      crawl_delay: 30
+      template: A
+      requests_per_run: 1
+      series_seen:
+        - Applied Physics/Physics Colloquium
+      notes:
+        - 5 of 7 events are the Applied Physics/Physics Colloquium, imported from
+          events.stanford.edu (status term "live", field_hs_event_link points there);
+          the other 2 are PhD defenses entered on the site.
+        - No speaker and no series relationship in the window; the speaker is in the title.
+        - 4 of the 5 colloquia have no end time.
+        - A cancelled import has the status term "canceled" and the title prefix
+          "Canceled:" (fixture hs-event-canceled-sample.json).
+        - The body of a defense shows a public Zoom address with a passcode.
+        - The other physics seminar series are run on other sites, which the home page
+          of the department links to (kipac.stanford.edu, qfarm.stanford.edu,
+          sitp.stanford.edu, glam.stanford.edu); none of them is a source yet.
+
+  - <<: *site
+    id: sites-biology
+    name: Stanford Biology
+    adapter: drupal_jsonapi
+    url: https://biology.stanford.edu/jsonapi/node/hs_event
+    homepage: https://biology.stanford.edu/news-events/upcoming-events
+    host_org: Stanford Biology
+    default_fields: [bio]
+    default_event_type: seminar
+    params:
+      <<: *hs-jsonapi-params
+      event_type_names: {Thesis Defenses: defense, Department Seminars: seminar}
+      # Optional hints, match all 8 titles of the fixture. A degree after the name
+      # ("Stefan Feske, MD", "Peter Walter, PhD") stays outside the speaker group, so
+      # that it is not read as an affiliation.
+      title_patterns:
+        - '^(?P<series>Biology Seminar Series)\s*-\s*(?P<speaker>.+?)(?:\s*,\s*(?:MD|PhD|M\.D\.|Ph\.D\.))*\s+"(?P<title>.+?)\s*"\s*$'
+        - '^(?P<speaker>.+?) Dissertation Defense\s*$'
+    research:
+      verified: 2026-11-11
+      sample_events: 8
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: true
+      extraction: api
+      crawl_delay: 30
+      template: A
+      requests_per_run: 1
+      series_seen:
+        - Department Seminars
+        - Thesis Defenses
+      notes:
+        - 6 of 8 events are the Biology Seminar Series, imported from events.stanford.edu
+          (status term "live"); the other 2 are thesis defenses entered on the site.
+        - No speaker relationship; the title reads 'Biology Seminar Series - Speaker "Title"'.
+        - The body is empty for 5 of 8 events; the abstract is on events.stanford.edu.
+        - A defense puts a Zoom address with a passcode into field_hs_event_map_link and
+          the passcode itself into the body.
+        - The status vocabulary of this site has the terms live, canceled and Published.
+
+  # --- template B: Stanford Sites standard template, RSS index plus list page --------
+
+  - <<: *site
+    id: sites-bioengineering
+    name: Stanford Bioengineering
+    adapter: rss
+    url: https://bioengineering.stanford.edu/events/all/rss
+    urls:
+      - https://bioengineering.stanford.edu/events
+    homepage: https://bioengineering.stanford.edu/events
+    host_org: Stanford Bioengineering
+    default_fields: [bio]
+    default_event_type: seminar
+    params:
+      <<: *su-event-params
+    research:
+      verified: 2026-11-11
+      sample_events: 4
+      has_rss: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 2
+      notes:
+        - All 4 events come from events.stanford.edu; the cards link there and the feed
+          links redirect there (fixture detail-localist-redirect.html), so no detail page
+          is fetched and the Localist source has the same events with all fields.
+        - /events/rss and /events/all/rss return the same bytes.
+        - One card has no end time (a PhD defense).
+        - The location on a card is the building only ("Shriram Center").
+
+  - <<: *site
+    id: sites-chemh
+    name: Stanford ChEM-H
+    adapter: rss
+    url: https://chemh.stanford.edu/events/all/rss
+    urls:
+      - https://chemh.stanford.edu/events
+    homepage: https://chemh.stanford.edu/events
+    host_org: Stanford ChEM-H
+    default_fields: [chem, bio]
+    default_event_type: seminar
+    params:
+      <<: *su-event-params
+    research:
+      verified: 2026-11-11
+      sample_events: 4
+      has_rss: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 2
+      notes:
+        - Every event is a pointer to a page elsewhere (chemsysbio.stanford.edu,
+          med.stanford.edu, a PDF poster); the feed link redirects to it.
+        - The cards have start and end, but no type, no location and no speaker.
+        - The list uses the view display "cards", not "list-page"; the item selector
+          covers both.
+        - Without the target pages there is no speaker and no abstract; the LLM tagger
+          only has the title to work with.
+
+  - <<: *site
+    id: sites-cheme
+    name: Stanford Chemical Engineering
+    adapter: rss
+    url: https://cheme.stanford.edu/events/all/rss
+    urls:
+      - https://cheme.stanford.edu/events
+    homepage: https://cheme.stanford.edu/events
+    host_org: Stanford Chemical Engineering
+    default_fields: [chem]
+    default_event_type: colloquium
+    params:
+      <<: *su-event-params
+      event_type_names:
+        Chemical Engineering Colloquium: colloquium
+        Class/Seminar: seminar
+        Lecture/Presentation/Talk: lecture
+        Conference/Symposium: conference
+        PhD Defense: defense
+      # Colloquium convention of this site: the node title is the speaker. Required, not
+      # a hint: an adapter that ignores it publishes every colloquium under the name of
+      # its speaker ("Amy E. Herr"). It applies to cards of the type "Chemical
+      # Engineering Colloquium" only.
+      colloquium_fields: {speaker: title, affiliation: subheadline, talk_title: dek}
+    research:
+      verified: 2026-11-11
+      sample_events: 2
+      has_rss: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 3
+      series_seen:
+        - Chemical Engineering Colloquium
+      notes:
+        - 'Chemical Engineering Colloquium: the title of the event is the name of the
+          speaker, the subheadline the affiliation and the dek the title of the talk;
+          the feed repeats the dek in <description>.'
+        - The detail page of a colloquium has the abstract and a biography in
+          .su-event-body, under bold "Title:", "Abstract:" and "Bio:" labels.
+        - The second event of the sample comes from events.stanford.edu.
+        - 'GET /jsonapi/node/stanford_event answers HTTP 502: JSON:API is closed.'
+
+  - <<: *site
+    id: sites-icme
+    name: Stanford ICME
+    adapter: rss
+    # Off until the adapter expands a schedule (params.expand_schedule), which no
+    # generic adapter promises yet; without it this source yields one all-day event of
+    # ten weeks. The alternative is a small custom module for this one site.
+    enabled: false
+    url: https://icme.stanford.edu/events/all/rss
+    urls:
+      - https://icme.stanford.edu/events
+    homepage: https://icme.stanford.edu/events
+    host_org: Stanford Institute for Computational and Mathematical Engineering
+    default_fields: [math, cs]
+    default_event_type: seminar
+    params:
+      <<: *su-event-params
+      event_type_names: {'Research Symposium & Seminars': seminar}
+      # A seminar series is ONE all-day event that spans the quarter; its sessions are
+      # the schedule on the detail page.
+      expand_schedule: true
+    research:
+      verified: 2026-11-11
+      sample_events: 2
+      has_rss: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 4
+      series_seen:
+        - First Year Seminar Series (CME 300)
+      notes:
+        - The seminar series is one event from 2026-09-22 to 2026-12-01 without a time
+          of day (date-only <time> elements, pubDate at 00:00).
+        - Its detail page lists every session in a "Schedule" block (a date heading, then
+          .su-event-schedule with time, headline and the speakers in the description);
+          fixture detail-native-schedule.html has 11 sessions.
+        - Two of the 11 headlines are "No class - ..." (a holiday), not a session.
+        - Without expand_schedule the source yields one all-day event of ten weeks.
+        - The other event of the sample is a one-day symposium in May 2027, outside the
+          window.
+
+  - <<: *site
+    id: sites-cs
+    name: Stanford Computer Science
+    adapter: rss
+    url: https://www.cs.stanford.edu/events/all/rss
+    urls:
+      - https://www.cs.stanford.edu/events
+    homepage: https://www.cs.stanford.edu/events
+    host_org: Stanford Computer Science
+    default_fields: [cs]
+    # Every talk of the sample carries a type, and the one card without a type is an
+    # advising session; so an untyped card is "other", not a seminar.
+    default_event_type: other
+    params:
+      <<: *su-event-params
+      event_type_names:
+        Class/Seminar: seminar
+        Lecture/Presentation/Talk: lecture
+        Conference/Symposium: conference
+        CS Info Sessions: other
+    research:
+      verified: 2026-11-11
+      sample_events: 9
+      has_rss: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 2
+      notes:
+        - cs.stanford.edu redirects to www.cs.stanford.edu; the URLs name the final host.
+        - 3 of 9 upcoming events come from events.stanford.edu (HAI Seminar, CNDS
+          seminar), typed "Class/Seminar" or "Lecture/Presentation/Talk". The other 6
+          are "CS Program Sheet Workshop & Advising" sessions, not talks, and should be
+          filtered out; 5 have the type "CS Info Sessions", one has no type at all
+          (/events/cs-program-sheet-workshop-advising-0). Both become "other".
+        - The list page also has a "Past Events" block (20 cards, "Load more" pager); the
+          item selector leaves it out.
+        - The department seminars of computer science are not on this site; they are
+          hosted by the labs (see the stanford-custom group).
+
+  - <<: *site
+    id: sites-biochemistry
+    name: Stanford Biochemistry
+    adapter: rss
+    url: https://biochemistry.stanford.edu/events/all/rss
+    urls:
+      - https://biochemistry.stanford.edu/events
+    homepage: https://biochemistry.stanford.edu/events
+    host_org: Stanford Biochemistry
+    default_fields: [bio]
+    default_event_type: seminar
+    series: Frontiers in Biology
+    params:
+      <<: *su-event-params
+      detail_page:
+        fetch: never  # the detail page of this site has no body, only what the card has
+      # Optional hint, matches all 4 titles of the fixture.
+      title_patterns:
+        - '^(?P<series>Frontiers in Biology):\s*(?P<speaker>[^,|]+),\s*(?P<affiliation>[^|]+?)\s*\|\s*"(?P<title>.+?)"\s*$'
+    research:
+      verified: 2026-11-11
+      sample_events: 4
+      has_rss: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 2
+      series_seen:
+        - Frontiers in Biology
+      notes:
+        - 'All 4 events are the weekly Frontiers in Biology seminar, entered on the site:
+          title "Frontiers in Biology: Speaker, Affiliation | "Talk title"".'
+        - The room is only in the free-text subheadline ("11/18/26, @Clark Auditorium, 4PM").
+        - The detail page (fixture detail-native.html) has no abstract and no location
+          field, so it adds nothing to the card.

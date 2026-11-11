@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://cheme.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://cheme.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/chemical-engineering-colloquium/amy-e-herr" hreflang="en">Amy E. Herr</a></h2></title>
+  <link>https://cheme.stanford.edu/events/chemical-engineering-colloquium/amy-e-herr</link>
+  <description>What Genes (and Transcripts) Can't Tell You: Single-Cell Proteomic Tools for Embryos to Ecosystems</description>
+  <pubDate>Mon, 16 Nov 2026 16:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">9bf4b59b-4775-4948-9a39-3024a7c7ce94</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/classseminar/three-laser-talks-media-art-ai-self-and-consciousness" hreflang="en">Three L.A.S.E.R. talks: Media Art, AI, The Self and Consciousness</a></h2></title>
+  <link>https://cheme.stanford.edu/events/classseminar/three-laser-talks-media-art-ai-self-and-consciousness</link>
+  <description/>
+  <pubDate>Wed, 18 Nov 2026 17:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">cb03caa3-5f72-439b-9fdd-97339a0eb04e</guid>
+    </item>
+
+  </channel>
+</rss>

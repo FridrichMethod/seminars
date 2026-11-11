@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source_id": "sites-icme",
+  "entries": {
+    "https://icme.stanford.edu/events": {
+      "file": "events.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:40:00Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://icme.stanford.edu/events/all/rss": {
+      "file": "events-all-rss.xml",
+      "status": 200,
+      "content_type": "application/rss+xml",
+      "fetched_at": "2026-11-11T15:36:37Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://icme.stanford.edu/events/research-symposium-seminars/first-year-seminar-series-2026-cme-300": {
+      "file": "detail-native-schedule.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:48:13Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

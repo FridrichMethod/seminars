@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://chemh.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://chemh.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/science-claude-agentic-biology-data-analysis-and-human-interactions-world-llms" hreflang="en">Science with Claude: Agentic Biology, Data Analysis, and Human Interactions in a World of LLMs</a></h2></title>
+  <link>https://chemh.stanford.edu/events/science-claude-agentic-biology-data-analysis-and-human-interactions-world-llms</link>
+  <description/>
+  <pubDate>Mon, 16 Nov 2026 11:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">517ebf33-b3d3-4aff-8dcd-bbc575a686f8</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/acetylcholine-receptor-lipid-interplay-nerve-muscle-synapse" hreflang="en">Acetylcholine Receptor-Lipid Interplay at the Nerve-Muscle Synapse</a></h2></title>
+  <link>https://chemh.stanford.edu/events/acetylcholine-receptor-lipid-interplay-nerve-muscle-synapse</link>
+  <description/>
+  <pubDate>Thu, 19 Nov 2026 15:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">745eef43-9266-4549-afdd-4e337b64200f</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/breaking-bacterial-resistance-chemical-dysregulation" hreflang="en">Breaking Bacterial Resistance via Chemical Dysregulation</a></h2></title>
+  <link>https://chemh.stanford.edu/events/breaking-bacterial-resistance-chemical-dysregulation</link>
+  <description/>
+  <pubDate>Thu, 03 Dec 2026 12:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">c1520749-4feb-4464-a5c5-e94942e12fec</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/beyond-checkpoint-blockade-vaccines-and-next-era-melanoma-immunotherapy" hreflang="en">Beyond Checkpoint Blockade: Vaccines and the Next Era of Melanoma Immunotherapy</a></h2></title>
+  <link>https://chemh.stanford.edu/events/beyond-checkpoint-blockade-vaccines-and-next-era-melanoma-immunotherapy</link>
+  <description/>
+  <pubDate>Tue, 08 Dec 2026 16:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">09e36756-51af-457f-97f8-7af08384d70e</guid>
+    </item>
+
+  </channel>
+</rss>

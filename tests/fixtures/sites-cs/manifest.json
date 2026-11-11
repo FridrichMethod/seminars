@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_id": "sites-cs",
+  "entries": {
+    "https://www.cs.stanford.edu/events": {
+      "file": "events.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:40:00Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://www.cs.stanford.edu/events/all/rss": {
+      "file": "events-all-rss.xml",
+      "status": 200,
+      "content_type": "application/rss+xml",
+      "fetched_at": "2026-11-11T15:36:37Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

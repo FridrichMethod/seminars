@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://biochemistry.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://biochemistry.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/seminar/frontiers-biology-douglas-phanstiel-unc-chapel-hill-chromatin-loops-genetic-risk" hreflang="en">Frontiers in Biology: Douglas Phanstiel, UNC, Chapel Hill | "From Chromatin loops to genetic risk: Visualizing and interpreting the noncoding genome"</a></h2></title>
+  <link>https://biochemistry.stanford.edu/events/seminar/frontiers-biology-douglas-phanstiel-unc-chapel-hill-chromatin-loops-genetic-risk</link>
+  <description/>
+  <pubDate>Wed, 11 Nov 2026 16:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">520fe585-dc88-490f-b852-440a7a45f3c0</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/seminar/frontiers-biology-steve-blacklow-harvard-molecular-mechanisms-signal-transduction" hreflang="en">Frontiers in Biology: Steve Blacklow, Harvard  | "Molecular mechanisms of signal transduction"</a></h2></title>
+  <link>https://biochemistry.stanford.edu/events/seminar/frontiers-biology-steve-blacklow-harvard-molecular-mechanisms-signal-transduction</link>
+  <description/>
+  <pubDate>Wed, 18 Nov 2026 16:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">eb1ef582-cab2-4adc-8648-a5d9132fc044</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/seminar/frontiers-biology-jacob-hanna-weizmann-inst-synthetic-ex-utero-embryogenesis-naive" hreflang="en">Frontiers in Biology: Jacob Hanna, Weizmann Inst. | "Synthetic Ex Utero embryogenesis: from naive pluripotent cells to bona fide embryo models"</a></h2></title>
+  <link>https://biochemistry.stanford.edu/events/seminar/frontiers-biology-jacob-hanna-weizmann-inst-synthetic-ex-utero-embryogenesis-naive</link>
+  <description/>
+  <pubDate>Wed, 02 Dec 2026 16:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">c7b4291a-98a3-41dc-a12f-92847a57ef19</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/seminar/frontiers-biology-ruixuan-gao-u-illinois-chicago-chemical-biology-strategies-toward" hreflang="en">Frontiers in Biology: Ruixuan Gao, U Illinois Chicago | "Chemical biology strategies toward molecular connectomics and In toto brain phenotyping"</a></h2></title>
+  <link>https://biochemistry.stanford.edu/events/seminar/frontiers-biology-ruixuan-gao-u-illinois-chicago-chemical-biology-strategies-toward</link>
+  <description/>
+  <pubDate>Wed, 09 Dec 2026 16:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">c0428288-1f14-4830-9544-15fd2b8fd8f1</guid>
+    </item>
+
+  </channel>
+</rss>

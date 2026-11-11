@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://www.cs.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://www.cs.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/classseminar/hai-seminar-ai-100" hreflang="en">HAI Seminar The AI 100</a></h2></title>
+  <link>https://www.cs.stanford.edu/events/classseminar/hai-seminar-ai-100</link>
+  <description/>
+  <pubDate>Wed, 18 Nov 2026 12:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">95281a79-892b-4827-a93e-95db2bb7c967</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cs-info-sessions/cs-program-sheet-workshop-advising-0" hreflang="en">CS Program Sheet Workshop &amp; Advising </a></h2></title>
+  <link>https://www.cs.stanford.edu/events/cs-info-sessions/cs-program-sheet-workshop-advising-0</link>
+  <description/>
+  <pubDate>Tue, 01 Dec 2026 15:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">f06dc5ca-0cd6-4885-9094-0fee2b2c4fc6</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/classseminar/hai-seminar-angele-christin-conversation-hannah-zeavin" hreflang="en">HAI Seminar with Angèle Christin in Conversation with Hannah Zeavin</a></h2></title>
+  <link>https://www.cs.stanford.edu/events/classseminar/hai-seminar-angele-christin-conversation-hannah-zeavin</link>
+  <description/>
+  <pubDate>Wed, 09 Dec 2026 12:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">6dc0062b-1b54-4930-ac49-02e0c1f5a140</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/lecturepresentationtalk/youngju-jo-data-driven-discovery-and-control-neural-computations" hreflang="en">YoungJu Jo | Data-driven discovery and control of neural computations</a></h2></title>
+  <link>https://www.cs.stanford.edu/events/lecturepresentationtalk/youngju-jo-data-driven-discovery-and-control-neural-computations</link>
+  <description/>
+  <pubDate>Mon, 14 Dec 2026 16:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">b49ae292-8af9-42fa-bbb0-8cb438508962</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cs-info-sessions/cs-program-sheet-workshop-advising-1" hreflang="en">CS Program Sheet Workshop &amp; Advising </a></h2></title>
+  <link>https://www.cs.stanford.edu/events/cs-info-sessions/cs-program-sheet-workshop-advising-1</link>
+  <description/>
+  <pubDate>Tue, 19 Jan 2027 15:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">324162cb-2446-448c-88a5-95f9843d0585</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cs-program-sheet-workshop-advising-0" hreflang="en">CS Program Sheet Workshop &amp; Advising </a></h2></title>
+  <link>https://www.cs.stanford.edu/events/cs-program-sheet-workshop-advising-0</link>
+  <description/>
+  <pubDate>Tue, 23 Feb 2027 15:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">8f677d93-b405-4101-aa6a-c617fe441484</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cs-info-sessions/cs-program-sheet-workshop-advising-2" hreflang="en">CS Program Sheet Workshop &amp; Advising </a></h2></title>
+  <link>https://www.cs.stanford.edu/events/cs-info-sessions/cs-program-sheet-workshop-advising-2</link>
+  <description/>
+  <pubDate>Tue, 02 Mar 2027 15:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">51f59b90-8542-4803-a3ae-e859c882daa6</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cs-info-sessions/cs-program-sheet-workshop-advising-3" hreflang="en">CS Program Sheet Workshop &amp; Advising </a></h2></title>
+  <link>https://www.cs.stanford.edu/events/cs-info-sessions/cs-program-sheet-workshop-advising-3</link>
+  <description/>
+  <pubDate>Tue, 13 Apr 2027 15:00:00 -0700</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">324ba09d-1f23-4101-be2e-f1ac40f514db</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/cs-info-sessions/cs-program-sheet-workshop-advising-5" hreflang="en">CS Program Sheet Workshop &amp; Advising </a></h2></title>
+  <link>https://www.cs.stanford.edu/events/cs-info-sessions/cs-program-sheet-workshop-advising-5</link>
+  <description/>
+  <pubDate>Tue, 11 May 2027 15:00:00 -0700</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">56b73313-4fae-4039-ad4a-149e1ca6c590</guid>
+    </item>
+
+  </channel>
+</rss>

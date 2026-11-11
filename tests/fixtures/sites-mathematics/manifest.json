@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "source_id": "sites-mathematics",
+  "entries": {
+    "https://mathematics.stanford.edu/jsonapi/node/hs_event?page%5Boffset%5D=50&page%5Blimit%5D=50&sort=field_hs_event_date.value%2Cdrupal_internal__nid&include=field_hs_event_speaker%2Cfield_hs_event_series%2Cfield_hs_event_type%2Cfield_hs_event_status%2Cfield_hs_event_category%2Cfield_hs_event_audience&filter%5Bstart%5D%5Bcondition%5D%5Bpath%5D=field_hs_event_date.value&filter%5Bstart%5D%5Bcondition%5D%5Boperator%5D=%3E%3D&filter%5Bstart%5D%5Bcondition%5D%5Bvalue%5D=1793170800&filter%5Bend%5D%5Bcondition%5D%5Bpath%5D=field_hs_event_date.value&filter%5Bend%5D%5Bcondition%5D%5Boperator%5D=%3C&filter%5Bend%5D%5Bcondition%5D%5Bvalue%5D=1804838400&fields%5Bnode--hs_event%5D=title%2Cpath%2Cbody%2Cstatus%2Cchanged%2Cfield_hs_event_date%2Cfield_hs_event_instances%2Cfield_hs_event_location%2Cfield_hs_event_map_link%2Cfield_hs_event_link%2Cfield_hs_event_stream%2Cfield_hs_event_stream_info%2Cfield_hs_event_experience%2Cfield_hs_event_sponsor%2Cfield_hs_event_admission%2Cfield_hs_event_registration%2Cfield_hs_event_speaker%2Cfield_hs_event_series%2Cfield_hs_event_type%2Cfield_hs_event_status%2Cfield_hs_event_category%2Cfield_hs_event_audience&fields%5Bhs_entity--event_collections__speaker%5D=label&fields%5Bnode--hs_event_series%5D=title%2Cpath&fields%5Btaxonomy_term--hs_event_type%5D=name&fields%5Btaxonomy_term--hs_event_status%5D=name&fields%5Btaxonomy_term--hs_event_category%5D=name&fields%5Btaxonomy_term--hs_event_audience%5D=name": {
+      "file": "hs-event-page2.json",
+      "status": 200,
+      "content_type": "application/vnd.api+json",
+      "fetched_at": "2026-11-11T15:43:20Z",
+      "final_url": null,
+      "volatile_params": [
+        "filter[end][condition][value]",
+        "filter[start][condition][value]"
+      ]
+    },
+    "https://mathematics.stanford.edu/jsonapi/node/hs_event?page[limit]=50&sort=field_hs_event_date.value,drupal_internal__nid&include=field_hs_event_speaker,field_hs_event_series,field_hs_event_type,field_hs_event_status,field_hs_event_category,field_hs_event_audience&filter[start][condition][path]=field_hs_event_date.value&filter[start][condition][operator]=%3E%3D&filter[start][condition][value]=1793170800&filter[end][condition][path]=field_hs_event_date.value&filter[end][condition][operator]=%3C&filter[end][condition][value]=1804838400&fields[node--hs_event]=title,path,body,status,changed,field_hs_event_date,field_hs_event_instances,field_hs_event_location,field_hs_event_map_link,field_hs_event_link,field_hs_event_stream,field_hs_event_stream_info,field_hs_event_experience,field_hs_event_sponsor,field_hs_event_admission,field_hs_event_registration,field_hs_event_speaker,field_hs_event_series,field_hs_event_type,field_hs_event_status,field_hs_event_category,field_hs_event_audience&fields[hs_entity--event_collections__speaker]=label&fields[node--hs_event_series]=title,path&fields[taxonomy_term--hs_event_type]=name&fields[taxonomy_term--hs_event_status]=name&fields[taxonomy_term--hs_event_category]=name&fields[taxonomy_term--hs_event_audience]=name": {
+      "file": "hs-event-page1.json",
+      "status": 200,
+      "content_type": "application/vnd.api+json",
+      "fetched_at": "2026-11-11T15:42:31Z",
+      "final_url": null,
+      "volatile_params": [
+        "filter[end][condition][value]",
+        "filter[start][condition][value]"
+      ]
+    }
+  }
+}

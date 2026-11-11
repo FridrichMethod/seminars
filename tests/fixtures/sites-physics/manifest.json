@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "source_id": "sites-physics",
+  "entries": {
+    "https://physics.stanford.edu/jsonapi/node/hs_event?page[limit]=3&sort=-field_hs_event_date.value,drupal_internal__nid&filter[field_hs_event_status.name]=canceled&include=field_hs_event_speaker,field_hs_event_series,field_hs_event_type,field_hs_event_status,field_hs_event_category,field_hs_event_audience&fields[node--hs_event]=title,path,body,status,changed,field_hs_event_date,field_hs_event_instances,field_hs_event_location,field_hs_event_map_link,field_hs_event_link,field_hs_event_stream,field_hs_event_stream_info,field_hs_event_experience,field_hs_event_sponsor,field_hs_event_admission,field_hs_event_registration,field_hs_event_speaker,field_hs_event_series,field_hs_event_type,field_hs_event_status,field_hs_event_category,field_hs_event_audience&fields[hs_entity--event_collections__speaker]=label&fields[node--hs_event_series]=title,path&fields[taxonomy_term--hs_event_type]=name&fields[taxonomy_term--hs_event_status]=name&fields[taxonomy_term--hs_event_category]=name&fields[taxonomy_term--hs_event_audience]=name": {
+      "file": "hs-event-canceled-sample.json",
+      "status": 200,
+      "content_type": "application/vnd.api+json",
+      "fetched_at": "2026-11-11T15:46:52Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://physics.stanford.edu/jsonapi/node/hs_event?page[limit]=50&sort=field_hs_event_date.value,drupal_internal__nid&include=field_hs_event_speaker,field_hs_event_series,field_hs_event_type,field_hs_event_status,field_hs_event_category,field_hs_event_audience&filter[start][condition][path]=field_hs_event_date.value&filter[start][condition][operator]=%3E%3D&filter[start][condition][value]=1793170800&filter[end][condition][path]=field_hs_event_date.value&filter[end][condition][operator]=%3C&filter[end][condition][value]=1804838400&fields[node--hs_event]=title,path,body,status,changed,field_hs_event_date,field_hs_event_instances,field_hs_event_location,field_hs_event_map_link,field_hs_event_link,field_hs_event_stream,field_hs_event_stream_info,field_hs_event_experience,field_hs_event_sponsor,field_hs_event_admission,field_hs_event_registration,field_hs_event_speaker,field_hs_event_series,field_hs_event_type,field_hs_event_status,field_hs_event_category,field_hs_event_audience&fields[hs_entity--event_collections__speaker]=label&fields[node--hs_event_series]=title,path&fields[taxonomy_term--hs_event_type]=name&fields[taxonomy_term--hs_event_status]=name&fields[taxonomy_term--hs_event_category]=name&fields[taxonomy_term--hs_event_audience]=name": {
+      "file": "hs-event-page1.json",
+      "status": 200,
+      "content_type": "application/vnd.api+json",
+      "fetched_at": "2026-11-11T15:43:50Z",
+      "final_url": null,
+      "volatile_params": [
+        "filter[end][condition][value]",
+        "filter[start][condition][value]"
+      ]
+    }
+  }
+}

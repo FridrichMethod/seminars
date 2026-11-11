@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://icme.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://icme.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/research-symposium-seminars/first-year-seminar-series-2026-cme-300" hreflang="en">First Year Seminar Series 2026 (CME 300)</a></h2></title>
+  <link>https://icme.stanford.edu/events/research-symposium-seminars/first-year-seminar-series-2026-cme-300</link>
+  <description>Autumn Quarter 2026</description>
+  <pubDate>Tue, 22 Sep 2026 00:00:00 -0700</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">2cec37fd-5e15-4323-b7f4-4d39a65a0265</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/research-symposium-seminars/icme-research-symposium-2027" hreflang="en">ICME Research Symposium 2027</a></h2></title>
+  <link>https://icme.stanford.edu/events/research-symposium-seminars/icme-research-symposium-2027</link>
+  <description>The annual research symposium highlights current research topics and future plans through presentations, panel discussions, and graduate students’ poster session.</description>
+  <pubDate>Tue, 18 May 2027 09:00:00 -0700</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">a31f4f3f-3823-4837-b40a-efd913415cbd</guid>
+    </item>
+
+  </channel>
+</rss>
