@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -38,6 +39,7 @@ RECORDED = datetime(2026, 11, 11, 15, 49, 33, tzinfo=UTC)
 ENDPOINT = "https://calendar.example.edu/api/2/events"
 
 
+@functools.cache
 def stanford_source() -> SourceConfig:
     sources = {source.id: source for source in load_sources(REPO_ROOT / "config" / "sources.d")}
     return sources["localist-stanford"]
