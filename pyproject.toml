@@ -53,6 +53,9 @@ extend-exclude = [".worktrees"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "C4", "PT"]
+# RUF012: the models derive from seminars.models.Model (a pydantic BaseModel), which copies
+# mutable defaults per instance; ruff cannot see that through the cross-module base class.
+ignore = ["RUF012"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["seminars"]
