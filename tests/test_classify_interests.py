@@ -13,7 +13,7 @@ from seminars.classify.rules import TermMatcher, Words
 from seminars.config import Interests, load_interests
 from seminars.contracts import PicksScorer
 from seminars.models import Event
-from test_classify_taxonomy import load_strict_yaml
+from test_classify_taxonomy import load_strict_yaml, unmatchable
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 INTERESTS_FILE = REPO_ROOT / "config" / "interests.yaml"
@@ -128,6 +128,7 @@ class TestFile:
         }
         for place, terms in lists.items():
             assert len(TermMatcher(terms).terms) == len(terms), place
+            assert unmatchable(terms) == [], place
 
     @pytest.mark.parametrize("spelling", PRESET_KEYWORDS)
     def test_every_preset_keyword_is_configured(self, interests: Interests, spelling: str) -> None:

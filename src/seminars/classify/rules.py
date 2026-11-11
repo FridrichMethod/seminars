@@ -14,7 +14,8 @@ picks keywords and names alike):
   text. A segment ends at a line break, at a bracket or double quote, and at
   a ``.,;:!?`` that is followed by white space or the end of the text, so
   "the protein. Design" does not contain "protein design" (but "3.5" and
-  "Ph.D" stay whole).
+  "Ph.D" stay whole). A point after a single letter is an initial and does
+  not end a segment: "E. coli", "C. elegans" and "J. R. Doe" stay whole.
 * The last word of a term may appear singular or plural: "enzyme" matches
   "enzymes", "galaxy" matches "galaxies", and "equations" matches
   "equation". Names and other terms that must match exactly are compiled
@@ -65,6 +66,8 @@ SCORE_TOLERANCE: Final = 1e-9
 NO_FIELD_REASON: Final = "no field matched"
 
 _SEGMENT_BREAK: Final = re.compile(r"[.,;:!?]+(?=\s|$)|[\n()\[\]{}<>\"|]")
+_INITIAL: Final = re.compile(r"(?<!\w)([^\W\d_])\.(?=\s)")
+"""A single letter and its point, as in "E. coli": the point is dropped before splitting."""
 _WORD: Final = re.compile(r"\w+")
 
 
@@ -84,7 +87,8 @@ class Words:
         """The words of ``text``; ``None`` and blank text have none."""
         if not text:
             return cls()
-        pieces = (_WORD.findall(piece) for piece in _SEGMENT_BREAK.split(_fold(text)))
+        folded = _INITIAL.sub(r"\1", _fold(text))
+        pieces = (_WORD.findall(piece) for piece in _SEGMENT_BREAK.split(folded))
         return cls(tuple(tuple(piece) for piece in pieces if piece))
 
 

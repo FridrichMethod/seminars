@@ -65,6 +65,25 @@ class TestWords:
             ("version", "3", "5", "by", "a", "ph", "d", "student"),
         )
 
+    @pytest.mark.parametrize(
+        ("text", "segment"),
+        [
+            ("Gut microbes: E. coli and C. elegans", ("e", "coli", "and", "c", "elegans")),
+            ("A talk by J. R. Doe", ("a", "talk", "by", "j", "r", "doe")),
+            ("U.S. policy", ("u", "s", "policy")),
+        ],
+    )
+    def test_a_point_after_an_initial_does_not_split(
+        self, text: str, segment: tuple[str, ...]
+    ) -> None:
+        assert words(text).segments[-1] == segment
+
+    def test_a_point_after_a_longer_word_still_splits(self) -> None:
+        assert words("Vitamin D. Then ab. Cd").segments == (
+            ("vitamin", "d", "then", "ab"),
+            ("cd",),
+        )
+
     def test_a_line_break_starts_a_new_segment(self) -> None:
         assert words("Protein\nDesign").segments == (("protein",), ("design",))
 

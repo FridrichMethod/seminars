@@ -15,7 +15,7 @@ import yaml
 
 from factories import make_candidate, make_event
 from seminars.classify.filters import build_event_filter
-from seminars.classify.rules import TermMatcher, build_field_tagger
+from seminars.classify.rules import TermMatcher, Words, build_field_tagger
 from seminars.config import Settings, Taxonomy, load_settings, load_taxonomy
 from seminars.contracts import EventFilter, FieldTagger
 from seminars.models import FIELD_IDS, Candidate, RuleExclusionReason
@@ -83,6 +83,27 @@ def load_strict_yaml(path: Path) -> Any:
     return yaml.load(path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
 
 
+def term_lists(taxonomy: Taxonomy) -> dict[str, list[str]]:
+    """Every list of terms in ``taxonomy``, by its place in the file."""
+    lists: dict[str, list[str]] = {}
+    for field, rules in taxonomy.fields.items():
+        lists[f"{field}.keywords"] = list(rules.keywords)
+        lists[f"{field}.series"] = rules.series
+        lists[f"{field}.exclude_keywords"] = rules.exclude_keywords
+    for reason, phrases in taxonomy.exclusions.items():
+        lists[f"exclusions.{reason}"] = phrases
+    return lists
+
+
+def unmatchable(terms: list[str]) -> list[str]:
+    """The terms that do not match a text spelled like themselves ("E. coli" in a title)."""
+    return [
+        term
+        for term in terms
+        if TermMatcher([term]).matched(Words.of(f"Talk: {term.rstrip('*')}.")) != (term,)
+    ]
+
+
 class TestFile:
     def test_has_no_duplicate_keys(self) -> None:
         load_strict_yaml(TAXONOMY_FILE)
@@ -98,15 +119,12 @@ class TestFile:
         assert all(len(phrases) >= 5 for phrases in taxonomy.exclusions.values())
 
     def test_no_list_repeats_a_term_in_another_spelling(self, taxonomy: Taxonomy) -> None:
-        lists: dict[str, list[str]] = {}
-        for field, rules in taxonomy.fields.items():
-            lists[f"{field}.keywords"] = list(rules.keywords)
-            lists[f"{field}.series"] = rules.series
-            lists[f"{field}.exclude_keywords"] = rules.exclude_keywords
-        for reason, phrases in taxonomy.exclusions.items():
-            lists[f"exclusions.{reason}"] = phrases
-        for place, terms in lists.items():
+        for place, terms in term_lists(taxonomy).items():
             assert len(TermMatcher(terms).terms) == len(terms), place
+
+    def test_every_term_matches_its_own_spelling(self, taxonomy: Taxonomy) -> None:
+        for place, terms in term_lists(taxonomy).items():
+            assert unmatchable(terms) == [], place
 
     def test_departments_are_distinct_labels(self, taxonomy: Taxonomy) -> None:
         from seminars.classify.rules import label_key
@@ -164,6 +182,8 @@ FIELD_CASES: list[tuple[str, str, str | None]] = [
     ("bio", "Inverse folding with AlphaFold2 and ProteinMPNN", None),
     ("bio", "Bioengineering the gut microbiome", None),
     ("bio", "Synaptic plasticity in the hippocampus", None),
+    ("bio", "Aging and dietary restriction in C. elegans", None),
+    ("bio", "Quorum sensing: how E. coli counts its neighbors", None),
     # physics
     ("physics", "Superconductivity in twisted bilayer graphene", None),
     ("physics", "Searching for dark matter with quantum sensors", None),
