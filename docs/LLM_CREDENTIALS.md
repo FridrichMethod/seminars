@@ -194,7 +194,10 @@ What keeps the cost down, all set in `config/llm.yaml`:
   removed. A page reading is stored with only the text values that are on the page, so
   whatever else a page makes the model write never reaches the committed cache.
 
-The run report lists the requests, tokens, cost and the result of every provider.
+The run report lists the requests, the tokens and the result of every provider, and the
+cost where the backend reports one, which only `claude-cli` does. `codex-cli` and the API
+routes (`anthropic`, `openai`, `openai-compat`) report token counts only, so their cost in
+the report is 0; what they cost is on the billing page of the service.
 
 ## How long credentials last
 

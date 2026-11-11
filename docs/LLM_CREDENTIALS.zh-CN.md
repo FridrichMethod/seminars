@@ -135,7 +135,7 @@ scripts/set-llm-credential.sh openai-compat --from-file ~/.secrets/llm-key \
 * `max_input_chars`（12000）：发送的 prompt 的最大长度；长页面按这个大小分段读，每个源最多读六段。任何请求都放不下的事件，以及六段之后的页面文字，都会跳过并写进 report。
 * `data/llm_cache/` 里的缓存：key 是 prompt 版本、任务和规范化输入的 SHA-256。模型和 provider 不在 key 里，所以换 key、换计划、换模型都不会重复请求。`cache_ttl_days`（180）天没用过的条目会被删除。读页面的回答只保存页面上有的文本值，所以页面让模型写出的其他内容永远进不了提交到 repo 的缓存。
 
-run report 列出请求数、token、费用以及每个 provider 的结果。
+run report 列出请求数、token 和每个 provider 的结果；费用只在后端自己报告时才有，目前只有 `claude-cli` 报告。`codex-cli` 和 API 路线（`anthropic`、`openai`、`openai-compat`）只报告 token 数，所以它们在 report 里的费用是 0；实际花了多少要看服务的计费页面。
 
 ## 凭证的有效期
 

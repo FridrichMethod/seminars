@@ -14,6 +14,11 @@ model can only answer with text:
 
 Whatever a service enforces, the answer is validated here (``parse_answer``).
 
+Usage. These backends report the input and output tokens the service
+counted, never a cost: the APIs return no price, and a price table in the
+code would go stale. ``Completion.cost_usd`` stays 0 for them, so the
+cost in the run report is only the part the claude CLI reports itself.
+
 An SDK error carries the message of the service, which can quote the request
 or part of the key. It is read to pick the failure kind and then dropped:
 the error raised here has a fixed sentence and the HTTP status, and no
