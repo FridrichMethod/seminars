@@ -570,6 +570,15 @@ EXCLUDED: list[tuple[str, str]] = [
     ("academic_calendar", "Last Day to Drop Classes"),
     ("academic_calendar", "Thanksgiving Holiday (No Classes)"),
     ("academic_calendar", "Spring Break"),
+    ("academic_calendar", "American Surgical Association (ASA) Meeting Abstract Deadline"),
+    ("academic_calendar", "The Pacific Association of Pediatric Surgeons (PAPS) Abstract Deadline"),
+    ("academic_calendar", "No Seminar - Thanksgiving Holiday"),
+    ("academic_calendar", "No SLAC Colloquium 11/23"),
+    ("academic_calendar", "No Class: University Holiday"),
+    ("social", "Alumni Reception at the Faculty Club"),
+    ("fitness", "Chair Yoga for Staff"),
+    ("fitness", "Group Workout on the Oval"),
+    ("fitness", "World Diabetes Day Wellness Fair"),
 ]
 
 
@@ -599,6 +608,13 @@ def test_non_talks_are_excluded(event_filter: EventFilter, reason: str, title: s
         "Intelligent tutoring systems with large language models",
         "The neuroscience of mindfulness",
         "Lessons from the NIH intramural research program",
+        "The Greek and Arabic Reception of Ptolemy's Almagest",
+        "Wireless signal reception in dense urban areas",
+        "Yoga and the vagus nerve: a clinical trial",
+        "Lecture: the neuroscience of yoga",
+        "Workout recovery and muscle biology",
+        "Dark Matter Town Hall: the next decade of experiments",
+        "No free lunch theorems for optimization",
     ],
 )
 def test_talks_with_tricky_words_are_kept(event_filter: EventFilter, title: str) -> None:
@@ -611,8 +627,8 @@ def test_talks_with_tricky_words_are_kept(event_filter: EventFilter, title: str)
     ("title", "categories"),
     [
         ("Career Development Seminar: navigating industry", []),
-        ("Physics Colloquium and Reception", []),
-        ("Lecture: the neuroscience of yoga", []),
+        ("Physics Colloquium and Welcome Reception", []),
+        ("Lecture and Guided Meditation", []),
         ("Dark matter at SLAC", ["Social Event / Reception"]),
     ],
 )

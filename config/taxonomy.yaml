@@ -874,7 +874,7 @@ fields:
       aging: 0.5
     exclude_keywords:
       - history of medicine
-      - medical humanities
+      - "medical humanit*"
       - philosophy of medicine
       - financial health
 
@@ -972,13 +972,17 @@ departments:
   Stanford Cancer Institute: [med, bio]
 
 # Filter phrases per exclusion reason (seminars.classify.filters). A phrase in the
-# title or the series excludes the event, unless that text also names a talk
-# ("seminar", "colloquium", "lecture", "talk", ...): such events are kept and
-# handed to the LLM, as are events where a phrase only matches a category label.
-# The abstract is never read. A phrase is final without an LLM, so a word that
-# is also a research topic is listed only in phrases that are not: "tutoring
-# session" but not "tutoring" (intelligent tutoring systems), "mindfulness
-# session" but not "mindfulness" (the neuroscience of mindfulness).
+# title or the series excludes the event, unless the title or the series also
+# names a talk ("seminar", "colloquium", "lecture", "talk", ...): such events are
+# kept and handed to the LLM, as are events where a phrase only matches a category
+# label. A phrase that names a talk itself ("no seminar", "career talk") always
+# excludes. The abstract is never read. A phrase is final without an LLM, so a
+# word that is also a research topic or a common title word is listed only in
+# phrases that are not: "tutoring session" but not "tutoring" (intelligent
+# tutoring systems), "welcome reception" but not "reception" (signal reception,
+# the reception of a text), "yoga class" but not "yoga" (a clinical trial of
+# yoga), "town hall with" but not "town hall" (a collaboration's town hall on
+# its experiments).
 exclusions:
   course:
     - problem session
@@ -1049,8 +1053,21 @@ exclusions:
     - job search
     - professional development workshop
   social:
-    - reception
     - welcome reception
+    - holiday reception
+    - alumni reception
+    - faculty reception
+    - student reception
+    - department reception
+    - evening reception
+    - opening reception
+    - closing reception
+    - awards reception
+    - wine reception
+    - cocktail reception
+    - farewell reception
+    - reception to follow
+    - Social Event/Reception
     - happy hour
     - holiday party
     - social mixer
@@ -1071,11 +1088,18 @@ exclusions:
     - retirement party
     - holiday celebration
   fitness:
-    - yoga
+    - yoga class
+    - yoga session
+    - lunchtime yoga
+    - chair yoga
+    - gentle yoga
+    - restorative yoga
     - pilates
     - zumba
     - fitness class
-    - workout
+    - workout class
+    - workout session
+    - group workout
     - mindfulness session
     - mindfulness class
     - mindfulness practice
@@ -1092,6 +1116,8 @@ exclusions:
     - intramural sports
     - intramural league
     - wellness walk
+    - wellness fair
+    - health fair
   religious:
     - worship
     - worship service
@@ -1121,7 +1147,12 @@ exclusions:
     - all hands meeting
     - business meeting
     - planning meeting
-    - town hall
+    - town hall with
+    - town hall meeting
+    - community town hall
+    - staff town hall
+    - faculty town hall
+    - student town hall
     - safety training
     - lab safety
     - compliance training
@@ -1138,13 +1169,19 @@ exclusions:
     - application deadline
     - registration deadline
     - submission deadline
+    - abstract deadline
     - study list deadline
     - deadline to
     - grades due
     - university holiday
     - academic holiday
     - holiday
-    - no classes
+    - no class
+    - no seminar
+    - no colloquium
+    - no SLAC colloquium
+    - no lecture
+    - no talk
     - classes begin
     - classes end
     - first day of classes
