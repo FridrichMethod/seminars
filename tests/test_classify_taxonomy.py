@@ -352,6 +352,9 @@ EXCLUDED: list[tuple[str, str]] = [
     ("social", "Welcome Reception"),
     ("fitness", "Lunchtime Yoga"),
     ("fitness", "Mindfulness for Graduate Students"),
+    ("fitness", "Weekly Mindfulness Session"),
+    ("fitness", "Intramural Sports Sign-ups"),
+    ("course", "Peer Tutoring: Organic Chemistry"),
     ("religious", "Catholic Mass"),
     ("religious", "Shabbat Dinner"),
     ("religious", "Interfaith Service of Remembrance"),
@@ -388,6 +391,9 @@ def test_non_talks_are_excluded(event_filter: EventFilter, reason: str, title: s
         "Spin liquids in frustrated magnets",
         "Midterm elections and polarization",
         "The office of the future: robots at work",
+        "Intelligent tutoring systems with large language models",
+        "The neuroscience of mindfulness",
+        "Lessons from the NIH intramural research program",
     ],
 )
 def test_talks_with_tricky_words_are_kept(event_filter: EventFilter, title: str) -> None:

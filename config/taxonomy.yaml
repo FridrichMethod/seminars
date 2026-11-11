@@ -920,7 +920,10 @@ departments:
 # title or the series excludes the event, unless that text also names a talk
 # ("seminar", "colloquium", "lecture", "talk", ...): such events are kept and
 # handed to the LLM, as are events where a phrase only matches a category label.
-# The abstract is never read.
+# The abstract is never read. A phrase is final without an LLM, so a word that
+# is also a research topic is listed only in phrases that are not: "tutoring
+# session" but not "tutoring" (intelligent tutoring systems), "mindfulness
+# session" but not "mindfulness" (the neuroscience of mindfulness).
 exclusions:
   course:
     - problem session
@@ -936,7 +939,10 @@ exclusions:
     - exam review
     - study session
     - study hall
-    - tutoring
+    - tutoring session
+    - peer tutoring
+    - drop-in tutoring
+    - tutoring hours
     - class session
     - first day of class
   office_hours:
@@ -1015,7 +1021,11 @@ exclusions:
     - zumba
     - fitness class
     - workout
-    - mindfulness
+    - mindfulness session
+    - mindfulness class
+    - mindfulness practice
+    - mindfulness meditation
+    - mindfulness for
     - meditation session
     - guided meditation
     - tai chi
@@ -1024,7 +1034,8 @@ exclusions:
     - group run
     - spin class
     - dance class
-    - intramural
+    - intramural sports
+    - intramural league
     - wellness walk
   religious:
     - worship
