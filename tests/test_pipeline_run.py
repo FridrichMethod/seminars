@@ -29,6 +29,7 @@ from seminars.http import HttpStatusError
 from seminars.models import (
     Event,
     EventDraft,
+    ExclusionReason,
     LastRun,
     LLMCacheStats,
     LLMProviderResult,
@@ -212,7 +213,11 @@ class TestWholeRun:
         self, config: AppConfig, fake_adapter: FakeAdapter
     ) -> None:
         drafts = [draft("sites-a", "1"), draft("sites-a", "2"), draft("sites-b", "3")]
-        exclude = {"sites-a.1": "course", "sites-a.2": "course", "sites-b.3": "social"}
+        exclude: dict[str, ExclusionReason] = {
+            "sites-a.1": "course",
+            "sites-a.2": "course",
+            "sites-b.3": "social",
+        }
         lists = []
         for order in (drafts, drafts[::-1]):
             fake_adapter.drafts = list(order)
