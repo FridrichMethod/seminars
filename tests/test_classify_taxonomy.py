@@ -74,9 +74,18 @@ def _construct_mapping(loader: yaml.SafeLoader, node: yaml.MappingNode) -> dict[
 _UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_mapping)
 
 
+def load_strict_yaml(path: Path) -> Any:
+    """The content of ``path``; fails when one mapping holds a key twice.
+
+    YAML itself keeps the last of two equal keys, so a repeated keyword
+    would silently lose its first weight.
+    """
+    return yaml.load(path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
+
+
 class TestFile:
     def test_has_no_duplicate_keys(self) -> None:
-        yaml.load(TAXONOMY_FILE.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
+        load_strict_yaml(TAXONOMY_FILE)
 
     def test_every_field_has_keywords_and_series(self, taxonomy: Taxonomy) -> None:
         assert list(taxonomy.fields) == list(FIELD_IDS)

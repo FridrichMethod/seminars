@@ -1,0 +1,105 @@
+# Picks: which talks go into picks.ics and are marked on the site.
+# Schema: seminars.config.Interests (unknown keys are an error). Edit freely.
+#
+# Score of an event (seminars.classify.picks):
+#   every keyword found counts once: weight * the multiplier of the best place
+#   it appears in (title, then series, then abstract)
+#   + series_bonus when a name of series_allowlist is in the series or the title
+#   + speaker_bonus when a name of speaker_watchlist is in a speaker's name
+#     (or in the title)
+#   - the weight of every exclusions term found in title, series or abstract.
+# An event is a pick when its score is at least threshold. With the values
+# below, one keyword of weight 1 in the title, an allow-listed series or a
+# watched speaker is enough on its own; a keyword in the abstract needs two
+# more to go with it. The reasons ("protein design" in title (+3)) are shown
+# in the calendar entry and on the site.
+#
+# Terms match whole words, ignoring case and accents; spaces, hyphens and
+# slashes are the same ("cryo-EM" matches "cryo EM"); the last word may be
+# plural ("diffusion model" matches "diffusion models"); a final "*" matches
+# the start of a word ("AlphaFold*" matches "AlphaFold3").
+
+threshold: 3.0
+
+multipliers:
+  title: 3.0
+  series: 2.0
+  abstract: 1.0
+
+keywords:
+  # protein and enzyme design
+  protein design: 1.0
+  protein engineering: 1.0
+  enzyme design: 1.0
+  # "de novo" alone is common in genomics ("de novo mutations"), so it only
+  # helps; "de novo design", "de novo designed" and the like count in full.
+  de novo: 0.5
+  "de novo design*": 1.0
+  inverse folding: 1.0
+  protein language model: 1.0
+  structure prediction: 1.0
+  "AlphaFold*": 1.0
+  "RoseTTAFold*": 1.0
+  Boltz: 1.0
+  # generative models
+  diffusion model: 1.0
+  denoising diffusion: 1.0
+  flow matching: 1.0
+  generative model: 1.0
+  generative modeling: 1.0
+  generative modelling: 1.0
+  # simulation and structure
+  molecular dynamics: 1.0
+  free energy: 1.0
+  FEP: 1.0
+  cryo-EM: 1.0
+  cryoEM: 1.0
+  cryo-electron microscopy: 1.0
+  directed evolution: 1.0
+  biocatalysis: 1.0
+  # geometry, transport and stochastic analysis
+  equivariant: 1.0
+  geometric deep learning: 1.0
+  optimal transport: 1.0
+  stochastic differential equation: 1.0
+  # pure mathematics
+  algebraic geometry: 1.0
+  number theory: 1.0
+  topology: 1.0
+  representation theory: 1.0
+  probability: 1.0
+  combinatorics: 1.0
+
+series_bonus: 3.0
+
+# Matched as phrases inside the series or the title: "NLP seminar" also
+# matches "Stanford NLP Seminar Series", and the last word may be plural.
+series_allowlist:
+  - Math Colloquium
+  - Mathematics Colloquium
+  - Applied Physics/Physics Colloquium
+  - Bioengineering seminar
+  - ChEM-H seminars
+  - Statistics seminar
+  - Statistics Department Seminar
+  - NLP seminar
+  - MLSys seminar
+  - SLAC Colloquium
+
+speaker_bonus: 3.0
+
+# Full names as the speakers' pages write them ("Jane Doe"); no plural forms.
+speaker_watchlist: []
+
+# Penalties: talks for school children or undergraduate showcases are rarely
+# what a pick is for, even when they name a topic above.
+exclusions:
+  high school: 2.0
+  middle school: 2.0
+  K-12: 2.0
+  kids: 2.0
+  undergraduate research: 2.0
+
+# Reserved switch for re-ranking picks with an LLM. Not implemented yet:
+# the rule score above is used whatever it says.
+llm_rerank: false
