@@ -101,5 +101,142 @@
       "notify": "cc {mention}"
     }
   },
-  "site": {}
+  "site": {
+    "app": {
+      "name": "Stanford-area seminars",
+      "tagline": "Academic talks at Stanford, SLAC, Arc Institute and CZ Biohub, collected every day from their public pages."
+    },
+    "page": {
+      "index_title": "Seminars - upcoming talks",
+      "status_title": "Seminars - source status"
+    },
+    "nav": {
+      "label": "Pages",
+      "talks": "Talks",
+      "status": "Source status"
+    },
+    "lang": {
+      "label": "Language",
+      "name": "EN"
+    },
+    "meta": {
+      "updated": "Last updated {time}",
+      "timezone": "Times are shown in the {timezone} time zone.",
+      "loading": "Loading..."
+    },
+    "filters": {
+      "label": "Filter talks",
+      "search_label": "Search",
+      "search_placeholder": "Title, speaker, affiliation, series or abstract",
+      "fields": "Fields",
+      "institutions": "Institutions",
+      "host": "Organizer",
+      "host_all": "All organizers",
+      "range": "When",
+      "range_options": {
+        "today": "Today",
+        "week": "Next 7 days",
+        "two_weeks": "Next 14 days",
+        "all": "All upcoming"
+      },
+      "picks_only": "Picks only",
+      "clear": "Clear filters"
+    },
+    "results": {
+      "heading": "Upcoming talks",
+      "count_one": "{count} upcoming talk",
+      "count_other": "{count} upcoming talks",
+      "empty": "No talks match these filters.",
+      "load_error": "The list of talks could not be loaded. Please try again later."
+    },
+    "event": {
+      "all_day": "All day",
+      "time_range": "{start} - {end}",
+      "until": "Until {date}",
+      "pick": "Pick",
+      "picks_reasons": "Why picked",
+      "cancelled": "Cancelled",
+      "tentative": "Tentative",
+      "online": "Online",
+      "livestream": "Livestream",
+      "speakers": "Speakers",
+      "speaker_affiliation": "{name} ({affiliation})",
+      "labels": "Labels",
+      "series": "Series",
+      "host": "Host",
+      "location": "Location",
+      "abstract": "Abstract"
+    },
+    "institutions": {
+      "stanford": "Stanford",
+      "slac": "SLAC",
+      "arc": "Arc Institute",
+      "biohub": "CZ Biohub",
+      "other": "Other"
+    },
+    "event_types": {
+      "seminar": "Seminar",
+      "colloquium": "Colloquium",
+      "lecture": "Lecture",
+      "conference": "Conference",
+      "workshop": "Workshop",
+      "defense": "Thesis defense",
+      "other": "Talk"
+    },
+    "subscribe": {
+      "title": "Subscribe to a calendar",
+      "intro": "Each calendar is an ICS feed that refreshes itself every few hours. Subscribe once and new talks appear on their own.",
+      "feeds": "Calendars",
+      "calendar_link": "Calendar app link",
+      "web_link": "Web link",
+      "copy": "Copy",
+      "copy_label": "Copy {kind}: {feed}",
+      "copied": "Copied",
+      "copy_failed": "Could not copy. Select the link and copy it by hand.",
+      "apple": {
+        "title": "Apple Calendar",
+        "steps": {
+          "step_1": "On a Mac, open Calendar and choose New Calendar Subscription from the File menu.",
+          "step_2": "Paste the calendar app link of one of the calendars below and click Subscribe.",
+          "step_3": "Under Location choose iCloud, so that your iPhone and iPad get the calendar too.",
+          "step_4": "Set Auto-refresh, for example to Every day, and click OK.",
+          "step_5": "On an iPhone or iPad you can also tap a calendar app link and confirm with Subscribe."
+        }
+      }
+    },
+    "status": {
+      "heading": "Source status",
+      "intro": "Every data source and the result of its most recent run.",
+      "last_run": "Last run: {time}",
+      "last_run_ok": "The last run succeeded.",
+      "last_run_failed": "The last run failed.",
+      "no_run": "No run has finished yet.",
+      "events_one": "{count} talk on the site",
+      "events_other": "{count} talks on the site",
+      "summary": "{ok} of {total} active sources are healthy.",
+      "llm": "Field tagging used the LLM provider {provider}.",
+      "llm_none": "Field tagging used rules only.",
+      "columns": {
+        "group": "Group",
+        "events": "Events",
+        "last_run": "Last run",
+        "last_success": "Last success",
+        "failures": "Failures in a row",
+        "error": "Error"
+      },
+      "states": {
+        "ok": "OK",
+        "empty": "No events",
+        "failed": "Failed",
+        "disabled": "Disabled",
+        "unknown": "Not run yet"
+      },
+      "never": "Never",
+      "empty": "No sources are configured.",
+      "load_error": "The source status could not be loaded. Please try again later."
+    },
+    "footer": {
+      "note": "Talk details come from the public pages of each organizer and can change. Check the organizer's page before you go."
+    }
+  }
 }
