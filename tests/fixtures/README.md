@@ -3,7 +3,8 @@
 Recorded HTTP responses of the data sources. Adapter tests and
 `seminars run --offline` read these files instead of the network, so every
 source needs at least one recording. The code behind this convention is
-`src/seminars/fixtures.py`.
+`src/seminars/fixtures.py`. Its command line (`record`, `fetch`, `check`)
+is also the only way to send a request to a source site by hand.
 
 ## Layout
 
@@ -108,10 +109,61 @@ when any failed.
   wins over the default everywhere.
 - The per-host lock needs a POSIX system. On Windows, never run two calls
   for the same host at the same time.
-- Fetch each URL once and then work from the fixture.
+- Fetch each URL once and then work from the fixture. For trial requests
+  that should not become fixtures, use `fetch` (next section).
 - Recording the same URL again replaces its entry and body.
 - Always quote the URL in the shell (`?`, `[` and `&` are special).
 - Check the result with `uv run python -m seminars.fixtures check`.
+
+## Looking at a source without recording
+
+Researching a source takes many trial requests: finding the right page,
+trying query parameters, telling which template a site uses. Use `fetch` for
+them:
+
+```
+uv run python -m seminars.fixtures fetch --save-dir .scratch/chemistry \
+    "https://chemistry.stanford.edu/events" \
+    "https://chemistry.stanford.edu/jsonapi/node/hs_event?page[limit]=5"
+```
+
+For every URL it prints the status, the URL after redirects, the content
+type and the size of the decoded body in bytes:
+
+```
+fetched https://chemistry.stanford.edu/events
+  status: 200
+  final URL: https://chemistry.stanford.edu/events
+  content type: text/html
+  bytes: 48211
+  saved: /path/to/repo/.scratch/chemistry/chemistry-stanford-edu-events-1a2b3c4d.html
+```
+
+- `fetch` uses the same polite client and the same cache directory as
+  `record`. robots.txt, Crawl-delay, the fixed User-Agent, the request
+  budget per host and the public-hosts-only rule all apply, and the URLs of
+  one call are fetched one after another. What "Recording" says about
+  waiting and about the cache directory holds here as well.
+- It never writes a fixture or a manifest. Without `--save-dir` it writes
+  nothing but the HTTP cache.
+- `--save-dir DIR` also writes each body to a file in DIR and prints the
+  path. The body is the decoded text in canonical form, as a fixture would
+  hold it. The file name is built from the host, the path and a digest of
+  the URL, so no URL can make it leave DIR. A relative DIR counts from the
+  project root. Use `.scratch/<topic>`: `/.scratch/` is ignored by git.
+  A directory inside `tests/fixtures` is refused.
+- `--allow-status CODE` (repeatable) shows an error response instead of
+  failing on it.
+- A URL that fails is reported on stderr and the remaining ones are still
+  fetched; the exit status is 1 when any failed.
+- Once you know which URLs an adapter needs, record them with `record`.
+  Do not copy files from the scratch directory into a fixture directory:
+  the manifest would not list them.
+
+Never use curl, wget or any other direct network tool for source research.
+They skip robots.txt and the Crawl-delay, do not wait for other processes
+that use the same host, and hide who is asking. `fetch` and `record` are the
+only ways to send a request to a source site by hand.
 
 ## Rules for body files
 

@@ -10,12 +10,21 @@ Layout (see tests/fixtures/README.md for the full convention)::
 ``FixtureStore`` reads and writes one such directory. ``OfflineHttpClient``
 is an ``HttpClient`` that serves recorded bodies by URL and raises
 ``FixtureNotFoundError`` for anything that was not recorded; it backs
-``seminars run --offline`` and every adapter test. The recorder fetches
+``seminars run --offline`` and every adapter test. The command line fetches
 through the polite client, so robots.txt and Crawl-delay are honoured while
 researching sources too::
 
     uv run python -m seminars.fixtures record --source-id ID URL [URL ...] [--name FILE]
+    uv run python -m seminars.fixtures fetch URL [URL ...] [--save-dir DIR]
     uv run python -m seminars.fixtures check [--source-id ID]
+
+``record`` stores what it fetched as a fixture. ``fetch`` is for looking
+around: it shows status, final URL, content type and size of every answer
+and writes no fixture and no manifest; with ``--save-dir`` it also puts each
+body into a scratch directory (``.scratch/<topic>`` is ignored by git).
+Both are the only way this project talks to a source site by hand: never
+use curl or another direct network tool, which would skip robots.txt, the
+crawl delay and the fixed User-Agent.
 
 Give ``record`` all URLs of one host in a single call: they are fetched one
 after another with the pause the host asks for. Calls that run at the same
@@ -141,6 +150,19 @@ def default_file_name(url: str, content_type: str | None) -> str:
     stem = re.sub(r"[^a-z0-9]+", "-", path).strip("-")[:40].strip("-") or "index"
     digest = hashlib.sha256(url.encode("utf-8")).hexdigest()[:8]
     return f"{stem}-{digest}{_EXTENSIONS.get(content_type or '', '.txt')}"
+
+
+def scratch_file_name(url: str, content_type: str | None) -> str:
+    """File name for the body of ``url`` in a scratch directory (``fetch --save-dir``).
+
+    Host, path and a digest of the whole URL, so that pages of different
+    sites sort apart and two URLs never share a file. Only lower-case
+    letters, digits, ``-`` and the dot of the extension occur, whatever the
+    URL contains: the name can never leave the directory it is used in.
+    """
+    host = (urlsplit(url).hostname or "").lower()
+    prefix = re.sub(r"[^a-z0-9]+", "-", host).strip("-")[:40].strip("-") or "host"
+    return f"{prefix}-{default_file_name(url, content_type)}"
 
 
 class FixtureStore:
@@ -398,6 +420,31 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="CODE",
         help="also record a response with this non-2xx status; repeatable",
     )
+    fet = commands.add_parser(
+        "fetch", help="fetch URLs politely and show what came back; nothing is recorded"
+    )
+    fet.add_argument(
+        "url",
+        nargs="+",
+        metavar="URL",
+        help="absolute http(s) URL to look at; several are fetched one after another",
+    )
+    fet.add_argument(
+        "--save-dir",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help="also write each body to a file in DIR (relative to the project root), "
+        "for example .scratch/TOPIC; never a directory inside tests/fixtures",
+    )
+    fet.add_argument(
+        "--allow-status",
+        action="append",
+        default=[],
+        type=int,
+        metavar="CODE",
+        help="do not treat a response with this non-2xx status as a failure; repeatable",
+    )
     chk = commands.add_parser("check", help="verify manifests and body files")
     chk.add_argument("--source-id", action="append", default=[], help="limit to this source")
     return parser
@@ -464,6 +511,69 @@ def _record_command(
     return 0 if all(outcomes) else 1
 
 
+def _fetch_one(
+    http: HttpClient, url: str, allow_statuses: Collection[int], save_dir: Path | None
+) -> bool:
+    """Fetch ``url``, print what came back and save the body if asked; False when it failed."""
+    try:
+        document = http.get(url, allow_statuses=allow_statuses)
+    except HttpError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return False
+    print(f"fetched {ascii_safe(url)}")
+    print(f"  status: {document.status}")
+    print(f"  final URL: {ascii_safe(document.final_url)}")
+    print(f"  content type: {document.content_type or 'unknown'}")
+    print(f"  bytes: {len(document.text.encode('utf-8'))}")
+    if save_dir is None:
+        return True
+    path = save_dir / scratch_file_name(url, document.content_type)
+    try:
+        write_text_atomic(path, document.text)
+    except OSError as error:
+        print(f"error: cannot save {path}: {error.strerror or error}", file=sys.stderr)
+        return False
+    print(f"  saved: {path}")
+    return True
+
+
+def _scratch_dir(paths: ProjectPaths, directory: Path | None) -> Path | None:
+    """The absolute directory ``fetch --save-dir`` writes to; ``FixtureError`` for a forbidden one.
+
+    A relative directory counts from the project root. Nothing below
+    tests/fixtures is accepted, however the directory is spelled: that tree
+    only holds what ``record`` wrote and what the manifests list.
+    """
+    if directory is None:
+        return None
+    target = (paths.root / directory.expanduser()).resolve()
+    if target.is_relative_to(paths.fixtures_dir.resolve()):
+        raise FixtureError(
+            "--save-dir: tests/fixtures is for recorded fixtures only; "
+            "use a scratch directory such as .scratch/TOPIC"
+        )
+    return target
+
+
+def _fetch_command(
+    args: argparse.Namespace,
+    paths: ProjectPaths,
+    http: HttpClient | None,
+    resolver: Resolver | None,
+    save_dir: Path | None,
+) -> int:
+    """Fetch every URL in order through one client; a failed URL does not stop the others."""
+    live = None
+    try:
+        if http is None:
+            http = live = _live_client(paths, resolver)
+        outcomes = [_fetch_one(http, url, args.allow_status, save_dir) for url in args.url]
+    finally:
+        if live is not None:
+            live.close()
+    return 0 if all(outcomes) else 1
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -482,6 +592,12 @@ def main(
         if args.name is not None and len(args.url) > 1:
             parser.error("--name names a single file; record one URL at a time with it")
         return _record_command(args, paths, http, resolver)
+    if args.command == "fetch":
+        try:
+            save_dir = _scratch_dir(paths, args.save_dir)
+        except FixtureError as error:
+            parser.error(str(error))
+        return _fetch_command(args, paths, http, resolver, save_dir)
     problems = check_tree(paths.fixtures_dir, args.source_id)
     for problem in problems:
         print(problem)

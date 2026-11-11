@@ -119,6 +119,7 @@ class TestRepositoryFiles:
     def test_gitignore(self) -> None:
         lines = set((REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines())
         expected = {".env", ".venv/", ".worktrees/", "public/", ".cache/", "__pycache__/"}
+        expected |= {"/.scratch/"}
         assert expected <= lines
         assert {".coverage", "htmlcov/", ".pytest_cache/", ".ruff_cache/"} <= lines
 

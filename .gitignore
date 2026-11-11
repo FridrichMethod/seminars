@@ -10,6 +10,10 @@
 # Build output (assembled by "seminars build-site", deployed by CI)
 public/
 
+# Scratch space for looking at sources:
+# python -m seminars.fixtures fetch --save-dir .scratch/<topic> URL ...
+/.scratch/
+
 # Caches
 .cache/
 __pycache__/
