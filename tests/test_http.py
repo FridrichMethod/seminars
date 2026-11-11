@@ -9,7 +9,7 @@ import httpx
 import pytest
 import respx
 
-from fakes import FakeClock
+from fakes import FakeClock, StubResolver
 from seminars.config import HttpSettings
 from seminars.http import (
     CrawlDelayTooLongError,
@@ -53,8 +53,10 @@ def no_robots(router: respx.MockRouter, host: str = HOST) -> respx.Route:
 
 
 @pytest.fixture
-def client(http_settings: HttpSettings, fake_clock: FakeClock) -> PoliteClient:
-    return PoliteClient(http_settings, clock=fake_clock, sleep=fake_clock.sleep)
+def client(
+    http_settings: HttpSettings, fake_clock: FakeClock, resolver: StubResolver
+) -> PoliteClient:
+    return PoliteClient(http_settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=resolver)
 
 
 class TestBasics:
@@ -95,7 +97,11 @@ class TestBasics:
 
         clock = FakeClock()
         with PoliteClient(
-            http_settings, clock=clock, sleep=clock.sleep, transport=httpx.MockTransport(handler)
+            http_settings,
+            clock=clock,
+            sleep=clock.sleep,
+            resolver=StubResolver(),
+            transport=httpx.MockTransport(handler),
         ) as client:
             client.get(PAGE)
         assert all(timeout["read"] == 20.0 and timeout["connect"] == 20.0 for timeout in seen)
@@ -337,7 +343,11 @@ class TestEncoding:
             ]
         )
         client = PoliteClient(
-            http_settings, cache_dir=tmp_path, clock=fake_clock, sleep=fake_clock.sleep
+            http_settings,
+            cache_dir=tmp_path,
+            clock=fake_clock,
+            sleep=fake_clock.sleep,
+            resolver=StubResolver(),
         )
         client.get(PAGE)
         again = client.get(PAGE)
@@ -450,10 +460,14 @@ class TestRobots:
             side_effect=[httpx.Response(503)] * 4 + [httpx.Response(404)]
         )
         respx_router.get(PAGE).respond(200, text="ok")
-        first = PoliteClient(http_settings, clock=fake_clock, sleep=fake_clock.sleep)
+        first = PoliteClient(
+            http_settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=StubResolver()
+        )
         with pytest.raises(RobotsUnavailableError):
             first.get(PAGE)
-        second = PoliteClient(http_settings, clock=fake_clock, sleep=fake_clock.sleep)
+        second = PoliteClient(
+            http_settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=StubResolver()
+        )
         assert second.get(PAGE).status == 200
         assert robots.call_count == 5
 
@@ -563,7 +577,9 @@ class TestBudget:
         fake_clock: FakeClock,
     ) -> None:
         settings = http_settings.evolve(max_requests_per_host=3)
-        client = PoliteClient(settings, clock=fake_clock, sleep=fake_clock.sleep)
+        client = PoliteClient(
+            settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=StubResolver()
+        )
         no_robots(respx_router)
         page = respx_router.get(url__startswith=PAGE).respond(200, text="ok")
         for number in range(3):
@@ -583,7 +599,9 @@ class TestBudget:
         fake_clock: FakeClock,
     ) -> None:
         settings = http_settings.evolve(max_requests_per_host=1)
-        client = PoliteClient(settings, clock=fake_clock, sleep=fake_clock.sleep)
+        client = PoliteClient(
+            settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=StubResolver()
+        )
         other = "https://other.example.org"
         respx_router.get(ROBOTS).respond(200, text="User-agent: *\nDisallow:\n")
         no_robots(respx_router, other)
@@ -601,7 +619,9 @@ class TestBudget:
         fake_clock: FakeClock,
     ) -> None:
         settings = http_settings.evolve(max_requests_per_host=2)
-        client = PoliteClient(settings, clock=fake_clock, sleep=fake_clock.sleep)
+        client = PoliteClient(
+            settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=StubResolver()
+        )
         no_robots(respx_router)
         page = respx_router.get(PAGE).respond(503)
         with pytest.raises(HostBudgetExceededError):
@@ -694,7 +714,10 @@ class TestRetries:
         fake_clock: FakeClock,
     ) -> None:
         client = PoliteClient(
-            http_settings.evolve(retries=0), clock=fake_clock, sleep=fake_clock.sleep
+            http_settings.evolve(retries=0),
+            clock=fake_clock,
+            sleep=fake_clock.sleep,
+            resolver=StubResolver(),
         )
         no_robots(respx_router)
         page = respx_router.get(PAGE).respond(503)

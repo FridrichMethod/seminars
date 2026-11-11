@@ -14,8 +14,9 @@ exactly the same text. There are two implementations:
 
 Rules of the live client:
 
-* only ``http`` and ``https`` URLs of public hosts (no localhost, no private
-  addresses, whichever way the address is written; see ``is_public_host``);
+* only ``http`` and ``https`` URLs of public hosts: no localhost and no
+  private address, whichever way it is written, whatever a name resolves to
+  and wherever a connection really ends up (see "Public hosts only" below);
   a fixed User-Agent from the settings;
 * robots.txt is fetched once per origin and honoured for ``Disallow`` and
   ``Crawl-delay``; a missing one (4xx other than 429) allows everything
@@ -64,13 +65,59 @@ Rules of the live client:
   document itself declares (XML declaration, HTML ``<meta>``); undeclared
   text is UTF-8 when it is valid UTF-8 and windows-1252 otherwise.
 
-Time and sleeping are injected (``clock`` and ``sleep``), so tests never wait.
+Time, sleeping and name resolution are injected (``clock``, ``sleep`` and
+``resolver``), so tests never wait and never touch DNS.
+
+Public hosts only
+-----------------
+
+URLs come from the configuration, from redirects and from scraped pages, and
+what is fetched ends up in the public data directory. An answer from this
+machine or from a private network must therefore never be read. Every
+request the client sends (a page, a robots.txt, each redirect hop of either)
+passes three checks:
+
+1. The spelling of the host (``split_url``, ``is_public_host``). Localhost,
+   internal names and non-global IP addresses in any notation are refused
+   before anything else happens.
+2. The name is looked up through ``resolver`` (default: the system resolver,
+   ``socket.getaddrinfo``) right before the request is sent. When ANY
+   address of the answer is not globally routable (``is_public_address``),
+   the request is not sent and ``ForbiddenHostError`` is raised. A refused
+   host costs no request and no budget. (When the refused host is the
+   target of a robots.txt redirect, the origin is blocked with
+   ``RobotsUnavailableError``, like for any redirect that cannot be
+   followed.) A name without an address is not forbidden but unreachable:
+   an ordinary failed attempt, retried with backoff and reported as
+   ``HttpRequestError`` in the end.
+3. Once the connection exists and before the body is read, the address of
+   the peer the connection really goes to is checked (the ``network_stream``
+   extension of httpx). An answer from a non-global address raises
+   ``ForbiddenHostError``: its body is not read, nothing is cached and
+   nothing is retried. A transport without a network connection (the mock
+   transports of the tests) has no peer and skips this check.
+
+What remains. Check 2 and the connection are two separate lookups, so a
+hostile DNS server can give a public address to the first and a private one
+to the second (DNS rebinding). Check 3 notices, but only after the request
+left. In that race one blind GET can reach a non-public address. It carries
+the fixed User-Agent, the headers the adapter asked for and the cookies the
+same host name set earlier in the run; this project holds no credentials
+for any site. Its answer is never read.
+
+Proxies are not supported. The client ignores the proxy variables of the
+environment (``HTTP_PROXY``, ``HTTPS_PROXY``, ``ALL_PROXY``, ``NO_PROXY``)
+together with the other settings httpx would take from there
+(``SSL_CERT_FILE``, ``SSL_CERT_DIR``, ``.netrc``); it is built with
+``trust_env=False``. Through a proxy the peer of every connection is the
+proxy, and check 3 could not tell where a request went.
 """
 
 from __future__ import annotations
 
 import contextlib
 import logging
+import socket
 import threading
 import time
 from collections.abc import Collection, Iterator, Mapping
@@ -99,6 +146,7 @@ from seminars.httpbase import (
     HttpError,
     HttpRequestError,
     HttpStatusError,
+    Resolver,
     ResponseTooLargeError,
     RobotsDisallowedError,
     RobotsUnavailableError,
@@ -110,6 +158,7 @@ from seminars.httpbase import (
     canonical_host,
     decode_body,
     is_binary_media_type,
+    is_public_address,
     is_public_host,
     media_type,
     split_url,
@@ -136,6 +185,7 @@ __all__ = [
     "HttpStatusError",
     "OfflineHttpClient",
     "PoliteClient",
+    "Resolver",
     "ResponseTooLargeError",
     "RobotsDisallowedError",
     "RobotsUnavailableError",
@@ -147,11 +197,32 @@ __all__ = [
     "canonical_host",
     "decode_body",
     "is_binary_media_type",
+    "is_public_address",
     "is_public_host",
     "media_type",
     "offline_client",
     "split_url",
+    "system_resolver",
 ]
+
+
+def system_resolver(host: str) -> list[str]:
+    """The IP addresses the operating system resolves ``host`` to, each once.
+
+    The default ``Resolver`` of the live client: one ``socket.getaddrinfo``
+    call, which also reads /etc/hosts and accepts an IP address in place of
+    a name. Raises ``OSError`` when the name does not resolve.
+    """
+    answers = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+    return list(dict.fromkeys(str(answer[4][0]) for answer in answers))
+
+
+class _AttemptFailed(Exception):
+    """One attempt got no answer for a reason that is worth another try."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
 
 
 @dataclass(frozen=True)
@@ -201,6 +272,10 @@ class PoliteClient:
     One instance serves one run: budgets and robots policies are kept per
     instance. It is safe to share between threads, and several instances
     (in one process or in several) coordinate through a common ``cache_dir``.
+
+    ``resolver`` looks host names up before every request (default:
+    ``system_resolver``). Tests always pass a stub. Proxy settings of the
+    environment are ignored; see "Public hosts only" in the module docstring.
     """
 
     def __init__(
@@ -211,16 +286,19 @@ class PoliteClient:
         clock: Clock = time.time,
         sleep: Sleeper = time.sleep,
         transport: httpx.BaseTransport | None = None,
+        resolver: Resolver | None = None,
     ) -> None:
         self._settings = settings
         self._clock = clock
         self._sleep = sleep
+        self._resolver = system_resolver if resolver is None else resolver
         self._cache = HttpCache(cache_dir)
         self._client = httpx.Client(
             headers={"User-Agent": settings.user_agent},
             timeout=settings.timeout_seconds,
             follow_redirects=False,
             transport=transport,
+            trust_env=False,  # no proxies: the peer check needs the real peer
         )
         self._hosts: dict[str, _HostState] = {}
         self._hosts_lock = threading.Lock()
@@ -413,6 +491,11 @@ class PoliteClient:
         interval = max(self._settings.min_interval_seconds, self._known_crawl_delay(hop_state))
         try:
             return self._send(hop_state, hop_host, url, {}, interval=interval, budgeted=False)
+        except ForbiddenHostError as error:
+            if hop_state is state:
+                raise  # the host of the origin itself: there is nothing to fetch from it
+            reason = "robots.txt redirects to an address that must not be fetched; host skipped"
+            raise self._block_origin(state, origin, reason) from error
         except HttpRequestError as error:
             reason = "robots.txt is unreachable; host skipped"
             raise self._block_origin(state, origin, reason) from error
@@ -499,21 +582,18 @@ class PoliteClient:
         attempts = self._settings.retries + 1
         for attempt in range(1, attempts + 1):
             if budgeted:
-                self._spend(state, host, url)
+                self._check_budget(state, host, url)
             self._wait_turn(state, interval)
             try:
-                exchange = self._exchange(url, headers)
-            except httpx.RequestError as error:
-                reason = type(error).__name__
-                logger.debug("request failed (%s): %s", reason, ascii_safe(url))
+                exchange = self._attempt(state, host, url, headers, budgeted=budgeted)
+            except _AttemptFailed as error:
+                logger.debug("request failed (%s): %s", error.reason, ascii_safe(url))
                 if attempt == attempts:
                     raise HttpRequestError(
-                        url, f"request failed after {attempts} attempt(s) ({reason})"
+                        url, f"request failed after {attempts} attempt(s) ({error.reason})"
                     ) from error
                 state.blocked_until = self._clock() + self._backoff(attempt)
                 continue
-            finally:
-                self._touch(state, host)
             logger.debug("HTTP %d: %s", exchange.status, ascii_safe(url))
             if exchange.status in RETRY_STATUSES and attempt < attempts:
                 pause = max(self._backoff(attempt), self._retry_after(exchange.headers))
@@ -522,17 +602,81 @@ class PoliteClient:
             return exchange
         raise AssertionError("unreachable: the retry loop always returns or raises")
 
-    def _exchange(self, url: str, headers: Mapping[str, str]) -> _Exchange:
+    def _attempt(
+        self, state: _HostState, host: str, url: str, headers: Mapping[str, str], *, budgeted: bool
+    ) -> _Exchange:
+        """Look the host up, then send the request once.
+
+        ``ForbiddenHostError`` (the name resolves to a non-public address)
+        leaves before anything is counted or sent. Everything after that is
+        an attempt that uses up budget; ``_AttemptFailed`` asks for another.
+        """
+        resolves = self._resolves(url)
+        if budgeted:
+            state.requests += 1
+        if not resolves:
+            raise _AttemptFailed("host name does not resolve")
         try:
-            with self._client.stream("GET", url, headers=dict(headers)) as response:
-                content_type = media_type(response.headers.get("content-type"))
-                if is_binary_media_type(content_type):
-                    raise UnsupportedContentTypeError(url, content_type)
-                body = self._read_body(url, response)
-                text = decode_body(body, response.headers.get("content-type"))
-                return _Exchange(response.status_code, response.headers, text)
+            return self._exchange(url, headers)
+        except httpx.RequestError as error:
+            raise _AttemptFailed(type(error).__name__) from error
+        finally:
+            self._touch(state, host)
+
+    def _resolves(self, url: str) -> bool:
+        """Look up the host of ``url``; False when it has no address.
+
+        Raises ``ForbiddenHostError`` when any address it resolves to is not
+        public. The name is taken from httpx, so it is exactly the one the
+        connection will be made to (IDNA-encoded, IPv6 without brackets); a
+        URL that httpx cannot parse is rejected here.
+        """
+        try:
+            name = httpx.URL(url).raw_host.decode("ascii")
         except httpx.InvalidURL as error:
             raise UnsupportedSchemeError(url, "invalid URL") from error
+        try:
+            addresses = list(self._resolver(name))
+        except (OSError, UnicodeError):  # no such name, or not a name the resolver accepts
+            return False
+        if not all(is_public_address(address) for address in addresses):
+            raise ForbiddenHostError(
+                url, "refusing a host name that resolves to a local or private network address"
+            )
+        return bool(addresses)
+
+    def _exchange(self, url: str, headers: Mapping[str, str]) -> _Exchange:
+        """One request and its answer; ``_resolves`` has made sure that httpx accepts ``url``."""
+        with self._client.stream("GET", url, headers=dict(headers)) as response:
+            self._check_peer(url, response)
+            content_type = media_type(response.headers.get("content-type"))
+            if is_binary_media_type(content_type):
+                raise UnsupportedContentTypeError(url, content_type)
+            body = self._read_body(url, response)
+            text = decode_body(body, response.headers.get("content-type"))
+            return _Exchange(response.status_code, response.headers, text)
+
+    @staticmethod
+    def _check_peer(url: str, response: httpx.Response) -> None:
+        """Refuse an answer that did not come from a public address; the body is still unread.
+
+        The address is the one of the connection itself, so it holds
+        whatever the lookup before the request said. Without a network
+        connection (mock transports) there is nothing to check; with one
+        whose peer cannot be told, the answer is refused.
+        """
+        stream = response.extensions.get("network_stream")
+        if stream is None:
+            return
+        try:
+            peer = stream.get_extra_info("server_addr")
+        except OSError as error:  # the connection is gone already
+            raise _AttemptFailed("connection lost") from error
+        address = peer[0] if isinstance(peer, tuple) and peer else None
+        if not isinstance(address, str) or not is_public_address(address):
+            raise ForbiddenHostError(
+                url, "refusing an answer from a local or private network address"
+            )
 
     def _read_body(self, url: str, response: httpx.Response) -> bytes:
         """Read the body in pieces and stop as soon as it is larger than ``max_body_bytes``."""
@@ -549,13 +693,12 @@ class PoliteClient:
             chunks.append(chunk)
         return b"".join(chunks)
 
-    def _spend(self, state: _HostState, host: str, url: str) -> None:
+    def _check_budget(self, state: _HostState, host: str, url: str) -> None:
         limit = self._settings.max_requests_per_host
         if state.requests >= limit:
             raise HostBudgetExceededError(
                 url, f"request budget for host {host} is exhausted ({limit} requests per run)"
             )
-        state.requests += 1
 
     def _wait_turn(self, state: _HostState, interval: float) -> None:
         now = self._clock()

@@ -43,6 +43,7 @@ from seminars.httpbase import (
     HttpClient,
     HttpError,
     HttpStatusError,
+    Resolver,
     ascii_safe,
     is_binary_media_type,
     split_url,
@@ -422,7 +423,12 @@ def _record_one(args: argparse.Namespace, http: HttpClient, store: FixtureStore,
     return True
 
 
-def _record_command(args: argparse.Namespace, paths: ProjectPaths, http: HttpClient | None) -> int:
+def _record_command(
+    args: argparse.Namespace,
+    paths: ProjectPaths,
+    http: HttpClient | None,
+    resolver: Resolver | None,
+) -> int:
     """Record every URL in order through one client; a failed URL does not stop the others."""
     live = None
     try:
@@ -431,7 +437,9 @@ def _record_command(args: argparse.Namespace, paths: ProjectPaths, http: HttpCli
             from seminars.http import PoliteClient
 
             settings = load_settings(paths.settings_file)
-            http = live = PoliteClient(settings.http, cache_dir=paths.http_cache_dir())
+            http = live = PoliteClient(
+                settings.http, cache_dir=paths.http_cache_dir(), resolver=resolver
+            )
         outcomes = [_record_one(args, http, store, url) for url in args.url]
     except FixtureError as error:
         print(f"error: {error}", file=sys.stderr)
@@ -442,15 +450,24 @@ def _record_command(args: argparse.Namespace, paths: ProjectPaths, http: HttpCli
     return 0 if all(outcomes) else 1
 
 
-def main(argv: Sequence[str] | None = None, *, http: HttpClient | None = None) -> int:
-    """Command line entry point; ``http`` replaces the live client (for tests)."""
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    http: HttpClient | None = None,
+    resolver: Resolver | None = None,
+) -> int:
+    """Command line entry point.
+
+    For tests: ``http`` replaces the live client, and ``resolver`` replaces
+    the name resolution of the live client the command builds itself.
+    """
     parser = _build_parser()
     args = parser.parse_args(argv)
     paths = ProjectPaths(args.root or find_project_root())
     if args.command == "record":
         if args.name is not None and len(args.url) > 1:
             parser.error("--name names a single file; record one URL at a time with it")
-        return _record_command(args, paths, http)
+        return _record_command(args, paths, http, resolver)
     problems = check_tree(paths.fixtures_dir, args.source_id)
     for problem in problems:
         print(problem)

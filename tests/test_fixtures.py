@@ -13,7 +13,7 @@ import pytest
 import respx
 
 from factories import REFERENCE_NOW, make_document
-from fakes import FakeClock
+from fakes import FakeClock, StubResolver
 from seminars.config import ENV_HTTP_CACHE_DIR, HttpSettings
 from seminars.fixtures import (
     MANIFEST_NAME,
@@ -338,8 +338,12 @@ class TestCheck:
 
 class TestRecorder:
     @pytest.fixture
-    def live(self, http_settings: HttpSettings, fake_clock: FakeClock) -> PoliteClient:
-        return PoliteClient(http_settings, clock=fake_clock, sleep=fake_clock.sleep)
+    def live(
+        self, http_settings: HttpSettings, fake_clock: FakeClock, resolver: StubResolver
+    ) -> PoliteClient:
+        return PoliteClient(
+            http_settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=resolver
+        )
 
     def test_record_through_the_polite_client_and_load_back(
         self,
@@ -512,7 +516,11 @@ class TestRecorder:
         assert not (tmp_path / "tests").exists()
 
     def test_command_line_builds_its_client_on_the_shared_cache_directory(
-        self, tmp_path: Path, respx_router: respx.MockRouter, monkeypatch: pytest.MonkeyPatch
+        self,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        monkeypatch: pytest.MonkeyPatch,
+        resolver: StubResolver,
     ) -> None:
         """Without ``http`` the recorder is live: settings and cache come from the project."""
         settings = (REPO_ROOT / "config" / "settings.yaml").read_text(encoding="utf-8")
@@ -524,7 +532,8 @@ class TestRecorder:
         robots = respx_router.get("https://events.example.edu/robots.txt").respond(404)
         respx_router.get(url__startswith=API).respond(200, text="{}")
         arguments = ["--root", str(tmp_path), "record", "--source-id", "localist-example"]
-        assert main([*arguments, PAGE_1]) == 0
+        assert main([*arguments, PAGE_1], resolver=resolver) == 0
+        assert set(resolver.calls) == {"events.example.edu"}
         expected = "seminars-bot/1.0 (+https://fridrichmethod.github.io/seminars/)"
         assert robots.calls.last.request.headers["user-agent"] == expected
         assert (shared / "hosts" / "events.example.edu.json").is_file()

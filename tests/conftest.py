@@ -4,7 +4,7 @@ The classes behind the fixtures live in importable modules next to this file
 (tests/ is on ``sys.path``), so a test can also build its own instances:
 
 * factories.py      make_event, make_draft, make_source, ... and hypothesis strategies
-* fakes.py          FakeClock, FakeHttpClient, FakeAdapter, FakeFieldTagger,
+* fakes.py          FakeClock, StubResolver, FakeHttpClient, FakeAdapter, FakeFieldTagger,
                     FakeEventFilter, FakePicksScorer, FakeIssueClient, FakeSecretScanner
 * fakes_llm.py      FakeLLMClient, FakeLLMCache, FakeLLMFieldTagger, FakePageExtractor
 * fakes_outputs.py  FakeEmitters (ICS, site data, digest, health, source probe)
@@ -20,7 +20,12 @@ Contract -> fixture:
 * PageExtractor -> fake_page_extractor
 * IssueClient -> fake_issues; SecretScanner -> fake_secret_scanner
 * the output functions and the source probe -> fake_emitters
-* time -> fake_clock
+* time -> fake_clock; name resolution -> resolver
+
+No test may look a host name up for real. Every ``PoliteClient`` a test
+builds gets ``resolver=resolver`` (or its own ``StubResolver``), and the
+``no_real_dns`` fixture, which is always active, makes ``socket.getaddrinfo``
+fail the test that reaches it.
 
 Browser tests (``@pytest.mark.browser``) get Playwright from the
 ``playwright_sync_api`` fixture and never import it themselves; the fixture
@@ -30,6 +35,7 @@ explains why.
 from __future__ import annotations
 
 import shutil
+import socket
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
@@ -47,6 +53,7 @@ from fakes import (
     FakeIssueClient,
     FakePicksScorer,
     FakeSecretScanner,
+    StubResolver,
 )
 from fakes_llm import FakeLLMCache, FakeLLMClient, FakeLLMFieldTagger, FakePageExtractor
 from fakes_outputs import FakeEmitters
@@ -67,6 +74,35 @@ FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 def fake_clock() -> FakeClock:
     """A clock that starts at factories.REFERENCE_NOW and never really sleeps."""
     return FakeClock()
+
+
+@pytest.fixture
+def resolver() -> StubResolver:
+    """Name resolution for a ``PoliteClient``: every host has one fixed public address.
+
+    Change ``resolver.answers`` or call ``resolver.script`` to make a host
+    resolve to something else or not at all; ``resolver.calls`` lists the
+    lookups. See ``fakes.StubResolver``.
+    """
+    return StubResolver()
+
+
+@pytest.fixture(autouse=True)
+def no_real_dns(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail any test that reaches the real resolver.
+
+    ``socket.getaddrinfo`` is what the default resolver of the live client
+    and every real connection use. The error is not an ``OSError``, so no
+    retry logic can swallow it. Child processes are not covered; scripts a
+    test starts must pass their own stub.
+    """
+
+    def refuse(host: object, *args: object, **kwargs: object) -> None:
+        raise AssertionError(
+            f"a test tried a real DNS lookup of {host!r}: pass resolver=... to PoliteClient"
+        )
+
+    monkeypatch.setattr(socket, "getaddrinfo", refuse)
 
 
 @pytest.fixture

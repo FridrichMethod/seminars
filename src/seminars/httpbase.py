@@ -12,7 +12,7 @@ import ipaddress
 import re
 import socket
 import unicodedata
-from collections.abc import Callable, Collection, Mapping
+from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import Final, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
@@ -25,12 +25,30 @@ Clock = Callable[[], float]
 Sleeper = Callable[[float], None]
 """Blocks for the given number of seconds."""
 
+Resolver = Callable[[str], Sequence[str]]
+"""Looks a host name up and returns its IP addresses as text.
+
+Raises ``OSError`` when the name has no address (``socket.gaierror`` is one).
+The live client asks it before every request; tests pass a stub, so they
+never touch DNS.
+"""
+
 REDIRECT_STATUSES: Final = frozenset({301, 302, 303, 307, 308})
 RETRY_STATUSES: Final = frozenset({408, 425, 429, 500, 502, 503, 504})
 BINARY_MEDIA_PREFIXES: Final = ("image/", "audio/", "video/", "font/")
 _INTERNAL_SUFFIXES: Final = (".localhost", ".local", ".internal", ".lan", ".home.arpa")
 _NUMERIC_LABEL: Final = re.compile(r"[0-9]+|0x[0-9a-f]*")  # what makes a host an IPv4 address
 _IDEOGRAPHIC_FULL_STOP: Final = chr(0x3002)  # a label separator to IDNA, like "."
+_IPV4_IN_IPV6: Final = tuple(
+    ipaddress.IPv6Network(network)
+    for network in (
+        "::ffff:0:0/96",  # IPv4-mapped
+        "::ffff:0:0:0/96",  # IPv4-translated
+        "64:ff9b::/96",  # NAT64
+        "::/96",  # IPv4-compatible (retired)
+    )
+)
+"""IPv6 ranges whose last 32 bits are an IPv4 address that the packet ends up at."""
 BINARY_MEDIA_TYPES: Final = frozenset(
     {
         "application/gzip",
@@ -151,7 +169,11 @@ class UnsupportedSchemeError(HttpError, ValueError):
 
 
 class ForbiddenHostError(HttpError, ValueError):
-    """The URL points at this machine or a private network, never at a public site."""
+    """The URL leads to this machine or a private network, never to a public site.
+
+    Raised for a host that is written as a local or private address, for a
+    name that resolves to one, and for an answer that came from one.
+    """
 
 
 class RobotsDisallowedError(HttpError):
@@ -222,10 +244,44 @@ class HttpClient(Protocol):
         ...
 
 
+def _embedded_ipv4(address: ipaddress.IPv6Address) -> ipaddress.IPv4Address | None:
+    """The IPv4 address that an IPv6 address merely wraps, if it is of such a kind."""
+    if any(address in network for network in _IPV4_IN_IPV6):
+        return ipaddress.IPv4Address(int(address) & 0xFFFFFFFF)
+    return None
+
+
 def _is_global(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    """True for a globally routable address; an IPv4-mapped IPv6 address counts as its IPv4."""
-    mapped = address.ipv4_mapped if isinstance(address, ipaddress.IPv6Address) else None
-    return (mapped or address).is_global
+    """True for a globally routable unicast address.
+
+    An IPv6 address that wraps an IPv4 address (IPv4-mapped, IPv4-translated,
+    IPv4-compatible, NAT64) counts as that IPv4 address. Multicast and the
+    retired site-local range are not global, although ``ipaddress`` does not
+    list them as special.
+    """
+    if isinstance(address, ipaddress.IPv6Address):
+        wrapped = _embedded_ipv4(address)
+        if wrapped is not None:
+            return _is_global(wrapped)
+        if address.is_site_local:
+            return False
+    return address.is_global and not address.is_multicast
+
+
+def is_public_address(address: str) -> bool:
+    """True when ``address``, an IP address as text, is globally routable.
+
+    This is how the answers of a resolver and the peer of a connection are
+    judged. A zone id (``fe80::1%eth0``) is ignored, and an IPv6 address
+    that wraps an IPv4 address (IPv4-mapped, NAT64, ...) counts as that IPv4
+    address. Loopback, link-local, private, carrier-grade NAT, multicast,
+    documentation and other reserved ranges are not public, and neither is
+    text that is not an IP address.
+    """
+    try:
+        return _is_global(ipaddress.ip_address(address.partition("%")[0]))
+    except ValueError:
+        return False
 
 
 def canonical_host(host: str) -> str:
@@ -253,9 +309,18 @@ def is_public_host(host: str) -> bool:
     in decimal, octal or hexadecimal and with one to four parts:
     ``2130706433``, ``127.1``, ``0x7f.1`` and ``0177.0.0.1`` all mean
     127.0.0.1. Such a host is read the way the resolver reads it; when that
-    fails it is not a name either, and it is refused. An IPv4-mapped IPv6
-    address is judged by its IPv4 address. Names are not looked up, so a
-    public name that resolves to a private address is not caught here.
+    fails it is not a name either, and it is refused. An IPv6 address that
+    wraps an IPv4 address (IPv4-mapped, NAT64, ...) is judged by that IPv4
+    address, and multicast addresses are not public.
+
+    What this guarantees: a True answer means the host is not WRITTEN as a
+    local or private address. It says nothing about where a name leads,
+    because this function looks nothing up and does no I/O. A public name
+    can resolve to 127.0.0.1 or to 169.254.169.254. Closing that is the job
+    of the live client, which resolves every name before each request and
+    checks the address of the peer before it reads an answer; see "Public
+    hosts only" in ``seminars.http`` for those checks and for the risk that
+    remains.
     """
     name = canonical_host(host)
     if not name or name == "localhost" or name.endswith(_INTERNAL_SUFFIXES):
@@ -274,6 +339,14 @@ def is_public_host(host: str) -> bool:
 
 def split_url(url: str) -> tuple[str, str, str]:
     """Split a URL into ``(origin, host, path-with-query)``; public http(s) only.
+
+    Raises ``UnsupportedSchemeError`` for anything that is not an absolute
+    http(s) URL and ``ForbiddenHostError`` for a host that ``is_public_host``
+    rejects. Like that function it judges the spelling of the host only and
+    does no lookup: passing this check is necessary, not sufficient. The
+    offline client needs no more, since it never opens a connection; the
+    live client adds the lookup and the peer check described in
+    ``seminars.http``.
 
     ``host`` is in canonical form (see ``canonical_host``), so every spelling
     of a host shares one request queue and one budget. A URL that contains

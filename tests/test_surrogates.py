@@ -18,7 +18,7 @@ from hypothesis import strategies as st
 from pydantic import BaseModel
 
 from factories import make_document, make_draft, make_event
-from fakes import FakeClock
+from fakes import FakeClock, StubResolver
 from seminars.config import HttpSettings
 from seminars.contracts import llm_cache_key
 from seminars.fixtures import FixtureStore, OfflineHttpClient
@@ -285,7 +285,9 @@ class TestHttp:
     def test_the_live_client_refuses_it_without_a_request(
         self, http_settings: HttpSettings, fake_clock: FakeClock, respx_router: respx.MockRouter
     ) -> None:
-        client = PoliteClient(http_settings, clock=fake_clock, sleep=fake_clock.sleep)
+        client = PoliteClient(
+            http_settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=StubResolver()
+        )
         with pytest.raises(UnsupportedSchemeError):
             client.get(self.URL)
         assert respx_router.calls.call_count == 0

@@ -10,7 +10,7 @@ import httpx
 import pytest
 import respx
 
-from fakes import FakeClock
+from fakes import FakeClock, StubResolver
 from seminars.config import HttpSettings
 from seminars.http import (
     CrawlDelayTooLongError,
@@ -39,8 +39,10 @@ def no_robots(router: respx.MockRouter, host: str = HOST) -> respx.Route:
 
 
 @pytest.fixture
-def client(http_settings: HttpSettings, fake_clock: FakeClock) -> PoliteClient:
-    return PoliteClient(http_settings, clock=fake_clock, sleep=fake_clock.sleep)
+def client(
+    http_settings: HttpSettings, fake_clock: FakeClock, resolver: StubResolver
+) -> PoliteClient:
+    return PoliteClient(http_settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=resolver)
 
 
 class TestPublicHosts:
@@ -96,6 +98,14 @@ class TestPublicHosts:
         assert not is_public_host("::ffff:192.168.1.10")
         assert is_public_host("::ffff:8.8.8.8")
         assert is_public_host("2606:4700:4700::1111")
+
+    @pytest.mark.parametrize(
+        "host", ["64:ff9b::7f00:1", "::127.0.0.1", "::ffff:0:10.0.0.5", "224.0.0.1", "ff02::1"]
+    )
+    def test_other_wrapped_ipv4_addresses_and_multicast_are_not_public(self, host: str) -> None:
+        assert not is_public_host(host)
+        with pytest.raises(ForbiddenHostError):
+            split_url(f"http://[{host}]/" if ":" in host else f"http://{host}/")
 
 
 OTHER = "https://www.example.edu"
@@ -187,7 +197,10 @@ class TestRobotsRedirects:
         self, http_settings: HttpSettings, respx_router: respx.MockRouter, fake_clock: FakeClock
     ) -> None:
         client = PoliteClient(
-            http_settings.evolve(max_redirects=2), clock=fake_clock, sleep=fake_clock.sleep
+            http_settings.evolve(max_redirects=2),
+            clock=fake_clock,
+            sleep=fake_clock.sleep,
+            resolver=StubResolver(),
         )
         respx_router.get(ROBOTS).respond(301, headers={"Location": "/r1"})
         respx_router.get(f"{HOST}/r1").respond(307, headers={"Location": f"{HOST}/r2"})
@@ -299,7 +312,11 @@ class TestRobotsOfAnotherOriginOnAKnownHost:
 
         def new_client() -> PoliteClient:
             return PoliteClient(
-                http_settings, cache_dir=tmp_path, clock=fake_clock, sleep=fake_clock.sleep
+                http_settings,
+                cache_dir=tmp_path,
+                clock=fake_clock,
+                sleep=fake_clock.sleep,
+                resolver=StubResolver(),
             )
 
         new_client().get(PAGE)
@@ -328,7 +345,11 @@ class TestRobotsOfAnotherOriginOnAKnownHost:
             "dept.example.edu", HostRecord(last_request_at=fake_clock(), robots={HOST: old_copy})
         )
         client = PoliteClient(
-            http_settings, cache_dir=tmp_path, clock=fake_clock, sleep=fake_clock.sleep
+            http_settings,
+            cache_dir=tmp_path,
+            clock=fake_clock,
+            sleep=fake_clock.sleep,
+            resolver=StubResolver(),
         )
         client.get(f"{PLAIN}/events")
         assert fake_clock.sleeps == [1.0, 1.0]
@@ -350,7 +371,11 @@ class TestRobotsOfAnotherOriginOnAKnownHost:
             ),
         )
         client = PoliteClient(
-            http_settings, cache_dir=tmp_path, clock=fake_clock, sleep=fake_clock.sleep
+            http_settings,
+            cache_dir=tmp_path,
+            clock=fake_clock,
+            sleep=fake_clock.sleep,
+            resolver=StubResolver(),
         )
         client.get(f"{PLAIN}/events")
         assert fake_clock.sleeps == [1.0, 1.0]
@@ -360,7 +385,9 @@ class TestBodyLimit:
     @pytest.fixture
     def small(self, http_settings: HttpSettings, fake_clock: FakeClock) -> PoliteClient:
         settings = http_settings.evolve(max_body_bytes=1000)
-        return PoliteClient(settings, clock=fake_clock, sleep=fake_clock.sleep)
+        return PoliteClient(
+            settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=StubResolver()
+        )
 
     def test_default_limit(self, http_settings: HttpSettings) -> None:
         assert http_settings.max_body_bytes == 5_000_000
@@ -403,7 +430,11 @@ class TestBodyLimit:
         settings = http_settings.evolve(max_body_bytes=1000)
         with (
             PoliteClient(
-                settings, clock=clock, sleep=clock.sleep, transport=httpx.MockTransport(handler)
+                settings,
+                clock=clock,
+                sleep=clock.sleep,
+                resolver=StubResolver(),
+                transport=httpx.MockTransport(handler),
             ) as client,
             pytest.raises(ResponseTooLargeError),
         ):

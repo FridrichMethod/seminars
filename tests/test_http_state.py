@@ -15,7 +15,7 @@ import httpx
 import pytest
 import respx
 
-from fakes import FakeClock
+from fakes import FakeClock, StubResolver
 from seminars.config import HttpSettings
 from seminars.http import (
     HttpStatusError,
@@ -31,7 +31,9 @@ PAGE = f"{HOST}/events"
 
 
 def make_client(settings: HttpSettings, clock: FakeClock, cache_dir: Path | None) -> PoliteClient:
-    return PoliteClient(settings, cache_dir=cache_dir, clock=clock, sleep=clock.sleep)
+    return PoliteClient(
+        settings, cache_dir=cache_dir, clock=clock, sleep=clock.sleep, resolver=StubResolver()
+    )
 
 
 @pytest.fixture
@@ -276,7 +278,11 @@ class TestThreads:
         settings = http_settings.evolve(max_requests_per_host=50)
         with (
             PoliteClient(
-                settings, clock=clock, sleep=clock.sleep, transport=httpx.MockTransport(probe)
+                settings,
+                clock=clock,
+                sleep=clock.sleep,
+                resolver=StubResolver(),
+                transport=httpx.MockTransport(probe),
             ) as client,
             ThreadPoolExecutor(max_workers=8) as pool,
         ):
@@ -292,7 +298,11 @@ class TestThreads:
         probe = _ConcurrencyProbe(barrier=threading.Barrier(2))
         with (
             PoliteClient(
-                http_settings, clock=clock, sleep=clock.sleep, transport=httpx.MockTransport(probe)
+                http_settings,
+                clock=clock,
+                sleep=clock.sleep,
+                resolver=StubResolver(),
+                transport=httpx.MockTransport(probe),
             ) as client,
             ThreadPoolExecutor(max_workers=2) as pool,
         ):
@@ -344,9 +354,15 @@ def handler(request):
     return httpx.Response(200, text="User-agent: *\\nCrawl-delay: 0.3\\n" if robots else "ok")
 
 
+def resolver(host):
+    return ["93.184.216.34"]  # a child process is outside the DNS guard of the tests
+
+
 settings = HttpSettings(user_agent="seminars-bot/1.0 (+https://example.org/)")
 settings = settings.evolve(min_interval_seconds=0.0)
-with PoliteClient(settings, cache_dir=cache_dir, transport=httpx.MockTransport(handler)) as client:
+with PoliteClient(
+    settings, cache_dir=cache_dir, transport=httpx.MockTransport(handler), resolver=resolver
+) as client:
     print("ready", flush=True)
     sys.stdin.readline()
     client.get("https://dept.example.edu/events")
@@ -408,6 +424,7 @@ class TestSharedCacheDirectory:
                 cache_dir=cache_dir,
                 clock=clock,
                 sleep=clock.sleep,
+                resolver=StubResolver(),
                 transport=httpx.MockTransport(handler),
             ) as client:
                 start.wait(timeout=5)

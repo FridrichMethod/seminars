@@ -7,10 +7,11 @@ defined in conftest.py. Nothing in here touches the network or the clock.
 from __future__ import annotations
 
 import threading
+from collections import deque
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Final, Self
 
 from factories import REFERENCE_NOW
 from seminars.http import FixtureNotFoundError, HttpClient, HttpStatusError
@@ -67,6 +68,49 @@ class FakeClock:
         """Move time forward without recording a sleep."""
         with self._lock:
             self._now += seconds
+
+
+PUBLIC_ADDRESS: Final = "93.184.216.34"
+"""A globally routable address for stub answers; nothing is ever sent to it."""
+
+Answer = Sequence[str] | Exception
+"""What a lookup gives: the addresses of the host, or the error to raise."""
+
+
+class StubResolver:
+    """The ``resolver`` of a ``PoliteClient`` under test; it never touches DNS.
+
+    Every host resolves to ``PUBLIC_ADDRESS`` unless the stub is told
+    otherwise: ``answers`` (or ``resolver.answers[host] = ...``) fixes the
+    answer of a host for good, ``script`` queues answers for its next
+    lookups. An answer is a sequence of addresses or an exception to raise
+    (``OSError`` is what a name without an address gives). ``calls`` lists
+    the hosts that were looked up, in order.
+
+        resolver = StubResolver({"intranet.example.edu": ["10.0.0.5"]})
+        resolver.script("flaky.example.edu", OSError("no such name"), [PUBLIC_ADDRESS])
+    """
+
+    def __init__(self, answers: Mapping[str, Answer] | None = None) -> None:
+        self.answers: dict[str, Answer] = dict(answers or {})
+        self.calls: list[str] = []
+        self._scripts: dict[str, deque[Answer]] = {}
+        self._lock = threading.Lock()
+
+    def script(self, host: str, *answers: Answer) -> Self:
+        """Queue ``answers`` for the next lookups of ``host``, before its fixed answer."""
+        with self._lock:
+            self._scripts.setdefault(host, deque()).extend(answers)
+        return self
+
+    def __call__(self, host: str) -> Sequence[str]:
+        with self._lock:
+            self.calls.append(host)
+            queued = self._scripts.get(host)
+            answer = queued.popleft() if queued else self.answers.get(host, (PUBLIC_ADDRESS,))
+        if isinstance(answer, Exception):
+            raise answer
+        return list(answer)
 
 
 class FakeHttpClient:
