@@ -91,6 +91,25 @@ class TestPyproject:
         assert pyproject["tool"]["coverage"]["run"]["source_pkgs"] == ["seminars"]
         assert pyproject["tool"]["coverage"]["report"]["fail_under"] == 80
 
+    def test_coverage_excludes_only_lines_that_are_a_bare_ellipsis(
+        self, pyproject: dict[str, Any]
+    ) -> None:
+        patterns = pyproject["tool"]["coverage"]["report"]["exclude_also"]
+
+        def excluded(line: str) -> bool:
+            return any(re.search(pattern, line, re.MULTILINE) for pattern in patterns)
+
+        for line in ("...", "        ...", "    ...  "):
+            assert excluded(line), line
+        for line in (
+            "    def enabled_sources(self) -> tuple[SourceConfig, ...]:",
+            "def retry(run: Callable[..., int]) -> int:",
+            "    usage = 'seminars sources check [ID ...]'",
+            "    values = [first, ..., last]",
+            "    def put(self, key: str, value: str) -> None: ...",
+        ):
+            assert not excluded(line), line
+
 
 class TestRepositoryFiles:
     def test_python_version_is_pinned(self) -> None:

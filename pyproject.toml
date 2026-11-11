@@ -91,9 +91,12 @@ branch = true
 show_missing = true
 skip_covered = true
 fail_under = 80
+# The last pattern drops protocol method bodies. It must match a line that is nothing but
+# "...": an unanchored pattern also hits signatures such as "-> tuple[X, ...]:", and a
+# matching "def" line makes coverage exclude the whole function.
 exclude_also = [
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
-    "\\.\\.\\.",
+    "^[ \\t]*\\.\\.\\.[ \\t]*$",
 ]
