@@ -294,14 +294,33 @@ def test_no_permission_shorthand_is_used() -> None:
         assert "write-all" not in workflow_text(name)
 
 
+def checkouts() -> Iterator[tuple[str, str, dict[str, Any]]]:
+    for name, job_id, entry in all_steps():
+        if str(entry.get("uses", "")).startswith("actions/checkout@"):
+            yield name, job_id, entry
+
+
+def test_every_job_that_checks_out_does_it_once() -> None:
+    found = Counter((name, job_id) for name, job_id, _ in checkouts())
+    expected = {key for key in EXPECTED_JOB_PERMISSIONS if key != ("update.yml", "deploy")}
+    assert set(found) == expected
+    assert set(found.values()) == {1}
+
+
 def test_only_the_pushing_job_keeps_the_token_in_its_checkout() -> None:
-    for name in WORKFLOW_NAMES:
-        for job_id, job in jobs_of(name).items():
-            for entry in job["steps"]:
-                if str(entry.get("uses", "")).startswith("actions/checkout@"):
-                    keep = entry.get("with", {}).get("persist-credentials")
-                    expected = (name, job_id) in PUSHING_CHECKOUTS
-                    assert keep is expected, (name, job_id)
+    for name, job_id, entry in checkouts():
+        keep = entry.get("with", {}).get("persist-credentials")
+        assert keep is ((name, job_id) in PUSHING_CHECKOUTS), (name, job_id)
+
+
+def test_scheduled_workflows_check_out_the_tip_of_main() -> None:
+    # The default ref of a scheduled or manual run is the commit the run was created
+    # for. A run that waited in the concurrency group must instead start from the data
+    # commit of the run before it.
+    for name, job_id, entry in checkouts():
+        ref = entry.get("with", {}).get("ref")
+        assert ref == (None if name == "ci.yml" else "main"), (name, job_id)
+        assert set(entry["with"]) <= {"ref", "persist-credentials"}, (name, job_id)
 
 
 # --- secrets and expressions ---------------------------------------------------------------
@@ -834,6 +853,25 @@ def test_the_data_commit_is_rebased_when_main_moved_during_the_run(sandbox: Sand
     subjects = sandbox.git(remote, "log", "--format=%s", "main").splitlines()
     assert subjects == [f"chore(data): daily update {STUB_DAY}", "docs: meanwhile", "seed"]
     assert "::warning::" in result.stdout
+
+
+@needs_shell
+def test_a_data_commit_that_conflicts_with_main_fails_cleanly(sandbox: Sandbox) -> None:
+    remote, work = sandbox.repo(BASE_FILES)
+    other = sandbox.clone(remote, "other")
+    write(other / "data" / "last_run.json", '{"by": "other"}\n')
+    sandbox.git(other, "commit", "--quiet", "--all", "--message", "chore(data): other")
+    sandbox.git(other, "push", "--quiet", "origin", "main")
+    pushed = sandbox.git(remote, "rev-parse", "main")
+    write(work / "data" / "last_run.json", '{"by": "work"}\n')
+    result = sandbox.run_step("update.yml", "update", "commit", work)
+    assert result.status == 1, result.stdout
+    assert "::error::The data commit could not be rebased onto main" in result.stdout
+    assert sandbox.git(remote, "rev-parse", "main") == pushed
+    # The rebase was undone: the clone holds its own data commit and nothing half-merged.
+    assert "rebase" not in sandbox.git(work, "status")
+    assert sandbox.git(work, "log", "-1", "--format=%s") == f"chore(data): daily update {STUB_DAY}"
+    assert sandbox.git(work, "status", "--porcelain") == ""
 
 
 def claude_config(work: Path, version: str | None) -> None:

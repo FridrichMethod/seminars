@@ -20,8 +20,9 @@
 # no issue is touched.
 #
 # Actions, and why each one is used:
-# - actions/checkout (major tag v7): fetches main with the committed data; it does not
-#   keep the token.
+# - actions/checkout (major tag v7): fetches the tip of main with the committed data
+#   (ref: main, so a run that waited still reads the newest data); it does not keep
+#   the token.
 # - astral-sh/setup-uv (third-party, without a floating major tag, so it is pinned to
 #   a full commit SHA with the release in a comment): installs uv, which installs the
 #   locked dependencies. Its cache is off here, so no cache entry can feed this
@@ -68,6 +69,7 @@ jobs:
       - name: Check out main
         uses: actions/checkout@v7
         with:
+          ref: main
           persist-credentials: false
       - name: Install uv
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2

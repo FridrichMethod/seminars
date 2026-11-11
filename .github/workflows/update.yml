@@ -23,6 +23,12 @@
 # All runs of this workflow share one concurrency group, so two of them never run at
 # the same time. A run in progress is never cancelled (cancel-in-progress: false), but
 # GitHub keeps at most one waiting run per group: a newer run replaces a waiting one.
+# Every job checks out the tip of main when it starts (ref: main), not the commit the
+# run was created for, so a run that waited starts from the data commit of the run
+# before it: a catch-up then sees that today's run is done, and nothing is computed
+# from old data. Should main still move during a run in a way that the data commit
+# cannot be rebased onto, the job fails before anything is deployed, and the next run
+# starts again from the new main.
 #
 # Credentials: the LLM secrets CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY,
 # OPENAI_API_KEY and LLM_API_KEY reach only the step that runs the pipeline and the
@@ -37,8 +43,8 @@
 # deployed.
 #
 # Actions, and why each one is used:
-# - actions/checkout (major tag v7): fetches main; the update job keeps the token in
-#   the checkout so that it can push the data commit, the other jobs do not.
+# - actions/checkout (major tag v7): fetches the tip of main; the update job keeps the
+#   token in the checkout so that it can push the data commit, the other jobs do not.
 # - astral-sh/setup-uv (third-party, without a floating major tag, so it is pinned to
 #   a full commit SHA with the release in a comment): installs uv, which installs the
 #   locked dependencies. Its cache is off here, so no cache entry can feed this
@@ -105,6 +111,7 @@ jobs:
       - name: Check out main
         uses: actions/checkout@v7
         with:
+          ref: main
           persist-credentials: true
       - name: Install uv
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
@@ -189,7 +196,11 @@ jobs:
               exit 1
             fi
             echo "::warning::main moved during the run (push ${attempt} refused); rebasing the data commit."
-            git pull --quiet --rebase --autostash origin main
+            if ! git pull --quiet --rebase --autostash origin main; then
+              git rebase --abort 2> /dev/null || true
+              echo "::error::The data commit could not be rebased onto main (it conflicts with a commit that reached main during the run, or the fetch failed): nothing is pushed or deployed, and the next run starts from the new main."
+              exit 1
+            fi
             attempt=$((attempt + 1))
           done
       - name: Build the site
@@ -237,6 +248,7 @@ jobs:
       - name: Check out main
         uses: actions/checkout@v7
         with:
+          ref: main
           persist-credentials: false
       - name: Install uv
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
