@@ -65,7 +65,9 @@ SCORE_TOLERANCE: Final = 1e-9
 
 NO_FIELD_REASON: Final = "no field matched"
 
-_SEGMENT_BREAK: Final = re.compile(r"[.,;:!?]+(?=\s|$)|[\n()\[\]{}<>\"|]")
+_SEGMENT_BREAK: Final = re.compile(r"(?<![.,;:!?])[.,;:!?]+(?=\s|$)|[\n()\[\]{}<>\"|]")
+"""Segment ends. A run of punctuation is only tried from its first character, so that a
+long run that is not followed by white space costs linear time, not quadratic."""
 _INITIAL: Final = re.compile(r"(?<!\w)([^\W\d_])\.(?=\s)")
 """A single letter and its point, as in "E. coli": the point is dropped before splitting."""
 _WORD: Final = re.compile(r"\w+")

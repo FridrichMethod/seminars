@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import pytest
@@ -93,6 +94,28 @@ class TestWords:
     @pytest.mark.parametrize("text", [None, "", "  ", "--- ...", "\u2014"])
     def test_empty_text_has_no_segments(self, text: str | None) -> None:
         assert words(text).segments == ()
+
+    @pytest.mark.parametrize(
+        ("text", "segments"),
+        [
+            ("a.. b", (("a",), ("b",))),
+            ("a..b.. c", (("a", "b"), ("c",))),
+            ("x?!. y", (("x",), ("y",))),
+            ("x?!.y", (("x", "y"),)),
+            ("end...", (("end",),)),
+        ],
+    )
+    def test_a_punctuation_run_splits_only_before_white_space(
+        self, text: str, segments: tuple[tuple[str, ...], ...]
+    ) -> None:
+        assert words(text).segments == segments
+
+    def test_a_long_punctuation_run_takes_linear_time(self) -> None:
+        """A run of 50000 points used to take tens of seconds (quadratic backtracking)."""
+        text = "a" + "." * 50_000 + "b" + ",;" * 25_000 + "cd. e"
+        started = time.perf_counter()
+        assert words(text).segments == (("a", "b", "cd"), ("e",))
+        assert time.perf_counter() - started < 1.0
 
     def test_label_key_joins_all_words(self) -> None:
         assert label_key("  Chemical-Engineering. ") == "chemical engineering"
