@@ -37,7 +37,7 @@ position. tests/test_pipeline_dedup.py checks both with generated input.
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Final
@@ -53,6 +53,7 @@ from seminars.models import (
     EventStatus,
     canonical_fields,
     event_to_line,
+    split_source_key,
 )
 from seminars.pipeline.ids import canonical_url
 from seminars.pipeline.normalize import merge_speakers
@@ -221,45 +222,25 @@ def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidat
     return Candidate(event=merged, hints=EventHints.model_validate(hints))
 
 
-def adopt_stored_uids(
+def _sources_of(event: Event) -> frozenset[str]:
+    """The ids of the sources whose keys an event holds."""
+    return frozenset(split_source_key(key)[0] for key in event.source_ids)
+
+
+def _adopt_similar(
     candidates: Sequence[Candidate],
-    stored: Sequence[Event],
-    *,
+    positions: Sequence[int],
+    orphans: Sequence[Event],
     settings: DedupSettings,
-    listing_urls: Collection[str] = (),
-) -> list[Candidate]:
-    """Let a new candidate take over the uid of a stored event that is the same talk.
-
-    A source sometimes changes the key of an event: a page gets a new
-    address, a talk gains a speaker. The event then arrives under a uid
-    that was never seen, while its stored self is no longer delivered, and
-    a subscriber would see the talk twice until the old entry expires.
-
-    A candidate whose uid is not stored therefore takes the uid of a stored
-    event that no candidate of this run claims, when the two are the same
-    talk by the rules of de-duplication (start within the limit and a
-    similar title, a shared speaker or the same detail page). Of several
-    such events the one seen first is taken, and each is taken once. The
-    candidates come back in their order; the choice does not depend on it.
-    """
-    claimed = {candidate.event.uid for candidate in candidates}
-    known = {event.uid for event in stored}
-    orphans = sorted(
-        (event for event in stored if event.uid not in claimed),
-        key=lambda event: (event.first_seen, event.uid),
-    )
+    listing_urls: Collection[str],
+) -> dict[int, str]:
+    """Candidate positions with the uid of an orphan that is the same talk by dedup rules."""
     profiles = [(event, _profile(Candidate(event=event), listing_urls)) for event in orphans]
     limit = timedelta(minutes=settings.max_start_difference_minutes)
     adopted: dict[int, str] = {}
     taken: set[str] = set()
-    order = sorted(
-        range(len(candidates)), key=lambda position: event_to_line(candidates[position].event)
-    )
-    for position in order:
-        candidate = candidates[position]
-        if candidate.event.uid in known or not profiles:
-            continue
-        profile = _profile(candidate, listing_urls)
+    for position in positions:
+        profile = _profile(candidates[position], listing_urls)
         for event, other in profiles:
             close = abs(other.start - profile.start) <= limit
             if (
@@ -270,6 +251,90 @@ def adopt_stored_uids(
                 adopted[position] = event.uid
                 taken.add(event.uid)
                 break
+    return adopted
+
+
+def _placeholders(orphans: Iterable[Event]) -> dict[tuple[str, datetime], Event]:
+    """Orphans that are TBA and without a speaker, by source and start.
+
+    A source and start that more than one of them shares is left out: it
+    would be a guess which of them a talk is.
+    """
+    found: dict[tuple[str, datetime], list[Event]] = defaultdict(list)
+    for event in orphans:
+        if event.is_tba and not event.speakers:
+            for source_id in _sources_of(event):
+                found[(source_id, event.start)].append(event)
+    return {slot: events[0] for slot, events in found.items() if len(events) == 1}
+
+
+def _adopt_placeholders(
+    candidates: Sequence[Candidate], positions: Sequence[int], orphans: Sequence[Event]
+) -> dict[int, str]:
+    """Candidate positions with the uid of a placeholder of their source and start."""
+    slots = _placeholders(orphans)
+    adopted: dict[int, str] = {}
+    taken: set[str] = set()
+    for position in positions:
+        event = candidates[position].event
+        for source_id in sorted(_sources_of(event)):
+            placeholder = slots.get((source_id, event.start))
+            if placeholder is not None and placeholder.uid not in taken:
+                adopted[position] = placeholder.uid
+                taken.add(placeholder.uid)
+                break
+    return adopted
+
+
+def adopt_stored_uids(
+    candidates: Sequence[Candidate],
+    stored: Sequence[Event],
+    *,
+    settings: DedupSettings,
+    listing_urls: Collection[str] = (),
+) -> list[Candidate]:
+    """Let a new candidate take over the uid of a stored event that is the same talk.
+
+    A source sometimes changes the key of an event: a page gets a new
+    address, a talk gains a speaker or its title. The event then arrives
+    under a uid that was never seen, while its stored self is no longer
+    delivered, and a subscriber would see the talk twice until the old
+    entry expires.
+
+    A candidate whose uid is not stored therefore takes the uid of a stored
+    event that no candidate of this run claims (an orphan), in two steps:
+
+    1. an orphan that is the same talk by the rules of de-duplication
+       (start within the limit and a similar title, a shared speaker or the
+       same detail page);
+    2. otherwise a placeholder of its source: an orphan of the same source
+       that starts at exactly the same moment, is still "TBA" and names no
+       speaker, and is the only such orphan of that source and start. Such
+       a talk has nothing the rules of step 1 could compare, and its key
+       (the time of day) changes as soon as the title or a speaker is
+       announced.
+
+    In each step the orphan seen first is taken, and each orphan is taken
+    once. The candidates come back in their order; the choice does not
+    depend on it.
+    """
+    claimed = {candidate.event.uid for candidate in candidates}
+    known = {event.uid for event in stored}
+    orphans = sorted(
+        (event for event in stored if event.uid not in claimed),
+        key=lambda event: (event.first_seen, event.uid),
+    )
+    order = sorted(
+        range(len(candidates)), key=lambda position: event_to_line(candidates[position].event)
+    )
+    unknown = [position for position in order if candidates[position].event.uid not in known]
+    adopted = _adopt_similar(candidates, unknown, orphans, settings, listing_urls)
+    taken = set(adopted.values())
+    adopted |= _adopt_placeholders(
+        candidates,
+        [position for position in unknown if position not in adopted],
+        [event for event in orphans if event.uid not in taken],
+    )
     return [
         candidate.evolve(event=candidate.event.evolve(uid=adopted[position]))
         if position in adopted

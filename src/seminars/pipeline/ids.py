@@ -24,6 +24,9 @@ that hold:
 
 When several sources list one talk, de-duplication keeps the uid that was
 seen first and binds the keys of the others to it (``seminars.pipeline.dedup``).
+A key of the third kind changes when the talk gains its title or a speaker;
+``seminars.pipeline.dedup.adopt_stored_uids`` then hands the stored uid on to
+the new key, so the uid stays.
 
 A native id is whatever a site sent. One that is very long, or that looks
 like a credential, is replaced by its SHA-256 digest before it becomes

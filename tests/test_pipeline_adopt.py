@@ -98,7 +98,7 @@ class TestAdoption:
 
     def test_listing_pages_do_not_count_as_the_same_detail_page(self) -> None:
         listing = "https://example.edu/events"
-        old = stored("old", title="TBA", url=listing)
+        old = stored("old", title="TBA", url=listing, source_ids=["sites-y:old"])
         new = fresh("new", title="TBA", url=listing)
         result = adopt_stored_uids([new], [old], settings=SETTINGS, listing_urls={listing})
         assert uids(result) == ["new"]
@@ -106,3 +106,104 @@ class TestAdoption:
     def test_no_stored_events_changes_nothing(self) -> None:
         candidates = [fresh("a"), fresh("b")]
         assert adopt_stored_uids(candidates, [], settings=SETTINGS) == candidates
+
+
+def placeholder(uid: str, **overrides: Any) -> Event:
+    """A stored TBA talk without a speaker or a page of its own, as day keys give them."""
+    values: dict[str, Any] = {
+        "title": "TBA",
+        "url": "https://example.edu/events",
+        "source_urls": ["https://example.edu/events"],
+        "source_ids": [f"sites-x:day:2026-11-17:{uid}"],
+    }
+    return stored(uid, **{**values, **overrides})
+
+
+def announced(uid: str, **overrides: Any) -> Candidate:
+    values: dict[str, Any] = {
+        "url": "https://example.edu/events",
+        "source_urls": ["https://example.edu/events"],
+        "source_ids": [f"sites-x:day:2026-11-17:{uid}"],
+    }
+    return fresh(uid, **{**values, **overrides})
+
+
+LISTING = {"https://example.edu/events"}
+
+
+class TestPlaceholders:
+    def test_a_tba_slot_is_taken_by_the_talk_announced_for_it(self) -> None:
+        result = adopt_stored_uids(
+            [announced("protein-design")], [placeholder("t1600")], settings=SETTINGS
+        )
+        assert uids(result) == ["t1600"]
+
+    def test_a_speaker_added_to_a_tba_slot_keeps_it(self) -> None:
+        speaker = {"name": "Ada Lovelace"}
+        candidate = announced("ada-lovelace", title="TBA", speakers=[speaker])
+        result = adopt_stored_uids(
+            [candidate], [placeholder("t1600")], settings=SETTINGS, listing_urls=LISTING
+        )
+        assert uids(result) == ["t1600"]
+
+    def test_a_slot_of_another_source_is_not_taken(self) -> None:
+        other = placeholder("t1600", source_ids=["sites-y:day:2026-11-17:t1600"])
+        result = adopt_stored_uids(
+            [announced("protein-design")], [other], settings=SETTINGS, listing_urls=LISTING
+        )
+        assert uids(result) == ["protein-design"]
+
+    def test_the_start_must_be_the_same_moment(self) -> None:
+        later = placeholder("t1605", start=START + timedelta(minutes=5))
+        result = adopt_stored_uids(
+            [announced("protein-design")], [later], settings=SETTINGS, listing_urls=LISTING
+        )
+        assert uids(result) == ["protein-design"]
+
+    def test_two_slots_of_one_source_and_start_are_a_guess_and_left_alone(self) -> None:
+        slots = [placeholder("t1600"), placeholder("room-b", source_ids=["sites-x:room-b"])]
+        result = adopt_stored_uids(
+            [announced("protein-design")], slots, settings=SETTINGS, listing_urls=LISTING
+        )
+        assert uids(result) == ["protein-design"]
+
+    def test_a_tba_talk_with_a_speaker_is_no_placeholder(self) -> None:
+        named = placeholder("ada-lovelace", speakers=[{"name": "Ada Lovelace"}])
+        candidate = announced("grace-hopper", speakers=[{"name": "Grace Hopper"}])
+        result = adopt_stored_uids([candidate], [named], settings=SETTINGS, listing_urls=LISTING)
+        assert uids(result) == ["grace-hopper"]
+
+    def test_a_talk_that_matches_by_the_rules_leaves_the_slot_to_another(self) -> None:
+        events = [
+            stored("old", first_seen=REFERENCE_NOW - timedelta(days=5)),
+            placeholder("t1600"),
+        ]
+        candidates = [
+            fresh("new"),
+            announced("dark-matter", title="Dark matter searches underground"),
+        ]
+        for order in itertools.permutations(candidates):
+            result = adopt_stored_uids(list(order), events, settings=SETTINGS, listing_urls=LISTING)
+            taken = {
+                before.event.uid: after.event.uid
+                for before, after in zip(order, result, strict=True)
+            }
+            assert taken == {"new": "old", "dark-matter": "t1600"}
+
+    def test_one_slot_goes_to_one_talk_whatever_the_order(self) -> None:
+        candidates = [
+            announced("protein-design"),
+            announced("dark-matter", title="Dark matter searches underground"),
+        ]
+        results = set()
+        for order in itertools.permutations(candidates):
+            result = adopt_stored_uids(
+                list(order), [placeholder("t1600")], settings=SETTINGS, listing_urls=LISTING
+            )
+            taken = {
+                before.event.uid: after.event.uid
+                for before, after in zip(order, result, strict=True)
+            }
+            assert sorted(taken.values()).count("t1600") == 1
+            results.add(tuple(sorted(taken.items())))
+        assert len(results) == 1

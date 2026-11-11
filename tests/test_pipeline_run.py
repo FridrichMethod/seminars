@@ -26,7 +26,15 @@ from fakes_llm import FakeLLMCache, FakeLLMClient
 from fakes_outputs import FakeEmitters
 from seminars.config import AppConfig, ProjectPaths
 from seminars.http import HttpStatusError
-from seminars.models import Event, EventDraft, LastRun, RunReport, SourceConfig, read_model
+from seminars.models import (
+    Event,
+    EventDraft,
+    LastRun,
+    RunReport,
+    SourceConfig,
+    UidMap,
+    read_model,
+)
 from seminars.outputs.health import update_health
 from seminars.pipeline.checks import CHECK_ISSUE_TITLE
 from seminars.pipeline.run import (
@@ -265,6 +273,40 @@ class TestStability:
         run(config, services(FakeEmitters()), days=1)
         assert list(stored(config)) == [uid]
         assert by_key(config)["sites-a:1b"].uid == uid
+
+    def test_a_tba_slot_keeps_its_uid_through_title_and_speaker(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        def slot(title: str, speaker: str | None = None) -> EventDraft:
+            return make_draft(
+                source_id="sites-a",
+                native_id=None,
+                url=None,
+                title=title,
+                speaker_text=speaker,
+                start=MORNING,
+                end=None,
+            )
+
+        fake_adapter.drafts = [slot("TBA")]
+        run(config, services(FakeEmitters()))
+        (uid,) = stored(config)
+        fake_adapter.drafts = [slot("Folding proteins in the cell")]
+        first = run(config, services(FakeEmitters()), days=1)
+        assert list(stored(config)) == [uid]
+        assert stored(config)[uid].title == "Folding proteins in the cell"
+        fake_adapter.drafts = [slot("Folding proteins in the cell", "Ada Lovelace")]
+        second = run(config, services(FakeEmitters()), days=2)
+        (event,) = stored(config).values()
+        assert event.uid == uid
+        assert [speaker.name for speaker in event.speakers] == ["Ada Lovelace"]
+        assert event.sequence == 2
+        uid_map = read_model(config.paths.uid_map_file, UidMap)
+        assert uid_map is not None
+        keys = ["t0800", "folding-proteins-in-the-cell", "ada-lovelace"]
+        assert {uid_map.resolve(f"sites-a:day:2026-11-17:{key}") for key in keys} == {uid}
+        assert (first.counts.added, first.counts.changed) == (0, 1)
+        assert (second.counts.added, second.counts.changed) == (0, 1)
 
 
 class TestAbsence:
