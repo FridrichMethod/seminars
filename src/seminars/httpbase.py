@@ -15,6 +15,7 @@ from typing import Final, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
 from seminars.models import FetchedDocument
+from seminars.textrules import ascii_safe
 
 Clock = Callable[[], float]
 """Returns the current time as epoch seconds."""
@@ -57,11 +58,6 @@ _META_CHARSET: Final = re.compile(
 _LATIN1_CODECS: Final = frozenset({"iso8859-1", "ascii"})
 _REFUSED_CODECS: Final = frozenset({"utf-7"})  # obsolete; lets ASCII text smuggle other text
 _WIDE_CODEC_PREFIXES: Final = ("utf-16", "utf-32")
-
-
-def ascii_safe(text: str) -> str:
-    """Escape non-ASCII characters so that a message is safe for logs and reports."""
-    return text.encode("ascii", "backslashreplace").decode("ascii")
 
 
 def media_type(content_type: str | None) -> str | None:
