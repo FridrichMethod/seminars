@@ -11,7 +11,11 @@ data is the end of the last run, so the same data gives the same files.
 ``validate_project`` backs ``seminars validate``. It reads every file
 below data/ against its schema, the site data in public/ against the
 public payloads, every feed with the ICS validator, and runs the output
-checks of a run (secret scan and the charset rule of data/).
+checks of a run (secret scan and the charset rule of data/). The files a
+published site needs (data/events.json, public/events.json,
+public/status.json and every feed) must exist: a project without them has
+nothing to publish and does not pass, so "seminars validate passes" says
+that a run and a build of the site happened.
 """
 
 from __future__ import annotations
@@ -137,10 +141,22 @@ def _archive_problems(paths: ProjectPaths) -> list[str]:
     return problems
 
 
+def _missing_problems(paths: ProjectPaths) -> list[str]:
+    """The files a published site needs that are not there, with the command that makes them."""
+    required = (
+        (paths.events_file, "seminars run"),
+        (paths.public_events_file, "seminars build-site"),
+        (paths.public_status_file, "seminars build-site"),
+    )
+    return [
+        f"{_relative(path, paths.root)}: missing (made by {command})"
+        for path, command in required
+        if not path.is_file()
+    ]
+
+
 def _feed_problems(paths: ProjectPaths, validator: IcsValidator | None) -> list[str]:
     feeds_dir = paths.public_feeds_dir
-    if not feeds_dir.is_dir():
-        return []
     problems = [
         f"{_relative(feeds_dir, paths.root)}/{feed}.ics: missing"
         for feed in FEED_IDS
@@ -174,7 +190,7 @@ def validate_project(
     ``validator`` is ``None`` when the ICS writer's package is missing; a
     feed then cannot be validated, which counts as a problem.
     """
-    problems: list[str] = []
+    problems = _missing_problems(paths)
     try:
         load_state(paths)
     except StoreError as error:

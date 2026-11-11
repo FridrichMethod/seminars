@@ -8,7 +8,7 @@ from factories import REFERENCE_NOW, make_event
 from fakes import FakeSecretScanner
 from fakes_outputs import FakeEmitters
 from seminars.config import AppConfig, ProjectPaths
-from seminars.models import FEED_IDS, dump_event_lines
+from seminars.models import FEED_IDS, dump_event_lines, dump_events
 from seminars.pipeline.publish import assemble_site, validate_project
 
 NEEDLE = "needle-value"
@@ -42,13 +42,28 @@ class TestAssemble:
         assert len([name for name in built.files if name.startswith("feeds/")]) == len(FEED_IDS)
 
 
+def feed_problems(problems: tuple[str, ...]) -> list[str]:
+    return [problem for problem in problems if problem.startswith("public/feeds/")]
+
+
+def other_problems(problems: tuple[str, ...]) -> list[str]:
+    return [problem for problem in problems if not problem.startswith("public/feeds/")]
+
+
 class TestValidate:
-    def test_an_empty_project_is_valid(self, tmp_path: Path) -> None:
-        assert validate(ProjectPaths(tmp_path)) == ()
+    def test_an_empty_project_has_nothing_to_publish(self, tmp_path: Path) -> None:
+        problems = validate(ProjectPaths(tmp_path))
+        assert other_problems(problems) == [
+            "data/events.json: missing (made by seminars run)",
+            "public/events.json: missing (made by seminars build-site)",
+            "public/status.json: missing (made by seminars build-site)",
+        ]
+        assert feed_problems(problems) == [f"public/feeds/{feed}.ics: missing" for feed in FEED_IDS]
 
     def test_damaged_files_are_named_without_their_content(self, tmp_path: Path) -> None:
         paths = ProjectPaths(tmp_path)
         paths.data_dir.mkdir()
+        paths.events_file.write_text(dump_events([make_event()]), encoding="utf-8")
         paths.health_file.write_text('{"schema_version": 7}\n', encoding="utf-8")
         paths.archive_dir.mkdir()
         paths.archive_file(2025).write_text("{broken\n", encoding="utf-8")
@@ -57,7 +72,7 @@ class TestValidate:
         paths.public_dir.mkdir()
         paths.public_events_file.write_text(f'{{"x": "{NEEDLE}"}}\n', encoding="utf-8")
         paths.public_status_file.write_text("not json at all\n", encoding="utf-8")
-        problems = validate(paths)
+        problems = other_problems(validate(paths))
         assert [problem.split(": ")[0] for problem in problems] == [
             str(paths.health_file),
             "data/archive/2025.jsonl",
@@ -73,7 +88,7 @@ class TestValidate:
         paths = ProjectPaths(tmp_path)
         paths.public_feeds_dir.mkdir(parents=True)
         (paths.public_feeds_dir / "all.ics").write_text("BEGIN:VCALENDAR\n", encoding="utf-8")
-        problems = validate(paths)
+        problems = feed_problems(validate(paths))
         assert len(problems) == len(FEED_IDS) - 1
         assert "public/feeds/picks.ics: missing" in problems
 

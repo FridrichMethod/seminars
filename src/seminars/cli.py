@@ -433,7 +433,8 @@ def validate() -> None:
     """Check data/ and public/: schemas, ICS feeds, secret scan and the charset rule.
 
     Exit status 3 when the secret scan or the charset rule finds something,
-    1 for any other problem.
+    1 for any other problem, a missing data/events.json, site data or feed
+    included (run and build-site come first).
     """
     with failures():
         project = open_project()

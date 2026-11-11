@@ -469,6 +469,13 @@ class TestValidate:
         assert result.exit_code == 0, result.output
         assert result.output.splitlines()[-1] == "result: ok"
 
+    def test_a_project_without_outputs_does_not_pass(self, project: Path, fakes: Fakes) -> None:
+        result = invoke("validate")
+        assert result.exit_code == 1
+        assert "problem: data/events.json: missing (made by seminars run)" in result.output
+        assert "problem: public/feeds/all.ics: missing" in result.output
+        assert result.output.splitlines()[-1] == "result: failed"
+
     def test_a_charset_problem_is_status_three(self, project: Path, fakes: Fakes) -> None:
         assert invoke("run", "--offline").exit_code == 0
         (project / "data" / "note.txt").write_text("no final newline", encoding="utf-8")
