@@ -639,7 +639,7 @@ def entry_times(entry: Entry, detail: Detail) -> tuple[Moment | str | None, Mome
 
 
 def build_drafts(
-    params: RssParams, source: SourceConfig, entry: Entry, detail: Detail, reference: date
+    params: RssParams, source: SourceConfig, entry: Entry, detail: Detail
 ) -> list[EventDraft]:
     item = entry.item
     location = (entry.card.location if entry.card else None) or detail.texts.get("location")
@@ -660,7 +660,7 @@ def build_drafts(
     speaker_text = None if speakers or item is None else item.fields.get("speaker")
     native_id = item.native_id if item else None
     if params.expand_schedule and detail.sessions:
-        return session_drafts(params, common, fields, detail, native_id, reference)
+        return session_drafts(params, common, fields, detail, native_id)
     draft = {
         **common,
         "native_id": native_id,
@@ -682,7 +682,6 @@ def session_drafts(
     fields: Fields,
     detail: Detail,
     native_id: str | None,
-    reference: date,
 ) -> list[EventDraft]:
     """One draft per session of the schedule; skipped headlines and dateless sessions drop."""
     drafts = []
@@ -777,7 +776,7 @@ class RssAdapter:
             href = entry.card.href if entry.card else None
             detail = details.get(href or "", Detail(texts={}))
             try:
-                drafts.extend(build_drafts(params, source, entry, detail, reference))
+                drafts.extend(build_drafts(params, source, entry, detail))
             except ValidationError:
                 logger.debug("source %s: a malformed feed item was skipped", source.id)
         return drafts
