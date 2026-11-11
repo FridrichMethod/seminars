@@ -257,9 +257,12 @@ class PageExtractor(Protocol):
     def extract(self, payload: RawPayload, source: SourceConfig) -> list[EventDraft]:
         """Drafts with ``extraction="llm"`` and ``source_text`` set.
 
-        Every text field is grounded in the page text and every URL occurs in
-        the page; ungrounded fields are dropped. Returns an empty list when
-        the LLM is unavailable; never raises ``LLMError``.
+        Every text field is grounded in the page text and every URL is a
+        link of the page, made absolute with
+        ``seminars.sources.base.absolute_url(document.final_url, link)``;
+        ungrounded fields are dropped. Dates and all-day events follow the
+        conventions of ``EventDraft``. Returns an empty list when the LLM is
+        unavailable; never raises ``LLMError``.
         """
         ...
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, date, datetime, timedelta
 from typing import get_args
 
@@ -42,6 +43,7 @@ from seminars.models import (
     SourceHealthEntry,
     SourceRunResult,
     Speaker,
+    SpeakerDraft,
     TimeWindow,
     UidMap,
     canonical_fields,
@@ -54,6 +56,8 @@ from seminars.models import (
 from seminars.models.base import ascii_url
 from seminars.textrules import data_charset_problems
 
+RELATIVE_LINKS = ["/events/relative-path", "events/1", "//example.edu/x", "example.edu/events"]
+NOT_WEB_PAGES = ["mailto:jane@example.edu", "javascript:void(0)", "ftp://example.edu/x", ""]
 NBSP = chr(0xA0)
 ZERO_WIDTH_SPACE = chr(0x200B)
 ROCKET = chr(0x1F680)
@@ -301,19 +305,103 @@ class TestEventDraft:
         assert draft.speakers == []
         assert draft.field_hints == []
 
-    def test_start_keeps_the_type_it_was_given(self) -> None:
+    def test_datetimes_and_dates_keep_their_type(self) -> None:
         naive = datetime(2026, 11, 17, 16, 0)
+        aware = datetime(2026, 11, 17, 16, 0, tzinfo=PACIFIC)
         assert make_draft(start=naive).start == naive
-        assert make_draft(start=date(2026, 11, 17)).start == date(2026, 11, 17)
-        assert make_draft(start="2026-11-17T16:00:00-08:00").start == "2026-11-17T16:00:00-08:00"
+        assert make_draft(start=aware).start == aware
+        day = make_draft(start=date(2026, 11, 17)).start
+        assert day == date(2026, 11, 17)
+        assert not isinstance(day, datetime)
 
-    def test_raw_values_are_allowed(self) -> None:
+    def test_iso_strings_get_their_typed_form(self) -> None:
+        assert make_draft(start="2026-11-17T16:00:00-08:00").start == datetime(
+            2026, 11, 17, 16, 0, tzinfo=PACIFIC
+        )
+        assert make_draft(start="2026-11-17T16:00").start == datetime(2026, 11, 17, 16, 0)
+        assert make_draft(start="2026-11-17 16:00:00Z").start == datetime(
+            2026, 11, 17, 16, 0, tzinfo=UTC
+        )
+        assert make_draft(start=" 2026-11-17 ").start == date(2026, 11, 17)
+        assert make_draft(end="2026-11-19").end == date(2026, 11, 19)
+
+    def test_a_date_only_string_means_all_day_and_never_midnight(self) -> None:
+        draft = make_draft(start="2026-11-17", end=None)
+        assert draft.start == date(2026, 11, 17)
+        assert not isinstance(draft.start, datetime)
+        assert draft.is_all_day
+        assert draft == make_draft(start=date(2026, 11, 17), end=None)
+
+    def test_other_strings_are_left_for_normalization(self) -> None:
+        for text in ("Nov 12, 2026 11am", "Tuesday 4:15 PM", "1700000000", "17/11/2026"):
+            assert make_draft(start=text).start == text
+            assert (
+                EventDraft.model_validate_json(make_draft(start=text).model_dump_json()).start
+                == text
+            )
+
+    @pytest.mark.parametrize("value", [None, 1700000000, 12.5, "", "   ", ["2026-11-17"]])
+    def test_start_must_be_a_time(self, value: object) -> None:
+        with pytest.raises(ValidationError):
+            make_draft(start=value)
+        with pytest.raises(ValidationError):
+            make_draft(end="")
+        assert make_draft(end=None).end is None
+
+    @pytest.mark.parametrize(
+        ("start", "end"),
+        [
+            ("2026-11-17", None),
+            ("2026-11-17", "2026-11-19"),
+            (date(2026, 11, 17), date(2026, 11, 19)),
+            ("2026-11-17T16:00:00-08:00", "2026-11-17T17:00:00-08:00"),
+            (datetime(2026, 11, 17, 16, 0), None),
+            ("Nov 12, 2026 11am", "noon"),
+        ],
+    )
+    def test_a_draft_is_the_same_however_it_is_loaded(self, start: object, end: object) -> None:
+        """The LLM cache stores drafts as JSON; they must come back with the same types."""
+        draft = make_draft(start=start, end=end, source_text="page text", extraction="llm")
+        from_json = EventDraft.model_validate_json(draft.model_dump_json())
+        from_dict = EventDraft.model_validate(json.loads(draft.model_dump_json()))
+        from_python = EventDraft.model_validate(draft.model_dump())
+        assert from_json == from_dict == from_python == draft
+        assert type(from_json.start) is type(from_dict.start) is type(draft.start)
+        assert type(from_json.end) is type(from_dict.end) is type(draft.end)
+
+    def test_all_day_drafts(self) -> None:
+        timed = make_draft()
+        assert not timed.is_all_day
+        assert make_draft(all_day=True).is_all_day
+        assert make_draft(start=date(2026, 11, 17), end=date(2026, 11, 19)).is_all_day
+        assert not make_draft(start="next Tuesday").is_all_day
+        workshop = make_draft(start="2026-11-17", end="2026-11-19")
+        assert (workshop.start, workshop.end) == (date(2026, 11, 17), date(2026, 11, 19))
+
+    def test_text_fields_are_raw(self) -> None:
         draft = make_draft(
             title="<h2><a href='/x'>Talk &amp; discussion</a></h2>",
-            url="/events/relative-path",
             stream_url="https://stanford.zoom.us/j/1?pwd=secret",
         )
-        assert draft.stream_url is not None
+        assert draft.title == "<h2><a href='/x'>Talk &amp; discussion</a></h2>"
+        assert draft.stream_url == "https://stanford.zoom.us/j/1?pwd=secret"
+
+    @pytest.mark.parametrize("link", [*RELATIVE_LINKS, *NOT_WEB_PAGES, "https://example.edu/a b"])
+    def test_urls_must_be_absolute_http_urls(self, link: str) -> None:
+        with pytest.raises(ValidationError, match=r"absolute http\(s\) URL|whitespace"):
+            make_draft(url=link)
+        with pytest.raises(ValidationError):
+            make_draft(stream_url=link)
+        with pytest.raises(ValidationError):
+            SpeakerDraft(name="Jane Doe", url=link)
+
+    def test_urls_are_kept_as_written_and_may_be_missing(self) -> None:
+        url = "HTTPS://Example.edu/Events?id=1#top"
+        draft = make_draft(url=url, stream_url=None, speakers=[{"name": "Jane Doe", "url": url}])
+        assert draft.url == url
+        assert draft.speakers[0].url == url
+        assert make_draft(url=None).url is None
+        assert SpeakerDraft(name="Jane Doe").url is None
 
     def test_llm_extraction_requires_source_text(self) -> None:
         with pytest.raises(ValidationError, match="source_text"):

@@ -36,8 +36,16 @@ Rules for adapters:
 * ``parse`` is a pure function of the payload and the source entry. Use
   ``payload.fetched_at`` as "now" (for example to infer a missing year).
   Copy what the source says into ``EventDraft``; cleaning is not its job.
+* Times and URLs are the exception, because only the adapter knows the page
+  and the format they came from. ``EventDraft`` documents what a date, a
+  date-only string and the end of an all-day event mean; convert the
+  source's convention to that one. Every URL in a draft is absolute:
+  resolve each link with ``absolute_url(document.final_url, link)``, which
+  gives ``None`` for anything that is not a web page.
 * Raise ``ParseError`` when a response cannot be understood at all; skip
-  single malformed items instead of failing the whole source.
+  single malformed items instead of failing the whole source. A draft that
+  breaks the rules above raises ``pydantic.ValidationError`` when it is
+  built; that is a malformed item too.
 * Adapter classes take no constructor arguments and keep no state between
   calls.
 
@@ -58,9 +66,18 @@ import threading
 from collections.abc import Callable, Sequence
 from types import ModuleType
 from typing import Final, Protocol, runtime_checkable
+from urllib.parse import urljoin
 
 from seminars.httpbase import HttpClient
-from seminars.models import EventDraft, FetchedDocument, RawPayload, SourceConfig, TimeWindow
+from seminars.models import (
+    EventDraft,
+    FetchedDocument,
+    RawPayload,
+    SourceConfig,
+    TimeWindow,
+    ascii_url,
+    check_http_url,
+)
 
 ADAPTER_PACKAGES: Final = ("seminars.sources.generic", "seminars.sources.custom")
 """Packages whose modules are imported by adapter discovery."""
@@ -280,6 +297,25 @@ def get_adapter(name: str) -> Adapter:
     """
     REGISTRY.discover(strict=False)
     return REGISTRY.create(name)
+
+
+def absolute_url(base: str, link: str | None) -> str | None:
+    """``link`` as an absolute http(s) URL, or ``None`` when it does not name a web page.
+
+    ``base`` is the address of the document the link was found in; pass
+    ``document.final_url`` so that links on a redirected page resolve
+    correctly. Relative links are resolved against it, surrounding
+    whitespace is dropped and characters outside printable ASCII are
+    percent-encoded. Missing and empty links, other schemes (``mailto:``,
+    ``tel:``, ``javascript:``) and links that cannot be parsed give
+    ``None``. Use it for every URL that goes into an ``EventDraft``.
+    """
+    if link is None or not link.strip():
+        return None
+    try:
+        return check_http_url(ascii_url(urljoin(base, link.strip())))
+    except ValueError:
+        return None
 
 
 def make_payload(

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from factories import REFERENCE_NOW, make_document, make_source, make_window
+from factories import REFERENCE_NOW, make_document, make_draft, make_source, make_window
 from fakes import FakeHttpClient
 from seminars.http import FixtureNotFoundError, HttpClient
 from seminars.models import (
@@ -33,6 +33,7 @@ from seminars.sources.base import (
     DuplicateAdapterError,
     ParseError,
     UnknownAdapterError,
+    absolute_url,
     fetch_urls,
     make_payload,
 )
@@ -435,3 +436,47 @@ class TestFetchHelpers:
 
     def test_parse_error_is_an_adapter_error(self) -> None:
         assert issubclass(ParseError, base.AdapterError)
+
+
+PAGE_URL = "https://dept.example.edu/events/upcoming?page=2"
+OTHER_SCHEMES = ["mailto:jane@example.edu", "tel:+16505551234", "javascript:void(0)"]
+OTHER_SCHEMES += ["ftp://example.edu/file", "data:text/plain,hello"]
+
+
+class TestAbsoluteUrl:
+    @pytest.mark.parametrize(
+        ("link", "expected"),
+        [
+            ("https://other.example.org/talk", "https://other.example.org/talk"),
+            ("/events/42", "https://dept.example.edu/events/42"),
+            ("42", "https://dept.example.edu/events/42"),
+            ("../people/jane", "https://dept.example.edu/people/jane"),
+            ("?page=3", "https://dept.example.edu/events/upcoming?page=3"),
+            ("//cdn.example.org/x", "https://cdn.example.org/x"),
+            ("#abstract", "https://dept.example.edu/events/upcoming?page=2#abstract"),
+            ("  /events/42\n", "https://dept.example.edu/events/42"),
+            ("/events/my talk", "https://dept.example.edu/events/my%20talk"),
+            ("/caf" + chr(0xE9), "https://dept.example.edu/caf%C3%A9"),
+            ("/a%20b?q=1&r=%C3%A9", "https://dept.example.edu/a%20b?q=1&r=%C3%A9"),
+        ],
+    )
+    def test_links_are_resolved_against_the_page(self, link: str, expected: str) -> None:
+        assert absolute_url(PAGE_URL, link) == expected
+        assert make_draft(url=absolute_url(PAGE_URL, link)).url == expected
+
+    @pytest.mark.parametrize("link", [None, "", "   ", "http://[broken", *OTHER_SCHEMES])
+    def test_links_that_are_not_web_pages_give_none(self, link: str | None) -> None:
+        assert absolute_url(PAGE_URL, link) is None
+        assert make_draft(url=absolute_url(PAGE_URL, link)).url is None
+
+    def test_a_relative_link_needs_an_absolute_base(self) -> None:
+        assert absolute_url("/events", "42") is None
+        assert absolute_url("", "https://example.edu/x") == "https://example.edu/x"
+
+    def test_the_base_of_a_redirected_page_is_its_final_url(self) -> None:
+        document = make_document(
+            "https://dept.example.edu/events", final_url="https://www.example.edu/dept/events/"
+        )
+        assert absolute_url(document.final_url, "talk-1") == (
+            "https://www.example.edu/dept/events/talk-1"
+        )
