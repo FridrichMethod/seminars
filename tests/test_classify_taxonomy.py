@@ -60,6 +60,61 @@ def campus(
     return make_candidate(event, **{**base, **hints})
 
 
+# Labels of the subject, type and audience filters of the Stanford Events calendar
+# (/api/2/events/filters, recorded 2026-11-11).
+LOCALIST_FILTER_LABELS: tuple[str, ...] = (
+    "Arts/Media",
+    "Theater/Dance",
+    "Health/Wellness",
+    "Music",
+    "Business",
+    "Career Development",
+    "Education",
+    "Engineering/Technology",
+    "Environment/Sustainability",
+    "Humanities",
+    "Diversity/Identity",
+    "International Affairs",
+    "Law/Public Policy/Politics",
+    "Medicine",
+    "Religion/Spirituality",
+    "Science",
+    "Social Justice/Human Rights",
+    "Public Service/Government",
+    "Working at Stanford",
+    "Class/Seminar",
+    "Conference/Symposium",
+    "Exhibition",
+    "Film/Screening",
+    "Lecture/Presentation/Talk",
+    "Meeting",
+    "Fitness/Recreational Sport",
+    "Performance",
+    "Social Event/Reception",
+    "Tour",
+    "Workshop",
+    "Other",
+    "Academic Dates",
+    "Student Billing Dates",
+    "PhD Defense",
+    "Religious/Spiritual",
+    "Support Space",
+    "Students",
+    "Students - Undergraduates",
+    "Students - Graduates",
+    "Postdocs",
+    "Faculty",
+    "Staff",
+    "Affiliates",
+    "General Public",
+    "Staff - Academic",
+    "Everyone",
+    "Staff - Managers",
+    "Alumni",
+    "Members",
+)
+
+
 class _UniqueKeyLoader(yaml.SafeLoader):
     """SafeLoader that fails on a key that appears twice in one mapping."""
 
@@ -125,6 +180,11 @@ class TestFile:
     def test_every_term_matches_its_own_spelling(self, taxonomy: Taxonomy) -> None:
         for place, terms in term_lists(taxonomy).items():
             assert unmatchable(terms) == [], place
+
+    def test_no_department_is_a_broad_calendar_filter(self, taxonomy: Taxonomy) -> None:
+        """A subject such as "Medicine" also holds wellness fairs; it must never be a fact."""
+        broad = {label_key(label) for label in LOCALIST_FILTER_LABELS}
+        assert [label for label in taxonomy.departments if label_key(label) in broad] == []
 
     def test_departments_are_distinct_labels(self, taxonomy: Taxonomy) -> None:
         keys = [label_key(label) for label in taxonomy.departments]
@@ -317,6 +377,8 @@ def test_series_imply_their_field(tagger: FieldTagger, series: str, field: str) 
         (["Microbiology and Immunology"], ["bio", "med"]),
         (["SLAC National Accelerator Laboratory"], ["physics"]),
         (["Stanford Medicine"], ["med"]),
+        (["Department of Medicine"], ["med"]),
+        (["Medicine", "Health/Wellness"], []),
         (["History"], []),
     ],
 )

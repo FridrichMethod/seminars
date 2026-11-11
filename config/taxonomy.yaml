@@ -883,9 +883,18 @@ fields:
 # you do not want to edit.
 source_defaults: {}
 
-# Department or category label of the source (Localist departments, for example)
-# -> fields. A label must equal the source's label, ignoring case, accents and
-# punctuation: "Department of Chemistry" and "Chemistry" are different labels.
+# Category label of a source (EventHints.categories) -> fields. A label must equal
+# the source's label, ignoring case, accents and punctuation: "Department of
+# Chemistry" and "Chemistry" are different labels. A match is a source field: it
+# is final, vetoes do not remove it and the LLM never sees it.
+#
+# This list is for sources whose adapter has no department map of its own. The
+# Stanford Events calendar has one (department_fields and group_fields in
+# config/sources.d/localist.yaml, with the exact names of its units); put a
+# department of that calendar there, not here. Never list a label of a broad
+# subject, type or audience filter: the calendar files wellness fairs, nutrition
+# classes and medical humanities under the subject "Medicine", so "Medicine" is
+# not a department here ("Department of Medicine" is).
 departments:
   Mathematics: [math]
   Department of Mathematics: [math]
@@ -940,7 +949,6 @@ departments:
   Geophysics: [physics]
   Stanford Medicine: [med]
   School of Medicine: [med]
-  Medicine: [med]
   Department of Medicine: [med]
   Pediatrics: [med]
   Surgery: [med]
