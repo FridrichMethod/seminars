@@ -81,6 +81,7 @@ SAME_IN_BOTH_LANGUAGES = {
     "site.event.time_range",
     "site.institutions.slac",
     "site.institutions.biohub",
+    "site.status.groups.researchseminars",
 }
 
 
@@ -352,6 +353,7 @@ class TestMessageKeys:
             "site.institutions.",
             "site.event_types.",
             "site.filters.range_options.",
+            "site.status.groups.",
             "site.status.states.",
             "site.subscribe.apple.steps.",
         }

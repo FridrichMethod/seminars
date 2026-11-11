@@ -224,6 +224,13 @@
         "failures": "Failures in a row",
         "error": "Error"
       },
+      "groups": {
+        "localist": "Stanford Events calendar",
+        "stanford-sites": "Stanford department sites",
+        "stanford-custom": "Stanford lab and center pages",
+        "bayarea": "Bay Area institutes",
+        "researchseminars": "researchseminars.org"
+      },
       "states": {
         "ok": "OK",
         "empty": "No events",

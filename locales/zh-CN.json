@@ -224,6 +224,13 @@
         "failures": "连续失败次数",
         "error": "错误"
       },
+      "groups": {
+        "localist": "斯坦福活动日历",
+        "stanford-sites": "斯坦福院系网站",
+        "stanford-custom": "斯坦福实验室与中心网页",
+        "bayarea": "湾区研究机构",
+        "researchseminars": "researchseminars.org"
+      },
       "states": {
         "ok": "正常",
         "empty": "没有事件",

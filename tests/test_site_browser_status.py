@@ -18,6 +18,19 @@ from test_site_browser import Session, catalog, sample, serve_json
 
 pytestmark = pytest.mark.browser
 
+# The facts of every source card, as {source id: {term: description}}.
+FACTS = """() => Object.fromEntries(
+  [...document.querySelectorAll("#sources article")].map((card) => [
+    card.dataset.source,
+    Object.fromEntries(
+      [...card.querySelectorAll("dt")].map((term) => [
+        term.textContent,
+        term.nextElementSibling.textContent,
+      ]),
+    ),
+  ]),
+)"""
+
 site_dir = harness.site_dir
 base_url = harness.base_url
 browser = harness.browser
@@ -52,6 +65,7 @@ class TestStatusPage:
                 {
                     "id": "custom-off",
                     "name": "Switched off",
+                    "group": "campus-radio",
                     "url": "file://example.org/etc/passwd",
                     "state": "disabled",
                 },
@@ -77,6 +91,8 @@ class TestStatusPage:
         off = page.locator('article[data-source="custom-off"]')
         assert off.locator(".source-name a").count() == 0
         assert off.locator(".source-name").text_content() == "Switched off"
+        group = english["site.status.columns.group"]
+        assert current.page.evaluate(FACTS)["custom-off"][group] == "campus-radio"
         assert odd.locator(".badge-state").text_content() == english["site.status.states.unknown"]
         assert odd.locator("dt").all_text_contents() == [
             english["site.status.columns.events"],
@@ -111,4 +127,24 @@ class TestStatusPage:
         assert "claude-cli" in summary
         unlinked = page.locator('article[data-source="rsorg-new-series"] .source-name a')
         assert unlinked.count() == 0
+        current.assert_clean()
+
+    @pytest.mark.parametrize(
+        ("path", "lang"), [("status.html", "en"), ("status.html?lang=zh", "zh-CN")]
+    )
+    def test_known_groups_are_named_in_the_language_of_the_page(
+        self, session: Callable[..., Session], path: str, lang: str
+    ) -> None:
+        current = session().open(path)
+        messages = catalog(lang)
+        facts = current.page.evaluate(FACTS)
+        sources = sample("status.json")["sources"]
+        assert {source["group"] for source in sources} == {
+            key.removeprefix("site.status.groups.")
+            for key in messages
+            if key.startswith("site.status.groups.")
+        }
+        for source in sources:
+            shown = facts[source["id"]][messages["site.status.columns.group"]]
+            assert shown == messages[f"site.status.groups.{source['group']}"], source["id"]
         current.assert_clean()

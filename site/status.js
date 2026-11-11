@@ -32,6 +32,14 @@ function stateOf(source) {
   return children("site.status.states.").includes(source.state) ? source.state : "unknown";
 }
 
+/** The name of a source group: the known groups are translated, others shown as given. */
+function groupName(group) {
+  if (typeof group !== "string" || group === "") {
+    return null;
+  }
+  return children("site.status.groups.").includes(group) ? t("site.status.groups." + group) : group;
+}
+
 function sourcesOf(status) {
   return (Array.isArray(status.sources) ? status.sources : []).filter(
     (source) => source !== null && typeof source === "object" && typeof source.name === "string",
@@ -90,7 +98,7 @@ function sourceCard(source, lang) {
     h(
       "dl",
       { class: "facts" },
-      fact("site.status.columns.group", typeof source.group === "string" ? source.group : null),
+      fact("site.status.columns.group", groupName(source.group)),
       fact("site.status.columns.events", formatNumber(count(source.events))),
       fact("site.status.columns.last_run", moment(source.last_run_at, lang) ?? never),
       fact("site.status.columns.last_success", moment(source.last_success_at, lang) ?? never),
