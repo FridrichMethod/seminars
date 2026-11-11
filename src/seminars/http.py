@@ -12,7 +12,8 @@ implementations:
 
 Rules of the live client:
 
-* only ``http`` and ``https`` URLs; a fixed User-Agent from the settings;
+* only ``http`` and ``https`` URLs of public hosts (no localhost, no private
+  addresses); a fixed User-Agent from the settings;
 * robots.txt is fetched once per origin and honoured for ``Disallow`` and
   ``Crawl-delay``; an unreachable robots.txt (network error, 5xx, 429)
   blocks the host, a missing one (other 4xx) allows everything (RFC 9309);
@@ -60,6 +61,7 @@ from seminars.httpbase import (
     RETRY_STATUSES,
     Clock,
     CrawlDelayTooLongError,
+    ForbiddenHostError,
     HostBudgetExceededError,
     HttpClient,
     HttpError,
@@ -73,6 +75,7 @@ from seminars.httpbase import (
     UnsupportedSchemeError,
     ascii_safe,
     is_binary_media_type,
+    is_public_host,
     media_type,
     split_url,
 )
@@ -90,6 +93,7 @@ __all__ = [
     "Clock",
     "CrawlDelayTooLongError",
     "FixtureNotFoundError",
+    "ForbiddenHostError",
     "HostBudgetExceededError",
     "HttpClient",
     "HttpError",
@@ -105,6 +109,7 @@ __all__ = [
     "UnsupportedSchemeError",
     "ascii_safe",
     "is_binary_media_type",
+    "is_public_host",
     "media_type",
     "offline_client",
     "split_url",

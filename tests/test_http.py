@@ -12,6 +12,7 @@ from fakes import FakeClock
 from seminars.config import HttpSettings
 from seminars.http import (
     CrawlDelayTooLongError,
+    ForbiddenHostError,
     HostBudgetExceededError,
     HttpClient,
     HttpError,
@@ -23,6 +24,7 @@ from seminars.http import (
     UnsupportedContentTypeError,
     UnsupportedSchemeError,
     is_binary_media_type,
+    is_public_host,
     media_type,
     split_url,
 )
@@ -106,6 +108,41 @@ class TestBasics:
         with pytest.raises(UnsupportedSchemeError, match="only absolute http"):
             client.get(url)
         assert respx_router.calls.call_count == 0
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://localhost:8000/events",
+            "http://127.0.0.1/admin",
+            "http://[::1]/",
+            "http://10.0.0.5/",
+            "http://192.168.1.10/feed",
+            "http://169.254.169.254/latest/meta-data/",
+            "https://printer.local/",
+            "https://build.internal/secrets",
+        ],
+    )
+    def test_local_and_private_addresses_are_refused(
+        self, client: PoliteClient, respx_router: respx.MockRouter, url: str
+    ) -> None:
+        with pytest.raises(ForbiddenHostError, match="local or private network"):
+            client.get(url)
+        assert respx_router.calls.call_count == 0
+
+    def test_redirect_to_a_private_address_is_refused(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        no_robots(respx_router)
+        respx_router.get(PAGE).respond(302, headers={"Location": "http://169.254.169.254/"})
+        with pytest.raises(ForbiddenHostError):
+            client.get(PAGE)
+
+    def test_public_hosts(self) -> None:
+        assert is_public_host("events.stanford.edu")
+        assert is_public_host("8.8.8.8")
+        assert is_public_host("localhost.example.edu")
+        assert not is_public_host("LOCALHOST.")
+        assert not is_public_host("fe80::1")
 
     def test_error_status_raises(
         self, client: PoliteClient, respx_router: respx.MockRouter

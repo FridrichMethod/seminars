@@ -7,6 +7,7 @@ Everything here is re-exported by ``seminars.http``; import it from there.
 
 from __future__ import annotations
 
+import ipaddress
 from collections.abc import Callable, Collection, Mapping
 from typing import Final, Protocol, runtime_checkable
 from urllib.parse import urlsplit
@@ -22,6 +23,7 @@ Sleeper = Callable[[float], None]
 REDIRECT_STATUSES: Final = frozenset({301, 302, 303, 307, 308})
 RETRY_STATUSES: Final = frozenset({408, 425, 429, 500, 502, 503, 504})
 BINARY_MEDIA_PREFIXES: Final = ("image/", "audio/", "video/", "font/")
+_INTERNAL_SUFFIXES: Final = (".localhost", ".local", ".internal", ".lan", ".home.arpa")
 BINARY_MEDIA_TYPES: Final = frozenset(
     {
         "application/gzip",
@@ -62,6 +64,10 @@ class HttpError(Exception):
 
 class UnsupportedSchemeError(HttpError, ValueError):
     """The URL is not an absolute http(s) URL."""
+
+
+class ForbiddenHostError(HttpError, ValueError):
+    """The URL points at this machine or a private network, never at a public site."""
 
 
 class RobotsDisallowedError(HttpError):
@@ -124,11 +130,29 @@ class HttpClient(Protocol):
         ...
 
 
+def is_public_host(host: str) -> bool:
+    """False for localhost, internal names and non-global IP address literals.
+
+    Sources are public web sites. URLs can also come from scraped pages and
+    redirects, so anything that addresses this machine or a private network
+    is refused instead of fetched.
+    """
+    name = host.lower().rstrip(".")
+    if name == "localhost" or name.endswith(_INTERNAL_SUFFIXES):
+        return False
+    try:
+        return ipaddress.ip_address(name).is_global
+    except ValueError:
+        return True
+
+
 def split_url(url: str) -> tuple[str, str, str]:
-    """Split a URL into ``(origin, host, path-with-query)``; http(s) only."""
+    """Split a URL into ``(origin, host, path-with-query)``; public http(s) only."""
     parts = urlsplit(url)
     host = (parts.hostname or "").lower()
     if parts.scheme not in ("http", "https") or not host:
         raise UnsupportedSchemeError(url, "only absolute http(s) URLs can be fetched")
+    if not is_public_host(host):
+        raise ForbiddenHostError(url, "refusing a local or private network address")
     path = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
     return f"{parts.scheme}://{parts.netloc.lower()}", host, path
