@@ -40,6 +40,13 @@ Rules for adapters:
   single malformed items instead of failing the whole source.
 * Adapter classes take no constructor arguments and keep no state between
   calls.
+
+Thread safety: ``get_adapter``, ``adapter_names`` and ``discover_adapters``
+may be called from several threads at once, for example from one worker
+thread per source. The first caller imports the adapter modules while the
+others wait, so every caller sees the complete registry. An adapter module
+should not call them while it is being imported; if it does, it sees the
+adapters registered so far.
 """
 
 from __future__ import annotations
@@ -47,6 +54,7 @@ from __future__ import annotations
 import importlib
 import pkgutil
 import re
+import threading
 from collections.abc import Callable, Sequence
 from types import ModuleType
 from typing import Final, Protocol, runtime_checkable
@@ -120,12 +128,20 @@ AdapterFactory = Callable[[], Adapter]
 
 
 class AdapterRegistry:
-    """Maps adapter names to factories and imports the adapter packages on demand."""
+    """Maps adapter names to factories and imports the adapter packages on demand.
+
+    ``discover`` is safe to call from several threads; see the module
+    docstring. ``register`` deliberately takes no lock: it runs while a
+    module is being imported, and waiting for a lock there could deadlock
+    with a thread that holds the lock and waits for that very import.
+    """
 
     def __init__(self, packages: Sequence[str] = ADAPTER_PACKAGES) -> None:
         self._packages = tuple(packages)
         self._factories: dict[str, AdapterFactory] = {}
-        self._failures: dict[str, str] | None = None  # None until discovery has run
+        self._discovery_lock = threading.RLock()
+        self._failures: dict[str, str] | None = None  # None until discovery has finished
+        self._collecting: dict[str, str] | None = None  # failures so far, while discovery runs
 
     def register[F: AdapterFactory](self, name: str) -> Callable[[F], F]:
         """Class decorator that registers an adapter under ``name``.
@@ -173,15 +189,27 @@ class AdapterRegistry:
         ``{module name: error}``. With ``strict`` they raise
         ``AdapterDiscoveryError`` (after all modules were tried); otherwise
         they are returned and the healthy modules stay usable.
+
+        Calls from other threads block until the imports are done. A call
+        made by an adapter module while it is being imported does not start
+        a second round; it reports the failures collected so far. Discovery
+        that was interrupted (``KeyboardInterrupt``) starts over next time.
         """
-        if self._failures is None:
-            failures: dict[str, str] = {}
-            self._failures = failures
-            for package_name in self._packages:
-                _import_tree(package_name, failures)
-        if self._failures and strict:
-            raise AdapterDiscoveryError(dict(self._failures))
-        return dict(self._failures)
+        with self._discovery_lock:
+            if self._failures is None and self._collecting is None:
+                collected: dict[str, str] = {}
+                self._collecting = collected
+                try:
+                    for package_name in self._packages:
+                        _import_tree(package_name, collected)
+                    self._failures = collected
+                finally:
+                    self._collecting = None
+            known = self._failures if self._failures is not None else self._collecting
+            failures = dict(known or {})
+        if failures and strict:
+            raise AdapterDiscoveryError(failures)
+        return failures
 
 
 def _describe(factory: AdapterFactory) -> str:
@@ -225,7 +253,7 @@ def register_adapter[F: AdapterFactory](name: str) -> Callable[[F], F]:
 
 
 def discover_adapters(*, strict: bool = True) -> dict[str, str]:
-    """Import all adapter modules (idempotent); see ``AdapterRegistry.discover``."""
+    """Import all adapter modules (idempotent, thread-safe); see ``AdapterRegistry.discover``."""
     return REGISTRY.discover(strict=strict)
 
 
@@ -239,7 +267,8 @@ def get_adapter(name: str) -> Adapter:
     """A new instance of the adapter called ``name``, discovering adapters first.
 
     A module that fails to import only makes its own adapters unknown; the
-    ``UnknownAdapterError`` then names the modules that failed.
+    ``UnknownAdapterError`` then names the modules that failed. Safe to call
+    from several threads.
     """
     REGISTRY.discover(strict=False)
     return REGISTRY.create(name)

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import importlib
 import sys
+import threading
 import uuid
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -49,6 +51,17 @@ class GeneratedAdapter:
             EventDraft(source_id=source.id, extraction="html", start="2026-11-17", title="{name}")
         ]
 """
+
+
+SLOW_MODULE = "import time\n\ntime.sleep(0.2)\n" + ADAPTER_MODULE
+"""An adapter module whose import takes long enough for other threads to pile up."""
+
+REENTRANT_MODULE = (
+    "from seminars.sources import base\n\n"
+    "names_during_import = base.adapter_names()\n"
+    "failures_during_import = base.discover_adapters(strict=False)\n" + ADAPTER_MODULE
+)
+"""An adapter module that asks the registry for its content while it is being imported."""
 
 
 class EchoAdapter:
@@ -253,6 +266,85 @@ class TestDiscovery:
     def test_missing_package_is_reported(self, install: Installer) -> None:
         failures = install("package_that_does_not_exist_anywhere").discover(strict=False)
         assert list(failures) == ["package_that_does_not_exist_anywhere"]
+
+
+class TestConcurrentDiscovery:
+    def test_lookups_from_several_threads_wait_for_discovery(
+        self, install: Installer, make_package: PackageBuilder
+    ) -> None:
+        threads = 4
+        install(make_package({"slow_one.py": SLOW_MODULE.format(name="slow_one")}))
+        barrier = threading.Barrier(threads)
+
+        def lookup() -> Adapter:
+            barrier.wait(timeout=5)
+            return base.get_adapter("slow_one")
+
+        with ThreadPoolExecutor(max_workers=threads) as pool:
+            futures = [pool.submit(lookup) for _ in range(threads)]
+            adapters = [future.result(timeout=10) for future in futures]
+        assert all(isinstance(adapter, Adapter) for adapter in adapters)
+        assert len({id(adapter) for adapter in adapters}) == threads
+
+    def test_names_and_failures_are_complete_for_every_thread(
+        self, install: Installer, make_package: PackageBuilder
+    ) -> None:
+        threads = 4
+        package = make_package(
+            {
+                "broken.py": "raise RuntimeError('boom')\n",
+                "slow_one.py": SLOW_MODULE.format(name="slow_one"),
+            }
+        )
+        install(package)
+        barrier = threading.Barrier(threads)
+
+        def inspect() -> tuple[list[str], dict[str, str]]:
+            barrier.wait(timeout=5)
+            return base.adapter_names(), base.discover_adapters(strict=False)
+
+        with ThreadPoolExecutor(max_workers=threads) as pool:
+            futures = [pool.submit(inspect) for _ in range(threads)]
+            results = [future.result(timeout=10) for future in futures]
+        expected = (["slow_one"], {f"{package}.broken": "RuntimeError: boom"})
+        assert results == [expected] * threads
+
+    def test_an_adapter_module_may_query_the_registry_while_it_is_imported(
+        self, install: Installer, make_package: PackageBuilder
+    ) -> None:
+        package = make_package(
+            {
+                "alpha.py": ADAPTER_MODULE.format(name="alpha"),
+                "beta.py": REENTRANT_MODULE.format(name="beta"),
+                "aaa_broken.py": "raise RuntimeError('boom')\n",
+            }
+        )
+        install(package)
+        failures = {f"{package}.aaa_broken": "RuntimeError: boom"}
+        assert base.discover_adapters(strict=False) == failures
+        assert base.adapter_names() == ["alpha", "beta"]
+        beta = sys.modules[f"{package}.beta"]
+        assert beta.names_during_import == ["alpha"]
+        assert beta.failures_during_import == failures
+
+    def test_an_interrupted_discovery_is_repeated(
+        self, install: Installer, make_package: PackageBuilder, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        interrupt_once = (
+            "import os\n\n"
+            "if os.environ.pop('SEMINARS_TEST_INTERRUPT', ''):\n"
+            "    raise KeyboardInterrupt\n"
+        )
+        package = make_package(
+            {"a_stop.py": interrupt_once, "beta.py": ADAPTER_MODULE.format(name="beta")}
+        )
+        registry = install(package)
+        monkeypatch.setenv("SEMINARS_TEST_INTERRUPT", "1")
+        with pytest.raises(KeyboardInterrupt):
+            registry.discover()
+        assert registry.names() == []
+        assert registry.discover() == {}
+        assert registry.names() == ["beta"]
 
 
 class TestRealAdapterPackages:
