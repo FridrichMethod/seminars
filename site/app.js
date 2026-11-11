@@ -46,7 +46,8 @@ function prepareModel(payload, now) {
   );
   const fields = fieldIds.length ? fieldIds : knownFields;
   const events = prepareEvents(payload.events, tz, fields);
-  const upcoming = events.filter((event) => isUpcoming(event, now));
+  const today = tz.dayKey(now);
+  const upcoming = events.filter((event) => isUpcoming(event, now, today));
   const present = (values) => new Set(upcoming.flatMap(values));
   const institutions = present((event) => [event.institution]);
   const hosts = [...present((event) => (event.host === null ? [] : [event.host]))];
@@ -284,7 +285,7 @@ function renderList() {
   const tz = model.zone;
   const today = tz.dayKey(now);
   const shown = model.events.filter(
-    (event) => isUpcoming(event, now) && matches(event, filters, today),
+    (event) => isUpcoming(event, now, today) && matches(event, filters, today),
   );
   replaceChildren(ui.count, plural("site.results.count", shown.length));
   if (shown.length === 0) {

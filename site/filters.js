@@ -23,7 +23,6 @@ export const PARAMS = Object.freeze({
 const MAX_QUERY_LENGTH = 200;
 const DEFAULT_MINUTES = 60;
 const MINUTE_MS = 60 * 1000;
-const DAY_MS = 24 * 60 * MINUTE_MS;
 const COMBINING_MARKS = /[\u0300-\u036f]/g;
 
 export const NO_FILTERS = Object.freeze({
@@ -63,11 +62,24 @@ function prepareSpeaker(raw) {
     : Object.freeze({ name, affiliation: optional(raw.affiliation), url: str(raw.url) });
 }
 
-function effectiveEnd(start, end, allDay) {
-  if (end !== null && end > start) {
-    return end;
+/** The end of a timed talk: its own end, or the default duration after its start. */
+function timedEnd(start, end) {
+  return end !== null && end > start
+    ? end
+    : new Date(start.getTime() + DEFAULT_MINUTES * MINUTE_MS);
+}
+
+/**
+ * The last calendar day of a talk. An all-day event ends at local midnight after its
+ * last day (exclusive) or has no end (one day); it is counted in calendar days, never as
+ * 24 hours, because a day of the payload's zone is 23 or 25 hours long when the clocks
+ * change.
+ */
+function lastDayOf(start, end, allDay, zone) {
+  if (allDay && end !== null && end > start) {
+    return zone.dayKey(new Date(end.getTime() - 1));
   }
-  return new Date(start.getTime() + (allDay ? DAY_MS : DEFAULT_MINUTES * MINUTE_MS));
+  return zone.dayKey(start);
 }
 
 /**
@@ -87,7 +99,6 @@ export function prepareEvent(raw, zone, fieldIds) {
   }
   const allDay = raw.all_day === true;
   const end = parseTimestamp(raw.end);
-  const ends = effectiveEnd(start, end, allDay);
   const speakers = (Array.isArray(raw.speakers) ? raw.speakers : [])
     .map(prepareSpeaker)
     .filter((speaker) => speaker !== null);
@@ -101,10 +112,10 @@ export function prepareEvent(raw, zone, fieldIds) {
     type: str(raw.event_type),
     start,
     end: end !== null && end > start ? end : null,
-    ends,
+    ends: allDay ? null : timedEnd(start, end),
     allDay,
     startDay: zone.dayKey(start),
-    lastDay: allDay ? zone.dayKey(new Date(ends.getTime() - 1)) : zone.dayKey(start),
+    lastDay: lastDayOf(start, end, allDay, zone),
     location: optional(raw.location),
     online: raw.is_online === true,
     streamUrl: str(raw.stream_url),
@@ -133,9 +144,12 @@ export function prepareEvents(records, zone, fieldIds) {
     .sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
 }
 
-/** True when ``event`` has not ended at ``now``. */
-export function isUpcoming(event, now) {
-  return event.ends > now;
+/**
+ * True when ``event`` has not ended at ``now``; ``today`` is the day key of ``now``. An
+ * all-day event lasts until its last day is over, a timed talk until its end time.
+ */
+export function isUpcoming(event, now, today) {
+  return event.allDay ? event.lastDay >= today : event.ends > now;
 }
 
 /** The search words of a query, folded like the text they are looked for in. */
