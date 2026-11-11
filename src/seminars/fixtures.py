@@ -55,13 +55,13 @@ from seminars.httpbase import (
     HttpError,
     HttpStatusError,
     Resolver,
-    ascii_safe,
     is_binary_media_type,
-    split_url,
 )
+from seminars.httpurl import split_url
 from seminars.models import SOURCE_ID_PATTERN, FetchedDocument, Model, dump_json
 from seminars.models.base import SortedStrList, SourceId, Timestamp, sorted_dict
 from seminars.textio import read_text, write_text_atomic
+from seminars.textrules import ascii_safe
 
 if TYPE_CHECKING:
     from seminars.http import PoliteClient

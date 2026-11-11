@@ -154,18 +154,15 @@ from seminars.httpbase import (
     TooManyRedirectsError,
     UnsupportedContentTypeError,
     UnsupportedSchemeError,
-    ascii_safe,
-    canonical_host,
-    decode_body,
     is_binary_media_type,
-    is_public_address,
-    is_public_host,
     media_type,
-    split_url,
 )
 from seminars.httpcache import CachedPage, CachedRobots, HostRecord, HttpCache
+from seminars.httptext import decode_body
+from seminars.httpurl import canonical_host, is_public_address, is_public_host, split_url
 from seminars.models import FetchedDocument
 from seminars.robots import ALLOW_ALL, ROBOTS_PATH, RobotsPolicy, parse_robots
+from seminars.textrules import ascii_safe
 
 logger = logging.getLogger(__name__)
 
