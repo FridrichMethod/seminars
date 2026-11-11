@@ -1,10 +1,11 @@
 # LLM layer settings. Schema: seminars.config.LLMConfig (unknown keys are an error).
-# Placeholder: no model names or CLI versions are chosen yet, so every provider is
-# effectively unconfigured until this file is filled in.
 # Overrides: LLM_PROVIDERS (comma separated), LLM_MODEL_<PROVIDER>, LLM_BASE_URL.
+# How to set, change and check credentials: docs/LLM_CREDENTIALS.md.
 
-# Provider chain in order of preference. codex-cli is opt-in and local only:
-# it is used only when LLM_PROVIDERS names it, and never inside GitHub Actions.
+# Provider chain in order of preference: subscriptions first, then pay-per-request
+# APIs. A provider joins the chain only when its credential is configured.
+# codex-cli is opt-in and local only: it is used only when LLM_PROVIDERS names it,
+# never inside GitHub Actions, and only for field tagging.
 providers:
   - claude-cli
   - codex-cli
@@ -12,22 +13,32 @@ providers:
   - openai
   - openai-compat
 
+# The cheapest model of each provider that is good enough for tagging and extraction.
+# null means: no model configured. A CLI provider then uses the default of the CLI,
+# an API provider is skipped. openai-compat has no default; set LLM_MODEL_OPENAI_COMPAT.
+# A CLI provider whose login may not use the configured model falls back to the
+# default of the CLI and reports a warning.
 models:
-  claude-cli: null
-  codex-cli: null
-  anthropic: null
-  openai: null
+  claude-cli: haiku             # alias; resolved by the CLI to the current Haiku model
+  codex-cli: gpt-6-luna
+  anthropic: claude-haiku-5-5
+  openai: gpt-6-luna
   openai-compat: null
 
+# The CLI versions the command lines in seminars.llm.claude_cli and
+# seminars.llm.codex_cli were verified with. Claude Code is installed at exactly this
+# version in CI; another installed version is reported as a warning. The flags that
+# switch tools off change between versions: verify again before changing a number here.
 cli_versions:
-  claude-cli: null
-  codex-cli: null
+  claude-cli: "2.1.322"
+  codex-cli: "0.167.0"
 
+# Endpoint of openai-compat, e.g. https://llm.example.org/v1 (or set LLM_BASE_URL).
 base_url: null
 
-batch_size: 20
-max_calls_per_run: 60
-max_input_chars: 12000
-timeout_seconds: 120
-cache_ttl_days: 180
-grounding_min_similarity: 90
+batch_size: 20              # events per tagging request
+max_calls_per_run: 60       # hard cap of provider requests in one run
+max_input_chars: 12000      # longest user prompt that is sent; longer input is skipped
+timeout_seconds: 120        # per request
+cache_ttl_days: 180         # an unused cache entry is pruned after this many days
+grounding_min_similarity: 90  # fuzzy ratio an extracted text needs against the page text
