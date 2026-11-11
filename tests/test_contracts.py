@@ -57,6 +57,7 @@ from seminars.contracts import (
     load_implementation,
 )
 from seminars.http import HttpClient
+from seminars.models import LLMUsage
 from seminars.sources.base import Adapter
 
 PROTOCOL_FAKES: list[tuple[type, object]] = [
@@ -132,6 +133,46 @@ def test_every_protocol_has_a_fake() -> None:
     with_object_fake = {protocol.__name__ for protocol, _ in PROTOCOL_FAKES}
     defined_elsewhere = {"HttpClient", "Adapter"}  # seminars.http and seminars.sources.base
     assert protocols - factories_and_reserved - callables == with_object_fake - defined_elsewhere
+
+
+class TestLLMContractMembers:
+    def test_a_chain_must_offer_usage_and_restricted(self) -> None:
+        class BareClient:
+            name = "bare"
+
+            def complete_json(self, system: str, user: str, schema: type, *, max_tokens: int):
+                raise NotImplementedError
+
+        class OldChain(BareClient):
+            def usage(self) -> LLMUsage:
+                return LLMUsage()
+
+        assert isinstance(BareClient(), LLMClient)
+        assert not isinstance(BareClient(), LLMChainClient)
+        assert not isinstance(OldChain(), LLMChainClient)
+        assert isinstance(FakeLLMClient().restricted(["codex-cli"]), LLMChainClient)
+
+    def test_a_cache_must_report_its_statistics(self) -> None:
+        class OldCache:
+            def get(self, key: str) -> None:
+                return None
+
+            def put(self, key: str, value: object) -> None:
+                return None
+
+            def prune(self) -> int:
+                return 0
+
+        assert not isinstance(OldCache(), LLMCache)
+        assert FakeLLMCache().stats().hits == 0
+
+    def test_cache_hits_are_added_to_the_usage_by_the_cache_owner(self) -> None:
+        llm, cache = FakeLLMClient({"fields": []}), FakeLLMCache({"k": {"fields": ["bio"]}})
+        cache.get("k")
+        cache.get("k")
+        assert llm.usage().cache_hits == 0
+        usage = llm.usage().evolve(cache_hits=cache.stats().hits)
+        assert usage.cache_hits == 2
 
 
 class TestImplementationTable:

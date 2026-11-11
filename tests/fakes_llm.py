@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+import copy
 from collections import deque
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Self
 
 from pydantic import BaseModel, ValidationError
 
-from seminars.contracts import LLMError, LLMInvalidOutputError
+from seminars.contracts import LLMError, LLMInvalidOutputError, LLMUnavailableError
 from seminars.models import (
     Candidate,
     EventDraft,
+    LLMCacheStats,
     LLMFailureKind,
     LLMProviderResult,
     LLMTagResult,
@@ -30,6 +32,7 @@ class LLMCall:
     user: str
     schema: type[BaseModel]
     max_tokens: int
+    excluded: frozenset[str] = frozenset()  # providers the call was barred from (``restricted``)
 
 
 Answer = BaseModel | Mapping[str, Any]
@@ -47,13 +50,22 @@ class FakeLLMClient:
     client. An unscripted call is a test bug and raises ``AssertionError``.
 
         llm = FakeLLMClient({"fields": ["bio"]}).fail(LLMRateLimitError("slow down"))
+
+    ``restricted`` returns a view that shares the script, ``calls`` and the
+    usage with this client. Every call records the providers it was barred
+    from (``LLMCall.excluded``) and ``restrictions`` lists the argument of
+    every ``restricted`` call, so a test can assert that extraction stayed
+    away from the tag-only providers. A view that excludes this client's own
+    ``name`` has no provider left and raises ``LLMUnavailableError``.
     """
 
     def __init__(self, *replies: Scripted, name: str = "fake-llm") -> None:
         self.name = name
         self.calls: list[LLMCall] = []
+        self.excluded: frozenset[str] = frozenset()
+        self.restrictions: list[frozenset[str]] = []
         self._script: deque[Scripted] = deque(replies)
-        self._fallback: Scripted | None = None
+        self._fallback: list[Scripted] = []  # at most one item; a list so that views share it
         self._failures: dict[LLMFailureKind, int] = {}
 
     def script(self, *replies: Scripted) -> Self:
@@ -63,7 +75,7 @@ class FakeLLMClient:
 
     def always(self, reply: Scripted) -> Self:
         """Reply used for every call once the script is exhausted."""
-        self._fallback = reply
+        self._fallback[:] = [reply]
         return self
 
     def fail(self, error: Exception, *, times: int = 1) -> Self:
@@ -71,15 +83,24 @@ class FakeLLMClient:
         self._script.extendleft([error] * times)
         return self
 
+    def restricted(self, exclude: Collection[str]) -> FakeLLMClient:
+        """A view barred from ``exclude`` that shares script, calls and usage with this one."""
+        self.restrictions.append(frozenset(exclude))
+        view = copy.copy(self)  # shallow: the mutable state stays shared
+        view.excluded = self.excluded | frozenset(exclude)
+        return view
+
     def complete_json[T: BaseModel](
         self, system: str, user: str, schema: type[T], *, max_tokens: int
     ) -> T:
-        call = LLMCall(system=system, user=user, schema=schema, max_tokens=max_tokens)
+        if self.name in self.excluded:
+            raise LLMUnavailableError("no provider is left after the restriction")
+        call = LLMCall(system, user, schema, max_tokens, excluded=self.excluded)
         self.calls.append(call)
         if self._script:
             reply = self._script.popleft()
-        elif self._fallback is not None:
-            reply = self._fallback
+        elif self._fallback:
+            reply = self._fallback[0]
         else:
             raise AssertionError(f"FakeLLMClient: call {len(self.calls)} has no scripted reply")
         try:
@@ -149,6 +170,9 @@ class FakeLLMCache:
     def prune(self) -> int:
         self.prunes += 1
         return 0
+
+    def stats(self) -> LLMCacheStats:
+        return LLMCacheStats(hits=self.hits, misses=self.misses, writes=self.writes)
 
 
 class FakeLLMFieldTagger:

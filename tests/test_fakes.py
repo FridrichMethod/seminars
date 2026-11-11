@@ -30,18 +30,20 @@ from fakes import (
 )
 from fakes_llm import FakeLLMCache, FakeLLMClient, FakeLLMFieldTagger, FakePageExtractor, LLMCall
 from fakes_outputs import FakeEmitters
-from seminars.config import AppConfig
+from seminars.config import TAG_ONLY_PROVIDERS, AppConfig
 from seminars.contracts import (
     LABEL_DIGEST,
     LLMAuthError,
     LLMInvalidOutputError,
     LLMRateLimitError,
+    LLMUnavailableError,
 )
 from seminars.http import FixtureNotFoundError, HttpRequestError, HttpStatusError
 from seminars.models import (
     FEED_IDS,
     Event,
     HealthFile,
+    LLMCacheStats,
     LLMTagResult,
     PublicEventsPayload,
     PublicStatusPayload,
@@ -210,13 +212,47 @@ class TestFakeLLMClient:
         assert (result.status, result.failure_kind) == ("failed", "auth")
         assert llm.usage().provider is None
 
+    def test_restricted_view_shares_script_calls_and_usage(self, fake_llm: FakeLLMClient) -> None:
+        fake_llm.script({"fields": ["bio"]}, {"fields": ["chem"]})
+        view = fake_llm.restricted(TAG_ONLY_PROVIDERS)
+        assert view.name == fake_llm.name
+        first = view.complete_json("s", "extract", Fields, max_tokens=1)
+        second = fake_llm.complete_json("s", "tag", Fields, max_tokens=1)
+        assert (first.fields, second.fields) == (["bio"], ["chem"])
+        assert view.calls is fake_llm.calls
+        assert [(call.user, call.excluded) for call in fake_llm.calls] == [
+            ("extract", frozenset({"codex-cli"})),
+            ("tag", frozenset()),
+        ]
+        assert fake_llm.restrictions == [frozenset({"codex-cli"})]
+        assert view.usage() == fake_llm.usage()
+        assert fake_llm.usage().calls == 2
+
+    def test_restrictions_add_up_and_later_replies_reach_the_view(self) -> None:
+        llm = FakeLLMClient()
+        inner = llm.restricted(["codex-cli"]).restricted({"openai"})
+        llm.always({"fields": ["math"]})
+        assert inner.complete_json("s", "u", Fields, max_tokens=1).fields == ["math"]
+        assert llm.calls[0].excluded == {"codex-cli", "openai"}
+        assert llm.restrictions == [frozenset({"codex-cli"}), frozenset({"openai"})]
+
+    def test_a_chain_without_any_allowed_provider_is_unavailable(self) -> None:
+        llm = FakeLLMClient({"fields": ["bio"]}, name="codex-cli")
+        view = llm.restricted(TAG_ONLY_PROVIDERS)
+        with pytest.raises(LLMUnavailableError, match="no provider is left"):
+            view.complete_json("s", "u", Fields, max_tokens=1)
+        assert llm.calls == []
+        assert llm.complete_json("s", "u", Fields, max_tokens=1).fields == ["bio"]
+
 
 class TestClassificationFakes:
     def test_cache(self, fake_llm_cache: FakeLLMCache) -> None:
+        assert fake_llm_cache.stats() == LLMCacheStats()
         assert fake_llm_cache.get("k") is None
         fake_llm_cache.put("k", {"fields": ["bio"]})
         assert fake_llm_cache.get("k") == {"fields": ["bio"]}
         assert (fake_llm_cache.hits, fake_llm_cache.misses, fake_llm_cache.writes) == (1, 1, 1)
+        assert fake_llm_cache.stats() == LLMCacheStats(hits=1, misses=1, writes=1)
         assert fake_llm_cache.prune() == 0
 
     def test_field_tagger_uses_hints_and_overrides(self) -> None:

@@ -86,13 +86,27 @@ class LLMProviderResult(Model):
     warnings: list[str] = []  # e.g. configured model unavailable, CLI version mismatch
 
 
+class LLMCacheStats(Model):
+    """Counters of one ``LLMCache`` since it was opened."""
+
+    hits: Count = 0  # lookups answered from the cache
+    misses: Count = 0  # lookups that found nothing
+    writes: Count = 0  # entries stored
+
+
 class LLMUsage(Model):
-    """LLM activity of one run, as reported by the provider chain."""
+    """LLM activity of one run, as reported by the provider chain.
+
+    The chain cannot see the result cache, which sits in front of it inside
+    the tagger and the page extractor, so it always reports ``cache_hits``
+    as 0. The pipeline, which opens the cache, fills the field in:
+    ``chain.usage().evolve(cache_hits=cache.stats().hits)``.
+    """
 
     enabled: bool = False  # False in rules-only mode
     provider: str | None = None  # provider that answered the most recent successful call
     calls: Count = 0  # requests sent to providers
-    cache_hits: Count = 0  # answers served from data/llm_cache/
+    cache_hits: Count = 0  # answers served from data/llm_cache/; set by the pipeline
     skipped_call_cap: Count = 0  # requests skipped because max_calls_per_run was reached
     skipped_too_long: Count = 0  # requests skipped because the input exceeded max_input_chars
     input_tokens: Count = 0

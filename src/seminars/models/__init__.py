@@ -86,6 +86,7 @@ from seminars.models.public import (
 )
 from seminars.models.report import (
     LastRun,
+    LLMCacheStats,
     LLMFailureKind,
     LLMProviderResult,
     LLMProviderStatus,
@@ -158,6 +159,7 @@ __all__ = [
     "IssueLabel",
     "IssueState",
     "IssueStateFilter",
+    "LLMCacheStats",
     "LLMFailureKind",
     "LLMHealthEntry",
     "LLMProviderHealth",

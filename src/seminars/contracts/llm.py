@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from pathlib import Path
 from typing import Any, ClassVar, Protocol, runtime_checkable
 
@@ -14,6 +14,7 @@ from seminars.config import LLMConfig
 from seminars.models import (
     Candidate,
     EventDraft,
+    LLMCacheStats,
     LLMFailureKind,
     LLMProviderResult,
     LLMTagResult,
@@ -113,7 +114,22 @@ class LLMChainClient(LLMClient, Protocol):
     """
 
     def usage(self) -> LLMUsage:
-        """Everything the run report and health need: counts, cost, per-provider results."""
+        """Everything the run report and health need: counts, cost, per-provider results.
+
+        ``cache_hits`` is always 0 here; see ``LLMUsage``.
+        """
+        ...
+
+    def restricted(self, exclude: Collection[str]) -> LLMChainClient:
+        """A view of this chain that never sends a request to the providers in ``exclude``.
+
+        Everything else is shared with the chain it came from: the call cap
+        of the run, the providers already marked unavailable and the usage
+        (``usage()`` of the chain includes the calls made through the view).
+        When no provider is left, ``complete_json`` of the view raises
+        ``LLMUnavailableError``. Free-text extraction uses
+        ``chain.restricted(TAG_ONLY_PROVIDERS)``; see ``PageExtractorFactory``.
+        """
         ...
 
 
@@ -150,6 +166,13 @@ class LLMCache(Protocol):
 
     def prune(self) -> int:
         """Drop entries that were not hit for the configured number of days; return the count."""
+        ...
+
+    def stats(self) -> LLMCacheStats:
+        """Hits, misses and writes since the cache was opened.
+
+        The pipeline copies ``hits`` into ``LLMUsage.cache_hits`` of the run report.
+        """
         ...
 
 
@@ -232,7 +255,11 @@ class PageExtractorFactory(Protocol):
     any other source.
 
     Extraction requests must never be served by a provider listed in
-    ``seminars.config.TAG_ONLY_PROVIDERS``.
+    ``seminars.config.TAG_ONLY_PROVIDERS``. Enforcing that is the job of the
+    extractor, not of its caller: the pipeline passes the provider chain as
+    it is, and when ``client`` is an ``LLMChainClient`` the extractor sends
+    every request through ``client.restricted(TAG_ONLY_PROVIDERS)``. A plain
+    ``LLMClient`` is used as given.
     """
 
     def __call__(
