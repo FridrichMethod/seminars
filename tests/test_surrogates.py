@@ -9,13 +9,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 import respx
 from hypothesis import given
 from hypothesis import strategies as st
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from factories import make_document, make_draft, make_event
 from fakes import FakeClock, StubResolver
@@ -271,6 +273,156 @@ class TestDumps:
         text = dump_events([event])
         assert encodes(text)
         assert load_events(text) == [event]
+
+
+DEPTH = 2000
+"""Nesting no function can follow by calling itself, and that JSON decoding still takes."""
+
+TOO_DEEP = 100_000
+"""Nesting at which ``json.loads`` gives up with a RecursionError of its own."""
+
+
+def wrapped(leaf: object, kind: str, depth: int = DEPTH) -> Any:
+    """``leaf`` inside ``depth`` containers with one item each; dictionary keys end in HIGH."""
+    value = leaf
+    for level in range(depth):
+        shape = ("list", "tuple", "dict")[level % 3] if kind == "mixed" else kind
+        if shape == "list":
+            value = [value]
+        elif shape == "tuple":
+            value = (value,)
+        else:
+            value = {"k" + HIGH: value}
+    return value
+
+
+def unwrapped(value: Any) -> tuple[int, set[str], object]:
+    """The number of one-item containers around the innermost value, their keys, that value."""
+    depth, keys = 0, set()
+    while isinstance(value, list | tuple | dict) and len(value) == 1:
+        if isinstance(value, dict):
+            keys.update(value)
+            value = next(iter(value.values()))
+        else:
+            value = value[0]
+        depth += 1
+    return depth, keys, value
+
+
+def reference(value: Any) -> Any:
+    """``without_surrogates`` written the short way, which only works for shallow data."""
+    if isinstance(value, str):
+        return strip_surrogates(value)
+    if isinstance(value, dict):
+        return {reference(key): reference(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [reference(item) for item in value]
+    if type(value) is tuple:
+        return tuple(reference(item) for item in value)
+    return value
+
+
+class Pair(tuple[Any, ...]):
+    """A tuple of another type: left alone, like every value that is not plain data."""
+
+
+scalars = st.one_of(st.none(), st.booleans(), st.integers(), st.floats(allow_nan=False), hostile)
+keys = st.one_of(hostile, st.integers(), st.tuples(hostile, st.integers()))
+plain_data = st.recursive(
+    scalars,
+    lambda inner: st.one_of(
+        st.lists(inner, max_size=4),
+        st.lists(inner, max_size=3).map(tuple),
+        st.dictionaries(keys, inner, max_size=4),
+    ),
+    max_leaves=20,
+)
+
+
+class Loose(Model):
+    """A model with a field that takes any data."""
+
+    data: Any = None
+
+
+class TestDeepNesting:
+    """Data nested deeper than the recursion limit is data like any other."""
+
+    def test_the_depth_tested_is_beyond_the_recursion_limit(self) -> None:
+        assert sys.getrecursionlimit() < DEPTH
+
+    @pytest.mark.parametrize("kind", ["list", "tuple", "dict", "mixed"])
+    def test_without_surrogates_walks_data_of_any_depth(self, kind: str) -> None:
+        value = wrapped("a" + HIGH, kind)
+        cleaned = without_surrogates(value)
+        depth, keys, leaf = unwrapped(cleaned)
+        assert (depth, leaf) == (DEPTH, "a")
+        assert keys == ({"k"} if kind in ("dict", "mixed") else set())
+        assert type(cleaned) is type(value)
+        assert unwrapped(value)[2] == "a" + HIGH  # the input was copied, not changed
+
+    @given(plain_data)
+    def test_the_walk_gives_what_the_short_recursive_form_gives(self, value: Any) -> None:
+        assert without_surrogates(value) == reference(value)
+        assert json.dumps(without_surrogates(value), default=str, skipkeys=True).isascii()
+
+    def test_containers_are_copied_and_other_values_are_passed_on(self) -> None:
+        inner = ["x" + HIGH]
+        pair = Pair(("p" + HIGH,))
+        value = {"list": inner, "pair": pair, "tuple": (inner, 1), ("t" + HIGH, 2): None}
+        cleaned = without_surrogates(value)
+        assert cleaned == {"list": ["x"], "pair": pair, "tuple": (["x"], 1), ("t", 2): None}
+        assert cleaned["pair"] is pair
+        assert cleaned["list"] is not inner
+        assert inner == ["x" + HIGH]
+        assert list(cleaned) == ["list", "pair", "tuple", ("t", 2)]
+
+    def test_of_two_keys_that_become_one_the_later_one_counts(self) -> None:
+        value = {"a" + HIGH: ["first"], "a": "second", "b": 1, "b" + LOW: {"x": 2}}
+        cleaned = without_surrogates(value)
+        assert cleaned == {"a": "second", "b": {"x": 2}}
+        assert list(cleaned) == ["a", "b"]
+
+    @pytest.mark.parametrize("kind", ["list", "dict"])
+    def test_parse_json_reads_deeply_nested_json(self, kind: str) -> None:
+        leaf = json.dumps("a" + HIGH)
+        if kind == "list":
+            body = "[" * DEPTH + leaf + "]" * DEPTH
+        else:
+            body = ("{" + json.dumps("k" + HIGH) + ":") * DEPTH + leaf + "}" * DEPTH
+        assert body.isascii()
+        data = make_document("https://x.example.edu/api", body).parse_json()
+        assert unwrapped(data) == (DEPTH, {"k"} if kind == "dict" else set(), "a")
+
+    @pytest.mark.parametrize(("opening", "closing"), [("[", "]"), ('{"k":', "}")])
+    def test_json_that_is_nested_too_deeply_to_decode_is_a_value_error(
+        self, opening: str, closing: str
+    ) -> None:
+        body = opening * TOO_DEEP + "1" + closing * TOO_DEEP
+        with pytest.raises(RecursionError):
+            json.loads(body)
+        document = make_document("https://x.example.edu/api", body)
+        with pytest.raises(ValueError, match="JSON is nested too deeply"):
+            document.parse_json()
+
+    def test_json_that_is_no_json_is_still_a_value_error(self) -> None:
+        with pytest.raises(ValueError, match="Expecting"):
+            make_document(text="[" * DEPTH).parse_json()
+
+    @pytest.mark.parametrize("kind", ["list", "dict", "mixed"])
+    def test_a_model_given_deeply_nested_data_fails_validation_as_usual(self, kind: str) -> None:
+        nested = wrapped("x", kind)
+        with pytest.raises(ValidationError, match="text"):
+            make_document(text=nested)
+        with pytest.raises(ValidationError, match="title"):
+            make_draft(title=nested)
+        with pytest.raises(ValidationError):
+            Bag.model_validate(nested)
+
+    def test_a_model_keeps_deeply_nested_data_in_a_field_that_takes_it(self) -> None:
+        loose = Loose(data=wrapped("a" + HIGH, "mixed"))
+        depth, keys, leaf = unwrapped(loose.data)
+        assert (depth, keys, leaf) == (DEPTH, {"k"}, "a")
 
 
 class TestHttp:

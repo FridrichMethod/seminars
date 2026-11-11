@@ -117,8 +117,16 @@ class FetchedDocument(Model):
         every key and string of the result
         (``seminars.textrules.without_surrogates``); do the same when you
         decode JSON yourself, for example a JSON-LD block of a page.
+
+        JSON that is nested deeper than the decoder can follow (tens of
+        thousands of levels) is a ``ValueError`` as well, never a
+        ``RecursionError``.
         """
-        return without_surrogates(json.loads(self.text))
+        try:
+            data = json.loads(self.text)
+        except RecursionError as error:
+            raise ValueError("JSON is nested too deeply") from error
+        return without_surrogates(data)
 
 
 class RawPayload(Model):

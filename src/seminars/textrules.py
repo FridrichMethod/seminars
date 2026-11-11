@@ -242,16 +242,47 @@ def without_surrogates(value: Any) -> Any:
     Walks dictionaries (keys and values), lists and tuples, which is what
     decoded JSON and the input of a model consist of; any other value is
     returned as it is. Containers are copied, never changed in place.
+
+    Data may be nested to any depth. The walk keeps a list of what is
+    still to do instead of calling itself once per level, so JSON that is
+    nested deeper than the recursion limit of the interpreter is cleaned
+    like any other and never ends in a ``RecursionError``.
     """
-    if isinstance(value, str):
-        return _SURROGATES.sub("", value)
-    if isinstance(value, dict):
-        return {without_surrogates(key): without_surrogates(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [without_surrogates(item) for item in value]
-    if type(value) is tuple:
-        return tuple(without_surrogates(item) for item in value)
-    return value
+    result: list[Any] = [None]
+    # Each entry: a container that is being built, a place in it, the value that belongs
+    # there, and whether that value is the finished list of items of a tuple.
+    todo: list[tuple[Any, Any, Any, bool]] = [(result, 0, value, False)]
+    while todo:
+        target, place, item, is_tuple_items = todo.pop()
+        if is_tuple_items:
+            target[place] = tuple(item)
+        elif isinstance(item, str):
+            target[place] = _SURROGATES.sub("", item)
+        elif isinstance(item, dict):
+            copy: dict[Any, Any] = {}
+            target[place] = copy
+            entries = []
+            for key, inner in item.items():
+                if isinstance(key, str):
+                    key = _SURROGATES.sub("", key)
+                elif type(key) is tuple:
+                    key = without_surrogates(key)  # a key is hashable, so it is not deep
+                copy[key] = None  # keeps the keys in their order
+                entries.append((copy, key, inner, False))
+            # The last entry added is the next one taken, so the first one goes in last.
+            # Entries are then set in their order: of two keys that became one, the later
+            # one counts, as in a dictionary that is built in one go.
+            todo.extend(reversed(entries))
+        elif isinstance(item, list) or type(item) is tuple:
+            items: list[Any] = [None] * len(item)
+            if isinstance(item, list):
+                target[place] = items
+            else:
+                todo.append((target, place, items, True))  # its turn comes after its items
+            todo.extend((items, index, inner, False) for index, inner in enumerate(item))
+        else:
+            target[place] = item
+    return result[0]
 
 
 def ascii_safe(text: str) -> str:
