@@ -1,0 +1,1952 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+<head>
+
+    <meta charset="utf-8">
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width">
+
+    <title>The Stanford Natural Language Processing Group </title>
+
+    <!-- Bootstrap styles -->
+    <link rel="stylesheet" href="/static/css/vendor/bootstrap/bootstrap.css">
+
+    <!-- Glyphicons -->
+    <link rel="stylesheet" href="/static/css/vendor/glyphicons/glyphicons.css">
+    <link rel="stylesheet" href="/static/css/vendor/glyphicons/filetypes.css">
+    <link rel="stylesheet" href="/static/css/vendor/glyphicons/social.css">
+
+    <!-- Google Webfonts -->
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700,600' rel='stylesheet' type='text/css'>
+
+    <!-- fontawesome -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+
+    <link rel="stylesheet" href="/static/css/bootstrap-markdown.min.css" type="text/css">
+
+    <!-- LayerSlider styles -->
+    <link rel="stylesheet" href="/static/css/vendor/layerslider/layerslider.css" type="text/css">
+
+    <!-- twitter -->
+    <meta property="twitter:account_id" content="118263124">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="@stanfordnlp">
+    <meta name="twitter:title" content="The Stanford NLP Group">
+    <meta name="twitter:description" content="Performing groundbreaking
+           Natural Language Processing research since 1999.">
+    <meta name="twitter:image"
+          content="https://nlp.stanford.edu/img/Stanford-NLP-stack-small-465-400px.jpg">
+    <meta name="twitter:url" content="http://nlp.stanford.edu/">
+     <!-- Google analytics -->
+    <script type="text/javascript">
+       var _gaq = _gaq || [];
+           _gaq.push(['_setAccount', 'UA-23880590-1']);
+           _gaq.push(['_trackPageview']);
+       (function() {
+         var ga = document.createElement('script');
+             ga.type = 'text/javascript'; ga.async = true;
+             ga.src = ('https:' == document.location.protocol ?
+               'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+         var s = document.getElementsByTagName('script')[0];
+             s.parentNode.insertBefore(ga, s);
+       })();
+    </script>
+
+    <!-- Grove Styles (switch for different color schemes, e.g. "styles-cleanblue.css") -->
+    <link rel="stylesheet" href="/static/css/styles-cleanred.css" id="grove-styles">
+
+    <link rel="stylesheet" href="//cdn.datatables.net/1.10.7/css/jquery.dataTables.min.css" type="text/css">
+
+    <!-- table highlighting -->
+    <!--<link rel="stylesheet" href="//cdn.datatables.net/plug-ins/1.10.7/features/searchHighlight/dataTables.searchHighlight.css">-->
+
+    <!-- site-wide custom css -->
+    <link rel="stylesheet" href="/static/css/nlp.css" id="nlp-styles">
+
+    <!--[if lt IE 9]>
+        <link rel="stylesheet" href="css/ie8.css">
+        <script src="js/vendor/google/html5-3.6-respond-1.1.0.min.js"></script>
+    <![endif]-->
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script>window.jQuery || document.write('<script src="static/js/vendor/jquery/jquery-1.9.1.min.js"><\/script>')</script>
+    <!-- jQuery with jQuery Easing, and jQuery Transit JS -->
+
+    <!-- LayerSlider from Kreatura Media with Transitions -->
+    <script src="/static/js/vendor/layerslider/greensock.js" type="text/javascript"></script>
+    <script src="/static/js/vendor/layerslider/layerslider.transitions.js" type="text/javascript"></script>
+    <script src="/static/js/vendor/layerslider/layerslider.kreaturamedia.jquery.js" type="text/javascript"></script>
+
+    <!-- Bootstrap Markdown for Blog editing-->
+    <script src="/static/js/markdown.js" type="text/javascript"></script>
+    <script src="/static/js/to-markdown.js" type="text/javascript"></script>
+    <script src="/static/js/bootstrap-markdown.js" type="text/javascript"></script>
+
+    <!-- Grove Layerslider initiation script -->
+    <script src="/static/js/grove-slider.js" type="text/javascript"></script>
+
+    <!-- DataTables.net for publications -->
+    <script src="//cdn.datatables.net/1.10.7/js/jquery.dataTables.min.js"></script>
+
+    <!-- highlighting for tables -->
+    <script src="//cdn.datatables.net/plug-ins/1.10.7/features/searchHighlight/dataTables.searchHighlight.min.js"></script>
+    <script src="//bartaz.github.io/sandbox.js/jquery.highlight.js"></script>
+
+</head>
+<body>
+
+  <!-- navigation -->
+  <header>
+    <nav class="navbar navbar-default grove-navbar" role="navigation">
+      <div class="container">
+	<div class="navbar-header">
+          <a href="#" class="grove-toggle collapsed" data-toggle="collapse" data-target=".grove-nav">   <i class="glyphicons show_lines"></i>  </a>
+          <img class="navbar-brand navbar-left hidden-xs" src="/static/img/logos/Stanford-NLP-icon-144x72.gif" width="144" height="72">
+          <a class="navbar-brand navbar-left" href="/"><h3 class="hidden-xs hidden-sm">The Stanford Natural Language Processing Group</h3><h3 class="hidden-md hidden-lg hidden-xl">The Stanford NLP Group</h3></a>
+	</div>
+
+	<div class="navbar-collapse grove-nav collapse">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="/people/">people</a>
+            </li>
+            <!-- <li> -->
+            <!--   <a href="/pubs/">publications</a> -->
+            <!-- </li> -->
+            <li>
+              <a href="https://ai.stanford.edu/blog/nlp/">research blog</a>
+            </li>
+            <li>
+              <a href="/software/">software</a>
+            </li>
+            <!-- <li> -->
+            <!--   <a href="/teaching/">teaching</a> -->
+            <!-- </li> -->
+	    <li>
+              <a href="/seminar/">seminar</a>
+            </li>
+	    <li>
+              <a href="/prospective/">join</a>
+            </li>
+	    <li>
+              <a href="/support.shtml">donate</a>
+            </li>
+            <li>
+              <a href="/new_local/">local</a>
+            </li>
+
+          </ul>
+	</div><!-- /.navbar-collapse -->
+      </div>
+    </nav>
+  </header>
+
+
+
+  <div class="widewrapper">
+    <!--<div class="container" id="maincontent">-->
+      <div id="body_content">
+<div class="widewrapper pagetitle">
+  <div class="container">
+
+  </div>
+</div>
+
+
+<div class="widewrapper weak-highlight">
+<div class="container content">
+
+
+<!-- THE ACTUAL PAGE CONTENTS START HERE //-->
+<table width="100%" cellpadding="10" cellspacing="0">
+  <tr valign="top">
+
+    <!-- left bar: main content -->
+    <td>
+    <h2>
+      NLP Seminar Schedule &mdash; Spring 2026<br>
+      Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+      Venue: Zoom & Gates 287 (for in-person speakers)
+    <br>
+    </h2>
+    <p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join <a href="https://mailman.stanford.edu/mailman/listinfo/nlp-seminar"> nlp-seminar@lists.stanford.edu </a> for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+    <p>Organizers: <a href="https://asap7772.github.io/">Anikait Singh</a>, <a href="https://i-gao.github.io/">Irena Gao</a>, <a href="https://yuqinan.github.io/">Qinan Yu</a></p>
+    
+    <table class="p" cellpadding="5">
+      <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+      </tr>
+
+      <tr>
+        <td>April 2nd</td>
+        <td><a href="https://ariholtzman.com/">Ari Holtzman</a></td>
+        <td>Seeing Like a Language Model(<a href="https://nlp.stanford.edu/seminar/details/ari_holtzman_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>April 9nd</td>
+        <td><a href="https://debasmita-b.github.io/">Debasmita Bhattacharya</a></td>
+        <td>How and Why Speakers Code-Switch: Insights for Naturalistic Multilingual Speech Generation(<a href="https://nlp.stanford.edu/seminar/details/debasmita_bhattacharya_2026.shtml">details</a>)</td>
+      </tr>
+
+       <tr>
+        <td>April 16th</td>
+        <td><a href="https://cse.osu.edu/people/sun.397">Huan Sun</a></td>
+        <td>Smarter and Safer Every Day? Continual Learning and Safety in Computer-Use Agents(<a href="https://nlp.stanford.edu/seminar/details/huan_sun_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>April 30th</td>
+        <td><a href="https://orgadhadas.github.io/">Hadas Orgad</a></td>
+        <td>Large Language Models Generate Harmful Content Using a Distinct, Unified Mechanism(<a href="https://nlp.stanford.edu/seminar/details/hadas_orgad_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>May 7th</td>
+        <td><a href="https://dpfried.github.io/">Daniel Fried</a></td>
+        <td>Doing More with Less: Behavioral Efficiency in Language Model Agents(<a href="https://nlp.stanford.edu/seminar/details/daniel_fried_2026.shtml">details</a>)</td>
+      </tr>
+
+
+      <tr>
+        <td>May 14th</td>
+        <td><a href="https://najoung.kim/">Najoung Kim</a></td>
+        <td>Language Models for Language Sciences(<a href="https://nlp.stanford.edu/seminar/details/najoung_kim_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>May 21st</td>
+        <td><a href="https://www.ziangxiao.com/">Ziang Xiao</a></td>
+        <td>Evaluation is Power. How can we use it well?(<a href="https://nlp.stanford.edu/seminar/details/ziang_xiao_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>May 28th</td>
+        <td><a href="http://www.tuckute.com/"">Greta Tuckute</a></td>
+        <td>Learning and Representing Language in Brains and LLMs(<a href="https://nlp.stanford.edu/seminar/details/greta_tuckute_2026.shtml">details</a>)</td>
+      </tr>
+
+
+
+
+    </table>
+    <hr>
+    <h2>
+
+    <h2>
+      NLP Seminar Schedule &mdash; Winter 2026<br>
+      Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+      Venue: Zoom & Gates 287 (for in-person speakers)
+    <br>
+    </h2>
+    <p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join <a href="https://mailman.stanford.edu/mailman/listinfo/nlp-seminar"> nlp-seminar@lists.stanford.edu </a> for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+    <p>Organizers: <a href="https://asap7772.github.io/">Anikait Singh</a>, <a href="https://i-gao.github.io/">Irena Gao</a>, <a href="https://yuqinan.github.io/">Qinan Yu</a></p>
+    
+    <table class="p" cellpadding="5">
+      <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+      </tr>
+
+      <tr>
+        <td>Jan 22nd</td>
+        <td><a href="https://swabhs.com/">Swabha Swayamdipta</a></td>
+        <td>Small Samples, Big Reveal: What can we learn from limited observations of Language Model behavior?(<a href="https://nlp.stanford.edu/seminar/details/swabhaswayamdipta_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>Jan 29th</td>
+        <td><a href="https://johntzwei.github.io/">Johnny Wei</a></td>
+        <td>The shape of AI accountability and its contours in copyright(<a href="https://nlp.stanford.edu/seminar/details/johnny_wei_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>Feb 5th</td>
+        <td><a href="https://karinanguyen.com/">Karina Nguyen</a></td>
+        <td>Working with Machines(<a href="https://nlp.stanford.edu/seminar/details/karina_nguyen_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>Feb 12th</td>
+        <td><a href="https://camrobjones.com/">Cameron Jones</a></td>
+        <td>LLMs as simulacra of human social reasoning(<a href="https://nlp.stanford.edu/seminar/details/cameron_jones_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>Feb 19th</td>
+        <td><a href="https://ekdeepslubana.github.io/"">Ekdeep Singh Lubana</a></td>
+        <td>Bayes-ed: Formalizing a Paradigm for Interpretability in the Language of Bayesian Inference(<a href="https://nlp.stanford.edu/seminar/details/ekdeep_singh_lubana_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>Feb 26th</td>
+        <td><a href="https://bunsenfeng.github.io/"">Shangbin Feng</a></td>
+        <td>Protocols of Model Collaboration(<a href="https://nlp.stanford.edu/seminar/details/shangbin_feng_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>March 5th</td>
+        <td><a href="https://zhenwang9102.github.io/"">Zhen Wang</a></td>
+        <td>Building AI that Reasons to Accelerate Real-world Discovery(<a href="https://nlp.stanford.edu/seminar/details/zhen_wang_2026.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>March 12th</td>
+        <td><a href="https://arman-z.github.io/"">Arman Zharmagambetov</a></td>
+        <td>Safety Alignment of LMs via Non-cooperative Games(<a href="https://nlp.stanford.edu/seminar/details/arman_zharmagambetov_2026.shtml">details</a>)</td>
+      </tr>
+
+
+
+    </table>
+    <hr>
+    <h2>
+
+
+    <h2>
+        NLP Seminar Schedule &mdash; Fall 2025<br>
+        Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+        Venue: Zoom & Gates 287 (for in-person speakers)
+    <br>
+    </h2>
+    <p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join <a href="https://mailman.stanford.edu/mailman/listinfo/nlp-seminar"> nlp-seminar@lists.stanford.edu </a> for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+    <p>Organizers: <a href="https://asap7772.github.io/">Anikait Singh</a>, <a href="https://i-gao.github.io/">Irena Gao</a>, <a href="https://yuqinan.github.io/">Qinan Yu</a></p>
+    
+    <table class="p" cellpadding="5">
+      <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+      </tr>
+      <tr>
+        <td>Oct 9</td>
+        <td><a href="https://gaotianyu.xyz/about/">Tianyu Gao</a></td>
+        <td>Enabling Language Models to Process Information at Scale (<a href="https://nlp.stanford.edu/seminar/details/tianyugao_2025.shtml">details</a>)</td>
+      </tr>
+      <tr>
+        <td>Oct 2</td>
+        <td><a href="https://chentong0.github.io/">Tong Chen</a></td>
+        <td>Training Language Models to Know What They Know (<a href="https://nlp.stanford.edu/seminar/details/tongchen_2025.shtml">details</a>) (<a href="http://forms.gle/E1iL719njyG1NfdK9">registration</a>)</td>
+      </tr>
+
+      <tr>
+        <td>Oct 16</td>
+        <td><a href="https://jsteinhardt.stat.berkeley.edu/">Jacob Steinhardt</a></td>
+        <td>Concept Bottleneck Encoders: Teaching Humans to Understand Neural Representations (Stanford internal, in-person only) (<a href="https://nlp.stanford.edu/seminar/details/jacob_steinhardt_2025.shtml">details</a>)</td>
+      </tr>
+      
+      <tr>
+        <td>Oct 23</td>
+        <td><a href="https://noambrown.github.io/">Noam Brown</a></td>
+        <td>Toward Scientific Discovery: Lessons from an AI's IMO Gold Performance (Stanford internal) (<a href="https://nlp.stanford.edu/seminar/details/noam_brown_2025.shtml">details</a>)</td>
+      </tr>
+      
+      <tr>
+        <td>Oct 30</td>
+        <td><a href="https://koh.pw/">Pang Wei Koh</a></td>
+        <td>Learning from contrastive and adaptive data (Stanford internal) (<a href="https://nlp.stanford.edu/seminar/details/pang_wei_koh_2025.shtml">details</a>)</td>
+      </tr>
+      
+      <tr>
+        <td>Nov 6</td>
+        <td><a href="https://wyshi.github.io/">Weiyan Shi</a></td>
+        <td>Beyond the Surface: How Post-Training Artifacts Shape LLM Diversity and Safety (<a href="https://nlp.stanford.edu/seminar/details/weiyan_shi_2025.shtml">details</a>)</td>
+      </tr>
+
+      <tr>
+        <td>Nov 20</td>
+        <td><a href="https://rraileanu.github.io/">Roberta Railenu</a></td>
+        <td>Automating AI Research: How Far Are We? (<a href="https://nlp.stanford.edu/seminar/details/robertarailenu_2025.shtml">details</a>)</td>
+      </tr>
+
+    </table>
+    <hr>
+    <h2>
+
+    <h2>
+        NLP Seminar Schedule &mdash; Winter 2024<br>
+        Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+        Venue: Zoom & Gates 287 (for in-person speakers)
+    <br>
+    </h2>
+    <p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join <a href="https://mailman.stanford.edu/mailman/listinfo/nlp-seminar"> nlp-seminar@lists.stanford.edu </a> for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+    <p>Organizers: <a href="https://noviscl.github.io/">Chenglei Si</a>, <a href="https://nicolemeister.github.io/">Nicole Meister</a>, <a href="https://www.linkedin.com/in/sunny-yu-992421242/">Sunny Yu</a> </p>
+    
+    <table class="p" cellpadding="5">
+      <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+  <tr>
+    <td>Jan 9</td>
+    <td><a href="https://taoyds.github.io/">Tao Yu</a></td>
+    <td>From Vision-Language Models to Computer Use Agents: Data, Methods, and Evaluation (<a href="https://nlp.stanford.edu/seminar/details/taoyu_2024.shtml">details</a>)</td>
+  </tr>
+
+  <tr>
+    <td>Jan 16</td>
+    <td><a href="https://niloofarmireshghallah.com/">Niloofar Mireshghallah</a></td>
+    <td> Privacy, Copyright and Data Integrity: The Cascading Implications of Generative AI (<a href="https://nlp.stanford.edu/seminar/details/niloofarmireshghallah_2024.shtml">details</a>)</td>
+  </tr>
+
+  <tr>
+    <td>Jan 23</td>
+    <td><a href="https://www.linkedin.com/in/ryanchenliu/">Ryan Liu</a></td>
+    <td> Mind Your Step (by Step): Chain-of-Thought can Reduce Performance on Tasks where Thinking Makes Humans Worse (<a href="https://nlp.stanford.edu/seminar/details/niloofarmireshghallah_2024.shtml">details</a>)</td>
+  </tr>
+    
+  <tr>
+    <td>Feb 6</td>
+    <td><a href="https://alexwarstadt.github.io/">Alex Warstadt</a></td>
+    <td> Baby Language Models (<a href="https://nlp.stanford.edu/seminar/details/alexwarstadt_2024.shtml">details</a>)</td>
+  </tr>
+    
+  <tr>
+    <td>Feb 20</td>
+    <td><a href="https://aviralkumar2907.github.io/">Aviral Kumar</a></td>
+    <td>The Key Ingredients for Scaling Test-Time Compute (internal)</td>
+  </tr>
+
+  <tr>
+    <td>Feb 27</td>
+    <td><a href="https://saadiagabriel.com/">Saadia Gabriel</a></td>
+    <td>Simulating Emergent LLM Social Behaviors in Multi-agent Systems (<a href="https://nlp.stanford.edu/seminar/details/saadiagabriel_2025.shtml">details</a>)</td>
+  </tr>
+    
+  <tr>
+    <td>Mar 6</td>
+    <td><a href="https://www.csie.ntu.edu.tw/~yvchen/">Yun-Nung (Vivian) Chen</a></td>
+    <td>Optimizing Interaction and Intelligence -- Multi-Agent Simulation and Collaboration for Personalized Marketing and Advanced Reasoning (<a href="https://nlp.stanford.edu/seminar/details/yun-nungchen_2025.shtml">details</a>)</td>
+  </tr>
+    
+  <tr>
+    <td>Mar 13</td>
+    <td><a href="https://akbir.dev/about/">Akbir Khan</a></td>
+    <td>Multi-Agent Approaches to SuperAlignment (<a href="https://nlp.stanford.edu/seminar/details/akbirkhan_2025.shtml">details</a>)</td>
+  </tr>
+
+  <tr>
+    <td>Apr 3</td>
+    <td><a href="https://akbir.dev/about/">Kayo Yin </a></td>
+    <td>NLP for Signed Languages: Challenges and Opportunities (<a href="https://nlp.stanford.edu/seminar/details/kayoyin_2025.shtml">details</a>)</td>
+  </tr>
+
+  <tr>
+    <td>Apr 10</td>
+    <td><a href="https://leonieweissweiler.github.io/">Leonie Weissweiler </a></td>
+    <td>Rethinking Linguistic Generalisation in LLMs (<a href="https://nlp.stanford.edu/seminar/details/leonie_weissweiler_2025.shtml">details</a>)</td>
+  </tr>
+
+  <tr>
+    <td>Apr 17</td>
+    <td><a href="https://people.eecs.berkeley.edu/~nicholas_tomlin/">Nicholas Tomlin </a></td>
+    <td>Reasoning with Language Models (<a href="https://nlp.stanford.edu/seminar/details/nicholas_tomlin_2025.shtml">details</a>)</td>
+  </tr>
+  
+
+  <tr>
+    <td>May 1</td>
+    <td><a href="https://www.neelnanda.io/">Neel Nanda</a></td>
+    <td> Sparse Autoencoders: Assessing the evidence (<a href="https://nlp.stanford.edu/seminar/details/neel_nanda_2025.shtml">details</a>)</td>
+  </tr>
+
+  <tr>
+    <td>May 8</td>
+    <td><a href="https://pratyushmaini.github.io/">Pratyush Maini</a></td>
+    <td> What Memorization Research Taught Me About Safety (<a href="https://nlp.stanford.edu/seminar/details/pratyushmaini_2025.shtml">details</a>)</td>
+  </tr>
+
+
+  <tr>
+    <td>May 15</td>
+    <td><a href="https://www.mit.edu/~jda/">Jacob Andreas</a></td>
+    <td> Just asking questions (<a href="https://nlp.stanford.edu/seminar/details/jacobandreas_2025.shtml">details</a>)</td>
+  </tr>
+
+
+  <tr>
+    <td>May 22</td>
+    <td><a href="https://www.mit.edu/~jda/">Deqing Fu</a></td>
+    <td> Closing the Modality Gap: Benchmarking and Improving Visual Understanding in Multimodal LLMs (<a href="https://nlp.stanford.edu/seminar/details/deqingfu_2025.shtml">details</a>)</td>
+  </tr>
+
+
+
+  <tr>
+    <td>May 29</td>
+    <td><a href="https://users.cs.duke.edu/~bdhingra/">Bhuwan Dhingra</a></td>
+    <td> Certainty in the face of ambiguity (<a href="https://nlp.stanford.edu/seminar/details/bhuwandhingra_2025.shtml">details</a>)</td>
+  </tr>
+
+
+</table>
+    <hr>
+
+    
+    <h2>
+      NLP Seminar Schedule &mdash; Fall 2024<br>
+      Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+      Venue: Zoom & Gates 287 (for in-person speakers)
+  <br>
+
+  </h2>
+  <p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join <a href="https://mailman.stanford.edu/mailman/listinfo/nlp-seminar"> nlp-seminar@lists.stanford.edu </a> for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+  <p>Organizers: <a href="https://noviscl.github.io/">Chenglei Si</a>, <a href="https://nicolemeister.github.io/">Nicole Meister</a>, <a href="https://www.linkedin.com/in/sunny-yu-992421242/">Sunny Yu</a> </p>
+  
+  <table class="p" cellpadding="5">
+  <tr>
+      <th class="bottomborder" align="left" width="75">Date</th>
+      <th class="bottomborder" align="left" width="150">Speaker</th>
+      <th class="bottomborder" align="left" width="400">Title</th>
+  </tr>
+  <tr>
+    <td>Oct 3</td>
+    <td><a href="https://ruiqi-zhong.github.io/">Ruiqi Zhong</a></td>
+    <td>Concrete Problems in AI Deception: From Evaluation Gaming to Cyber Attack (<a href="https://nlp.stanford.edu/seminar/details/ruiqizhong_2024.shtml">details</a>)</td>
+  </tr>
+  <tr>
+    <td>Oct 10</td>
+    <td><a href="https://harshtrivedi.me/">Harsh Trivedi</a></td>
+    <td> AppWorld: Reliable Evaluation of Interactive Agents in a World of Apps and People (<a href="https://nlp.stanford.edu/seminar/details/harshtrivedi_2024.shtml">details</a>)</td>
+  </tr>
+  <tr>
+    <td>Oct 17</td>
+    <td><a href="https://weijiashi.notion.site/Weijia-Shi-1b72b29f4b3a4fdcabf68b6240d905fa">Weijia Shi</a></td>
+    <td> Beyond Monolithic Language Models (<a href="https://nlp.stanford.edu/seminar/details/weijiashi_2024.shtml">details</a>)</td>
+  </tr>
+  <tr>
+    <td>Oct 24</td>
+    <td><a href="https://jyzhao.net/">Jieyu Zhao</a></td>
+    <td> Building Accountable NLP Models for Social Good (<a href="https://nlp.stanford.edu/seminar/details/jieyuzhao_2024.shtml">details</a>)</td>
+  </tr>
+  <tr>
+    <td>Nov 7</td>
+    <td><a href="https://prithvirajva.com">Raj Ammanabrolu</a></td>
+    <td>Interactive and Grounded Language Learning (<a href="https://nlp.stanford.edu/seminar/details/rajammanabrolu_2024.shtml">details</a>)</td>
+  </tr>
+  <tr>
+    <td>Nov 14</td>
+    <td><a href="https://xiamengzhou.github.io/">Mengzhou Xia</a></td>
+    <td>Aligning Language Models with LESS Data and a Simple (SimPO) Objective (<a href="https://nlp.stanford.edu/seminar/details/mengzhouxia_2024.shtml">details</\
+a>)</td>
+  </tr>
+  <tr>
+    <td>Nov 21</td>
+    <td><a href="https://yuchenlin.xyz/">Bill Yuchen Lin</a></td>
+    <td>Rethinking LLM Alignment: Mechanisms, Data, and Evaluation (<a href="https://nlp.stanford.edu/seminar/details/billyuchenlin_2024.shtml">details</a>)</td>
+  </tr>
+</tr>
+<tr>
+  <td>Dec 5</td>
+  <td><a href="https://lampinen.github.io/">Andrew Lampinen</a></td>
+  <td>Grammar, reasoning, learning: Three short stories on comparative & rational analysis of language model capabilities (<a href="https://nlp.stanford.edu/seminar/details/andrewlampinen_2024.shtml">details</a>)</td>
+</tr>
+  
+  </table>
+  <hr>
+  
+
+<h2>
+    NLP Seminar Schedule &mdash; Summer 2024<br>
+    Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+    Venue: Zoom & Gates 287 (for in-person speakers)
+<br>
+</h2>
+<p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join <a href="https://mailman.stanford.edu/mailman/listinfo/nlp-seminar"> nlp-seminar@lists.stanford.edu </a> for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+<p>Organizers: <a href="https://explanare.github.io/">Jing Huang</a>, <a href="https://wyshi.github.io/">Weiyan Shi</a> </p>
+
+<table class="p" cellpadding="5">
+<tr>
+    <th class="bottomborder" align="left" width="75">Date</th>
+    <th class="bottomborder" align="left" width="150">Speaker</th>
+    <th class="bottomborder" align="left" width="400">Title</th>
+</tr>
+<tr>
+  <td>July 18</td>
+  <td><a href="https://robinjia.github.io/">Robin Jia</a></td>
+  <td>Dissecting Large Language Models (<a href="https://nlp.stanford.edu/seminar/details/robinjia_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Aug 1</td>
+  <td><a href="http://jxmo.io/">Jack Morris</a></td>
+  <td>Inverting Language Models (<a href="https://nlp.stanford.edu/seminar/details/jackmorris_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Sep 5</td>
+  <td><a href="https://trigaten.github.io/">Sander Schulhoff</a></td>
+  <td>The State of Prompt Hacking (<a href="https://nlp.stanford.edu/seminar/details/sanderschulhoff_2024.shtml">details</a>)</td>
+</tr>
+
+</table>
+<hr>
+
+
+<h2>
+    NLP Seminar Schedule &mdash; Spring 2024<br>
+    Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+    Venue: Zoom & Gates 287 (for in-person speakers)
+<br>
+</h2>
+<p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join <a href="https://mailman.stanford.edu/mailman/listinfo/nlp-seminar"> nlp-seminar@lists.stanford.edu </a> for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+<p>Organizers: <a href="https://explanare.github.io/">Jing Huang</a>, <a href="https://wyshi.github.io/">Weiyan Shi</a> </p>
+
+<table class="p" cellpadding="5">
+<tr>
+    <th class="bottomborder" align="left" width="75">Date</th>
+    <th class="bottomborder" align="left" width="150">Speaker</th>
+    <th class="bottomborder" align="left" width="400">Title</th>
+</tr>
+<tr>
+  <td>Apr 4</td>
+  <td><a href="https://www.alanesuhr.com/">Alane Suhr</a></td>
+  <td>Artificial and Natural Language Agents in Interaction (<a href="https://nlp.stanford.edu/seminar/details/alanesuhr_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Apr 11</td>
+  <td><a href="https://yuandong-tian.com/">Yuandong Tian</a></td>
+  <td>Demystifying Attention Mechanism in Transformer and its application for Large Language Models (<a href="https://nlp.stanford.edu/seminar/details/yuandongtian_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Apr 18</td>
+  <td><a href="https://ai.stanford.edu/~prateekv/">Prateek Verma</a></td>
+  <td>What Can Small Language Models Teach LLMs and Us (<a href="https://nlp.stanford.edu/seminar/details/internal_only.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Apr 25</td>
+  <td><a href="https://web.eecs.umich.edu/~chaijy/">Joyce Chai</a></td>
+  <td>Language Communication in Embodied AI: Grounding Matters (<a href="https://nlp.stanford.edu/seminar/details/joycechai_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>May 2</td>
+  <td><a href="https://nsaphra.github.io/">Naomi Saphra</a></td>
+  <td>Interpreting Training (<a href="https://nlp.stanford.edu/seminar/details/naomisaphra_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>May 9</td>
+  <td><a href="https://researchers.cdu.edu.au/en/persons/steven-bird">Steven Bird</a></td>
+  <td>Must NLP be extractive? (<a href="https://nlp.stanford.edu/seminar/details/stevenbird_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>May 16</td>
+  <td><a href="https://karinanguyen.com/">Karina Nguyen</a></td>
+  <td>Language Models: UI Design, Evaluations and Post-training (<a href="https://nlp.stanford.edu/seminar/details/karinanguyen_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>May 23</td>
+  <td><a href="https://www.jasonwei.net/">Jason Wei</a></td>
+  <td>Successful Evals for Large Language Models (<a href="https://nlp.stanford.edu/seminar/details/jasonwei_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>May 30</td>
+  <td><a href="https://www.efleisig.com/">Eve Fleisig</a></td>
+  <td>Linguistic Bias in ChatGPT: Language Models Consistently Reinforce Dialect Discrimination (<a href="https://nlp.stanford.edu/seminar/details/evefleisig_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>June 6</td>
+  <td><a href="https://baulab.info/">David Bau</a></td>
+  <td>Interpreting transformer LMs: Finding Functions and Facts, and a Fabric (<a href="https://nlp.stanford.edu/seminar/details/davidbau_2024.shtml">details</a>)</td>
+</tr>
+</table>
+<hr>
+
+
+<h2>
+    NLP Seminar Schedule &mdash; Winter 2024<br>
+    Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+    Venue: Zoom & Gates 287 (for in-person speakers)
+<br>
+</h2>
+<p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join <a href="https://mailman.stanford.edu/mailman/listinfo/nlp-seminar"> nlp-seminar@lists.stanford.edu </a> for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+<p>Organizers: <a href="https://explanare.github.io/">Jing Huang</a>, <a href="https://wyshi.github.io/">Weiyan Shi</a> </p>
+
+
+<table class="p" cellpadding="5">
+<tr>
+    <th class="bottomborder" align="left" width="75">Date</th>
+    <th class="bottomborder" align="left" width="150">Speaker</th>
+    <th class="bottomborder" align="left" width="400">Title</th>
+</tr>
+<tr>
+  <td>Jan 11</td>
+  <td><a href="https://www.karthiknarasimhan.com">Karthik Narasimhan</a></td>
+  <td>Language Agents: Past, Present and Future (<a href="https://nlp.stanford.edu/seminar/details/karthiknarasimhan_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Jan 18</td>
+  <td><a href="https://www.hongyuanmei.com/">Hongyuan Mei</a></td>
+  <td>Large Language Models as Lego Blocks of Reasoning (<a href="https://nlp.stanford.edu/seminar/details/hongyuanmei_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Jan 25</td>
+  <td><a href="https://jacobeisenstein.github.io/">Jacob Eisenstein</a></td>
+  <td>A Distributional View of Trustworthy Natural Language Processing (<a href="https://nlp.stanford.edu/seminar/details/jacobeisenstein_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 1</td>
+  <td><a href="https://www.daphnei.com/">Daphne Ippolito</a></td>
+  <td>The Challenges of Relying on Language Models Trained on non-Public Data (<a href="https://nlp.stanford.edu/seminar/details/daphneippolito_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 8</td>
+  <td><a href="https://beenkim.github.io/">Been Kim</a></td>
+  <td>Alignment and Interpretability - How We Might Get It Right (<a href="https://nlp.stanford.edu/seminar/details/beenkim_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 15</td>
+  <td><a href="https://peterbhase.github.io/">Peter Hase</a></td>
+  <td>Controlling and Editing Knowledge in Large Language Models (<a href="https://nlp.stanford.edu/seminar/details/peterhase_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 22</td>
+  <td><a href="https://scholar.google.com/citations?user=pZEaPR8AAAAJ&hl=en">Alexander Spangher</a></td>
+  <td>NLP Approaches in Computational Journalism: Newsfinding, Sourcing and Updating Stories (<a href="https://nlp.stanford.edu/seminar/details/alexspangher_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 29</td>
+  <td><a href="https://shauli-ravfogel.netlify.app/">Shauli Ravfogel</a></td>
+  <td>Identifying and Neutralizing Concepts in Neural Representations (<a href="https://nlp.stanford.edu/seminar/details/shauliravfogel_2024.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Mar 7</td>
+  <td><a href="https://jennhu.github.io/">Jennifer Hu</a></td>
+  <td>How to Know What Language Models Know (<a href="https://nlp.stanford.edu/seminar/details/jenniferhu_2024.shtml">details</a>)</td>
+</tr>
+</table>
+<hr>
+
+
+
+
+<h2>
+    NLP Seminar Schedule &mdash; Fall 2023<br>
+    Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+    Venue: Zoom & Gates 287 (for in-person speakers)
+<br>
+</h2>
+<p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join <a href="https://mailman.stanford.edu/mailman/listinfo/nlp-seminar"> nlp-seminar@lists.stanford.edu </a> for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+<p>Organizers: <a href="https://explanare.github.io/">Jing Huang</a>, <a href="https://wyshi.github.io/">Weiyan Shi</a> </p>
+
+
+<table class="p" cellpadding="5">
+<tr>
+    <th class="bottomborder" align="left" width="75">Date</th>
+    <th class="bottomborder" align="left" width="150">Speaker</th>
+    <th class="bottomborder" align="left" width="400">Title</th>
+</tr>
+<tr>
+  <td>Sep 28</td>
+  <td><a href="https://colinraffel.com/">Colin Raffel</a></td>
+  <td>Build an Ecosystem, Not a Monolith (<a href="https://nlp.stanford.edu/seminar/details/colinraffel_2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Oct 5</td>
+  <td><a href="https://www.nazneenrajani.com/">Nazneen Rajani</a></td>
+  <td>Recipe for Training Helpful Chatbots (<a href="https://nlp.stanford.edu/seminar/details/nazneenrajani_2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Oct 12</td>
+  <td><a href="https://tuhinjubcse.github.io/">Tuhin Chakrabarty</a></td>
+  <td>Art or Artifice? Large Language Models and the False Promise of Creativity (<a href="https://nlp.stanford.edu/seminar/details/tuhinchakrabarty_2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Oct 19</td>
+  <td><a href="http://althoff.cs.uw.edu">Tim Althoff</a></td>
+  <td>On the Therapeutic Potential of Language Models (<a href="https://nlp.stanford.edu/seminar/details/timalthoff_2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Oct 26</td>
+  <td><a href="http://gbegus.github.io">Gašper Beguš</a></td>
+  <td>AI Interpretability: Finding Causality in Biological and Artificial Communication Systems (<a href="https://nlp.stanford.edu/seminar/details/gasperbegus_2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 2</td>
+  <td><a href="https://ai.meta.com/people/mike-lewis/">Mike Lewis</a></td>
+  <td>Towards Pretraining Language Models on Extremely Long Sequences (<a href="https://nlp.stanford.edu/seminar/details/mikelewis_2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 9</td>
+  <td><a href="https://jessylin.com/">Jessy Lin</a></td>
+  <td>Toward Interactive Agents That Use Language (<a href="https://nlp.stanford.edu/seminar/details/jessylin_2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 16</td>
+  <td><a href="https://anna-ivanova.net/">Anna Ivanova</a></td>
+  <td>Dissociating Language and Thought in Large Language Models (<a href="https://nlp.stanford.edu/seminar/details/annaivanova_2023.shtml">details</a>)</td>
+</tr>
+</table>
+<hr>
+
+
+
+<h2>
+    NLP Seminar Schedule &mdash; Spring 2023<br>
+    Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+    Venue: Zoom & Gates 287 (for in-person speakers)
+<br>
+</h2>
+<p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join nlp-seminar@lists.stanford.edu for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+<p>Organizers: <a href="https://siyan-sylvia-li.com">Siyan Li</a>, <a href="https://tiiiger.github.io">Tianyi Zhang</a></p>
+
+
+<table class="p" cellpadding="5">
+<tr>
+    <th class="bottomborder" align="left" width="75">Date</th>
+    <th class="bottomborder" align="left" width="150">Speaker</th>
+    <th class="bottomborder" align="left" width="400">Title</th>
+</tr>
+<tr>
+  <td>Apr 6</td>
+  <td><a href="https://mitchellnw.github.io/">Mitchell Wortsman</a></td>
+  <td>Robust and accurate fine-tuning for large neural networks (<a href="https://nlp.stanford.edu/seminar/details/mitchell_wortsman2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Apr 13</td>
+  <td><a href="https://www.cs.princeton.edu/~danqic/">Danqi Chen</a></td>
+  <td>Progress and Challenges Towards Building Retrieval-based Language Models (<a href="https://nlp.stanford.edu/seminar/details/danqi_chen2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Apr 20</td>
+  <td><a href="https://danishpruthi.com/">Danish Pruthi</a></td>
+  <td>Evaluating Explanations (<a href="https://nlp.stanford.edu/seminar/details/danish_pruthi2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>May 4</td>
+  <td><a href="https://pcyin.me/">Pengcheng Yin</a></td>
+  <td>Natural Language to Code Generation for Interactive Data Science (<a href="https://nlp.stanford.edu/seminar/details/pengcheng_yin2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>May 11</td>
+  <td><a href="https://lucy3.github.io/">Lucy Li</a></td>
+  <td>Measuring Depictions and Expressions of Social Groups with NLP (<a href="https://nlp.stanford.edu/seminar/details/lucy_li2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>May 18</td>
+  <td><a href="https://margs.li/">Margaret Li</a>, <a href="https://suchin.io/">Suchin Gururangan</a></td>
+  <td>Branch-Train-Merge (<a href="https://nlp.stanford.edu/seminar/details/margaret_suchin2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>May 25</td>
+  <td><a href="http://victorialin.net/">Victoria Lin</a></td>
+  <td>Large Language Models as Instructable Task Solvers: Lessons Learned and Future Possibilities (<a href="https://nlp.stanford.edu/seminar/details/victoria_lin2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Jun 1</td>
+  <td><a href="https://wyshi.github.io/">Weiyan Shi</a></td>
+  <td>Interactive AI Systems Specialized in Social Influence (<a href="https://nlp.stanford.edu/seminar/details/weiyan_shi2023.shtml">details</a>)</td>
+</tr>
+</table>
+
+<h2>
+    NLP Seminar Schedule &mdash; Winter 2023<br>
+    Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+    Venue: Zoom & Gates 287 (for in-person speakers)
+<br>
+</h2>
+<p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join nlp-seminar@lists.stanford.edu for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+<p>Organizers: <a href="https://siyan-sylvia-li.com">Siyan Li</a>, <a href="https://tiiiger.github.io">Tianyi Zhang</a></p>
+
+
+<table class="p" cellpadding="5">
+<tr>
+    <th class="bottomborder" align="left" width="75">Date</th>
+    <th class="bottomborder" align="left" width="150">Speaker</th>
+    <th class="bottomborder" align="left" width="400">Title</th>
+</tr>
+<tr>
+  <td>Jan 12</td>
+  <td><a href="https://chenhaot.com">Chenhao Tan</a></td>
+  <td>Towards Human-Centered Explanations of AI Predictions (<a href="https://nlp.stanford.edu/seminar/details/chenhao_tan2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 2</td>
+  <td><a href="https://yoavartzi.com">Yoav Artzi</a></td>
+  <td>Learning and Reasoning in Natural Language Interaction (<a href="https://nlp.stanford.edu/seminar/details/yoav_artzi2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 9</td>
+  <td><a href="https://homes.cs.washington.edu/~marcotcr/">Marco Tulio Ribeiro</a></td>
+  <td>Adaptive Testing and Debugging (<a href="https://nlp.stanford.edu/seminar/details/marco_tulio_2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 23</td>
+  <td><a href="https://naslab.ise.bgu.ac.il/orentsur">Oren Tsur</a></td>
+  <td>Modeling Decentralized Group Coordination at Large Scale (<a href="https://nlp.stanford.edu/seminar/details/oren_tsur2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Mar 2</td>
+  <td><a href="https://dennyzhou.github.io">Denny Zhou</a></td>
+  <td>Teach Language Models to Reason (<a href="https://nlp.stanford.edu/seminar/details/denny_zhou2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Mar 9</td>
+  <td><a href="https://eisape.github.io">Tiwa Eisape</a></td>
+  <td>Probing for Incremental Parse States in Autoregressive Language Models (<a href="https://nlp.stanford.edu/seminar/details/tiwa_eisape2023.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Mar 16</td>
+  <td><a href="https://sites.google.com/site/boyilics/home">Boyi Li</a></td>
+  <td>Learning from Large Language Models for Grammar Induction (<a href="https://nlp.stanford.edu/seminar/details/boyi_li2023.shtml">details</a>)</td>
+</tr>
+</table>
+
+<h2>
+    NLP Seminar Schedule &mdash; Fall 2022<br>
+    Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+    Venue: Zoom & Gates 287 (for in-person speakers)
+<br>
+</h2>
+<p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join nlp-seminar@lists.stanford.edu for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+<p>Organizers: <a href="https://siyan-sylvia-li.com">Siyan Li</a>, <a href="https://tiiiger.github.io">Tianyi Zhang</a></p>
+
+
+<table class="p" cellpadding="5">
+<tr>
+    <th class="bottomborder" align="left" width="75">Date</th>
+    <th class="bottomborder" align="left" width="150">Speaker</th>
+    <th class="bottomborder" align="left" width="400">Title</th>
+</tr>
+<tr>
+  <td>Sep 29</td>
+  <td><a href="https://aryamccarthy.github.io/">Arya McCarthy</a></td>
+  <td>Kilolanguage Learning, Projection, and Translation (<a href="https://nlp.stanford.edu/seminar/details/aryamccarthy.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Oct 6</td>
+  <td><a href="https://www.cs.unc.edu/~mbansal">Mohit Bansal</a></td>
+  <td>Unified and Efficient Multimodal Pretraining Across Vision and Language (<a href="https://nlp.stanford.edu/seminar/details/mohitbansal_2022.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Oct 13</td>
+  <td><a href="https://vnpeng.net">Nanyun Peng</a></td>
+  <td>Controllable Text Generation For Open-World Creativity (<a href="https://nlp.stanford.edu/seminar/details/nanyunpeng_2022.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Oct 20</td>
+  <td><a href="https://www.cs.utexas.edu/~gdurrett">Greg Durrett</a></td>
+  <td>Information Synthesis in the Era of GPT-3 (<a href="https://nlp.stanford.edu/seminar/details/gregdurrett_2022.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Oct 27</td>
+  <td><a href="https://homes.cs.washington.edu/~hannaneh">Hanna Hajishirzi</a></td>
+  <td>Toward Robust, Multi-Task Natural Language Processing (<a href="https://nlp.stanford.edu/seminar/details/hannahajishirzi_2022.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 3</td>
+  <td><a href="https://scholar.google.ca/citations?hl=en&user=-y6SIhQAAAAJ&view_op=list_works">Mona Diab</a></td>
+  <td>Systems and Labeling for Arabic Hate Speech Detection: Challenges and Opportunities (<a href="https://nlp.stanford.edu/seminar/details/monadiab_2022.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 10</td>
+  <td><a href="https://research.google/people/SebastianGehrmann">Sebastian Gehrmann</a></td>
+  <td>The state of evaluation in NLP (<a href="https://nlp.stanford.edu/seminar/details/sebastiangehrmann_2022.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 17</td>
+  <td><a href="https://hhexiy.github.io/">He He</a></td>
+  <td>Overcoming spurious correlations in natural language understanding: success and failures (<a href="https://nlp.stanford.edu/seminar/details/hehe_2022.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Dec 8</td>
+  <td><a href="https://scholar.google.com/citations?user=9H74p5MAAAAJ&hl=en">Michiel Bakker</a></td>
+  <td>Fine-tuning language models to find agreement among humans with diverse preferences (<a href="https://nlp.stanford.edu/seminar/details/bakker_2022.shtml">details</a>)</td>
+</tr>
+</table>
+<hr>
+
+<h2>
+    NLP Seminar Schedule &mdash; Spring 2022<br>
+    Thursday <strong>11:00 am -- 12:00 noon</strong><br>
+    Venue: Zoom & Gates 287 (for in-person speakers)
+<br>
+</h2>
+<p><b>We open most talks to the public (even non-stanford affiliates)</b>. Stanford affiliates should join nlp-seminar@lists.stanford.edu for weekly announcements. Non-stanford affiliates can follow us on <a href="https://twitter.com/stanfordnlp">Twitter</a> for announcements and registration.</p>
+<p>Organizers: <a href="http://stanford.edu/~ashwinpp/">Ashwin Paranjape</a></p>
+
+
+<table class="p" cellpadding="5">
+<tr>
+  <td>Aug 18</td>
+  <td></td>
+  <td></td>
+</tr>
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+<tr>
+  <td>Jun 23</td>
+  <td><a href="http://nsaphra.github.io">Naomi Saphra</a></td>
+  <td> Sources of Variance in Pretraining and Finetuning LLMs (<a href="https://nlp.stanford.edu/seminar/details/naomisaphra.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Jun 30</td>
+  <td><a href="https://webdocs.cs.ualberta.ca/~dziri/"> Nouha Dziri</a></td>
+  <td>Towards Building Faithful Conversational Models (<a href="https://nlp.stanford.edu/seminar/details/nouhadziri.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Jul 7</td>
+  <td><a href="https://www.mit.edu/~jda/">Jacob Andreas</a></td>
+  <td>Toward Natural Language Supervision (<a href="https://nlp.stanford.edu/seminar/details/jacobandreas.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Aug 11</td>
+  <td><a href="https://www.cs.cmu.edu/~dkaushik/">Divyansh Kaushik</a></td>
+  <td>Resolving the Human Subjects Status of Machine Learning’s Crowdworkers (<a href="https://nlp.stanford.edu/seminar/details/divyanshkaushik.shtml">details</a>)</td>
+</tr>
+</table>
+<hr>
+
+<h2>
+    NLP Seminar Schedule &mdash; Spring 2022<br>
+<br>
+</h2>
+<p>Organizers: <a href="http://stanford.edu/~ashwinpp/">Ashwin Paranjape</a></p>
+
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+<tr>
+  <td>Mar 31</td>
+  <td><a href="https://annargrs.github.io">Anna Rogers</a></td>
+  <td> Challenges in defining and testing machine verbal reasoning skills (<a href="https://nlp.stanford.edu/seminar/details/annarogers.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Apr 7</td>
+  <td><a href="https://rycolab.io">Ryan Cotterell</a></td>
+  <td>Information-Theoretic Methods in the Study of the Lexicon (<a href="https://nlp.stanford.edu/seminar/details/ryancotterell.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Apr 14</td>
+  <td><a href="https://cims.nyu.edu/~sbowman/">Sam Bowman</a></td>
+  <td>The Dangers of Underclaiming: Reasons for Caution When Reporting How NLP Systems Fail (<a href="https://nlp.stanford.edu/seminar/details/sambowman.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Apr 21</td>
+  <td><a href="https://dieuwkehupkes.nl">Dieuwke Hupkes</a></td>
+  <td>Evaluating generalisation in neural networks for NLP (<a href="https://nlp.stanford.edu/seminar/details/dieuwkehupkes.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Apr 28</td>
+  <td><a href="https://ethanperez.net">Ethan Perez</a></td>
+  <td>Aligning Language Models with Human Preferences (<a href="https://nlp.stanford.edu/seminar/details/ethanperez.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>May 5</td>
+  <td><a href="https://www.cs.utexas.edu/~eunsol/">Eunsol Choi</a></td>
+  <td>Information-seeking Language Understanding in a Dynamic World(<a href="https://nlp.stanford.edu/seminar/details/eunsolchoi.shtml">details</a>)</td>
+</tr>
+<!--<tr>
+  <td>May 12</td>
+  <td><a href="https://www.cs.princeton.edu/~danqic/">Danqi Chen</a></td>
+  <td></td>
+</tr>-->
+<tr>
+  <td>May 19</td>
+  <td><a href="https://people.ischool.berkeley.edu/~dbamman/">David Bamman</a></td>
+  <td>Representation in Literary NLP (<a href="https://nlp.stanford.edu/seminar/details/davidbamman.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Jun 2</td>
+  <td><a href="https://robertcsordas.github.io">Róbert Csordás</a></td>
+  <td>Principles of Compositionality Improve Systematic Generalization of Neural Network (<a href="https://nlp.stanford.edu/seminar/details/robertcsordas.shtml">details</a>)</td>
+</tr>
+</table>
+<hr>
+
+<h2>
+    NLP Seminar Schedule &mdash; Winter 2022<br>
+<br>
+</h2>
+
+<p>Organizers: 
+<a href="http://stanford.edu/~ashwinpp/">Ashwin Paranjape</a>, 
+<a href="https://cs.stanford.edu/~dorarad/">Drew A. Hudson</a>,
+<a href="https://rishibommasani.github.io">Rishi Bommasani</a>
+</p>
+
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+<tr>
+  <td>Jan 12</td>
+  <td><a href="https://fstrub95.github.io">Florian Strub</a></td>
+  <td>Language Emergence at Scale(<a href="https://nlp.stanford.edu/seminar/details/florianstrub.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Jan 19</td>
+  <td><a href="https://jasonwei20.github.io">Jason Wei</a></td>
+  <td>Finetuned Language Models are Zero-Shot Learners (<a href="https://nlp.stanford.edu/seminar/details/jasonwei.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 10</td>
+  <td><a href="https://rajarshd.github.io">Rajarshi Das</a></td>
+  <td>Nonparametric Contextual Reasoning for Question Answering over Knowledge Bases (<a href="https://nlp.stanford.edu/seminar/details/rajarshidas.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 17</td>
+  <td><a href="https://aetting.github.io">Allyson Ettinger</a></td>
+  <td>"Understanding" and prediction: Controlled examinations of meaning sensitivity in pre-trained models (<a href="https://nlp.stanford.edu/seminar/details/allysonettinger.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 24</td>
+  <td><a href="https://www.alanesuhr.com">Alane Suhr</a></td>
+  <td>Reasoning and Learning in Interactive Natural Language Systems (<a href="https://nlp.stanford.edu/seminar/details/alanesuhr.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Mar 3</td>
+  <td><a href="https://krishnap25.github.io">Krishna Pillutla</a></td>
+  <td> MAUVE: Measuring the Gap Between Neural Text and Human Text using Divergence Frontiers (<a href="https://nlp.stanford.edu/seminar/details/krishnapillutla.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Mar 10</td>
+  <td><a href="http://www.dcs.gla.ac.uk/~jeff/">Jeff Dalton</a> and <a href="http://www.carlosgemmell.com">Carlos Gemmell</a></td>
+  <td>Conversation Search and Language Understanding: Current Challenges and Future Directions (<a href="https://nlp.stanford.edu/seminar/details/jeffandcarlos.shtml">details</a>)</td>
+</tr>
+
+<tr>
+  <td>Mar 17</td>
+  <td><a href="https://cs.stanford.edu/people/cgzhu/">Chenguang Zhu</a></td>
+  <td>How We Achieved Human Parity in CommonsenseQA -- Fusing Knowledge into Language Models </td>
+</tr>
+</table>
+<hr>
+<table width="100%" cellpadding="10" cellspacing="0">
+  <tr valign="top">
+
+    <!-- left bar: main content -->
+    <td>
+
+<h2>
+    NLP Seminar Schedule &mdash; Fall 2021<br>
+<br>
+</h2>
+<p>Organizers: 
+<a href="http://stanford.edu/~ashwinpp/">Ashwin Paranjape</a>, 
+<a href="https://cs.stanford.edu/~dorarad/">Drew A. Hudson</a>,
+<a href="https://rishibommasani.github.io">Rishi Bommasani</a>
+</p>
+
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+<tr>
+  <td>Sept 30</td>
+  <td><a href="https://www.linkedin.com/in/sonalsgupta">Sonal Gupta</a></td>
+  <td>Recent Advances in Fine-Tuning and Question Answering at Facebook Assistant (<a href="https://nlp.stanford.edu/seminar/details/sonalgupta.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Oct 7</td>
+  <td><a href="https://rohrbach.vision">Marcus Rohrbach</a></td>
+  <td>Reasoning with Embeddings and Symbols for Incorporating Knowledge and Reading Comprehension in Vision and Language Tasks (<a href="https://nlp.stanford.edu/seminar/details/marcusrohrbach.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Oct 14</td>
+  <td><a href="https://www.cs.huji.ac.il/~yoavlevine/">Yoav Levine</a></td>
+  <td>Theoretical insights on pretraining Transformers and their practical applications (<a href="https://nlp.stanford.edu/seminar/details/yoavlevine.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Oct 21</td>
+  <td><a href="https://www.cs.washington.edu/people/faculty/lsz">Luke Zettlemoyer</a></td>
+  <td>Large Language Models: Will they keep getting bigger? And, how will we use them if they do?</td>
+</tr>
+<tr>
+  <td>Oct 28</td>
+  <td><a href="https://www.linkedin.com/in/tom-hope-1433a228/">Tom Hope</a></td>
+  <td>Harnessing Scientific Literature for Boosting Discovery and Innovation (<a href="https://nlp.stanford.edu/seminar/details/tomhope.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 4</td>
+  <td><a href="http://www.sidaw.xyz/">Sida Wang</a></td>
+  <td>Bilingual lexicon induction via co-occurrences and bitexts (<a href="https://nlp.stanford.edu/seminar/details/sidawang.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 11</td>
+  <td><a href="http://web.engr.oregonstate.edu/~leestef/">Stefan Lee</a></td>
+  <td>Telling Embodied Agents What To Do (And The Agents Sometimes Doing It In Reality) (<a href="https://nlp.stanford.edu/seminar/details/stefanlee.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 18</td>
+  <td><a href="https://www.riedelcastro.org/">Sebastian Riedel</a></td>
+  <td></td>
+</tr>
+<tr>
+  <td>Nov 25</td>
+  <td></td>
+  <td></td>
+</tr>
+<tr>
+  <td>Dec 2</td>
+  <td><a href="https://homes.cs.washington.edu/~skgabrie/">Saadia Gabriel</a></td>
+  <td>Modeling misinformation, implied toxicity and commonsense implications with machine reasoning (<a href="https://nlp.stanford.edu/seminar/details/saadiagabriel.shtml">details</a>)</td>
+</tr>
+</table>
+<hr>
+
+
+<h2>
+    NLP Seminar Schedule &mdash; Winter 2021
+<br>
+</h2>
+
+<!--
+<p><b>Anyone (even non-Stanford affliates) can attend these talks </b>(<a href="https://lbre.stanford.edu/sites/default/files/parking_and_circulation_map_0.pdf">Car Parking Map</a>).</del> You can subscribe to the announcements <a href="https://mailman.stanford.edu/mailman/listinfo/nlp-seminar">here</a>. Please reach out to someone in the lab if you are interested in giving a talk.</p>
+-->
+
+<p>Organizer: <a href="https://cs.stanford.edu/~muj/">Jesse Mu</a></p>
+
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+<tr>
+  <td>Jan 14</td>
+  <td><a href="https://iftenney.github.io/">Ian Tenney</a></td>
+  <td>BERTology and Beyond (<a href="https://nlp.stanford.edu/seminar/details/iantenney.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Jan 21</td>
+  <td><a href="http://www.mit.edu/~rplevy/">Roger Levy</a></td>
+  <td>Grammatical generalization in neural language models: insights for theory of human language acquisition and processing (<a href="https://nlp.stanford.edu/seminar/details/rogerlevy.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Jan 28</td>
+  <td>NONE (ACL deadline)</td>
+  <td></td>
+</tr>
+<tr>
+  <td>Feb 4</td>
+  <td>NONE</td>
+  <td></td>
+</tr>
+<tr>
+  <td>Feb 11</td>
+  <td><a href="http://angelikilazaridou.github.io/">Angeliki Lazaridou</a></td>
+  <td>Pitfalls of static language modelling (<a href="https://nlp.stanford.edu/seminar/details/angelikilazaridou.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 18</td>
+  <td><a href="https://sblodgett.github.io/">Su Lin Blodgett</a></td>
+  <td>Language and Justice: Social Implications of Language Technologies (<a href="https://nlp.stanford.edu/seminar/details/sulinblodgett.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 25</td>
+  <td><a href="https://www.cs.cmu.edu/~akhudabu/">Ashique KhudaBukhsh</a></td>
+  <td>Political Polarization and International Conflicts through the Lens of NLP (<a href="https://nlp.stanford.edu/seminar/details/ashiquekhudabukhsh.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Mar 4</td>
+  <td><a href="https://www.ericswallace.com/">Eric Wallace</a></td>
+  <td>What Can We Learn From Vulnerabilities of NLP Models? (<a href="https://nlp.stanford.edu/seminar/details/ericwallace.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/ericwallace.pdf">slides</a>)</td>
+</tr>
+<tr>
+  <td>Mar 11</td>
+  <td><a href="https://conf.ling.cornell.edu/forrestdavis/">Forrest Davis</a></td>
+  <td>Investigating Competing Training Signals in Language (<a href="https://nlp.stanford.edu/seminar/details/forrestdavis.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Mar 18</td>
+  <td><a href="https://lena-voita.github.io/">Elena Voita</a></td>
+  <td>NMT Analysis: The Trade-Off Between Source and Target, and (a Bit of) the Training Process (<a href="https://nlp.stanford.edu/seminar/details/elenavoita.shtml">details</a>)</td>
+</tr>
+</table>
+<hr><hr>
+
+<h2>
+    NLP Seminar Schedule &mdash; Fall 2020
+</h2>
+
+<p>Organizer: <a href="https://cs.stanford.edu/~muj/">Jesse Mu</a></p>
+
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+<tr>
+  <td>Oct 8</td>
+    <td><a href="https://jessethomason.com/">Jesse Thomason</a></td>
+    <td>From Human Language to Agent Action (<a href="https://nlp.stanford.edu/seminar/details/jessethomason.shtml">details</a>, <a href="https://docs.google.com/presentation/d/1l840ewiVrLrUCtSnt5fWHcnr7umgYJGgKdINTyV23fI/edit?usp=sharing">slides</a>)</td>
+</tr>
+<tr>
+  <td>Oct 15</td>
+    <td>NONE</td>
+    <td></td>
+</tr>
+<tr>
+  <td>Oct 22</td>
+    <td><a href="http://www.people.fas.harvard.edu/~yoonkim/">Yoon Kim</a></td>
+    <td>Deep Unsupervised Learning of Syntactic Structure (<a href="https://nlp.stanford.edu/seminar/details/yoonkim.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/yoonkim.pdf">slides</a>)</td>
+</tr>
+<tr>
+  <td>Oct 29</td>
+    <td><a href="http://www.mikelartetxe.com/">Mikel Artxexe</a></td>
+    <td>Unsupervised Machine Translation (<a href="https://nlp.stanford.edu/seminar/details/mikelartetxe.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/mikelartetxe.pdf">slides</a>)</td>
+</tr>
+<tr>
+  <td>Nov 5</td>
+    <td><a href="https://douwekiela.github.io/">Douwe Kiela</a></td>
+    <td>Rethinking Benchmarking in AI (<a href="https://nlp.stanford.edu/seminar/details/douwekiela.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/douwekiela.pdf">slides</a>)</td>
+</tr>
+<tr>
+  <td>Nov 12</td>
+    <td><a href="https://www.cc.gatech.edu/~dyang888/">Diyi Yang</a></td>
+    <td>When Social Context Meets NLP: Learning with Less Data and More Structures (<a href="https://nlp.stanford.edu/seminar/details/diyiyang.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 19</td>
+    <td><a href="https://yonatanbisk.com/">Yonatan Bisk</a></td>
+    <td>Language Should be Embodied—But what does that mean? (<a href="https://nlp.stanford.edu/seminar/details/yonatanbisk.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/yonatanbisk.pdf">slides</a>)</td>
+</tr>
+<tr>
+  <td>Nov 26</td>
+    <td>NONE (thanksgiving)</td>
+    <td></td>
+</tr>
+<tr>
+  <td>Dec 3</td>
+    <td><a href="https://www.linkedin.com/in/gokhan-tur-3294953">Gokhan Tur</a></td>
+    <td>Past, Present, Future of Conversational AI (<a href="https://nlp.stanford.edu/seminar/details/gokhantur.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/gokhantur.pdf">slides</a>)</td>
+</tr>
+<tr>
+  <td>Dec 10</td>
+  <td><a href="https://www.linkedin.com/in/melanie-subbiah-7b702a8a">Melanie Subbiah</a></td>
+  <td>GPT-3: Few-shot Learning with a Giant Language Model (<a href="https://nlp.stanford.edu/seminar/details/melaniesubbiah.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/melaniesubbiah.pdf">slides</a>)</td>
+</tr>
+</table>
+<hr><hr>
+<!-- -------------------------------------------------------- -->
+<h2>
+    NLP Seminar Schedule &mdash; Winter 2020
+<!--; Venue:  Room 392 <a href="https://www-cs.stanford.edu/about/directions">Gates Computer Science Building</a> -->
+</h2>
+
+<!--
+<p><b>Anyone (even non-Stanford affliates) can attend these talks </b>(<a href="https://lbre.stanford.edu/sites/default/files/parking_and_circulation_map_0.pdf">Car Parking Map</a>).</del> You can subscribe to the announcements <a href="https://mailman.stanford.edu/mailman/listinfo/nlp-seminar">here</a>. Please reach out to someone in the lab if you are interested in giving a talk.</p>
+-->
+
+<p>Organizer: <a href="https://cs.stanford.edu/~kevclark/">Kevin Clark</a></p>
+
+<!---Julian Nyarko April 9th-->
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+<tr>
+  <td>Jan 23</td>
+    <td>Muthu Chandrasekaran</td>
+    <td>A Discourse Centric Framework for Facilitating Instructor Intervention in 
+    MOOC Discussion Forums (<a href="https://nlp.stanford.edu/seminar/details/mchandrasekaran.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Jan 30</td>
+    <td>Yonatan Belinkov</td>
+    <td>Causal Mediation Analysis for Interpreting Neural NLP: The Case of Gender Bias (<a href="https://nlp.stanford.edu/seminar/details/ybelinkov.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 6</td>
+    <td>Maarten Sap</td>
+    <td>Reasoning about Social Dynamics in Language (<a href="https://nlp.stanford.edu/seminar/details/msap.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Feb 13</td>
+    <td>Wojciech Kryściński</td>
+    <td>Neural Text Summarization: A Critical Perspective and Steps Towards Consistency (<a href="https://nlp.stanford.edu/seminar/details/wkryscinski.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>20 Feb</td>
+    <td>Daniel Chen</td>
+    <td>Stereotypes in High-Stakes Decisions: Evidence from U.S. Circuit Courts (<a href="https://nlp.stanford.edu/seminar/details/dchen.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>27 Feb</td>
+    <td>Marco Tulio Ribeiro</td>
+    <td>What is wrong with my model? Detection and analysis of bugs in NLP models (<a href="https://nlp.stanford.edu/seminar/details/mribeiro.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>5 Mar</td>
+    <td>Roy Schwartz</td>
+    <td>Green NLP (<a href="https://nlp.stanford.edu/seminar/details/rschwartz.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>12 Mar</td>
+    <td>Jon Clark</td>
+    <td>TyDi QA: A Benchmark for Information-Seeking Question Answering in Typologically Diverse Languages (<a href="https://nlp.stanford.edu/seminar/details/jclark.shtml">details</a>) <b>REMOTE MEETING</b></td>
+</tr>
+</table>
+<hr><hr>
+
+
+<h2>
+    NLP Seminar Schedule &mdash; Fall 2019
+</h2>
+
+<p>Organizer: <a href="https://nlp.stanford.edu/~isabelvp/">Isabel Papadimitriou</a></p>
+
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+<tr>
+    <td>Sept 26</td>
+    <td>Edgar Altszyler</td>
+    <td>NLP as a means to study individual and social cognition (<a href="https://nlp.stanford.edu/seminar/details/ealtszyler.shtml">details</a>) </td>
+</tr>
+<tr>
+  <td>Oct 10</td>
+    <td>Bhuwan Dhingra</td>
+    <td> Text as a Virtual Knowledge Base (<a href="https://nlp.stanford.edu/seminar/details/bdhingra.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/bdhingra.pdf">slides</a>)</td>
+</tr>
+<tr>
+  <td>Oct 17</td>
+    <td>Alexis Conneau</td>
+    <td> Cross-lingual representation learning (<a href="https://nlp.stanford.edu/seminar/details/aconneau.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 14</td>
+    <td>Arthur Szlam</td>
+    <td>Language and Interaction in Minecraft (<a href="https://nlp.stanford.edu/seminar/details/aszlam.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Nov 21</td>
+    <td>Michael Auli</td>
+    <td>Efficient Sequence Modeling (<a href="https://nlp.stanford.edu/seminar/details/mauli.shtml">details</a>)</td>
+</tr>
+<tr>
+  <td>Dec 5</td>
+    <td>Yoav Artzi </td>
+    <td>Robot Control and Collaboration in Situated Instruction Following (<a href="https://nlp.stanford.edu/seminar/details/yartzi.shtml">details</a>, <a href=http://lil.nlp.cornell.edu/slides/2019_12_control_colab/>slides</a>)</td>
+</tr>
+
+</table>
+<hr><hr>
+
+
+<h2>
+    NLP Seminar Schedule &mdash; Spring 2019
+</h2>
+
+<p>Organizer: <a href="https://cs.stanford.edu/~daniter/">Dan Iter</a></p>
+
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+<tr>
+    <td>April 4</td>
+    <td>Swabha Swayamdipta</td>
+    <td> Learning Challenges in Natural Language Processing (<a href="https://nlp.stanford.edu/seminar/details/sswayamdipta.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/sswayamdipta.pdf">slides</a>) </td>
+</tr>
+<tr>
+    <td>April 11</td>
+    <td>Alon Halevy</td>
+    <td> Subjective Databases (<a href="https://nlp.stanford.edu/seminar/details/ahalevy.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/ahalevy.pptx">slides</a>) </td>
+</tr>
+<tr>
+    <td>April 18</td>
+    <td>Pawe&#322; Budzianowski</td>
+    <td> Learning multi-domain dialogues (<a href="https://nlp.stanford.edu/seminar/details/pbudzianowski.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/pbudzianowski.pdf">slides</a>) </td>
+</tr>
+<tr>
+    <td>April 25</td>
+    <td>Ves Stoyanov</td>
+    <td> Cross Lingual Understanding (XLU): Scaling NLP Across Languages (<a href="https://nlp.stanford.edu/seminar/details/vstoyanov.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/vstoyanov.pptx">slides</a>) </td>
+</tr>
+<tr>
+    <td>May 2</td>
+    <td>Sameer Singh</td>
+    <td> Discovering Bugs in NLP Models Using Natural Perturbations (<a href="https://nlp.stanford.edu/seminar/details/ssingh.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/ssingh.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>May 9</td>
+    <td>Xiang Ren</td>
+    <td> From Data to Model Programming: Injecting Structured Priors for Knowledge Extraction (<a href="https://nlp.stanford.edu/seminar/details/xren.shtml">details</a>) </td>
+</tr>
+<tr>
+    <td>May 16</td>
+    <td>Yulia Tsvetkov</td>
+    <td> Computational Approaches to Unveiling Biases in Stories and Models (<a href="https://nlp.stanford.edu/seminar/details/ytsvetkov2.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/ytsvetkov2.pdf">slides</a>) </td>
+</tr>
+<tr>
+    <td>May 23</td>
+    <td>David Bamman</td>
+    <td> Building an Annotated Dataset of Literary Entities and Events (<a href="https://nlp.stanford.edu/seminar/details/dbamman.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/dbamman.pdf">slides</a>) </td>
+</tr>
+
+
+</table>
+<hr><hr>
+
+<h2>
+    NLP Seminar Schedule &mdash; Winter 2019
+</h2>
+
+<p>Organizer: <a href="https://cs.stanford.edu/~daniter/">Dan Iter</a></p>
+
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+<tr>
+    <td>Jan 10</td>
+    <td>Liang Huang</td>
+    <td> STACL: Simultaneous Translation with Integrated Anticipation and Controllable Latency (<a href="https://nlp.stanford.edu/seminar/details/lhuang.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/lhuang.pdf">slides</a>) </td>
+</tr>
+<tr>
+    <td>Jan 17</td>
+    <td>Jacob Devlin</td>
+    <td> BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding (<a     href="https://nlp.stanford.edu/seminar/details/jdevlin.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/jdevlin.pdf">slides</a>)  </td>
+</tr>
+<tr>
+    <td>Jan 24</td>
+    <td>Anna Goldie</td>
+    <td> Sequence-to-Sequence Modeling and Deep Reinforcement Learning for Systems Optimization (<a href="https://nlp.stanford.edu/seminar/details/agoldie.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/agoldie.pdf">slides</a>) </td>
+</tr>
+<tr>
+    <td>Jan 31</td>
+    <td>Chenguang Zhu</td>
+    <td> SDNet: Contextualized Attention-based Deep Network for Conversational Question Answering (<a href="https://nlp.stanford.edu/seminar/details/czhu.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/czhu.pdf">slides</a>) </td>
+</tr>
+<tr>
+    <td>Feb 7</td>
+    <td>Yu Su</td>
+    <td> Towards Democratizing Data Science with AI-powered Knowledge Engines (<a href="https://nlp.stanford.edu/seminar/details/ysu.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/ysu.pdf">slides</a>) </td>
+</tr>
+<tr>
+    <td>Feb 14</td>
+    <td>Michael Yeomans</td>
+    <td> Topic Selection in Conversation (<a href="https://nlp.stanford.edu/seminar/details/myeomans.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/myeomans.pdf">slides</a>) </td>
+</tr>
+
+<tr>
+    <td>Feb 21</td>
+    <td>Daniel Fried</td>
+    <td> Pragmatic Models for Generating and Following Grounded Instructions (<a href="https://nlp.stanford.edu/seminar/details/dfried.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/dfried.pdf">slides</a>) </td>
+</tr>
+<tr>
+    <td>Feb 28</td>
+    <td>Svitlana Volkova</td>
+    <td>  I can’t Believe it’s not Better: Detecting and Quantifying Misinformation and Disinformation (<a href="https://nlp.stanford.edu/seminar/details/svolkova.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/svolkova.pdf">slides</a>) </td>
+</tr>
+<tr>
+    <td>Mar 7</td>
+    <td>Igor Labutov</td>
+    <td>Teaching Machines like we Teach People (<a href="https://nlp.stanford.edu/seminar/details/ilabutov.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/ilabutov.pdf">slides</a>) </td>
+</tr>
+
+
+<tr>
+    <td>Mar 14</td>
+    <td>Rachel Rudinger</td>
+    <td> Natural Language Understanding for Events and Participants in Text (<a href="https://nlp.stanford.edu/seminar/details/rrudinger.shtml">details</a>) </td>
+</tr>
+
+
+</table>
+<hr><hr>
+<h2>
+    NLP Seminar Schedule &mdash; Fall 2018
+</h2>
+
+
+<p>Organizer: <a href="https://cs.stanford.edu/~daniter/">Dan Iter</a></p>
+
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+<tr>
+    <td>Oct 4</td>
+    <td>Bryan McCann</td>
+    <td> Natural Language Decathlon: Multitask Learning as Question Answering (<a href="https://nlp.stanford.edu/seminar/details/bmccann.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/bmccann.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Oct 11</td>
+    <td>Luheng He</td>
+    <td> Semantic Role Labeling with Labeled Span Graph Networks  (<a href="https://nlp.stanford.edu/seminar/details/lhe.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/lhe.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Oct 18</td>
+    <td>Shashank Srivastava</td>
+    <td>Learning Classifiers from Natural Language Explanations  (<a href="https://nlp.stanford.edu/seminar/details/ssrivastava.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/ssrivastava.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Oct 25</td>
+    <td>Kai-Wei Chang</td>
+    <td> What It Takes to Control Societal Bias in Natural Language Processing (<a href="https://nlp.stanford.edu/seminar/details/kchang.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/kchang.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Nov 1</td>
+    <td>Adams Wei Yu</td>
+    <td> Efficient and Effective Models for Machine Reading Comprehension (<a href="https://nlp.stanford.edu/seminar/details/aweiyu.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/aweiyu.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Nov 8</td>
+    <td>Aishwarya Agrawal</td>
+    <td> Visual Question Answering and Beyond  (<a href="https://nlp.stanford.edu/seminar/details/aagrawal.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/aagrawal.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Nov 15</td>
+    <td>Nanyun Peng</td>
+    <td> Building linguistically informed models for low-resource settings (<a href="https://nlp.stanford.edu/seminar/details/npeng.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/npeng.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Nov 29</td>
+    <td>Sida Wang</td>
+    <td> Building a language interface for data visualization (<a href="https://nlp.stanford.edu/seminar/details/swang.shtml">details</a>)<!--, <a href="https://nlp.stanford.edu/seminar/details/swang.pdf">slides</a>)--></td>
+</tr>
+</table>
+
+<hr>
+
+<hr>
+<h2>
+    NLP Seminar Schedule &mdash; Winter, Spring & Summer  2018
+</h2>
+<p>Organizer: <a href="http://sivareddy.in">Siva Reddy</a></p>
+
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+
+<tr>
+    <td>Jan 11</td>
+    <td>Pushpak Bhattacharyya</td>
+    <td>Sarcasm Detection: A Computational Cognitive Approach (<a href="https://nlp.stanford.edu/seminar/details/pbhattacharyya.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/pbhattacharyya.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Feb 8</td>
+    <td>Pararth Shah</td>
+    <td>Building a Conversational Agent Overnight with Dialogue Self-Play (<a href="https://nlp.stanford.edu/seminar/details/pshah.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/pshah.pdf">slides</a>)</td>
+</tr>
+
+<tr>
+    <td>Mar 1</td>
+    <td>Gabor Angeli</td>
+    <td>Conversations, with a reformed academic (<a href="https://nlp.stanford.edu/seminar/details/gangeli.shtml">details</a><!--, <a href="https://nlp.stanford.edu/seminar/details/mauli.pdf">slides</a>-->)</td>
+</tr>
+<tr>
+    <td>Mar 8</td>
+    <td>Michael Auli</td>
+    <td>Sequence to Sequence Learning: CNNs, Training and Uncertainty (<a href="https://nlp.stanford.edu/seminar/details/mauli.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/mauli.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Mar 15</td>
+    <td>Jonathan Raiman</td>
+    <td> Globally Normalized Reader (<a href="https://nlp.stanford.edu/seminar/details/jraiman.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/jraiman.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Mar 22</td>
+    <td>Dhanya Sridhar</td>
+    <td>Structured Probabilistic Models for Online Dialogue and Text (<a href="https://nlp.stanford.edu/seminar/details/dsridhar.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/dsridhar.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Apr 12</td>
+    <td>Adji Bousso Dieng</td>
+    <td>Deep Sequence Models: Context Representation, Regularization, and Application to Language (<a href="https://nlp.stanford.edu/seminar/details/adieng.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/adieng.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>May 10</td>
+    <td>Alan Ritter</td>
+    <td>Large Scale Learning for Information Extraction (<a href="https://nlp.stanford.edu/seminar/details/aritter.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/aritter.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>May 24</td>
+    <td>Vered Shwartz</td>
+    <td>Acquiring Lexical Semantic Knowledge (<a href="https://nlp.stanford.edu/seminar/details/vshwartz.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/vshwartz.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Jun 28</td>
+    <td>Daniel Khashabi</td>
+    <td>Reasoning-Driven Question Answering (<a href="https://nlp.stanford.edu/seminar/details/dkhashabi.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/dkhashabi.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Jul 26</td>
+    <td>Will Grathwohl</td>
+    <td>Backpropagation Through the Void: Optimizing control variates for black-box gradient estimation (<a href="https://nlp.stanford.edu/seminar/details/wgrathwohl.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/wgrathwohl.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Aug 9</td>
+    <td>Yulia Tsvetkov</td>
+    <td>Language Generation with Continuous Outputs (<a href="https://nlp.stanford.edu/seminar/details/ytsvetkov.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/ytsvetkov.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Aug 16</td>
+    <td>Trieu H. Trinh</td>
+    <td>A Simple Method for Commonsense Reasoning (<a href="https://nlp.stanford.edu/seminar/details/ttrinh.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/ttrinh.pdf">slides</a>)</td>
+</tr>
+<tr>
+    <td>Aug 23</td>
+    <td>Ekaterina Shutova</td>
+    <td>Grasping the finer point: Metaphor identification in text and brain imaging data (<a href="https://nlp.stanford.edu/seminar/details/eshutova.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/eshutova.pdf">slides</a>)</td>
+</tr>
+
+</table>
+
+<br><br>
+
+<h2>
+    NLP Seminar Schedule &mdash; Summer & Fall 2017
+</h2>
+
+<p>Organizer: <a href="http://sivareddy.in">Siva Reddy</a></p>
+
+<table class="p" cellpadding="5">
+    <tr>
+        <th class="bottomborder" align="left" width="75">Date</th>
+        <th class="bottomborder" align="left" width="150">Speaker</th>
+        <th class="bottomborder" align="left" width="400">Title</th>
+    </tr>
+
+<tr>
+    <td>Jul 13</td>
+    <td>Jason Baldridge</td>
+    <td>Practical and Ethical Considerations in Demographic and Psychographic Analysis (<a href="https://nlp.stanford.edu/seminar/details/jbaldridge.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/jbaldridge.pdf">slides</a>)</td>
+</tr>
+
+<tr>
+    <td>Jul 20</td>
+    <td>Lukasz Kaiser</td>
+    <td>Tensor2Tensor Transformers: New Deep Models for NLP (<a href="details/lkaiser.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/lkaiser.pdf">slides</a>)</td>
+</tr>
+
+<tr>
+    <td></td>
+    <td></td>
+    <td>ACL 2017 break</td>
+</tr>
+
+<tr>
+    <td>Aug 17</td>
+    <td>Mike Lewis</td>
+    <td>Deal or No Deal? End-to-End Learning for Negotiation Dialogues (<a href="details/mlewis.shtml">details</a>, <a href="details/mlewis.pdf">slides</a>)</td>
+</tr>
+
+<tr>
+    <td>Aug 24</td>
+    <td>Lea Frermann</td>
+    <td>Of Space Piracy and Secret Baby Romances: Deep Multi-View Book Representations and a Scalable Evaluation Framework (<a href="details/lfrermann.shtml">details</a>, <a href="details/lfrermann.pdf">slides</a>)</td>
+</tr>
+
+<tr>
+    <td>Aug 31</td>
+    <td>Jacob Andreas</td>
+    <td>Structure and Interpretation of Neural Codes (<a href="https://nlp.stanford.edu/seminar/details/jandreas.shtml">details</a>, <a href="https://nlp.stanford.edu/seminar/details/jandreas.pdf">slides</a>)</td>
+</tr>
+
+<tr>
+    <td></td>
+    <td></td>
+    <td>EMNLP 2017 break</td>
+</tr>
+
+<tr>
+    <td>Sep 14</td>
+    <td>Felix Hill</td>
+    <td>Grounded language learning in a simulated 3D world (<a href="details/fhill.shtml">details</a>)</td>
+</tr>
+
+<tr>
+    <td>Sep 21</td>
+    <td></td>
+    <td>Semester Break</td>
+</tr>
+
+<tr>
+    <td>Sep 28</td>
+    <td><strike>Zornitsa Kozareva</strike></td>
+    <td>Cancelled</td>
+</tr>
+
+<tr>
+    <td>Oct 5</td>
+    <td>Karthik Narasimhan</td>
+    <td>Language grounding for cross-domain policy transfer and spatial reasoning (<a href="details/knarasimhan.shtml">details</a>, <a href="details/knarasimhan.pdf">slides</a>)</td>
+</tr>
+
+<tr>
+    <td>Oct 19</td>
+    <td>Jayant Krishnamurthy</td>
+    <td>Neural Semantic Parsing with Type Constraints (<a href="details/jkrishnamurthy.shtml">details</a>, <a href="details/jkrishnamurthy.pdf">slides</a>)</td>
+</tr>
+
+<tr>
+    <td>Oct 26</td>
+    <td>Zhou Yu</td>
+    <td>Situated Intelligent Interactive Systems (<a href="details/zyu.shtml">details</a>, <a href="details/zyu.pdf">slides</a>)</td>
+</tr>
+
+<tr>
+    <td>Nov 9</td>
+    <td>Eunsol Choi</td>
+    <td>Scaling Up Reading Comprehension (<a href="details/echoi.shtml">details</a>, <a href="details/echoi.pdf">slides</a>)</td>
+</tr>
+
+<tr>
+    <td>Nov 30</td>
+    <td>Nasrin Mostafazadeh</td>
+    <td>Language Comprehension and Language Generation in Eventful Contexts (<a href="details/nmostafazadeh.shtml">details</a>, <a href="details/nmostafazadeh.pdf">slides</a>)</td>
+</tr>
+
+</table>
+
+    
+<br><p><br>
+
+    </td>
+    <!-- end left bar -->
+
+    <!-- right bar -->
+    <td width="400" align="right">
+
+  <!--  Thang's script to toggle comments  -->
+  <script>
+  </script>
+
+	<script language="JavaScript" src="../randomPic.js"></script>
+	<script language="JavaScript" type="text/javascript">
+	  <!--
+	    var imgSrcArray = new Array(
+	      "hamster2.jpg",
+	      "hamster.jpg",
+	      "hilton.jpg",
+	      "dogtank.jpg"
+	      );
+	    randomPic(imgSrcArray);
+     	  -->
+	</script>
+
+    </td>
+    <!-- end right bar -->
+
+  </tr>
+</table>
+
+
+<!-- END OF PAGE CONTENTS ----------------------------- //-->
+</div></div>
+      </div>
+    <!--</div>--><!-- /container -->
+  </div>
+  <footer>
+    <div id="footer" class="container">
+      <footer class="widewrapper footer">
+  <div class="container">
+    <div class="row footer">
+      
+      <div class="col-sm-3">
+        <h4>Stanford NLP Group</h4>
+	Gates Computer Science Building<br>
+	353 Jane Stanford Way<br>
+	Stanford, CA 94305-9020<br>
+	<a href="http://forum.stanford.edu/visitors/directions/gates.php">Directions and Parking</a>
+      </div>
+
+      
+      <div class="col-sm-3">
+        <div class="indent30">
+          <h4>Affiliated Groups</h4>
+          <ul class="grove-list">
+            <li><a href="http://ai.stanford.edu/">Stanford AI Lab</a></li>
+            <li><a href="http://infolab.stanford.edu/">Stanford InfoLab</a></li>
+            <li><a href="https://www-csli.stanford.edu/">Center for the Study of Language and Information</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="col-sm-3">
+	<!--<a href="https://docs.google.com/forms/d/19uyf5YSiQd9PGkl26Lnbpze3Ab_ipTSoMNIctrVQG2o/viewform">
+	  <h2>BUG REPORT!</h2>
+	</a>-->
+	
+	
+      </div>
+      
+      
+      <div class="col-sm-3">
+        <h4>Connect</h4>
+
+	<div class="row">
+	  <ul>
+	    <li><a href="http://stackoverflow.com/tags/stanford-nlp">Stack Overflow</a></li>
+	    <li><a href="https://github.com/stanfordnlp/CoreNLP">Github</a></li>
+	    <li><a href="https://twitter.com/stanfordnlp">Twitter</a></li>
+	  </ul>
+	</div>
+	<!--
+	<div class="row center-block">
+          <a href="https://github.com/stanfordnlp/CoreNLP" class="social github"></a>
+          <a href="https://twitter.com/stanfordnlp" class="social twitter"></a>
+	</div>
+	-->
+      </div>
+    </div>
+
+    <div class="small row" align="right">
+      Local links: &nbsp;
+      <a href="/local/nlp_lunch.shtml">NLP lunch</a> &middot;
+      <!-- <img src="/img/middot.gif" align="center"> -->
+      <a href="http://nlp.stanford.edu/read/">NLP Reading Group</a> &middot;
+      <a href="http://nlp.stanford.edu/seminar/">NLP Seminar</a> &middot;
+      <a href="http://ai.stanford.edu/portfolio-view/distinguished-speaker-series">AI Speakers</a>
+      &middot;
+      <a href="/javanlp/">JavaNLP</a>
+      (<a href="/nlp/javadoc/javanlp/">javadocs</a>) &middot;
+      <a href="/local/machines.shtml">machines</a> &middot;
+      <a href="/wiki/">Wiki</a> &middot;
+      <a href="/local/calendar.shtml">Calendar</a> &middot;
+      <a href="/local/qa/">Q&amp;A</a>
+    </div>
+
+  </div>
+  
+</footer>
+
+
+    </div><!-- /footer -->
+  </footer>
+  <script src="/static/js/vendor/bootstrap/bootstrap.min.js"></script>
+  <script src="/static/js/vendor/modernizr/modernizr.js"></script>
+
+
+  <script>
+    $('ul.nav > li > a[href="' + document.location.pathname + '"]').parent().addClass('active');
+  </script>
+
+  
+
+</body>
+</html>
+

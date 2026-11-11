@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source_id": "custom-rain-seminar",
+  "entries": {
+    "https://rain.stanford.edu/": {
+      "file": "index-9ec536ca.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:42:24Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

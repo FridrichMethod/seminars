@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_id": "custom-nlp-seminar",
+  "entries": {
+    "https://nlp.stanford.edu/seminar/": {
+      "file": "seminar-019d54b1.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:33:11Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://nlp.stanford.edu/seminar/details/greta_tuckute_2026.shtml": {
+      "file": "seminar-details-greta-tuckute-2026-shtml-b376d2f2.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:40:11Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

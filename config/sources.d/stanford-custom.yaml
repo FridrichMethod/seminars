@@ -1,0 +1,566 @@
+# Stanford labs and centers that publish talks on pages with their own layout.
+# Schema of one entry: seminars.models.SourceConfig. Everything under "params" and the
+# extra keys under "research" are notes and settings for the adapter of that source.
+#
+# All selectors below were checked against the recordings in tests/fixtures/<id>/ with
+# selectolax.lexbor (LexborHTMLParser). The README.md next to each recording describes
+# the page in more detail.
+#
+# Adapter names: "html_list" and "ics" are generic adapters. "nlp_seminar",
+# "hai_events" and "synbio_events" are proposed modules for
+# seminars.sources.custom; they do not exist yet.
+#
+# Patterns are Python regular expressions. Characters outside ASCII are written as
+# escapes: \xb7 is the middle dot, \u2013 the en dash.
+#
+# Parameters of the "html_list" sources in this file:
+#   selectors.item         one element per talk; every other selector is evaluated
+#                          inside that element and its text is the value of the field
+#   <field>_attribute      read this attribute of the selected element instead of its text
+#   <field>_pattern        searched in the text of selectors.<field>. Every named group
+#                          sets the field of that name, so one pattern can set several
+#                          fields (speaker_pattern also sets affiliation). The groups
+#                          start, end and meridiem of time_pattern are times of day: they
+#                          are combined with the date, and the one meridiem (AM or PM)
+#                          applies to both times.
+#   date_format            strptime format of the group or text that gives the date
+#   default_start_time,    local time of day for sources whose rows have none
+#   default_end_time
+#   require                fields a row needs to count as a talk
+# None of these sources has a page per talk, so the URL of an event is the URL of the
+# list, and a talk is identified by its date together with its speaker. This shape
+# (selectors.item plus one selector per field) follows the html_list example in
+# tests/test_models_source.py; other source groups may describe html_list differently.
+#
+# Research keys used in this file besides the typed ones:
+#   has_rss, has_ics,      true when the source publishes its events in that form: a feed
+#   has_jsonld,            (RSS or Atom), an iCalendar feed, JSON-LD Event objects, a JSON
+#   has_jsonapi            API of the site. They do not say whether robots.txt lets us
+#                          fetch it; <kind>_blocked_by_robots: true says that it does not.
+#                          Something of that kind that exists but holds no event (an empty
+#                          feed, a comment feed, a JSON-LD block about the organisation)
+#                          counts as false.
+#   upcoming_events        events dated on or after the day they were checked (2026-11-11);
+#                          a list can still show a talk under "upcoming" the day after it
+#   has_embedded_json      the events are JSON inside the page itself (not JSON-LD)
+#   structured_data        every feed, JSON-LD block, API or embedded data that was looked
+#                          at or found named, with what it holds
+
+x-stanford-custom: &stanford-custom
+  group: stanford-custom
+  institution: stanford
+  timezone: America/Los_Angeles
+
+sources:
+  # --- NLP Seminar ---------------------------------------------------------------------
+  - <<: *stanford-custom
+    id: custom-nlp-seminar
+    name: Stanford NLP Seminar
+    adapter: nlp_seminar
+    url: https://nlp.stanford.edu/seminar/
+    host_org: Stanford NLP Group
+    default_fields: [ai-ml, cs]
+    default_event_type: seminar
+    series: NLP Seminar
+    params:
+      # One table per quarter, newest first. A row has no year, no time and no room:
+      # they are in the heading above its table.
+      max_sections: 2
+      # Details pages are requested for upcoming talks only, at most this many per run.
+      max_detail_pages: 12
+      selectors:
+        section: "table.p"
+        # The nearest preceding sibling h2 of a table that has text (empty h2 occur).
+        section_heading: "h2"
+        row: "tr"  # rows with three td cells; the first row of a table has th cells
+        date: "td:nth-child(1)"
+        speaker: "td:nth-child(2)"
+        speaker_link: "td:nth-child(2) a"
+        title: "td:nth-child(3)"
+        detail_link: "td:nth-child(3) a"
+      heading_patterns:
+        # "NLP Seminar Schedule <em dash> Spring 2026"
+        term: 'Schedule\s+\S+\s+(?P<term>[A-Za-z ,&]+?)\s+(?P<year>\d{4})'
+        # "Thursday 11:00 am -- 12:00 noon"
+        time: '(?P<weekday>[A-Z][a-z]+day)\s+(?P<start>\d{1,2}:\d{2}\s*[ap]m)\s*--\s*(?P<end>\d{1,2}:\d{2}\s*(?:[ap]m|noon))'
+        # "Venue: Zoom & Gates 287 (for in-person speakers)"
+        venue: 'Venue:\s*(?P<venue>.+?)\s*$'
+      # "April 2nd", "Jan 22nd", "Jul 13"; the ordinal suffix can be wrong ("April 9nd").
+      date_pattern: '^(?P<month>[A-Z][a-z]{2,8})\.?\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?$'
+      # The title cell ends with "(details)" or "(details, slides)".
+      title_suffix_pattern: '\s*\((?:details|slides)(?:,\s*(?:details|slides))*\)\s*$'
+      detail_selectors:
+        root: "div.container.content"
+        title: "h2"
+        speaker: "b > a"
+        affiliation: "i"
+        abstract: "h3 + p"  # the first match follows "Abstract", the second "Bio"
+      detail_patterns:
+        # "Date: 11:00am - 12:00 noon PT, Thursday, May 28th" (no year)
+        date_line: 'Date:\s*(?P<value>.+)'
+        venue_line: 'Venue:\s*(?P<value>.+)'
+    research:
+      verified: 2026-11-11
+      sample_events: 221
+      upcoming_events: 0
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      structured_data:
+        - "none: no feed link, no JSON-LD and no script data on the schedule or the details page"
+      extraction: html
+      crawl_delay: 0
+      robots: "no Crawl-delay; /manual, /viewvc and /data/lexground-acl2015/ are disallowed"
+      requests_per_run: "1 for the schedule, plus 1 per upcoming talk for its details page"
+      notes:
+        - Plain HTML tables, no structured data of any kind. 25 tables with 221 rows, Spring 2026 back to Summer 2017.
+        - The newest section was Spring 2026 (last talk May 28) when this was checked on 2026-11-11, so there was no upcoming talk and no section for the autumn quarter. The page can lag behind, or the seminar pauses for a quarter.
+        - An adapter should hand over the rows of the newest sections even when they are in the past, so that a page without upcoming talks is not mistaken for a page that could not be read.
+        - The year comes from the heading of a table and can be wrong there (the table after Fall 2025 is headed Winter 2024). Read only the newest sections and check that the date falls on the weekday the heading names (Thursday).
+        - Time and venue are the same text in every recent heading; the details page of a talk repeats them per talk and adds the affiliation, the abstract and the bio.
+        - Rows without a details link are notes such as "Semester Break" or "Cancelled", not talks.
+        - The details link is absolute in recent rows and relative in old ones.
+        - The venue "Zoom & Gates 287" means the talks are hybrid, but the page gives no Zoom link.
+
+  # --- MLSys Seminar -------------------------------------------------------------------
+  - <<: *stanford-custom
+    id: custom-mlsys-seminar
+    name: Stanford MLSys Seminar
+    adapter: html_list
+    url: https://mlsys.stanford.edu/
+    host_org: Stanford MLSys Seminar Series
+    default_fields: [ai-ml, cs]
+    default_event_type: seminar
+    series: MLSys Seminar
+    params:
+      selectors:
+        item: "div.talk-list > div.talk"
+        title: "a.talk-title-link"
+        date: "div.talk-date"
+        speaker: "div.talk-presenter"
+        abstract: "details"
+        # The href of the title link is the YouTube recording or livestream, not a
+        # page about the talk.
+        stream_link: "a.talk-title-link"
+      # "M 10/20/25", "W 1/11/23", "5/19/22": optional weekday letter, two-digit year.
+      date_pattern: '^(?:[A-Z]{1,2}\s+)?(?P<date>\d{1,2}/\d{1,2}/\d{2})$'
+      date_format: "%m/%d/%y"
+      # "Tim Shi (OpenAI)"; older rows have the name only.
+      speaker_pattern: '^(?P<speaker>.+?)(?:\s*\((?P<affiliation>[^()]*)\))?$'
+      stream_link_attribute: href
+      # Rows without a title link are not talks ("Thanksgiving").
+      require: [title, date]
+    research:
+      verified: 2026-11-11
+      sample_events: 87
+      upcoming_events: 0
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      structured_data:
+        - "Atom feed /feed.xml, linked from the page: no entry (561 bytes, updated 2025-10-27)"
+        - "no JSON-LD, no script data"
+      extraction: html
+      crawl_delay: 0
+      robots: "only a Sitemap line"
+      feed_url: https://mlsys.stanford.edu/feed.xml
+      requests_per_run: 1
+      notes:
+        - The feed the page links (/feed.xml) was tried first. It is an Atom feed without any entry (561 bytes, updated 2025-10-27), so it cannot be used.
+        - Jekyll page with four lists and 88 rows (87 talks) from 2020-10-15 to 2025-10-20. No upcoming talk when this was checked; the series runs in short bursts (two talks in October 2025, the ones before that in late 2023).
+        - A row has no time of day and no room. A draft built from it is a date only, which means an all-day event.
+        - The lists are not in one order; two are newest first, two oldest first.
+        - A source that is dormant yields no event inside the time window; that is not a failure of the source.
+
+  # --- HAI -----------------------------------------------------------------------------
+  - <<: *stanford-custom
+    id: custom-hai-events
+    name: Stanford HAI Events
+    adapter: hai_events
+    url: https://hai.stanford.edu/events
+    host_org: Stanford HAI
+    default_fields: [ai-ml]
+    default_event_type: seminar
+    params:
+      # The list page embeds the events as JSON in the Next.js server component payload
+      # (React flight data). The README of the fixture has the details.
+      flight:
+        # Decode the JSON string of every matching inline script and join them in order.
+        script_pattern: '^self\.__next_f\.push\(\[1,(?P<json_string>.*)\]\)\s*$'
+        # Cut the joined text into rows on its UTF-8 bytes, from the start, not by lines.
+        # A row starts with "<id>:"; the id is empty for hint rows (":HL[...]").
+        row_start_pattern: '(?P<id>[0-9a-f]*):'
+        # A text row holds exactly <length> (hexadecimal) bytes after the comma and has
+        # no newline: the next row starts right after them. Every other row ends at "\n".
+        text_row_pattern: '(?P<id>[0-9a-f]+):T(?P<length>[0-9a-f]+),'
+        # An upper-case letter after the colon marks a row that is not JSON (I, H, T, E).
+        # Every other row is one JSON value.
+        special_row_pattern: '^[A-Z]'
+        # String values: "$<hex id>" is the value of that row (strings of 1024 characters
+        # or more are moved into text rows this way), "$<hex id>:<key>:..." a value inside
+        # it (only in the component tree here), "$$..." a text that starts with "$",
+        # "$undefined" a missing value.
+        reference_pattern: '^\$(?P<id>[0-9a-f]+)(?::(?P<path>.+))?$'
+        escaped_dollar_prefix: "$$"
+        event_marker_key: event_start
+        upcoming_key: entries
+        previous_key: initialEntries.data
+        keys:
+          title: title
+          start: event_start
+          end: event_end
+          link: href
+          summary_html: dek
+          type_label: tag.label
+          topics: contentMeta.topics[].title
+          organiser_url: promo_url
+        undefined_marker: "$undefined"
+      # event_start and event_end end in "Z" but are Pacific wall-clock times.
+      times_are_local: true
+      type_labels:
+        Seminar: seminar
+        Conference: conference
+        Workshop: workshop
+        Event: other
+        "Event Promo": other
+      # "Speaker | Title" and "Series | Title" are both common.
+      title_separator: " | "
+      # Fallback when the payload cannot be read: the same events as cards.
+      card_selectors:
+        item: 'div[class*="ContentItem_root__"]'
+        title: 'a[class*="ContentItem_titleLink__"]'
+        link: 'a[class*="ContentItem_titleLink__"]'
+        type: 'span[class*="EventContentMeta_type__"]'
+        date: 'div[class*="EventContentMeta_root__"] > span:not([class])'
+        time: 'span[class*="EventContentMeta_time__"]'
+        summary: 'div[class*="ContentItemDek_root__"]'
+      card_date_format: "%b %d, %Y"  # "Nov 11, 2026"
+      # "4:30 PM - 5:30 PM"; the span is missing for events without a time.
+      card_time_pattern: '^(?P<start>\d{1,2}:\d{2} [AP]M)(?: - (?P<end>\d{1,2}:\d{2} [AP]M))?$'
+      # Location and speakers are only on the detail page of an event. Detail pages
+      # are requested for upcoming events only, at most this many per run, and not for
+      # events with a promo_url: their page only forwards to the promo_url, which is on
+      # another host.
+      fetch_details: upcoming
+      skip_details_when_set: promo_url
+      max_detail_pages: 15
+      # A page with this element is such a forwarding page; use the list data.
+      detail_redirect_selector: 'meta#__next-page-redirect'
+      # A failed detail request (HttpError), a forwarding page or a page without a title
+      # leaves the event as the list describes it, without location and speakers.
+      detail_fallback: list
+      detail_selectors:
+        title: 'h1[class*="DetailHero_heading__"]'
+        meta_row: 'div[class*="DetailMeta_row__"]'  # two div children: label, value
+        person_list: '[class*="PersonList_root__"]'
+        person_list_title: '[class*="PersonList_title__"]'
+        person: '[class*="PersonCard_root__"]'
+        person_name: '[class*="PersonCard_personName__"]'
+        person_title: '[class*="PersonCard_title__"]'
+        stream_link: '[class*="EventDetailButtonSet_root__"] a'
+        description: 'section[class*="Article_content__"]'
+      detail_meta_labels: {date: Date, location: Location, status: Status, topics: Topics}
+      # Other headings seen: Moderator (not a speaker).
+      speaker_list_titles: [Speaker, Speakers, In conversation with]
+    research:
+      verified: 2026-11-11
+      sample_events: 20
+      upcoming_events: 10
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: true
+      jsonapi_blocked_by_robots: true
+      has_embedded_json: true
+      structured_data:
+        - "Next.js flight payload in the inline scripts of the list page: the events as JSON objects (used)"
+        - "content API below /cms/api/ (the payload names collections/events/entries, so it probably holds the events): disallowed by robots.txt, not requested"
+        - "no JSON-LD, no feed link and no iCalendar link on the list page or the detail pages"
+      extraction: html
+      crawl_delay: 0
+      robots: "no Crawl-delay; /cms/, /api/ and /cp/ are disallowed"
+      requests_per_run: "1 for the list, plus 1 per upcoming event without promo_url for its detail page (3 of 10 when checked)"
+      notes:
+        - Next.js site. No JSON-LD, no feed, no __NEXT_DATA__. The events are JSON objects inside the inline scripts that call self.__next_f.push (10 upcoming, 10 previous); see the README of the fixture for how to read them.
+        - The payload must be cut into rows by length, not by lines. A text row ("<id>:T<hex length>,") ends after exactly that many UTF-8 bytes and is followed directly by the next row; this page has two (c and 22), and a line split loses the rows after them (0 and e). The row with the events is not one of those here only by chance.
+        - The embedded times look like UTC and are not. "2026-11-11T16:30:00.000000Z" is shown as 4:30 PM on the same page. Read them as Pacific time.
+        - The content API of the site (paths below /cms/api/) is named in the payload but robots.txt disallows /cms/ and /api/. It must not be used and was not requested.
+        - CSS class names carry a build hash (ContentItem_root__bsx20). Match the part before the hash.
+        - The list has no location and no speaker list; both are on the detail page (label and value rows, person cards). Moderators are listed as people too, under their own heading.
+        - Only events without a promo_url have a detail page of their own (3 of the 10 upcoming ones). For the other 7, /events/<slug> answers 200 with a page that only forwards to the promo_url (meta refresh with id __next-page-redirect, robots noindex, NEXT_REDIRECT in the payload). The promo_url hosts (marlowe-research.stanford.edu, digitaleconomy.stanford.edu, events.stanford.edu, stanford.zoom.us) are not listed for this source and were not requested, so these events come from the list alone, without location and speakers.
+        - The detail pages of all 10 upcoming events are recorded, the forwarding pages included, so an offline run can request each of them.
+        - datascience.stanford.edu redirects to this page, so events of Stanford Data Science are here as well (Marlowe AI + Data for Science, Center for Decoding the Universe, CNDS seminars).
+        - Not every entry is a research talk; policy conversations, student conferences and promoted events of other units are in the same list. tag.label and event_types tell them apart only roughly.
+        - Several events are cross-posted from events.stanford.edu or from the organiser's own site (promo_url), so expect duplicates of Localist events.
+        - event_end is null for some events, and a conference can span several days (2027-05-24 09:00 to 2027-05-26 17:00).
+        - The page links /events?page=2 to /events?page=4 for older events; they were not requested. The first page holds the 10 most recent previous events, which reached two weeks back (oldest 2026-10-28).
+
+  # --- SAIL ----------------------------------------------------------------------------
+  - <<: *stanford-custom
+    id: custom-sail-events
+    name: Stanford AI Lab (SAIL) Events
+    adapter: ics
+    enabled: false
+    url: https://calendar.google.com/calendar/ical/c_cb959eb83a3ad950b61570c0e87cec29188ff388b53880be72d19d5bc9fff976%40group.calendar.google.com/public/basic.ics
+    homepage: https://ai.stanford.edu/events/
+    host_org: Stanford AI Lab
+    default_fields: [ai-ml]
+    default_event_type: seminar
+    params:
+      calendar_ids:
+        - c_cb959eb83a3ad950b61570c0e87cec29188ff388b53880be72d19d5bc9fff976@group.calendar.google.com
+      # Where the calendar id was found: the src of this element on the homepage.
+      embed_selector: "section.overview iframe"
+    research:
+      verified: 2026-11-11
+      sample_events: 0
+      has_rss: false
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: false
+      ics_blocked_by_robots: true
+      structured_data:
+        - "Google Calendar embedded in the page: its iCalendar feed holds the events, as the page says; disallowed by robots.txt of calendar.google.com, not requested"
+        - "JSON-LD: one block, a ResearchOrganization, no Event"
+        - "/feed/ (the site feed, linked from the page): 10 posts, all in the category News, newest 2025-02-05, no event"
+        - "/events/feed/ (linked): the comment feed of the page, no item"
+        - "/comments/feed/ (linked): the comment feed of the site, not requested"
+        - "/wp-json/: 6 namespaces and 134 routes, no event type and no event route; /wp-json/wp/v2/posts not requested (in WordPress it lists the same posts as /feed/, so no events are expected there; not checked)"
+      extraction: feed
+      crawl_delay: 0
+      robots: "ai.stanford.edu: no Crawl-delay, /wp-admin/ disallowed. calendar.google.com: Allow: /$ and Disallow: / (everything is disallowed)"
+      notes:
+        - Disabled. The events page of the lab is a WordPress page with prose and an embedded public Google Calendar; the HTML holds no dated event.
+        - The iCalendar feed of that calendar (the url above) is on calendar.google.com, whose robots.txt disallows every path. The polite client refused it, so the feed was never fetched and there is no recording of it. The url is the standard public address of the calendar id, not a verified one.
+        - What WordPress offers has no events. The JSON-LD block describes the organisation, the site feed /feed/ holds news posts only (the newest from 2025-02-05), /events/feed/ is an empty comment feed, and /wp-json/ has no event type or route. The site feed is recorded with the page.
+        - The page says the calendar lists talks and reading groups of the lab and marks the audience of each entry in brackets (public, Stanford only, one group only). Entries that are not public would have to be left out.
+        - The Distinguished Speaker Series page lists talks up to 2020-01-24 only.
+        - Enabling this source needs a decision first, on whether public Google Calendar feeds may be fetched although the robots.txt of calendar.google.com disallows them.
+
+  # --- Theory ----------------------------------------------------------------------------
+  - <<: *stanford-custom
+    id: custom-theory-seminar
+    name: Stanford Theory Seminar
+    adapter: ics
+    enabled: false
+    urls:
+      - https://calendar.google.com/calendar/ical/cc0uor8q3hronjtesdsobhg18c%40group.calendar.google.com/public/basic.ics
+      - https://calendar.google.com/calendar/ical/703ghrmnu7ii3bbf2a9t1mda5s%40group.calendar.google.com/public/basic.ics
+      - https://calendar.google.com/calendar/ical/vosq09h3ijv02gr4klifcddpko%40group.calendar.google.com/public/basic.ics
+      - https://calendar.google.com/calendar/ical/nbst2ktks9q0j9nvs5vg7sa04s%40group.calendar.google.com/public/basic.ics
+    homepage: https://theory.stanford.edu/seminar/
+    host_org: Stanford CS Theory Group
+    default_fields: [cs]
+    default_event_type: seminar
+    series: Theory Seminar
+    params:
+      calendar_ids:
+        - cc0uor8q3hronjtesdsobhg18c@group.calendar.google.com
+        - 703ghrmnu7ii3bbf2a9t1mda5s@group.calendar.google.com  # also embedded by rain.stanford.edu
+        - vosq09h3ijv02gr4klifcddpko@group.calendar.google.com
+        - nbst2ktks9q0j9nvs5vg7sa04s@group.calendar.google.com
+      embed_selector: "iframe"
+    research:
+      verified: 2026-11-11
+      sample_events: 0
+      has_rss: false
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: false
+      ics_blocked_by_robots: true
+      structured_data:
+        - "four Google Calendars embedded in the page: their iCalendar feeds are disallowed by robots.txt of calendar.google.com, not requested"
+        - "no feed link, no JSON-LD"
+      extraction: feed
+      crawl_delay: 0
+      robots: "theory.stanford.edu: no robots.txt. calendar.google.com: Allow: /$ and Disallow: / (everything is disallowed)"
+      notes:
+        - Disabled. The real page of the seminar is https://theory.stanford.edu/seminar/ (theory.stanford.edu itself forwards to main/index.shtml, which links it).
+        - The page says the seminar is not happening regularly at the moment. It has no list of talks, only an embedded view of four public Google Calendars ("Upcoming Theory Events").
+        - The iCalendar feeds of those calendars (the urls above) are on calendar.google.com, whose robots.txt disallows every path. The polite client refused them, so nothing was fetched and there is no recording of a feed. The urls are the standard public addresses of the calendar ids, not verified ones.
+        - Which calendar belongs to which series is not labelled on the page. One of them is the calendar of the RAIN/OR seminar.
+        - The talk series of the theory group with a schedule in HTML are custom-theory-lunch and custom-rain-seminar.
+
+  - <<: *stanford-custom
+    id: custom-theory-lunch
+    name: Stanford CS Theory Lunch
+    adapter: html_list
+    url: https://theory.stanford.edu/theory_lunch/
+    host_org: Stanford CS Theory Group
+    default_fields: [cs]
+    default_event_type: seminar
+    series: Theory Lunch
+    params:
+      selectors:
+        item: "ol.talks > li"
+        title: "p.talk-title"
+        speaker: "p.talk-speaker b"
+        affiliation: "p.talk-speaker"  # "Jesse Goodman (UC Berkeley)"
+        date: "p.talk-meta"  # "November 12, 2026 <middle dot> Gates 403"
+        location: "p.talk-meta"
+        abstract: "p.talk-abstract"
+      date_pattern: '^(?P<date>[A-Z][a-z]+ \d{1,2}, \d{4})'
+      date_format: "%B %d, %Y"
+      location_pattern: '\xb7\s*(?P<location>.+?)\s*$'
+      affiliation_pattern: '\((?P<affiliation>[^()]*)\)\s*$'
+      # No time in a row. The page says: Thursdays, typically 12:00pm to 1:00pm; lunch
+      # is served at 12:00pm and the talk starts at 12:30pm.
+      default_start_time: "12:00"
+      default_end_time: "13:00"
+    research:
+      verified: 2026-11-11
+      sample_events: 11
+      upcoming_events: 4
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      structured_data:
+        - "none: hand-written HTML without feed link, JSON-LD or script data"
+      extraction: html
+      crawl_delay: 0
+      robots: "no robots.txt"
+      requests_per_run: 1
+      notes:
+        - Not in the seed list. It is the weekly talk series of the theory group that actually runs; the Theory Seminar itself is dormant.
+        - Small hand-written HTML with meaningful class names. Two lists, upcoming (4) and past (7) talks of the current quarter.
+        - A talk without a title is written "Title TBD"; such a row has no abstract.
+        - Two speakers of one talk are written in one b element ("Rahul Saha and Alan Li"), followed by one affiliation.
+        - The room varies between CoDa E160 and Gates 403 and is given per talk.
+        - Earlier quarters are in archives/index.html, which was not requested.
+
+  # --- RAIN/OR Seminar -------------------------------------------------------------------
+  - <<: *stanford-custom
+    id: custom-rain-seminar
+    name: Stanford RAIN/OR Seminar
+    adapter: html_list
+    url: https://rain.stanford.edu/
+    host_org: Stanford RAIN/OR Seminar
+    default_fields: [cs, ai-ml]
+    default_event_type: seminar
+    series: RAIN/OR Seminar
+    params:
+      selectors:
+        item: "ol.talk-list > li.talk"
+        title: "div.talk-title"
+        speaker: "h3.talk-presenter"
+        affiliation: "div.talk-affiliation"
+        date: "time.talk-date"
+        time: "div.talk-logistics > span:first-child"
+        location: "div.talk-logistics > span:last-child"
+        abstract: "details"
+      date_attribute: datetime  # ISO date, "2026-11-10"
+      date_format: "%Y-%m-%d"
+      # "4:30-5:30 PM PT" written with an en dash; one AM/PM marker for both times.
+      time_pattern: '^(?P<start>\d{1,2}:\d{2})\s*[-\u2013]\s*(?P<end>\d{1,2}:\d{2})\s*(?P<meridiem>[AP]M)\s*PT$'
+      # A talk without a title has no div.talk-title; "TBD" is used for a room.
+    research:
+      verified: 2026-11-11
+      sample_events: 11
+      upcoming_events: 10
+      has_rss: false
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: false
+      ics_blocked_by_robots: true
+      structured_data:
+        - "Atom feed /feed.xml, linked from the page: no entry (570 bytes, updated 2026-11-10)"
+        - "Google Calendar of the series embedded in the page: its iCalendar feed is disallowed by robots.txt of calendar.google.com, not requested"
+        - "no JSON-LD"
+      extraction: html
+      crawl_delay: 0
+      robots: "only a Sitemap line"
+      feed_url: https://rain.stanford.edu/feed.xml
+      requests_per_run: 1
+      notes:
+        - Not in the seed list; found through the page of the theory group. Recent advances in AI, Incentives and Operations Research, Tuesdays 4:30 to 5:30 PM, speakers listed until April 2027.
+        - Jekyll page of the same template family as mlsys.stanford.edu, with cleaner markup; the date is an ISO value in the datetime attribute.
+        - The feed the page links (/feed.xml) is an Atom feed without any entry, so it cannot be used.
+        - The page also embeds a Google Calendar of the series. Its feed is on calendar.google.com, whose robots.txt disallows every path; it was not requested.
+        - All 11 talks are listed under Upcoming Talks, but the first (2026-11-10) took place the day before this was checked, so 10 were still to come. The list keeps a talk for a day or more after it.
+        - 9 of the 11 talks had no title yet when this was checked.
+        - Earlier talks are under /archive/, which was not requested.
+
+  # --- Synthetic Biology -----------------------------------------------------------------
+  - <<: *stanford-custom
+    id: custom-synbio-events
+    name: Stanford Synthetic Biology Events
+    adapter: synbio_events
+    url: https://sb.stanford.edu/events
+    host_org: Stanford Synthetic Biology
+    default_fields: [bio]
+    default_event_type: seminar
+    llm_fallback: true
+    params:
+      # A Google Sites page with free text. An event is a heading followed by
+      # paragraphs up to the next heading, all siblings inside one container.
+      selectors:
+        container: "section div.tyJCtd"
+        heading: "h1, h2"  # both occur; id is "h.<key>_l"
+        line: "p"
+        # Links inside a heading (54 of 94 headings): mostly the name of a speaker
+        # linked to the speaker's page; sometimes a page about the event or a company.
+        heading_link: "a.XqQF9c"
+      # Join the text of a heading or a paragraph without a separator, then collapse
+      # white space: the text is split over span elements in the middle of words.
+      group_headings: ["Upcoming Events", "Past Events"]
+      # "Events" is the page title, "Stanford|Synthetic Biology" the footer (no lines).
+      skip_headings: ["Events", "Stanford|Synthetic Biology"]
+      # A block without a "When:" line is not an event. A second "When:" line in a
+      # block starts another event, named by the paragraph right before it (one block
+      # of the recording, the 2025 Expo, holds such an event). Its native id is
+      # "<key>/<n>": the key of the block and the number of its "When:" line (2).
+      require_line: when
+      heading_id_pattern: '^h\.(?P<key>[a-z0-9]+)_l$'
+      anchor_url_template: "https://sb.stanford.edu/events#h.{key}"
+      line_labels:
+        when: ["When"]
+        where: ["Where"]
+        title: ["Title", "Topic", "Talk Title", "Talk", "Seminar title"]  # compare without case
+      # Try when_range_pattern first: when_pattern also matches the two-day line, with
+      # "Thursday, June 22 to" as times. A times group that holds a month or a weekday
+      # is a range of days, never a time of day.
+      # "Thursday, June 22 to Friday, June 23, 2023" (one line of the recording)
+      when_range_pattern: '^When:\s*(?:(?P<start_weekday>[A-Z][a-z]+day),\s*)?(?P<start_month>[A-Z][a-z]+)\.?\s+(?P<start_day>\d{1,2})(?:st|nd|rd|th)?\s+to\s+(?:(?P<end_weekday>[A-Z][a-z]+day),\s*)?(?P<end_month>[A-Z][a-z]+)\.?\s+(?P<end_day>\d{1,2})(?:st|nd|rd|th)?\s*,\s*(?P<year>\d{4})\s*$'
+      # "12:00 pm - 1:00 pm on Tuesday, November 10, 2026", "3 pm on Tuesday, Sept 24 2024",
+      # "4:30pm on Tuesday, April 15, 2024 (Refreshments served at 4pm)": the other 94
+      # "When:" lines of the recording. times is empty for a day without a time.
+      when_pattern: '^When:\s*(?P<times>.*?)\s*(?:on\s+)?(?:(?P<weekday>[A-Z][a-z]+day),\s*)?(?P<month>[A-Z][a-z]+)\.?\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?\s*,?\s*(?P<year>\d{4})\s*(?:\((?P<remark>[^()]*)\))?\s*$'
+      # Months: compare the first three letters; "Ocober" is the one misspelling seen.
+      month_aliases: {Ocober: October}
+      # The times group: "12:00 pm", "12pm - 1pm", "12:00-1:00pm", "3:00 \u2013 4:00pm",
+      # "3:00 - 6:00 PM". Matches all 93 that are not empty. A start without am/pm takes
+      # the one of the end.
+      times_pattern: '(?i)^(?P<start>\d{1,2}(?::\d{2})?)\s*(?P<start_meridiem>[ap]m)?(?:\s*[-\u2013]\s*(?P<end>\d{1,2}(?::\d{2})?)\s*(?P<end_meridiem>[ap]m))?$'
+      # "SB.Talk with Dr. Sean Wang", "SB Talk by Dr. Maya Arce, Science Fellow @ Arc Institute"
+      speaker_heading_pattern: '^SB[. ]?Talks?\s+(?:with|by)\s+(?P<speaker>.+)$'
+    research:
+      verified: 2026-11-11
+      sample_events: 96
+      upcoming_events: 2
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      structured_data:
+        - "none: no feed, no JSON-LD; the scripts of the page hold the configuration of Google Sites, no event data"
+      extraction: html
+      crawl_delay: 0
+      robots: "no robots.txt"
+      requests_per_run: 1
+      notes:
+        - Google Sites page of 548 KB, free text without structured data. 95 event blocks when checked (3 under Upcoming Events, 92 under Past Events, back to March 2023), and one more event without a heading of its own inside one of them, so 96 events. The recording is trimmed to 94 blocks and 95 events; its README says what was removed.
+        - Of the 3 blocks under Upcoming Events the first (2026-11-10) took place the day before this was checked, so 2 were still to come.
+        - Every event block has a "When:" line and a "Where:" line. The footer heading "Stanford|Synthetic Biology" has neither and is not an event. The talk title is on a line with a changing label (Title, Topic, Talk Title, Talk, Seminar title) or missing; "TBA" and "TBD" occur.
+        - The block "2025 Stanford Synthetic Biology Expo" (September 12, 2025) also holds "Meet the Stanford iGEM Team / Undergraduate Research Talk" (July 29, 2025), written as a paragraph followed by its own "When:" and "Where:" lines, without a heading. The other lines of the Expo block are its programme ("12:00 \u2013 1:00 PM Poster Setup"); they are description, not events.
+        - The speaker is only in the heading ("SB.Talk with ...", "SB Talk by ...", often followed by a lab or an affiliation in parentheses or after a comma or "@"). In more than half of the headings the name is a link to the speaker's page, and the linked text is the cleanest form of the name.
+        - The times are written by hand in many ways ("12:00 pm - 1:00 pm", "12pm - 1pm", "12:00-1:00pm", an en dash, a start time only, no time at all, two days). Months are sometimes abbreviated or misspelt ("Ocober").
+        - The weekday does not fit the date in two lines ("Monday, May 15, 2025" was a Thursday, "Tuesday, April 15, 2024" a Monday). Which of the two is wrong cannot be told from the page; take the date and ignore the weekday.
+        - when_range_pattern and when_pattern together read all 95 "When:" lines of the recording, the two without a comma before the year ("Sept 24 2024", "May 21 2024") and the one with a remark after it ("April 15, 2024 (Refreshments served at 4pm)") included.
+        - A "Where:" line can link a Zoom meeting whose address carries a passcode (one block on the live page did). Never copy such a link into a draft as it is.
+        - The page mixes talks with symposia, workshops, socials and career events; only part of it is seminars.
+        - An event stays under "Upcoming Events" for a while after it took place.
+        - Generated class names (tyJCtd, XqQF9c) can change; the heading and paragraph structure inside section elements is the stable part.
+        - llm_fallback is on because the page is free text and the hand-written labels drift.

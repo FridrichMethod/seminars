@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "source_id": "custom-hai-events",
+  "entries": {
+    "https://hai.stanford.edu/events": {
+      "file": "events-ba2e38a4.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:33:11Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://hai.stanford.edu/events/2027-conference-on-physics-and-ai-phystat-2027": {
+      "file": "events-2027-conference-on-physics-and-ai-5bb7efe8.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T19:07:26Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://hai.stanford.edu/events/angele-christin-hannah-zeavin-gurus-hucksters-entertainers-how-influencers-reshaped-social-media": {
+      "file": "events-angele-christin-hannah-zeavin-gur-29ce1f27.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T19:07:24Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://hai.stanford.edu/events/christopher-ong-research-acceleration-the-view-inside-openai": {
+      "file": "events-christopher-ong-research-accelera-d9dd3300.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T19:07:20Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://hai.stanford.edu/events/hai-seminar-the-ai-100": {
+      "file": "events-hai-seminar-the-ai-100-43da3f5a.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T15:40:10Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://hai.stanford.edu/events/khaoula-chehbouni-best-practices-for-the-use-of-llms-as-judges": {
+      "file": "events-khaoula-chehbouni-best-practices-b9e1089d.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T19:07:17Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://hai.stanford.edu/events/marlowe-ai-data-for-science-with-andreas-tolias-1118-430pm-at-coda-e160": {
+      "file": "events-marlowe-ai-data-for-science-with-32c5f189.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T19:07:21Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://hai.stanford.edu/events/marlowe-ai-data-for-science-with-leonidas-guibas-122-430pm-at-coda-e160": {
+      "file": "events-marlowe-ai-data-for-science-with-86e3044f.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T19:07:22Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://hai.stanford.edu/events/marlowe-ai-data-for-science-with-mohsen-bayati-1111-430pm-at-coda-e160": {
+      "file": "events-marlowe-ai-data-for-science-with-c0d9bd79.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T19:07:16Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://hai.stanford.edu/events/special-seminar-and-fireside-chat-understanding-work-using-ai": {
+      "file": "events-special-seminar-and-fireside-chat-a0fc79e2.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T19:07:18Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://hai.stanford.edu/events/youngju-jo-data-driven-discovery-and-control-of-neural-computations": {
+      "file": "events-youngju-jo-data-driven-discovery-c915b628.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-11T19:07:25Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

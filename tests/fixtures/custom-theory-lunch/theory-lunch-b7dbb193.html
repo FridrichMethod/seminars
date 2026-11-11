@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Theory Lunch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  body {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 30px 20px 80px;
+    font-family: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+    color: #111;
+    background: #fff;
+  }
+  h1 {
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 36px;
+    font-weight: bold;
+    margin: 0 0 6px;
+  }
+  h2 {
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 19px;
+    font-weight: bold;
+    color: #8c1515;
+    margin: 34px 0 10px;
+    border-bottom: 1px solid #8c1515;
+    padding-bottom: 4px;
+  }
+  p { margin: 0 0 12px; }
+  a { color: #8c1515; }
+  a:visited { color: #6b1010; }
+  ul { margin: 0; padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  ol.talks { list-style: none; margin: 0; padding: 0; }
+  ol.talks > li { margin: 0 0 26px; padding-bottom: 22px; border-bottom: 1px solid #e5e5e5; }
+  ol.talks > li:last-child { border-bottom: none; }
+  .talk-speaker { font-size: 18px; font-weight: normal; margin: 0 0 3px; }
+  .talk-title { font-size: 17px; font-style: italic; color: #333; margin: 0 0 4px; }
+  .talk-meta { font-size: 15px; color: #444; margin: 0 0 8px; }
+  .talk-abstract { font-size: 16px; color: #333; margin: 0; }
+  figure { margin: 30px 0 0; }
+  figure img { max-width: 100%; height: auto; }
+  figcaption { font-size: 14px; color: #444; margin-top: 6px; }
+  footer { margin-top: 50px; font-size: 14px; color: #666; }
+</style>
+</head>
+<body>
+
+<h1>Stanford CS Theory Lunch</h1>
+
+<h2>Logistics</h2>
+<p><b>Time:</b> Thursdays, typically 12:00pm to 1:00pm. Lunch is served at 12:00pm; the talk starts at 12:30pm.</p>
+<p><b>Location:</b> Theory lunch is typically in CoDa E160. Make sure to subscribe to the mailing list (details below) for announcements with updated location information. This term, some of the lunches will be in Gates 403.</p>
+<p><b>Mailing list:</b> thseminar@cs.stanford.edu. You can add or remove yourself from the list using <a href="https://mailman.stanford.edu/mailman/listinfo/theory-seminar">this link</a>.</p>
+<p>To hear about upcoming talks, join the mailing list! For previous quarter talks see the <a href="archives/index.html">theory lunch archives</a>.</p>
+
+<h2>Upcoming Talks (Fall 2026)</h2>
+<ol class="talks">
+  <li>
+    <p class="talk-speaker"><b>Jesse Goodman</b> (UC Berkeley)</p>
+    <p class="talk-title"><i>Low-error extractors</i></p>
+    <p class="talk-meta">November 12, 2026 &middot; <b>Gates 403</b></p>
+    <p class="talk-abstract">We give the first explicit construction of low-error two-source extractors for min-entropy k = o(n). Our construction is based on a new regularity lemma for low-rank matrices, which provides the first polynomial bounds for the approximate duality conjecture. The key ingredient is a new result on rapid mixing in F<sub>2</sub><sup>n</sup>, which shows that every spread set enjoys iterative sum-product type growth, under addition alone. Along the way, we explicitly construct new low-error affine extractors, and more.<br><br>Joint work with Dean Doron.</p>
+  </li>
+  <li>
+    <p class="talk-speaker"><b>Jordan Docter</b> (Stanford University)</p>
+    <p class="talk-title"><i>Title TBD</i></p>
+    <p class="talk-meta">November 19, 2026 &middot; CoDa E160</p>
+  </li>
+  <li>
+    <p class="talk-speaker"><b>Aniket Das</b> (Stanford University)</p>
+    <p class="talk-title"><i>Reaching the Algorithmic Threshold for Tensor PCA via Local Markov Chains</i></p>
+    <p class="talk-meta">December 3, 2026 &middot; CoDa E160</p>
+    <p class="talk-abstract">We study the tensor principal component analysis (tensor PCA problem) in the spiked tensor model, where the task is to recover an unknown vector on the signed hypercube {&plusmn;1}<sup>N</sup> or the sphere &#120138;<sup>N&minus;1</sup>(&radic;N) from a noisy observation of its <i>k</i>-th tensor power, for some fixed <i>k</i> &ge; 3. This is a canonical planted problem in average case complexity, which exhibits a well-studied information-computation gap: global algorithms such as spectral methods and sum-of-squares work above an algorithmic threshold, below which we know matching lower bounds (against these and some other restricted models of computation).<br><br>In contrast, local algorithms such as Markov chains were only known to succeed from a random initialization at a polynomially larger signal-to-noise ratio, and were believed to be inferior to global algorithms for tensor PCA.<br><br>We show that two canonical local Markov chains, Glauber dynamics on the hypercube and Langevin dynamics on the sphere, once supplemented with annealing and ergodic averaging, achieve polynomial-time strong recovery above the algorithmic threshold from a uniformly random initialization. Our results demonstrate that algorithms based on local Markov chains can succeed all the way down to the algorithmic threshold for planted average-case problems, even from an uninformative cold start.<br><br>Based on joint works with Tselil Schramm.</p>
+  </li>
+  <li>
+    <p class="talk-speaker"><b>Addison Prairie</b> (Stanford University)</p>
+    <p class="talk-title"><i>Title TBD</i></p>
+    <p class="talk-meta">December 10, 2026 &middot; CoDa E160</p>
+  </li>
+</ol>
+
+<h2>Past Talks (Fall 2026)</h2>
+<ol class="talks">
+  <li>
+    <p class="talk-speaker"><b>Mohit Gurumukhani</b> (Cornell University)</p>
+    <p class="talk-title"><i>A Resolution of Friedgut&#39;s Conjecture on Influential Coalitions</i></p>
+    <p class="talk-meta">November 5, 2026 &middot; <b>Gates 403</b></p>
+    <p class="talk-abstract">In Friedgut&#39;04, the following conjecture was proposed: For any monotone Boolean function on [0,1]^n, there exists a coalition of o(n) coordinates and a target output b in {0, 1} such that after the remaining coordinates are sampled uniformly and independently, the coalition can choose its values to make the output of f equal to b with probability at least 0.99. We resolve this conjecture, showing that for any f, there exists such a coalition of size O(n / sqrt(log n)), biasing it towards some output.<br><br>In collective coin flipping, our result gives the first sublinear bound on the number of bad players that can bias any one-round coin flipping protocol with independent uniform messages, regardless of the message length. In pseudorandomness, this shows that deterministically extracting from NOSF sources with O(n / sqrt(log n)) bad coordinates is impossible.<br><br>A key ingredient in our proof is an encoding that lets us relate the influence of a function on a product space to the p-biased influence of the encoded function. We then rely on a structure theorem of Hatami&#39;12 for functions with small p-biased influence to bias the encoded function.<br><br>Based on joint work with Eshan Chattopadhyay.</p>
+  </li>
+  <li>
+    <p class="talk-speaker"><b>Itay Cohen</b> (Tel Aviv University)</p>
+    <p class="talk-title"><i>Good Quantum Locally Testable Codes from Lossless Cubical Complexes</i></p>
+    <p class="talk-meta">October 29, 2026 &middot; <b>Gates 403</b></p>
+    <p class="talk-abstract">We show that certain lossless four-dimensional cubical complexes yield quantum locally testable codes with constant rate, linear distance, and constant soundness. The key ingredient is a local-to-global theorem connecting lossless expansion of directional graphs to small-set coboundary expansion of the associated level chain complex. Constructing such cubical complexes remains open.<br><br>Joint work with Itai Leigh, Assaf Reiner, Amnon Ta-Shma, and Elad Tzalik.</p>
+  </li>
+  <li>
+    <p class="talk-speaker"><b>Noam Ringach</b> (Cornell University)</p>
+    <p class="talk-title"><i>Two sided product expansion via Rademacher matrices: the case for analyzing random codes over the reals</i></p>
+    <p class="talk-meta">October 22, 2026 &middot; CoDa E160</p>
+    <p class="talk-abstract">Random codes over finite fields have been immensely useful in coding theory as both a benchmark of what is possible, indicating what constructions should strive to achieve, and as gadgets in explicit constructions themselves. As an example of the latter case, beginning with the work of Dinur, Lin, and Vidick (FOCS, 2024), tensor codes with constant product expansion have been foundational to recent advances in quantum locally testable codes (qLTCs) based on cubical complexes. Kalachev and Panteleev (FOCS, 2025) showed that these tensor codes can be taken as the product of random linear codes.<br><br>However, while most properties of random codes are easy to show via the standard probabilistic method, showing a random tensor code has good product expansion is quite difficult. Indeed, [KP&rsquo;25] require the use of explicit good locally testable codes (c3-LTCs) for their existential proof. As a consequence, their proof technique is inflexible and cannot generalize to other settings where the component codes of the tensor code are required to have large automorphism groups or the code isn&rsquo;t exactly the tensor product of individual codes.<br><br>In this talk, I will overview how we manage to give a purely existential proof of product expansion by analyzing random codes generated by real matrices with Rademacher random variable entries. To avoid using c3-LTCs, we develop several new techniques that we view as interesting in their own right. Surprisingly, we show that the problem reduces to a nice combinatorial problem involving counting closed walks on bipartite graphs where each edge is traversed an even number of times.<br><br>Due to our techniques not relying on explicit c3-LTCs, we believe that they form a promising starting point towards showing the existence of product expanding tensor codes where the component codes have non-trivial automorphism groups and coboundary expanding codes that could be used as the local codes of non-cubical complexes, such as simplicial complexes. Overall, we offer a different random model and novel techniques for studying the product expansion of random linear codes.<br><br>This is joint work with Eshan Chattopadhyay and Nick Spooner.</p>
+  </li>
+  <li>
+    <p class="talk-speaker"><b>Theory faculty</b> (Stanford University)</p>
+    <p class="talk-title"><i>Theory of CS: a discussion with the Theory faculty</i></p>
+    <p class="talk-meta">October 15, 2026 &middot; CoDa E160</p>
+    <p class="talk-abstract">The remarkable progress of AI models in recent months is impacting everyone in the Theory of Computer Science (TCS) community. Please join us at this theory lunch for an open discussion with the theory faculty on the state of TCS, and how it will evolve in the coming years.</p>
+  </li>
+  <li>
+    <p class="talk-speaker"><b>Rahul Saha</b> and <b>Alan Li</b> (UT Austin)</p>
+    <p class="talk-title"><i>New Bounds on the Grothendieck Constant via Long Horizon AI Assisted Research</i></p>
+    <p class="talk-meta">October 8, 2026 &middot; <b>Gates 403</b></p>
+    <p class="talk-abstract">The Grothendieck constant (K_G) is a fundamental quantity measuring the worst-case gap between a particular class of integer quadratic optimization problem and its efficiently solvable semidefinite programming relaxation. It has found diverse applications in fields such as functional analysis, combinatorial optimization, theoretical computer science, and quantum information theory.<br><br>Its value has remained open since its introduction by Alexander Grothendieck over 70 years ago, despite sustained interest from the mathematical community. Our work determines the tenths digit for the first time, proving (6&pi;/11 &lt; K_G &lt; &pi;/(2log(1+&radic;2)) - 10^&minus;4). We will describe the technical details of these improvements, which relies on conceptually new approaches to both sides of the problem: new asymptotic rounding schemes for the upper bound, and a lower-bound method based on proving fundamental limitations of entire classes of rounding schemes rather than constructing individual hard instances.<br><br>We will describe the AI research system we built, and the roles played by both AI and human researchers throughout the process. Finally, we will discuss what this experience suggests about the importance of human research judgement and the future of human-AI collaboration.</p>
+  </li>
+  <li>
+    <p class="talk-speaker"><b>Aviad Rubinstein</b> (Stanford University)</p>
+    <p class="talk-title"><i>Secretary problem: recent (and not so recent) advances</i></p>
+    <p class="talk-meta">October 1, 2026 &middot; <b>Gates 403</b></p>
+    <p class="talk-abstract">I will try to cover recent advances in choose-many variants of the secretary problem, including general downward closed constraints (based on my joint work with Sahil Singla) and matroid constraints (Sahil&#39;s breakthrough from 2 weeks ago).</p>
+  </li>
+  <li>
+    <p class="talk-speaker"><b>George Li</b> (CMU)</p>
+    <p class="talk-title"><i>Bellman-Ford in Almost-Linear Time</i></p>
+    <p class="talk-meta">September 24, 2026 &middot; CoDa E160</p>
+    <p class="talk-abstract">We consider the single-source shortest paths problem on a directed graph with real-valued (possibly negative) edge weights and solve this problem in m^{1+o(1)} time.</p>
+  </li>
+</ol>
+
+<h2>Links</h2>
+<ul>
+  <li><a href="http://theory.stanford.edu">Stanford CS Theory Website</a></li>
+  <li><a href="https://rain.stanford.edu/">Stanford RAIN seminar</a></li>
+</ul>
+
+<figure>
+  <img src="knuth_lunch.jpeg" alt="Theory lunch with Don Knuth">
+  <figcaption>Don Knuth in Theory Lunch, Fall 2022. Photo credit: Joe Kahn.</figcaption>
+</figure>
+
+</body>
+</html>
