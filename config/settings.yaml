@@ -1,0 +1,48 @@
+# Project settings. Schema: seminars.config.Settings (unknown keys are an error).
+
+# All naive times are interpreted in this zone; event times are stored in it.
+timezone: America/Los_Angeles
+
+# Right-hand side of every ICS UID (<uid>@<uid_domain>).
+# Never change this once the feeds are public: subscribers would see duplicates.
+uid_domain: seminars.fridrichmethod.github.io
+
+site:
+  base_url: https://fridrichmethod.github.io/seminars/
+
+# Events are kept from days_back before today to days_ahead after today (local days).
+window:
+  days_back: 14
+  days_ahead: 120
+
+# Polite fetching. Interval per host = max(min_interval_seconds, robots.txt Crawl-delay).
+http:
+  user_agent: seminars-bot/1.0 (+https://fridrichmethod.github.io/seminars/)
+  min_interval_seconds: 1.0
+  timeout_seconds: 20
+  retries: 3
+  max_requests_per_host: 20
+  backoff_base_seconds: 1.0
+  backoff_max_seconds: 60
+  max_crawl_delay_seconds: 120
+  max_redirects: 5
+  robots_cache_seconds: 86400
+
+events:
+  default_duration_minutes: 60
+  delete_after_missing_runs: 3
+  abstract_max_chars: 4000
+  include_defenses: true
+
+dedup:
+  max_start_difference_minutes: 15
+  title_similarity: 85
+
+# Consecutive bad runs before an issue is opened.
+health:
+  source_failure_threshold: 3
+  source_empty_threshold: 3
+  llm_failure_threshold: 2
+
+feeds:
+  refresh_interval_hours: 6

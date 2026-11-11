@@ -1,0 +1,33 @@
+# LLM layer settings. Schema: seminars.config.LLMConfig (unknown keys are an error).
+# Placeholder: no model names or CLI versions are chosen yet, so every provider is
+# effectively unconfigured until this file is filled in.
+# Overrides: LLM_PROVIDERS (comma separated), LLM_MODEL_<PROVIDER>, LLM_BASE_URL.
+
+# Provider chain in order of preference. codex-cli is opt-in and local only:
+# it is used only when LLM_PROVIDERS names it, and never inside GitHub Actions.
+providers:
+  - claude-cli
+  - codex-cli
+  - anthropic
+  - openai
+  - openai-compat
+
+models:
+  claude-cli: null
+  codex-cli: null
+  anthropic: null
+  openai: null
+  openai-compat: null
+
+cli_versions:
+  claude-cli: null
+  codex-cli: null
+
+base_url: null
+
+batch_size: 20
+max_calls_per_run: 60
+max_input_chars: 12000
+timeout_seconds: 120
+cache_ttl_days: 180
+grounding_min_similarity: 90

@@ -7,7 +7,7 @@ from typing import Literal, Self
 from seminars.models.base import FieldList, Model, SortedStrList, Timestamp, canonical_fields
 from seminars.models.event import Event
 
-ExclusionReason = Literal[
+RuleExclusionReason = Literal[
     "course",  # regular class sessions
     "office_hours",
     "admissions",  # admissions and information sessions
@@ -17,8 +17,13 @@ ExclusionReason = Literal[
     "religious",
     "administrative",  # committee and staff meetings
     "academic_calendar",  # deadlines, billing dates, holidays
+]
+"""Exclusion reasons the rule-based filter can assign (SPEC section 5.5)."""
+
+ExclusionReason = Literal[
+    RuleExclusionReason,
     "not_a_talk",  # the LLM judged an ambiguous item not to be an academic talk
-    "out_of_scope",  # no field matched after classification (SPEC section 5.5)
+    "out_of_scope",  # no field matched after classification
     "invalid",  # the draft could not be normalized (for example no usable start)
 ]
 """Why an event was left out; written to the run report."""
