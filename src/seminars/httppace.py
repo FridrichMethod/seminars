@@ -41,7 +41,7 @@ from seminars.textrules import ascii_safe
 logger = logging.getLogger(__name__)
 
 _REFUSED_EARLIER: Final = (
-    "refusing a host whose answer came from a local or private network address earlier in this run"
+    "refusing a host that led to this machine or to a private network earlier in this run"
 )
 
 _ROBOTS_COPIES_KEPT: Final = 4
@@ -262,14 +262,8 @@ class Pacer:
         this client, whatever links, ports and redirects point at it.
         """
         limit = self._settings.max_requests_per_host
-        used, what = (
-            (state.robots_requests, "robots.txt request")
-            if robots
-            else (
-                state.requests,
-                "request",
-            )
-        )
+        used = state.robots_requests if robots else state.requests
+        what = "robots.txt request" if robots else "request"
         if used >= limit:
             raise HostBudgetExceededError(
                 url, f"{what} budget for host {host} is exhausted ({limit} requests per run)"

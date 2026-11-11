@@ -25,6 +25,7 @@ from seminars.http import (
     HttpError,
     HttpRequestError,
     PoliteClient,
+    ResponseTooLargeError,
     RobotsUnavailableError,
     UnsupportedSchemeError,
 )
@@ -218,6 +219,26 @@ class TestValidators:
         assert client.get(PAGE).text == "hi\n"
         assert "if-none-match" not in network.requests[-1].headers
         assert "if-modified-since" not in network.requests[-1].headers
+
+
+class TestDeclaredSize:
+    @pytest.mark.parametrize("declared", ["9" * 5000, "1" + "0" * 30, "5000001", "0005000001"])
+    def test_a_huge_declared_size_is_too_large_however_many_digits_it_has(
+        self, http_settings: HttpSettings, fake_clock: FakeClock, declared: str
+    ) -> None:
+        """Python refuses to convert a number of more than 4300 digits."""
+        handler = page_with([(b"content-length", declared.encode("ascii"))])
+        client, _ = build(http_settings, fake_clock, handler)
+        with pytest.raises(ResponseTooLargeError):
+            client.get(PAGE)
+
+    @pytest.mark.parametrize("declared", [b"\xb2", b"\xb9\xb2\xb3", b"-1", b"1e9", b"", b"2 "])
+    def test_a_declared_size_that_is_no_number_is_ignored(
+        self, http_settings: HttpSettings, fake_clock: FakeClock, declared: bytes
+    ) -> None:
+        """A superscript two is a digit to str.isdigit and not a number to int."""
+        client, _ = build(http_settings, fake_clock, page_with([(b"content-length", declared)]))
+        assert client.get(PAGE).text == "hi\n"
 
 
 RETRY_AFTER_VALUES = ["nan", "NaN", "-nan", "1e400", "inf", "-inf", "-5", "99999999999", "0x10"]
@@ -442,6 +463,7 @@ class TestAnyInput:
             if request.url.path == "/robots.txt" and not robots_too:
                 return httpx.Response(404)
             headers = [(b"etag", clean(validator)), (b"retry-after", clean(validator))]
+            headers.append((b"content-length", clean(validator)))
             if first or robots_too:
                 return httpx.Response(302, headers=[(b"location", clean(location)), *headers])
             return httpx.Response(200, headers=headers, content=b"ok")

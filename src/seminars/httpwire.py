@@ -16,6 +16,7 @@ import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from http.cookiejar import CookieJar, DefaultCookiePolicy
+from typing import Final
 
 import httpx
 
@@ -67,6 +68,10 @@ def system_own_address(address: str) -> bool:
     except OSError:  # no route, or no such address family here: not reachable at all
         return False
     return ip_of(source) == target
+
+
+_SIZE_DIGITS: Final = 30
+"""A declared body size is read this far; a number with more digits is too large anyway."""
 
 
 class AttemptFailed(Exception):
@@ -224,7 +229,7 @@ class Wire:
         """
         limit = self._settings.max_body_bytes
         declared = response.headers.get("content-length", "")
-        if declared.isdigit() and int(declared) > limit:
+        if declared.isascii() and declared.isdigit() and int(declared[:_SIZE_DIGITS]) > limit:
             raise ResponseTooLargeError(url, limit)
         chunks: list[bytes] = []
         size = 0
