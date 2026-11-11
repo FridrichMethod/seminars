@@ -13,6 +13,7 @@ from __future__ import annotations
 import socket
 from collections.abc import Mapping
 from dataclasses import dataclass
+from http.cookiejar import CookieJar, DefaultCookiePolicy
 
 import httpx
 
@@ -63,7 +64,9 @@ class Wire:
 
     It knows nothing about politeness: every call is one lookup or one
     request. Proxy settings of the environment are ignored; see "Public
-    hosts only" in ``seminars.http``.
+    hosts only" in ``seminars.http``. No cookie is ever stored or sent
+    back: the jar of the client accepts none, so no answer leaves a trace
+    that changes a later request.
     """
 
     def __init__(
@@ -81,6 +84,7 @@ class Wire:
             follow_redirects=False,
             transport=transport,
             trust_env=False,  # no proxies: the peer check needs the real peer
+            cookies=CookieJar(DefaultCookiePolicy(allowed_domains=[])),  # accepts nothing
         )
 
     def close(self) -> None:

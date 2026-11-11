@@ -60,6 +60,13 @@ Rules of the live client:
   backoff (``Retry-After`` is respected);
 * redirects are followed hop by hop so that each hop obeys the rules of its
   own host;
+* the headers a caller passes to ``get`` go to the origin of the URL it
+  asked for. A redirect to another origin (another scheme, host or port)
+  only takes ``Accept`` and ``Accept-Language`` along, so an API key or an
+  ``Authorization`` header never reaches whoever a redirect points at.
+  robots.txt requests carry none of them;
+* cookies are neither stored nor sent: no answer changes a later request,
+  and a recorded fixture can reproduce everything an adapter sees;
 * responses with an ETag or Last-Modified are cached under ``cache_dir`` and
   revalidated with a conditional request;
 * images and other binary media types are refused before the body is read;
@@ -107,9 +114,10 @@ What remains. Check 2 and the connection are two separate lookups, so a
 hostile DNS server can give a public address to the first and a private one
 to the second (DNS rebinding). Check 3 notices, but only after the request
 left. In that race one blind GET can reach a non-public address. It carries
-the fixed User-Agent, the headers the adapter asked for and the cookies the
-same host name set earlier in the run; this project holds no credentials
-for any site. Its answer is never read.
+the fixed User-Agent and, when the host is the one the caller asked for,
+the headers the caller passed; it never carries a cookie, and this project
+holds no credentials for any site. Its answer is never read and nothing
+of it is kept.
 
 Proxies are not supported. The client ignores the proxy variables of the
 environment (``HTTP_PROXY``, ``HTTPS_PROXY``, ``ALL_PROXY``, ``NO_PROXY``)
@@ -229,6 +237,9 @@ _UNFORESEEN: Final = (
 Not ``Exception``: a failed assertion or a programming error must stay
 visible.
 """
+
+_HEADERS_FOR_ANY_ORIGIN: Final = frozenset({"accept", "accept-language"})
+"""Headers of the caller that also go to an origin a redirect leads to; all others stay home."""
 
 _ROBOTS_COPIES_KEPT: Final = 4
 """How many robots.txt copies of one host are kept in the cache directory (the newest ones)."""
@@ -354,8 +365,9 @@ class PoliteClient:
         self, url: str, headers: Mapping[str, str] | None, allow_statuses: Collection[int]
     ) -> FetchedDocument:
         current = url
+        home = parse_url(url).origin
         for _ in range(self._settings.max_redirects + 1):
-            hop = self._fetch_hop(current, headers)
+            hop = self._fetch_hop(current, headers, home)
             if hop.location is None:
                 break
             current = hop.location
@@ -375,9 +387,19 @@ class PoliteClient:
 
     # --- one hop ---------------------------------------------------------------------------
 
-    def _fetch_hop(self, url: str, extra_headers: Mapping[str, str] | None) -> _Hop:
-        """One request of a ``get``: ``url`` as written, sent and cached in its canonical form."""
+    def _fetch_hop(self, url: str, extra_headers: Mapping[str, str] | None, home: str) -> _Hop:
+        """One request of a ``get``: ``url`` as written, sent and cached in its canonical form.
+
+        ``home`` is the origin the caller asked for. A redirect that leaves
+        it takes only the harmless headers of the caller along.
+        """
         target = parse_url(url)
+        if extra_headers and target.origin != home:
+            extra_headers = {
+                name: value
+                for name, value in extra_headers.items()
+                if name.lower() in _HEADERS_FOR_ANY_ORIGIN
+            }
         state = self._state(target.host)
         policy = self._policy(state, target.host, target.origin)
         if not policy.allows(target.path):

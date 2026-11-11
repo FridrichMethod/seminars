@@ -139,7 +139,11 @@ class HttpClient(Protocol):
         """Fetch ``url`` and return its body as text in canonical form.
 
         ``headers`` adds request headers (User-Agent cannot be overridden).
-        A final status outside 2xx raises ``HttpStatusError`` unless it is
-        listed in ``allow_statuses``.
+        They are meant for the origin of ``url``: when a redirect leads to
+        another origin, only ``Accept`` and ``Accept-Language`` are sent
+        there, so a credential passed here stays with the site it is for.
+        Cookies are never kept between requests; a ``Cookie`` header given
+        here is sent like any other header. A final status outside 2xx
+        raises ``HttpStatusError`` unless it is listed in ``allow_statuses``.
         """
         ...
