@@ -193,6 +193,7 @@ codex exec --sandbox read-only --skip-git-repo-check --ephemeral \
 
 * 不加 `--disable` 那一串时，模型可以用约 26 个工具，其中有 shell、打补丁工具、联网、子 agent、MCP 和 plugin 工具。
 * 加上之后还剩 `functions.exec` 和 `functions.wait`、`functions.request_user_input` 以及 `collaboration.*` 工具。没有文档记载的"零工具"开关，`code_mode_host` 和 `collaboration_modes` 这两个 feature 也去不掉剩下的工具。
+* 每个 `--disable` 都单独去掉试过一次，用 `codex debug prompt-input` 检查结果（它不调用模型就能列出工具，但会读用户配置）：在 0.167.0 下只有 `shell_tool`、`view_image` 和 `sleep_tool` 会改变可用的工具，`apps` 和 `plugins` 会改变指令，其余十二个目前没有任何影响。整串保留是有意的纵深防御：现在默认关闭的 feature 在以后的版本里可能默认打开，多一个 flag 也没有任何代价。
 * `web_search` 必须显式关掉：它的默认值是 `"cached"`，而 sandbox 不管 web search、app 和 MCP。read-only sandbox 只管 shell 命令：可以读盘，不能写，也不能联网。
 * `--ignore-user-config` 只跳过 `config.toml`。登录照常从 `CODEX_HOME` 读取，这个目录保持不变。
 * `--json` 打印运行中的事件；读取它们是为了 token 数、错误信息和工具调用。回答是 `-o` 写出的文件。

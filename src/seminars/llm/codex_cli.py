@@ -29,6 +29,15 @@ What is known about it:
   and ``code_mode_host`` and ``collaboration_modes`` do not remove the
   rest (checked with ``codex debug prompt-input``, which renders the tool
   list without a model call).
+* The ``--disable`` list is longer than it has to be today, on purpose.
+  Leaving out one flag at a time (``codex debug prompt-input``, which
+  reads the user configuration, unlike the real call) showed that with
+  0.167.0 only ``shell_tool``, ``view_image`` and ``sleep_tool`` change
+  the tools on offer (``exec_command`` and ``view_image`` as nested tools
+  of ``functions.exec``, ``clock.sleep``), and ``apps`` and ``plugins``
+  change the instructions; the other twelve change nothing. They stay as
+  defence in depth: a feature that is off by default now can be on by
+  default in a later version, and a flag too many costs nothing.
 * ``web_search`` has to be switched off explicitly: its default is
   ``cached``, and the sandbox does not cover web search, apps and MCP.
 * The read-only sandbox applies to shell commands: they can read the disk

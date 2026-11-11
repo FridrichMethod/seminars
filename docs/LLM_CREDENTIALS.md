@@ -273,6 +273,13 @@ codex exec --sandbox read-only --skip-git-repo-check --ephemeral \
   `functions.request_user_input` and the `collaboration.*` tools. There is no documented
   switch for "no tools", and the features `code_mode_host` and `collaboration_modes` do not
   remove the rest.
+* Each `--disable` flag was left out on its own once and the result checked with
+  `codex debug prompt-input` (it renders the tools without a model call, but reads the user
+  configuration): with 0.167.0 only `shell_tool`, `view_image` and `sleep_tool` change the
+  tools on offer, and `apps` and `plugins` change the instructions; the other twelve change
+  nothing today. The whole list is kept on purpose, as defence in depth: a feature that is
+  off by default now can be on by default in a later version, and a flag too many costs
+  nothing.
 * `web_search` has to be switched off explicitly: its default is `"cached"`, and the
   sandbox does not cover web search, apps and MCP. The read-only sandbox applies to shell
   commands, which can read the disk but cannot write or reach the network.

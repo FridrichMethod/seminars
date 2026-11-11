@@ -114,3 +114,11 @@ class TestTrueToTheCode:
     def test_no_secret_of_the_dropped_codex_set_up_is_named(self, path: Path) -> None:
         for name in ("CODEX" + "_AUTH_JSON", "SECRETS" + "_WRITER_PAT"):
             assert name not in text(path)
+
+    def test_the_note_on_the_disable_list_matches_the_list(self) -> None:
+        """The documents name the five flags that matter today and count the other twelve."""
+        effective = {"shell_tool", "view_image", "sleep_tool", "apps", "plugins"}
+        assert effective <= set(DISABLED_FEATURES)
+        assert len(DISABLED_FEATURES) - len(effective) == 12
+        assert "the other twelve change" in " ".join(text(ENGLISH).split())
+        assert "\u5176\u4f59\u5341\u4e8c\u4e2a" in text(CHINESE)
