@@ -1,0 +1,181 @@
+# researchseminars.org: series run by Stanford and Bay Area institutes.
+#
+# Researched on 2026-11-11 with the polite client. The fixtures of these
+# sources (tests/fixtures/rsorg-*/README.md) describe the feed format in
+# detail; the essentials for the adapter:
+#
+# * One ICS feed per series: https://researchseminars.org/seminar/<series id>/ics
+#   It returns the whole history of the series, past and future talks, in no
+#   particular order. There is no date parameter: filter by the run window.
+# * DTSTART / DTEND are always UTC date-times ("...Z"). The feeds contain no
+#   all-day events. Should a VALUE=DATE DTEND ever appear, it is the day
+#   after the last day; the draft's all-day end is the last day inclusive,
+#   so subtract one day.
+# * UID is "<series id>/<talk counter>", stable across reschedules (the site
+#   keeps the counter and leaves the old copy out of the feed). Use it as
+#   the native id. DTSTAMP is the time of the request: ignore it.
+# * SUMMARY is the speaker ("Name (Affiliation)" when the organizers gave
+#   one), NOT the title. DESCRIPTION, as built by the site:
+#     Title: <a href="<talk page>">TITLE</a>      (missing while the title is TBA)
+#     by SPEAKER as part of SERIES NAME
+#     <empty line>
+#     Interactive livestream: URL                 (future online talks only)
+#     Password hint: TEXT                         (only with a password)
+#     View-only livestream: URL                   (optional)
+#     Lecture held in ROOM.                       (optional; the period is added)
+#     then EITHER   <empty line> / Abstract / TEXT (TEXT may span many lines)
+#     OR            Abstract: TBA                 (no empty line of its own)
+#     <empty line>COMMENTS                        (optional, after the abstract)
+#   Details an adapter gets wrong from the outline alone:
+#   - "Abstract: TBA" directly follows the line above it. After a livestream
+#     or room line there is no empty line between them (all 21 upcoming TBA
+#     talks of the Topos feed: "Password hint: ..." then "Abstract: TBA");
+#     only without such lines is it preceded by the empty line after "by".
+#   - TEXT often has paragraphs separated by empty lines (102 of 209
+#     abstracts in the Topos feed, 72 of 148 in agstanford), and COMMENTS
+#     are appended after one more empty line. The two cannot be told apart:
+#     take everything after the "Abstract" line as the abstract.
+#   - Take the by-line by its position (the first line, or the second after
+#     a "Title:" line), never by matching a line that starts with "by "
+#     anywhere: two agstanford abstracts contain such lines.
+#   - ROOM is free text as the organizers typed it: "383-N", "Room 383-N",
+#     "380-W (unusual room!)", "384-I (unusual date and location)", or
+#     "TBA". Drop the final period, keep notes in parentheses as they are,
+#     and treat "TBA" as no location. Unfold the ICS lines before reading
+#     it: a folded "Room 383\n -N" is "Room 383-N", not "Room 383 -N".
+# * URL properties (0, 1 or 2 per event) repeat the livestream links; the
+#   interactive one is a Zoom URL with pwd=, which normalization drops
+#   (is_online stays true). The detail page of a talk is
+#   https://researchseminars.org/talk/<series id>/<counter>/ : build it from
+#   the UID (it is also the href of the title link).
+# * Never copy LOCATION into the draft's location or url. Today it is the
+#   talk page in every event (233 Topos, 148 agstanford), not a room; the
+#   room comes only from the "Lecture held in" line. In the site's current
+#   source code, though, the variable written to LOCATION is overwritten by
+#   the livestream link first, so once that code is deployed LOCATION of an
+#   online talk becomes the Zoom URL with pwd=.
+# * No STATUS property. A cancelled talk is deleted by its organizers and
+#   disappears from the feed; occasionally the title says it instead.
+#
+# The generic "ics" adapter would read SUMMARY as the title, so these
+# sources name a small custom adapter, seminars.sources.custom.researchseminars,
+# which does not exist yet (adapter names are checked at run time).
+#
+# Do not use the JSON API for talks: /api/0/search/talks returns every
+# talk with the speaker's e-mail address and an edit token. The series
+# search (/api/0/search/series) is safe and is how new series are found.
+# In a GET request each parameter is a column and its value is JSON; text
+# array columns (institutions, topics) are matched for EXACT equality, e.g.
+# ?institutions=["Stanford"]; operators like {"$contains": ...} work only
+# in a POST body and silently match nothing in a GET.
+#
+# Series of Stanford and Bay Area institutes that are listed on the site but
+# have had no talk since 2026-10-01 (checked against the talk search of
+# 2026-11-11, which covered every series; it cannot be repeated without the
+# talk endpoint and its e-mail addresses, so re-check one series through
+# its feed). They are left out; each has its feed at /seminar/<id>/ics.
+# All 46 series tagged with one of these institutions are named here or
+# below; Topos is the only one with upcoming talks, so 45 are left out.
+#   Stanford: OpenLab (OpenLab Seminar; cs, econ; last talk 2026-06-18),
+#     agstanford (below, disabled), lattice (Solvable Lattice Models;
+#     math-ph; last 2022-11-02), SITPseminar (SITP seminar; hep-th; last
+#     2021-10-25), Stanfordcombinatorics (math_CO; last 2020-05-28), qfarm
+#     (Q-FARM; quant-ph; last 2020-06-17), KIPACTea (physics; last
+#     2020-05-12), Rafefest (conference 2022), StanfordGeneticsConference
+#     (conference 2020).
+#   KIPAC: KIPACAstroC (KIPAC Astrophysics Colloquium; last 2020-05-28).
+#   SLAC: SLACTheory (SLAC EPP theory seminars; last 2020-06-17).
+#   Stanford with Cal and others: geoflowmeeting, geoflowmeeting2021Jan
+#     (Geoflow Meeting; physics; conferences 2020 and 2021).
+#   Berkeley (8): BerekelyApplied, BerkeleyCombinatorics,
+#     BerkeleyStringMathe, Breakthroughs, SSCEM2020, SimonsInstitute-TSS,
+#     berkeleyntrtg, logic_berkeley.
+#   Cal (9): 3dimensionsBerkeley, Advances_in_BFA, BCTP_string,
+#     BerkeleyModelTheory, HighDimensions, SciDL, SciML, n3as,
+#     pacificrim2020.
+#   MSRI (2): DiophantineProblemsMSRI, SOQUAGAT. SimonsInstitute (1):
+#     BreakthroughAlmostConstant.
+#   Davis (9): ADM-Davis, AG-Davis, MADDD, MADDD_Fall2020,
+#     MADDD_Spring_2021, QMAPFSG, QMAPucdavis, SageDays109, SageDays112358.
+#   AIM (2): AIM-RTNCG-SemRepTh, frggradseminar. SCU (1): CHAT.
+#   Without a Bay Area institution tag, but with a Berkeley or Stanford
+#   homepage and Pacific time (read from their feeds on 2026-11-11):
+#     Elliptic2022 (conference, last talk 2022-03-11),
+#     IntegrableSystemsAndGeometry (conference, 2021-03-09),
+#     SCHMS_SYZworkshop_2020fall (conference, 2020-10-02), IFQ (It from
+#     Qubit, Stanford; 2020-11-13), Satisfiability (Simons Institute Karp
+#     lecture; hidden, its feed answers 404).
+# The series search also returns hidden series ("display": false; 180 of
+# the 2359 in the catalogue, here HighDimensions, MADDD_Spring_2021 and
+# SSCEM2020). The site does not show them, and the feed of a hidden series
+# answers 404 (seen for Satisfiability), so a discovery run should skip
+# them.
+
+x-researchseminars: &researchseminars
+  group: researchseminars
+  adapter: researchseminars
+  timezone: UTC
+  aggregator: true
+
+sources:
+  - <<: *researchseminars
+    id: rsorg-topos-colloquium
+    name: Topos Institute Colloquium
+    url: https://researchseminars.org/seminar/ToposInstituteColloquium/ics
+    homepage: https://researchseminars.org/seminar/ToposInstituteColloquium
+    institution: other
+    host_org: Topos Institute
+    default_fields: [math, cs]
+    default_event_type: colloquium
+    series: Topos Institute Colloquium
+    params:
+      series_id: ToposInstituteColloquium
+    research:
+      verified: 2026-11-11
+      sample_events: 233
+      upcoming_events: 24
+      has_rss: false
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: true
+      extraction: feed
+      robots: no Crawl-delay (client default 1 s); Disallow /static/ and /edit/
+      rsorg_topics: [cs, math, math_CT, math_LO]
+      rsorg_institutions: [Topos]
+      external_homepage: https://topos.institute/events/topos-colloquium/
+      notes:
+        - The only series of a Bay Area institute on the site with upcoming talks.
+        - Topos Institute is in Berkeley; talks are online (Zoom and YouTube), Thursdays 17:00 UTC.
+        - Category theory, logic, type theory and their applications.
+        - '21 of the 24 upcoming talks have no title yet (no "Title:" line) and "Abstract: TBA".'
+        - has_jsonapi means the site's JSON API; it is not used (see the comment at the top).
+
+  - <<: *researchseminars
+    id: rsorg-stanford-ag
+    name: Stanford algebraic geometry seminar
+    enabled: false
+    url: https://researchseminars.org/seminar/agstanford/ics
+    homepage: https://researchseminars.org/seminar/agstanford
+    institution: stanford
+    host_org: Stanford Mathematics
+    default_fields: [math]
+    default_event_type: seminar
+    series: Stanford algebraic geometry seminar
+    params:
+      series_id: agstanford
+    research:
+      verified: 2026-11-11
+      sample_events: 148
+      upcoming_events: 0
+      has_rss: false
+      has_ics: true
+      has_jsonapi: true
+      extraction: feed
+      robots: no Crawl-delay (client default 1 s); Disallow /static/ and /edit/
+      rsorg_topics: [math, math_AG]
+      rsorg_institutions: [Stanford]
+      external_homepage: https://agstanford.com/2022/08/14/stanford-algebraic-geometry-seminar-2022-2023/
+      notes:
+        - Dormant on researchseminars.org since its last talk on 2025-03-14, hence disabled.
+        - Kept for its fixture, which shows speaker affiliations and "Lecture held in" room lines.
+        - Enable it again if the series posts new talks here.

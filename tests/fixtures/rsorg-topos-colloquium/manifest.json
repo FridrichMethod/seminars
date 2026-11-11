@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source_id": "rsorg-topos-colloquium",
+  "entries": {
+    "https://researchseminars.org/seminar/ToposInstituteColloquium/ics": {
+      "file": "series.ics",
+      "status": 200,
+      "content_type": "text/calendar",
+      "fetched_at": "2026-11-11T16:15:45Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

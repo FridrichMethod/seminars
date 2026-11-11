@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_id": "rsorg-stanford-ag",
+  "entries": {
+    "https://researchseminars.org/api/0/search/series?institutions=%5B%22Stanford%22%5D": {
+      "file": "search-series-stanford.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T16:16:58Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://researchseminars.org/seminar/agstanford/ics": {
+      "file": "series.ics",
+      "status": 200,
+      "content_type": "text/calendar",
+      "fetched_at": "2026-11-11T16:16:57Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

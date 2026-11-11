@@ -1,0 +1,3190 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:researchseminars.org
+CALSCALE:GREGORIAN
+X-WR-CALNAME:researchseminars.org
+BEGIN:VEVENT
+SUMMARY:Gavril Farkas (Humboldt University of Berlin)
+DTSTART:20200417T180000Z
+DTEND:20200417T193000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/1
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ /">Green’s conjecture via Koszul modules</a>\nby Gavril Farkas (Humboldt
+  University of Berlin) as part of Stanford algebraic geometry seminar\n\n\
+ nAbstract\nUsing ideas from geometric group theory we provide a novel\napp
+ roach to Green’s Conjecture on syzygies of canonical curves. Via a\nstro
+ ng vanishing result for Koszul modules we deduce that a general\ncanonical
+  curve of genus g satisfies Green’s Conjecture when the\ncharacteristic 
+ is zero or at least $(g+2)/2$. Our results are new in\npositive characteri
+ stic (and answer positively a conjecture of Eisenbud\nand Schreyer)\, wher
+ eas in characteristic zero they provide a different\nproof for theorems fi
+ rst obtained in two landmark papers by Voisin.\nJoint work with Aprodu\, P
+ apadima\, Raicu and Weyman.\n
+LOCATION:https://researchseminars.org/talk/agstanford/1/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Kirsten Wickelgren (Duke)
+DTSTART:20200424T180000Z
+DTEND:20200424T193000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/2
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/2
+ /">There are $160\,839 \\langle 1 \\rangle + 160\,650 \\langle -1\\rangle$
+  3-planes in a 7-dimensional cubic hypersurface</a>\nby Kirsten Wickelgren
+  (Duke) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nIt i
+ s a result of Debarre--Manivel that the variety of $d$-planes on a generic
+  complete intersection has the expected dimension. When this dimension is 
+ 0\, the number of such $d$-planes is given by the Euler number of a vector
+  bundle on a Grassmannian. There are several Euler numbers from $A^1$-homo
+ topy theory which take a vector bundle to a bilinear form. We equate some 
+ of these\, including those of Barge-Morel\, Kass-W.\, Déglise-Jin-Khan\, 
+ and one suggested by M.J. Hopkins\, A. Raksit\, and J.-P. Serre using dual
+ ity of coherent sheaves. We establish integrality results for this Euler c
+ lass\, and use this to compute the Euler classes associated to arithmetic 
+ counts of d-planes on complete intersections in projective space in terms 
+ of topological Euler numbers over the real and complex numbers. The exampl
+ e in the title uses work of Finashin-Kharlamov. This is joint work with To
+ m Bachmann.\n
+LOCATION:https://researchseminars.org/talk/agstanford/2/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Burt Totaro (UCLA)
+DTSTART:20200501T190000Z
+DTEND:20200501T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/3
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/3
+ /">The Hilbert scheme of infinite affine space</a>\nby Burt Totaro (UCLA) 
+ as part of Stanford algebraic geometry seminar\n\n\nAbstract\nI will discu
+ ss the Hilbert scheme of $d$ points in affine $n$-space\, with some exampl
+ es. This space has many irreducible components for $n$ at least 3 and is p
+ oorly understood.  Nonetheless\, in the limit where $n$ goes to infinity\,
+  we show that the Hilbert scheme of $d$ points in infinite affine space ha
+ s a very simple homotopy type. In fact\, it has the $A^1$-homotopy type of
+  the infinite Grassmannian $BGL(d-1)$. Many questions remain. (Joint with 
+ Marc Hoyois\, Joachim Jelisiejew\, Denis Nardin\, Maria Yakerson.)\n
+LOCATION:https://researchseminars.org/talk/agstanford/3/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Borys Kadets (MIT)
+DTSTART:20200501T174500Z
+DTEND:20200501T184500Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/4
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/4
+ /">38406501359372282063949 & all that: Monodromy of Fano problems</a>\nby 
+ Borys Kadets (MIT) as part of Stanford algebraic geometry seminar\n\n\nAbs
+ tract\nA Fano problem is an enumerative problem of counting linear subspac
+ es on complete intersections. Some familiar examples are finding the numbe
+ r of lines on a cubic surface\, and finding the number of lines on the int
+ ersection of $2$ quadrics in $\\mathbb{P}^4$. Suppose a general complete i
+ ntersection of type $[d]=(d_1\, ...\, d_s)$ in $\\mathbb{P}^n$ contains fi
+ nitely many $r$-planes. To this Fano problem\, described by the triple $([
+ d]\,n\,r)$\, one can associate a group $G_{[d]\,n\,r}$\, the monodromy gro
+ up of the Fano problem\; it describes the permutations of $r$-planes on a 
+ complete intersection of type $[d]$\, as the complete intersection varies.
+  I will show that $G_{[d]\,n\,r}$ is either a symmetric or an alternating 
+ group for almost all Fano problems with an explicit list of exceptions\, a
+ nd describe the monodromy groups of the exceptional problems. An interesti
+ ng feature of this computation is that it avoids any local calculations\, 
+ which seems necessary to get the result in full generality. This is joint 
+ work with Sachi Hashimoto.\n\nDiscussion during the talk will be at https:
+ //tinyurl.com/2020-05-01-a\n(and this will be deleted in 3 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/4/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Julie Desjardins (Toronto)
+DTSTART:20200508T174500Z
+DTEND:20200508T184500Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/5
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/5
+ /">Density of rational points on a family of del Pezzo surface of degree 1
+ </a>\nby Julie Desjardins (Toronto) as part of Stanford algebraic geometry
+  seminar\n\n\nAbstract\nLet $k$ be a number field and $X$ an algebraic var
+ iety over $k$. We want to study the set of $k$-rational points $X(k)$. For
+  example\, is $X(k)$ empty? If not\, is it dense with respect to the Zaris
+ ki topology? Del Pezzo surfaces are classified by their degrees $d$ (an in
+ teger between 1 and 9). Manin and various authors proved that for all del 
+ Pezzo surfaces of degree $>1$ is dense provided that the surface has a $k$
+ -rational point (that lies outside a specific subset of the surface for $d
+ =2$). For $d=1$\, the del Pezzo surface always has a rational point. Howev
+ er\, we don't know it the set of rational points is Zariski-dense. In this
+  talk\, I present a result that is joint with Rosa Winter in which we prov
+ e the density of rational points for a specific family of del Pezzo surfac
+ es of degree 1 over $k$.\n\nThe discussion for Julie Desjardins’s talk i
+ s taking place not in zoom-chat\, but at https://tinyurl.com/stagMay08a (a
+ nd will be deleted after 3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/5/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Bjorn Poonen (MIT)
+DTSTART:20200508T190000Z
+DTEND:20200508T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/6
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/6
+ /">Bertini irreducibility theorems via statistics</a>\nby Bjorn Poonen (MI
+ T) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nLet $X \\
+ subset \\mathbb{P}^n$ be a geometrically irreducible subvariety\nwith $\\d
+ im X \\ge 2$\, over any field.\nLet $\\check{\\mathbb{P}}^n$ be the moduli
+  space\nparametrizing hyperplanes $H \\subset \\mathbb{P}^n$.\nLet $L \\su
+ bset \\check{\\mathbb{P}}^n$ be the locus parametrizing $H$\nfor which $H 
+ \\cap X$ is geometrically irreducible.\nThe classical Bertini irreducibili
+ ty theorem states that\n$L$ contains a dense open subset of $\\check{\\mat
+ hbb{P}}^n$\,\nso the bad locus $L' := \\mathbb{P}^n - L$ satisfies $\\dim 
+ L' \\le n-1$.\nBenoist improved this to $\\dim L' \\le \\operatorname{codi
+ m} X + 1$.\n\nWe describe a new way to prove and generalize such theorems\
+ ,\nby reducing to the case of a finite field\nand studying the mean and va
+ riance\nof the number of points of a random hyperplane section.\nThis is j
+ oint work with Kaloyan Slavov.\n\nThe discussion for Bjorn Poonen’s talk
+  is taking place not in the zoom-chat\, but at https://tinyurl.com/stagMay
+ 08b (and will be deleted after 3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/6/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Rohini Ramadas (Brown)
+DTSTART:20200515T174500Z
+DTEND:20200515T184500Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/7
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/7
+ /">The locus of post-critically finite maps in the moduli space of self-ma
+ ps of $\\mathbb{P}^n$</a>\nby Rohini Ramadas (Brown) as part of Stanford a
+ lgebraic geometry seminar\n\n\nAbstract\nA degree $d>1$ self-map $f$ of $\
+ \mathbb{P}^n$ is called post critically finite (PCF) if its critical hyper
+ surface $C_f$ is pre-periodic for $f$\, that is\, if there exist integers 
+ $r \\geq 0$ and $k>0$ such that $f^{r+k}(C_f)$ is contained in $f^{r}(C_f)
+ $. \n\nI will discuss the question: what does the locus of PCF maps look l
+ ike as a subset of the moduli space of degree $d$ maps on $\\mathbb{P}^n$?
+  I’ll give a survey of many known results and some conjectures in dimens
+ ion $1$. I’ll then present a result\, joint with Patrick Ingram and Jose
+ ph Silverman\, that suggests that in dimensions two or greater\, PCF maps 
+ are comparatively scarce in the moduli space of all self-maps.\n\nThe disc
+ ussion for Rohini Ramadas’s talk is taking place not in zoom-chat\, but 
+ at https://tinyurl.com/2020-05-15-rr  (and will be deleted after 3-7 days)
+ .\n
+LOCATION:https://researchseminars.org/talk/agstanford/7/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Rob Silversmith (Northeastern)
+DTSTART:20200515T190000Z
+DTEND:20200515T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/8
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/8
+ /">Studying subschemes of affine/projective space via matroids</a>\nby Rob
+  Silversmith (Northeastern) as part of Stanford algebraic geometry seminar
+ \n\n\nAbstract\nGiven a homogeneous ideal $I$ in a polynomial ring\, one m
+ ay apply the following combinatorial operation: for each degree $d$\, make
+  a list of all subsets $S$ of the set of degree-$d$ monomials such that $S
+ $ is the set of nonzero coefficients of an element of $I$. For each $d$\, 
+ this set of subsets is a combinatorial object called a matroid. As $d$ var
+ ies\, the resulting sequence of matroids is called the tropicalization of 
+ $I$.\n\nI will discuss some of the many questions one can ask about tropic
+ alizations of ideals\, and how they are related to some classical question
+ s in combinatorial algebraic geometry\, such as the classification of toru
+ s orbits on Hilbert schemes of points in $\\mathbb{C}^2$. Some unexpected 
+ combinatorial objects appear: e.g. when studying tropicalizations of subsc
+ hemes of $\\mathbb{P}^1$\, one is led to Schur polynomials and binary neck
+ laces.\n
+LOCATION:https://researchseminars.org/talk/agstanford/8/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Chenyang Xu (MIT)
+DTSTART:20200522T180000Z
+DTEND:20200522T193000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/9
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/9
+ /">K-moduli of Fano varieties</a>\nby Chenyang Xu (MIT) as part of Stanfor
+ d algebraic geometry seminar\n\n\nAbstract\nOne main theme of the algebrai
+ c K-stability theory of Fano varieties is to use it to construct moduli sp
+ aces of Fano varieties. This has once been beyond algebraic geometers’ i
+ magination\, but K-stability is proven to give the right framework.  By no
+ w except the properness\, all other main ingredients have essentially been
+  established\, based on the recent development of our understanding of K-s
+ tability theory and other inputs. In this talk\, we will give an outline o
+ f the construction\, with the focus on the essential role that the new cha
+ racterisation of K-stability plays\, and its connection to minimal model p
+ rogram theory.\n
+LOCATION:https://researchseminars.org/talk/agstanford/9/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Bhargav Bhatt (University of Michigan)
+DTSTART:20200605T190000Z
+DTEND:20200605T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/11
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 1/">A p-adic Riemann-Hilbert functor and vanishing theorems</a>\nby Bharga
+ v Bhatt (University of Michigan) as part of Stanford algebraic geometry se
+ minar\n\n\nAbstract\nI will discuss an ongoing project (joint with Jacob L
+ urie) aiming to construct a $p$-adic Riemann-Hilbert functor\, attaching c
+ oherent complexes to constructible sheaves (with coefficients in $\\mathbb
+ {F}_p$\, $\\mathbb{Z}_p$ or $\\mathbb{Q}_p$) on a compact algebraic variet
+ y over a $p$-adic field. When combined with results on constructible sheav
+ es\, these yields vanishing theorems (old and new) on the coherent side.\n
+ \nThe discussion for Bhargav Bhatt’s talk is taking place not in zoom-ch
+ at\, but at  https://tinyurl.com/2020-06-05-bb (and will be deleted after 
+ 3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/11/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Wei Ho (University of Michigan)
+DTSTART:20200612T190000Z
+DTEND:20200612T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/12
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 2/">Splitting Brauer classes</a>\nby Wei Ho (University of Michigan) as pa
+ rt of Stanford algebraic geometry seminar\n\n\nAbstract\nGiven a Brauer cl
+ ass over a field\, what types of varieties split it? Or more geometrically
+ \, can we say anything about the varieties that map to a given Brauer-Seve
+ ri variety? In this talk\, we will discuss some open questions related to 
+ splitting Brauer classes. For example\, we will review some classical alge
+ bro-geometric constructions that produce genus one curves splitting low in
+ dex Brauer classes ((old) joint work with A.J. de Jong)\, and we will expl
+ ain why a Brauer class of any index is split by a torsor under an abelian 
+ variety (joint work with M. Lieblich).\n\nThe discussion for Wei Ho’s ta
+ lk is taking place not in zoom-chat\, but at https://tinyurl.com/2020-06-1
+ 2-wh  (and will be deleted after 3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/12/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Yuchen Liu (Yale)
+DTSTART:20200529T174500Z
+DTEND:20200529T184500Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/13
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 3/">Moduli spaces of quartic hyperelliptic K3 surfaces via K-stability</a>
+ \nby Yuchen Liu (Yale) as part of Stanford algebraic geometry seminar\n\n\
+ nAbstract\nA general polarized hyperelliptic K3 surfaces of degree 4 is a 
+ double cover of $\\mathbf{P\n}^ 1 \\times \\mathbf{P}^1$ branched along a 
+ bidegree $(4\,4)$ curve. Classically there are two compactifications of th
+ eir moduli spaces: one is the GIT quotient of $(4\,4)$ curves\, the other 
+ is the Baily-Borel compactification of their periods. We show that K-stabi
+ lity provides a natural modular interpolation between these two compactifi
+ cations. This provides a new aspect toward a recent result of Laza-O'Grady
+ . Based on joint work in progress with K. Ascher and K. DeVleming.\n\nThe 
+ discussion for Yuchen Liu’s talk is taking place not in zoom-chat\, but 
+ at https://tinyurl.com/2020-05-29-yl (and will be deleted after 3-7 days).
+ \n
+LOCATION:https://researchseminars.org/talk/agstanford/13/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Margaret Bilu (NYU)
+DTSTART:20200612T174500Z
+DTEND:20200612T184500Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/14
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 4/">Arithmetic and motivic statistics via zeta functions</a>\nby Margaret 
+ Bilu (NYU) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nT
+ he Grothendieck group of varieties over a field $k$ is the quotient of the
+  free abelian group on isomorphism classes of algebraic varieties over k b
+ y the so-called cut-and-paste relations. Many results in number theory hav
+ e a natural motivic analogue which can be formulated in the Grothendieck r
+ ing of varieties. For example\, Poonen's finite field Bertini theorem has 
+ a motivic counterpart due to Vakil and Wood\, though none of the two state
+ ments can be deduced from the other. We describe a conjectural way to unif
+ y the number-theoretic and motivic statements (when the base field is fini
+ te) in this and other examples\, and will provide some evidence towards it
+ . A key step is to reformulate everything in terms of convergence of zeta 
+ functions of varieties in several different topologies. This is joint work
+  with Ronno Das and Sean Howe.\n
+LOCATION:https://researchseminars.org/talk/agstanford/14/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:John Christian Ottem (University of Oslo)
+DTSTART:20200710T190000Z
+DTEND:20200710T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/15
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 5/">On (2\,3)-fourfolds</a>\nby John Christian Ottem (University of Oslo) 
+ as part of Stanford algebraic geometry seminar\n\n\nAbstract\nI will expla
+ in how tropical degenerations and birational specialization techniques can
+  be used in rationality problems. In particular\, I will apply these techn
+ iques to study quartic fivefolds and complete intersections of a quadric a
+ nd a cubic in $\\mathbb{P}^6$. This is joint work with Johannes Nicaise.\n
+LOCATION:https://researchseminars.org/talk/agstanford/15/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Laura Escobar (Washington University St. Louis)
+DTSTART:20200717T190000Z
+DTEND:20200717T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/16
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 6/">Wall-crossing phenomena for Newton-Okounkov bodies</a>\nby Laura Escob
+ ar (Washington University St. Louis) as part of Stanford algebraic geometr
+ y seminar\n\n\nAbstract\nA Newton-Okounkov body is a convex set associated
+  to a projective variety\, equipped with a valuation. These bodies general
+ ize the theory of Newton polytopes. Work of Kaveh-Manon gives an explicit 
+ link between tropical geometry and Newton-Okounkov bodies. We use this lin
+ k to describe a wall-crossing phenomenon for Newton-Okounkov bodies. This 
+ is joint work with Megumi Harada.\n\nThe discussion for Laura Escobar Vega
+ ’s talk is taking place not in zoom-chat\, but at https://tinyurl.com/20
+ 20-07-17-lev  (and will be deleted after 3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/16/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Brendan Hassett (Brown University / ICERM)
+DTSTART:20200724T190000Z
+DTEND:20200724T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/17
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 7/">Symbols\, birational geometry\, and computations</a>\nby Brendan Hasse
+ tt (Brown University / ICERM) as part of Stanford algebraic geometry semin
+ ar\n\n\nAbstract\nWe are interested in G-birational equivalence of varieti
+ es where G is a finite group. Kontsevich-Tschinkel and Kresch-Tschinkel ha
+ ve developed symbol formalism to construct invariants that show rich inter
+ nal structure. We present examples of computations of these invariants for
+  varieties in small dimensions\, illustrating how they compare to existing
+  classification techniques.\n
+LOCATION:https://researchseminars.org/talk/agstanford/17/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Dan Abramovich (Brown University)
+DTSTART:20200731T193000Z
+DTEND:20200731T203000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/18
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 8/">Resolution and logarithmic resolution via weighted blowings up</a>\nby
+  Dan Abramovich (Brown University) as part of Stanford algebraic geometry 
+ seminar\n\n\nAbstract\nThis lecture combines resolution of singularities\,
+  logarithmic geometry and algebraic stacks. I will not assume familiarity 
+ neither with resolution of singularities nor with logarithmic geometry. I 
+ report on work with Temkin and Wlodarczyk and work of Quek. Resolving sing
+ ularities in families requires logarithmic geometry. Surprisingly\, trying
+  to do this canonically forces us to use stack-theoretic modifications. Su
+ rprisingly\, stack-theoretic modifications provides an efficient iterative
+  resolution method in which the worst singularities are blown up without r
+ egard to the history. Not so surprisingly\, to make exceptional divisors c
+ ooperate we need logarithmic geometry again.\n
+LOCATION:https://researchseminars.org/talk/agstanford/18/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Hannah Larson (Stanford University)
+DTSTART:20200821T190000Z
+DTEND:20200821T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/19
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 9/">Brill--Noether theory over the Hurwitz space</a>\nby Hannah Larson (St
+ anford University) as part of Stanford algebraic geometry seminar\n\n\nAbs
+ tract\nLet $C$ be a curve of genus $g$. A fundamental problem in the theor
+ y of algebraic curves is to understand maps of $C$ to projective space of 
+ dimension r of degree d. When the curve $C$ is general\, the moduli space 
+ of such maps is well-understood by the main theorems of Brill-Noether theo
+ ry.  However\, in nature\, curves $C$ are often encountered already equipp
+ ed with a map to some projective space\, which may force them to be specia
+ l in moduli.  The simplest case is when $C$ is general among curves of fix
+ ed gonality.  Despite much study over the past three decades\, a similarly
+  complete picture has proved elusive in this case. In this talk\, I will d
+ iscuss recent joint work with Eric Larson and Isabel Vogt that completes s
+ uch a picture\, by proving analogs of all of the main theorems of Brill--N
+ oether theory in this setting.\n\nThe discussion for Hannah Larson’s tal
+ k is taking place not in zoom-chat\, but at https://tinyurl.com/2020-08-21
+ -hl (and will be deleted after 3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/19/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Martin Olsson (UC Berkeley)
+DTSTART:20200828T190000Z
+DTEND:20200828T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/20
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/2
+ 0/">Determinants and deformation theory of perfect complexes</a>\nby Marti
+ n Olsson (UC Berkeley) as part of Stanford algebraic geometry seminar\n\n\
+ nAbstract\nIn this talk I will discuss the interplay between the deformati
+ on theory of perfect complexes\, determinants\, and traces. I will discuss
+ \, in particular\, the verification of an expected compatibility among the
+ se that has been used in various places in the literature.  For the speake
+ r this project also provided an entry-point to the world of $\\infty$-cate
+ gories\, and I will try to motivate why such a perspective is useful.  Thi
+ s is joint work with Max Lieblich.\n
+LOCATION:https://researchseminars.org/talk/agstanford/20/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Rachel Webb (UC Berkeley)
+DTSTART:20200918T190000Z
+DTEND:20200918T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/21
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/2
+ 1/">Virtual cycle on the moduli space of maps to a complete intersection</
+ a>\nby Rachel Webb (UC Berkeley) as part of Stanford algebraic geometry se
+ minar\n\n\nAbstract\nA driving question in Gromov-Witten theory is to rela
+ te the invariants of a complete intersection to the invariants of the ambi
+ ent variety. In genus-zero this can often be done with a ``twisted theory\
+ ,'' but this fails in higher genus. Several years ago\, Chang-Li presented
+  the moduli space of p-fields as a piece of the solution to the higher-gen
+ us problem\, constructing the virtual cycle on the space of maps to the qu
+ intic 3-fold as a cosection localized virtual cycle on a larger moduli spa
+ ce (the space of p-fields). Their result is analogous to the classical sta
+ tement that the Euler class of a vector bundle is the class of the zero lo
+ cus of a generic section. I will discuss work joint with Qile Chen and Fel
+ ix Janda where we extend Chang-Li's result to a more general setting\, a s
+ etting that includes standard Gromov-Witten theory of smooth orbifold targ
+ ets and quasimap theory of GIT targets.\n
+LOCATION:https://researchseminars.org/talk/agstanford/21/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Chris Eur (Stanford)
+DTSTART:20200904T190000Z
+DTEND:20200904T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/22
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/2
+ 2/">Simplicial generation of Chow rings of matroids</a>\nby Chris Eur (Sta
+ nford) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nWe pr
+ esent a new set of generators for the Chow ring of a matroid.  We show tha
+ t these generators behave like base-point-free divisors by establishing th
+ at (i) they correspond to matroid operations that combinatorially mirror h
+ yperplane pullbacks\, and (ii) the volume polynomial with respect to these
+  generators satisfies Hodge-type inequalities.  We thereby generalize Post
+ nikov's results on generalized permutohedra\, and also give a simplified p
+ roof of the combinatorially relevant portion of the Hodge theory of matroi
+ ds developed by Adiprasito-Huh-Katz.  No knowledge of matroids will be ass
+ umed.  This is joint work with Spencer Backman and Connor Simpson.\n\nThe 
+ discussion for Christopher Eur’s talk is taking place not in zoom-chat\,
+  but at https://tinyurl.com/2020-09-04-ce  (and will be deleted after 3-7 
+ days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/22/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Andrew Kobin (UC Santa Cruz)
+DTSTART:20200911T190000Z
+DTEND:20200911T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/23
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/2
+ 3/">Zeta functions and decomposition spaces</a>\nby Andrew Kobin (UC Santa
+  Cruz) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nZeta 
+ functions show up everywhere in math these days. While some recent work ha
+ s brought homotopical methods into the theory of zeta functions\, there is
+  in fact a lesser-known zeta function that is native to homotopy theory. N
+ amely\, every suitably finite decomposition space (aka 2-Segal space) admi
+ ts an abstract zeta function as an element of its incidence algebra. In th
+ is talk\, I will show how many 'classical' zeta functions from number theo
+ ry and algebraic geometry can be realized in this homotopical framework\, 
+ and outline some preliminary work in progress with Julie Bergner and Matt 
+ Feller towards a motivic version of the above story.\n\nThe discussion for
+  Andrew Kobin’s talk is taking place not in zoom-chat\, but at https://t
+ inyurl.com/2020-09-11-ak  (and will be deleted after 3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/23/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Richard Thomas (Imperial College London)
+DTSTART:20200925T190000Z
+DTEND:20200925T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/24
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/2
+ 4/">Square root Euler classes and counting sheaves on Calabi-Yau 4-folds</
+ a>\nby Richard Thomas (Imperial College London) as part of Stanford algebr
+ aic geometry seminar\n\n\nAbstract\nI will explain a nice characteristic c
+ lass of $SO(2n\,\\mathbf{C})$ bundles in both Chow cohomology and K-theory
+ \, and how to localise it to the zeros of an isotropic section. This build
+ s on work of Edidin-Graham\, Polishchuk-Vaintrob\, Anderson and many other
+ s.\n\nThis can be used to construct an algebraic virtual cycle (and virtua
+ l structure sheaf) on moduli spaces of stable sheaves on Calabi-Yau 4-fold
+ s.\nIt recovers the real derived differential geometry virtual cycle of Bo
+ risov-Joyce but has nicer properties\, like a torus localisation formula. 
+ Joint work with Jeongseok Oh (KIAS).\n\nThe discussion for Richard Thomas
+ ’s talk is taking place not in zoom-chat\, but at https://tinyurl.com/20
+ 20-09-25-rt  (and will be deleted after 3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/24/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Jarod Alper (University of Washington)
+DTSTART:20201023T190000Z
+DTEND:20201023T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/25
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/2
+ 5/">Coherent completeness and the local structure of algebraic stacks</a>\
+ nby Jarod Alper (University of Washington) as part of Stanford algebraic g
+ eometry seminar\n\n\nAbstract\nFormal GAGA is an important theorem in form
+ al geometry which categorizes coherent sheaves on a scheme proper over a c
+ omplete local noetherian ring in terms of compatible families of coherent 
+ sheaves on the thickenings of its central fiber.  We will discuss generali
+ zations of this result to algebraic stacks and explain how such results ca
+ n be used to prove local structure theorems for algebraic stacks.  After r
+ eviewing joint work with Hall and Rydh which establishes a satisfactory re
+ sult in characteristic 0\, we will discuss partial progress in joint work 
+ with Hall and Lim on extending this result to positive characteristic.\n
+LOCATION:https://researchseminars.org/talk/agstanford/25/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Aaron Landesman (Stanford)
+DTSTART:20201030T190000Z
+DTEND:20201030T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/26
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/2
+ 6/">The Torelli map restricted to the hyperelliptic locus</a>\nby Aaron La
+ ndesman (Stanford) as part of Stanford algebraic geometry seminar\n\n\nAbs
+ tract\nThe classical Torelli theorem states that the Torelli map\, sending
+  a curve to\nits Jacobian\, is injective on points. However\, the Torelli 
+ map is not injective \non tangent spaces at points corresponding to hypere
+ lliptic curves. This leads to\nthe natural question: If one restricts the 
+ Torelli map to the locus of\nhyperelliptic curves\, is it then an immersio
+ n?\n\nWe give a complete answer to this question\, starting out by describ
+ ing the\nclassical history and several surprising foundational gaps in the
+ \nliterature. Along the way\, we will learn about Shinichi Mochizuki's val
+ uative\ncriterion for locally closed immersions and its relation to Brian 
+ Conrad's\nlibrary app idea.\n\nThe discussion for Aaron Landesman’s talk
+  is taking place not in zoom-chat\, but at   https://tinyurl.com/2020-10-3
+ 0-al  (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/26/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Juliette Bruce (UC Berkeley)
+DTSTART:20201002T190000Z
+DTEND:20201002T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/27
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/2
+ 7/">The top weight cohomology of $A_g$</a>\nby Juliette Bruce (UC Berkeley
+ ) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nI will dis
+ cuss recent work calculating the top weight cohomology of the moduli space
+  $A_g$ of principally polarized abelian varieties of dimension $g$ for sma
+ ll values of $g$. The key idea is that this piece of cohomology is encoded
+  combinatorially via the relationship between the boundary complex of a co
+ mpactification of $A_g$ and the moduli space of tropical abelian varieties
+ . This is joint work with Madeline Brandt\, Melody Chan\, Margarida Melo\,
+  Gwyneth Moreland\, and Corey Wolfe.\n
+LOCATION:https://researchseminars.org/talk/agstanford/27/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Ben Antieau (Northwestern)
+DTSTART:20210115T200000Z
+DTEND:20210115T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/28
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/2
+ 8/">Genus 1 curves in twisted projective spaces</a>\nby Ben Antieau (North
+ western) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nDoe
+ s every Severi—Brauer variety contain a (possibly singular) genus 1 curv
+ e? This basic question was asked by David Saltman and Pete Clark and answe
+ red in low dimensions by Johan de Jong and Wei Ho. I will explain somethin
+ g of the history of the problem as well as recent joint work with Asher Au
+ el where we show\, with the help of a nice observation of David Saltman\, 
+ that the answer is `yes’ for twisted forms of $\\mathbb{P}^r$ for $r=6$ 
+ over global fields.\n\nThe discussion for Ben Antieau’s talk is taking p
+ lace not in zoom-chat\, but at https://tinyurl.com/2021-01-15-ba   (and wi
+ ll be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/28/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Karen Smith (University of Michigan)
+DTSTART:20201009T190000Z
+DTEND:20201009T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/29
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/2
+ 9/">Extremal Singularities in Prime Characteristic</a>\nby Karen Smith (Un
+ iversity of Michigan) as part of Stanford algebraic geometry seminar\n\n\n
+ Abstract\nWhat is the most singular possible singularity? What can we say 
+ about its geometric and algebraic properties? This seemingly naive questio
+ n has a sensible answer in characteristic $p$.\nThe "F-pure threshold\," w
+ hich is an analog of the log canonical threshold\,  can be used to "measur
+ e" how bad a singularity is. The F-pure threshold is a numerical invariant
+  of a point  on (say)  a hypersurface---a positive rational number that is
+  1 at any smooth point (or more generally\, any F-pure point) but less tha
+ n one in general\, with "more singular" points having smaller F-pure thres
+ holds. We explain a recently proved  lower bound on the F-pure threshold i
+ n terms of the multiplicity of the singularity. We also show that there is
+  a nice class of hypersurfaces---which we call "Extremal hypersurfaces"---
+ for which this bound is achieved. These have very nice (extreme!) geometri
+ c properties. For example\, the affine cone over a non Frobenius split cub
+ ic surface of characteristic two is one example of an "extremal singularit
+ y". Geometrically\, these are the only cubic surfaces with the property th
+ at *every* triple of coplanar lines on the surface meets in a single point
+  (rather than a "triangle" as expected)---a very extreme property indeed.\
+ n\nThe discussion for Karen Smith’s talk is taking place not in zoom-cha
+ t\, but at https://tinyurl.com/2020-10-09-ks  (and will be deleted after ~
+ 3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/29/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Barbara Fantechi (SISSA)
+DTSTART:20201016T190000Z
+DTEND:20201016T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/30
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/3
+ 0/">Infinitesimal deformations of semi-smooth varieties</a>\nby Barbara Fa
+ ntechi (SISSA) as part of Stanford algebraic geometry seminar\n\n\nAbstrac
+ t\nThis is a report on joint work with Marco Franciosi and Rita Pardini. G
+ eneralizing the standard definition for surfaces\, we call a variety $X$ (
+ over an alg closed field of char not 2) {\\em semi-smooth} if its singular
+ ities are \\'etale locally either $uv=0$ or $u^2=v^2w$ (pinch point)\; equ
+ ivalently\, if $X$ can be obtained by gluing a smooth variety (the normali
+ zation of $X$) along an involution (with smooth quotient) on a smooth divi
+ sor. They are the simplest singularities for non normal\, KSBA-stable surf
+ aces.\nFor a semi-smooth variety $X$\, we calculate the tangent sheaf $T_X
+ $ and the infinitesimal deformations sheaf ${\\mathcal T}^1_X:={\\mathcal 
+ E}xt^1(\\Omega_X\,\\mathcal O_X)$ which determine the infinitesimal deform
+ ations and smoothability of $X$.\nAs an application\, we use Tziolas' form
+ al smoothability criterion to show that every stable semi-smooth Godeaux s
+ urface (classified by Franciosi\, Pardini and S\\"onke) corresponds to a s
+ mooth point of the KSBA moduli space\, in the closure of the open locus of
+  smooth surfaces.\n\nThe discussion for Barbara Fantechi’s talk is takin
+ g place not in zoom-chat\, but at https://tinyurl.com/2020-10-16-bf  (and 
+ will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/30/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Akhil Mathew (University of Chicago)
+DTSTART:20201106T200000Z
+DTEND:20201106T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/31
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/3
+ 1/">\\'Etale K-theory and motivic cohomology</a>\nby Akhil Mathew (Univers
+ ity of Chicago) as part of Stanford algebraic geometry seminar\n\n\nAbstra
+ ct\nTwo key features of algebraic K-theory are its failure to\nsatisfy \\'
+ etale descent\, and its motivic filtration in terms of higher\nChow groups
+  in the case of smooth schemes over a field (but expected\nmore generally)
+ . I will explain a description of \\'etale K-theory\,\nwhich is the univer
+ sal approximation to K-theory that satisfies\n\\'etale descent\; this is j
+ oint work with Dustin Clausen. Moreover\,\nfollowing the recent work of Bh
+ att--Morrow--Scholze on topological\ncyclic homology\, I will also explain
+  a construction of (an analog of)\nthe motivic filtration on \\'etale K-th
+ eory (and \\'etale motivic\ncohomology) for arbitrary schemes (work in pro
+ gress with Bhargav Bhatt\nand Dustin Clausen).\n
+LOCATION:https://researchseminars.org/talk/agstanford/31/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Taylor Dupuy (University of Vermont)
+DTSTART:20201113T200000Z
+DTEND:20201113T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/32
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/3
+ 2/">Abelian Varieties Over Finite Fields in the LMFDB</a>\nby Taylor Dupuy
+  (University of Vermont) as part of Stanford algebraic geometry seminar\n\
+ n\nAbstract\nI will talk about things around the LMFDB database of isogeny
+  classes of abelian varieties over finite fields (and maybe even about iso
+ morphism classes). \n\nThese could include: \n--"Sato-Ain't" distributions
+ \, \n--weird Tate classes\, \n--Bizzaro Hodge co-levels (and very strange 
+ Ax-Katz/Chevalley-Warning type congruences with fractional exponent!)\, \n
+ --the counter-example to the conjecture of Ahmadi-Shparlinski\,\n--what we
+  know about angle ranks vs galois groups vs Newton polygons\,\n--new conje
+ ctures \n\nThe database and "census" is joint work with Kiran Kedlaya\, Da
+ vid Roe\, and Christelle Vincent (currently available on the arxiv). The w
+ ork on Tate classes is ongoing with Kiran Kedlaya and David Zureick-Brown.
+ \n
+LOCATION:https://researchseminars.org/talk/agstanford/32/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Rahul Pandharipande (ETH Zurich)
+DTSTART:20201204T200000Z
+DTEND:20201204T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/33
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/3
+ 3/">The top Chern class of the Hodge bundle and the log Chow ring of the m
+ oduli space of curves</a>\nby Rahul Pandharipande (ETH Zurich) as part of 
+ Stanford algebraic geometry seminar\n\n\nAbstract\nI will first explain ho
+ w the top Chern class of the Hodge bundle is very complicated and then\nI 
+ will explain how it is very simple. Joint work with S. Molcho and J. Schmi
+ tt.\n
+LOCATION:https://researchseminars.org/talk/agstanford/33/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Takumi Murayama (Princeton University)
+DTSTART:20210122T200000Z
+DTEND:20210122T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/34
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/3
+ 4/">Grothendieck's localization problem</a>\nby Takumi Murayama (Princeton
+  University) as part of Stanford algebraic geometry seminar\n\n\nAbstract\
+ nLet $f\\colon Y \\rightarrow X$  be a proper flat morphism of algebraic v
+ arieties. Grothendieck and Dieudonné showed that the smoothness of $f$ ca
+ n be detected at closed points of $X$. Using André–Quillen homology\, A
+ ndré showed that when $X$ is excellent\, the same conclusion holds when $
+ f$ is a closed flat morphism between locally noetherian schemes. We give a
+  new proof of André's result using a version of resolutions of singularit
+ ies due to Gabber. Our method gives a uniform treatment of Grothendieck's 
+ localization problem and resolves various new cases of this problem\, whic
+ h asks whether similar statements hold for other local properties of morph
+ isms.\n
+LOCATION:https://researchseminars.org/talk/agstanford/34/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Soumya Sankar (The Ohio State University)
+DTSTART:20210129T200000Z
+DTEND:20210129T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/35
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/3
+ 5/">Derived equivalences of gerbey curves</a>\nby Soumya Sankar (The Ohio 
+ State University) as part of Stanford algebraic geometry seminar\n\n\nAbst
+ ract\nThe question of whether derived equivalences determine a variety has
+  been studied widely. Antieau\, Krashen and Ward (AKW) studied the questio
+ n of when two genus 1 curves are derived equivalent. A gerbey curve is a G
+ _m gerbe over a usual curve. In joint work with Libby Taylor\, we explore 
+ the question of when two gerbey genus 1 curves are derived equivalent. In 
+ this talk\, I will give some background on derived equivalences of varieti
+ es\, how they relate to derived equivalences of stacks and then talk about
+  some extensions of the results of AKW.\n\nThe discussion for Soumya Sanka
+ r’s talk is taking place not in zoom-chat\, but at https://tinyurl.com/2
+ 021-01-29-ss  (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/35/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Sean Keel (UT Austin)
+DTSTART:20210205T200000Z
+DTEND:20210205T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/36
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/3
+ 6/">Berkovich geometry and mirror symmetry</a>\nby Sean Keel (UT Austin) a
+ s part of Stanford algebraic geometry seminar\n\n\nAbstract\nI will explai
+ n my Berkovich geometric construction\, joint with Tony Yu\, of the mirror
+  to an affine log CY variety\, with the aim of convincing you of its simpl
+ icity\, both in concept\, and technical detail.\n
+LOCATION:https://researchseminars.org/talk/agstanford/36/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Laure Flapan (Michigan State)
+DTSTART:20210212T200000Z
+DTEND:20210212T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/37
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/3
+ 7/">Fano manifolds associated to hyperkähler manifolds</a>\nby Laure Flap
+ an (Michigan State) as part of Stanford algebraic geometry seminar\n\n\nAb
+ stract\nMany of the known examples of hyperkähler manifolds arise from ge
+ ometric constructions that begin with a Fano manifold whose cohomology loo
+ ks like that of a K3 surface. In this talk\, I will focus on a program who
+ se goal is to reverse this process\, namely to begin with a hyperkähler m
+ anifold and from it produce geometrically a Fano manifold. This is joint w
+ ork in progress with K. O’Grady\, E. Macrì\, and G. Saccà.\n\nThe disc
+ ussion for Laure Flapan’s talk is taking place not in zoom-chat\, but at
+   https://tinyurl.com/2021-02-12-lf  (and will be deleted after ~3-7 days)
+ .\n
+LOCATION:https://researchseminars.org/talk/agstanford/37/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Izzet Coskun (University of Illinois at Chicago)
+DTSTART:20210219T200000Z
+DTEND:20210219T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/38
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/3
+ 8/">Algebraic Hyperbolicity and Lang-type loci in hypersurfaces</a>\nby Iz
+ zet Coskun (University of Illinois at Chicago) as part of Stanford algebra
+ ic geometry seminar\n\n\nAbstract\nIn this talk\, I will discuss joint wor
+ k with Eric Riedl on algebraic hyperbolicity and Lang-type loci. I will de
+ scribe an improvement of G. Xu's genus bounds which allow us to prove the 
+ algebraic hyperbolicity of very general quintic surfaces. The same techniq
+ ue allows us to obtain the  classification of algebraically hyperbolic sur
+ faces in certain toric threefolds. Finally\, I will discuss Lang-type loci
+  for algebraic hyperbolicity in very general hypersurfaces.\n\nThe discuss
+ ion for Izzet Coskun’s talk is taking place not in zoom-chat\, but at  h
+ ttps://tinyurl.com/2021-02-19-ic  (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/38/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Matt Baker (Georgia Tech)
+DTSTART:20210402T190000Z
+DTEND:20210402T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/39
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/3
+ 9/">Pastures\, Polynomials\, and Matroids</a>\nby Matt Baker (Georgia Tech
+ ) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nA pasture 
+ is\, roughly speaking\, a field in which addition is allowed to be both mu
+ ltivalued and partially undefined. Pastures are natural objects from the p
+ oint of view of $\\mathbf{F}_1$ geometry and Lorscheid’s theory of order
+ ed blueprints. I will describe a theorem about univariate polynomials over
+  pastures which simultaneously generalizes Descartes’ Rule of Signs and 
+ the theory of Newton polygons. Conjecturally\, there should be a similar p
+ icture for several polynomials in several variables generalizing tropical 
+ intersection theory. I will also describe a novel approach to the theory o
+ f matroid representations which revolves around a canonical universal past
+ ure\, called the “foundation”\, that one can attach to any matroid. Th
+ is is joint work with Oliver Lorscheid.\n\nThe discussion for Matt Baker
+ ’s talk is taking place not in zoom-chat\, but at  https://tinyurl.com/2
+ 021-04-02-mb (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/39/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Jihao Liu (University of Utah)
+DTSTART:20210226T200000Z
+DTEND:20210226T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/40
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/4
+ 0/">Complements and local singularities in birational geometry</a>\nby Jih
+ ao Liu (University of Utah) as part of Stanford algebraic geometry seminar
+ \n\n\nAbstract\nThe theory of complements was introduced by Shokurov when 
+ he investigated log flips of threefolds\, and plays an important role in m
+ any areas in birational geometry\, e.g. boundedness of Fano varieties\, lo
+ g Calabi-Yau fibrations\, K-stability theory\, etc. In a recent work\, we 
+ prove a complements conjecture of Shokurov\, and we apply this result to t
+ he study of local singularities in birational geometry. Part of this talk 
+ is joint work with J. Han and V.V. Shokurov.\n
+LOCATION:https://researchseminars.org/talk/agstanford/40/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Arend Bayer (University of Edinburgh)
+DTSTART:20210305T200000Z
+DTEND:20210305T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/41
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/4
+ 1/">Fano varieties: from derived categories to geometry via stability</a>\
+ nby Arend Bayer (University of Edinburgh) as part of Stanford algebraic ge
+ ometry seminar\n\n\nAbstract\nA Fano variety $X$ can be reconstructed from
+  its bounded derived category $D^b(X)$. How to use this fact to extract\nc
+ oncrete geometric information from $D^b(X)$? \nIn this talk\, I will surve
+ y one such approach\, via certain subcategories of $D^b(X)$ called Kuznets
+ ov components\, and stability conditions. Via moduli spaces of stable obje
+ cts inside Kuznetsov components\, this naturally leads to the reconstructi
+ on of many natural moduli spaces classically associated to $X$. \nIn addit
+ ion to results by a number of authors for Fano threefolds\, I will also di
+ scuss work in progress (joint with Bertram\, Macri\, Perry) for cubic four
+ folds. Combined with studying Brill-Noether loci\, this leads to the const
+ ruction of special surfaces on an infinite sequence of Hassett-special cub
+ ic fourfolds. In some cases\, this leads to a natural reinterpretation of 
+ recent proofs of rationality of such cubic fourfolds via wall-crossing.\n
+LOCATION:https://researchseminars.org/talk/agstanford/41/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Yuuji Tanaka (Kyoto University)
+DTSTART:20210313T000000Z
+DTEND:20210313T010000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/42
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/4
+ 2/">On the virtual Euler characteristics of the moduli spaces of  semistab
+ le sheaves on a complex projective surface</a>\nby Yuuji Tanaka (Kyoto Uni
+ versity) as part of Stanford algebraic geometry seminar\n\n\nAbstract\n(wa
+ rning:  notice unusual time)\n\nI'll deliver an overview of studies on the
+  virtual Euler \ncharacteristics of the moduli spaces of semistable sheave
+ s on a complex \nprojective surface. The virtual Euler characteristic is a
+  refinement of \nthe topological Euler characteristic for a proper scheme 
+ with a perfect \nobstruction theory，which was introduced by Fantechi and
+  Goettsche\, and \nby Ciocan-Fontanine and Kapranov. Motivated by the work
+  of Vafa and \nWitten in the early 90's on the S-duality conjecture in N=4
+  super \nYang-Mills theory in physics\, Goettsche and Kool conjectured tha
+ t the \ngenerating function of the virtual Euler characteristics\, or othe
+ r \nvariants\, of the moduli space of semistable sheaves on a complex \npr
+ ojective surfaces could be written in terms of modular forms (and the \nSe
+ iberg-Witten invariants)\, and they verified it in examples. I'll \ndescri
+ be the recent progress around this topic\, starting by mentioning \nmore b
+ ackground materials such as the studies on the topological Euler \ncharact
+ eristics of the moduli spaces.\n
+LOCATION:https://researchseminars.org/talk/agstanford/42/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Geoff Smith (UIC)
+DTSTART:20210507T190000Z
+DTEND:20210507T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/43
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/4
+ 3/">Normal bundles of rational curves and separably rationally connected v
+ arieties</a>\nby Geoff Smith (UIC) as part of Stanford algebraic geometry 
+ seminar\n\n\nAbstract\nIn positive characteristic\, there are two differen
+ t notions of rational connectedness: a variety can be rationally connected
+  or separably rationally connected (SRC). SRC varieties share many of the 
+ nice properties that rationally connected varieties have in characteristic
+  0. But\, while it is conjectured that smooth Fano varieties are SRC\, it 
+ is only known that they are rationally connected. In the last decade\, sev
+ eral mathematicians have come up with different ways to show that general 
+ Fano complete intersections are SRC. In this talk\, I'll explain this stor
+ y\, and then discuss an approach Izzet Coskun and I are using to show that
+  other sorts of varieties are SRC by comparing the normal bundle of a rati
+ onal curve on a variety and its normal bundle to some subvariety containin
+ g it. For instance\, I'll show that a Fano complete intersection of hypers
+ urfaces each of degree at least 3 on a Grassmannian is SRC.\n\nThe discuss
+ ion for Geoff Smith’s talk is taking place not in zoom-chat\, but at htt
+ ps://tinyurl.com/2021-05-07-gs (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/43/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Nikolas Kuhn (Stanford University)
+DTSTART:20210326T190000Z
+DTEND:20210326T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/44
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/4
+ 4/">A blowup formula for virtual Donaldson invariants</a>\nby Nikolas Kuhn
+  (Stanford University) as part of Stanford algebraic geometry seminar\n\n\
+ nAbstract\nDonaldson invariants were a breakthrough in the study of smooth
+  four-manifolds when they were introduced in the 1980s and even found appl
+ ications to the classification of compact complex surfaces. With the adven
+ t of the virtual fundamental class\, it has become possible to give an ele
+ gant purely algebraic definition when working on a complex projective surf
+ ace X\, which was done by T. Mochizuki. The two definitions agree in most 
+ cases\, and whether they agree in general comes down to knowing a blowup f
+ ormula for Mochizuki's invariants. We present a direct proof of such a blo
+ wup formula that generalizes earlier results by Göttsche-Nakajima-Yoshiok
+ a and has applications to other types of enumerative invariants of X. This
+  is joint work with Yuuji Tanaka.\n\nThe discussion for Nikolas Kuhn’s t
+ alk is taking place not in zoom-chat\, but at https://tinyurl.com/2021-03-
+ 26-nk (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/44/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Joachim Jelisiejew (University of Warsaw)
+DTSTART:20210514T190000Z
+DTEND:20210514T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/45
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/4
+ 5/">Pathologies on the Hilbert scheme of points</a>\nby Joachim Jelisiejew
+  (University of Warsaw) as part of Stanford algebraic geometry seminar\n\n
+ \nAbstract\nIn the talk I will discuss recent advances in our understandin
+ g of singularities and components of the Hilbert scheme of points on a hig
+ her-dimensional smooth variety. The key underlying tool\, interesting on i
+ ts own\, is the Bialynicki-Birula decomposition in the singular setting. I
+  will mention some open questions.\n
+LOCATION:https://researchseminars.org/talk/agstanford/45/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Sam Molcho (ETH)
+DTSTART:20210409T190000Z
+DTEND:20210409T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/46
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/4
+ 6/">The strict transform in logarithmic geometry</a>\nby Sam Molcho (ETH) 
+ as part of Stanford algebraic geometry seminar\n\n\nAbstract\nLet $(X\,D)$
+  be a pair of a smooth variety and a normal crossings divisor. The loci of
+  curves that admit a map to X with prescribed tangency along D exhibit som
+ e pathological behavior: for instance\, the locus of maps to a product $(X
+  \\times Y\, D \\times E)$ does not coincide with the intersection of the 
+ loci of maps to $(X\,D)$ and $(Y\,E)$. In this talk I want to explain how 
+ the root of such pathologies arises from the difference between taking the
+  strict and total of a cycle under a very special kind of birational map\,
+  called a logarithmic modification. I will discuss how for a logarithmic m
+ odification\, the strict transform of a cycle has a modular interpretation
+ \, and how its difference with the total transform can be explicitly compu
+ ted\, in terms of certain piecewise polynomial functions on a combinatoria
+ l shadow of the original spaces\, the tropicalization. Time permitting\, I
+  will discuss some applications -- for instance\, how these calculations i
+ mply that loci of curves with a map to a toric variety lie in the tautolog
+ ical ring.\n
+LOCATION:https://researchseminars.org/talk/agstanford/46/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Samir Canning (UC San Diego)
+DTSTART:20210416T190000Z
+DTEND:20210416T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/47
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/4
+ 7/">The Chow rings of $M_7$\, $M_8$\, and $M_9$</a>\nby Samir Canning (UC 
+ San Diego) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nT
+ he rational Chow ring of the moduli space of smooth curves is known when t
+ he genus is at most $6$ by work of Mumford ($g=2$)\, Faber ($g=3$\, $4$)\,
+  Izadi ($g=5$)\, and Penev-Vakil ($g=6$). In each case\, it is generated b
+ y the tautological classes. On the other hand\, van Zelm has shown that th
+ e bielliptic locus is not tautological when $g=12$. In recent joint work w
+ ith Hannah Larson\, we show that the Chow rings of $M_7$\, $M_8$\, and $M_
+ 9$ are generated by tautological classes\, which determines the Chow ring 
+ by work of Faber. I will explain an overview of the proof with an emphasis
+  on the special geometry of curves of low genus and low gonality.\n\nThe s
+ ynchronous discussion for Sam Canning’s talk is taking place not in zoom
+ -chat\, but at https://tinyurl.com/2021-04-16-sc (and will be deleted afte
+ r ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/47/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Michael Temkin (HUJI)
+DTSTART:20210423T190000Z
+DTEND:20210423T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/48
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/4
+ 8/">Logarithmic resolution of singularities</a>\nby Michael Temkin (HUJI) 
+ as part of Stanford algebraic geometry seminar\n\n\nAbstract\nI will talk 
+ about a recent series of works with Abramovich and Wlodarczyk\, where a lo
+ garithmic analogue of the classical resolution of singularities of schemes
+  in characteristic zero is constructed. Already for usual schemes\, the lo
+ garithmic algorithm is faster and more functorial\, though as a price one 
+ has to work with log smooth ambient orbifolds rather than smooth ambient m
+ anifolds. But the main achievement is that essentially the same algorithm 
+ resolves log schemes and even morphisms of log schemes\, yielding a major 
+ generalization of various semistable reduction theorems.\n\nThe synchronou
+ s discussion for Michael Temkin’s talk is taking place not in zoom-chat\
+ , but at  https://tinyurl.com/2021-04-23-mt (and will be deleted after ~3-
+ 7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/48/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Remy van Dobben de Bruyn (Princeton and IAS)
+DTSTART:20210430T190000Z
+DTEND:20210430T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/49
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/4
+ 9/">Constructing varieties with prescribed Hodge numbers modulo m in posit
+ ive characteristic</a>\nby Remy van Dobben de Bruyn (Princeton and IAS) as
+  part of Stanford algebraic geometry seminar\n\n\nAbstract\nThe inverse Ho
+ dge problem asks which possible Hodge diamonds can occur for smooth projec
+ tive varieties. While this is a very hard problem in general\, Paulsen and
+  Schreieder recently showed that in characteristic 0 there are no restrict
+ ions on the modulo $m$ Hodge numbers\, besides the usual symmetries. In jo
+ int work with Matthias Paulsen\, we extend this to positive characteristic
+ \, where the story is more intricate.\n\nThe synchronous discussion for Re
+ my van Dobben de Bruyn’s talk is taking place not in zoom-chat\, but at 
+ https://tinyurl.com/2021-04-30-rvddb   (and will be deleted after ~3-7 day
+ s).\n
+LOCATION:https://researchseminars.org/talk/agstanford/49/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Eric Katz (Ohio State)
+DTSTART:20210521T190000Z
+DTEND:20210521T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/50
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/5
+ 0/">Iterated p-adic integration on semistable curves</a>\nby Eric Katz (Oh
+ io State) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nHo
+ w do you integrate a 1-form on an algebraic curve over the p-adic numbers?
+  One can integrate locally\, but because the topology is totally disconnec
+ ted\, it's not possible to perform analytic continuation. For good reducti
+ on curves\, this question was answered by Coleman who introduced analytic 
+ continuation by Frobenius. For bad reduction curves\, there are two notion
+ s of integration: a local theory that is easy to compute\; and a global si
+ ngle-valued theory that is useful for number theoretic applications. We di
+ scuss the relationship between these integration theories\, concentrating 
+ on the p-adic analogue of Chen's iterated integration which is important f
+ or the non-Abelian Chabauty method. We explain how to use combinatorial id
+ eas\, informed by tropical geometry and Hodge theory\, to compare the two 
+ integration theories and outline an explicit approach to computing these i
+ ntegrals. This talk will start from the beginning of the story and require
+ s no background besides some fluency in algebraic geometry and topology. T
+ his is joint work with Daniel Litt.\n\nThe synchronous discussion for Eric
+  Katz’s talk is taking place not in zoom-chat\, but at https://tinyurl.c
+ om/2021-05-21-ek (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/50/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Martin Ulirsch (Goethe-Universität Frankfurt)
+DTSTART:20210604T190000Z
+DTEND:20210604T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/51
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/5
+ 1/">Tropical geometry and logarithmic compactifications of reductive algeb
+ raic groups</a>\nby Martin Ulirsch (Goethe-Universität Frankfurt) as part
+  of Stanford algebraic geometry seminar\n\n\nAbstract\nIn this talk I will
+  present two approaches towards the tropicalization of a reductive algebra
+ ic group $G$\, one via Mumford’s toroidal compactification\, the other v
+ ia de Concini and Procesi’s wonderful compacitification. The Bruhat-Tits
+  building of G and its root system will play a crucial role in both approa
+ ches. Using these insights I will propose two corresponding logarithmic co
+ mpactifications of $G$. The first approach will provide us with a new loga
+ rithmic perspective on toric (and more generally parabolic) vector bundles
+ \, the other will allow us to study the geometry of the free group charact
+ er variety at infinity\, thereby providing evidence for the geometric $P=W
+ $ conjecture. Depending on the preferences of the audience I might also en
+ gage in some wild speculations concerning a yet-to-be-discovered logarithm
+ ic incarnation of Simpson’s non-abelian Hodge correspondence. Parts of t
+ his talk are based on ongoing joint work with Lorenzo Fantini and Alex Kur
+ onya.\n\nThe synchronous discussion for Martin Ulirsch’s talk is taking 
+ place not in zoom-chat\, but at https://tinyurl.com/2021-06-04-mu  (and wi
+ ll be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/51/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Dhruv Ranganathan (Cambridge)
+DTSTART:20210528T190000Z
+DTEND:20210528T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/52
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/5
+ 2/">Constructing logarithmic moduli</a>\nby Dhruv Ranganathan (Cambridge) 
+ as part of Stanford algebraic geometry seminar\n\n\nAbstract\nIn recent wo
+ rk\, Davesh Maulik and I built a theory “logarithmic” Donaldson-Thomas
+  invariants\, and in the process we constructed a new version of the Hilbe
+ rt scheme of curves: one that is sensitive to the manner in which subschem
+ es interact with a chosen simple normal crossings divisor. There are two i
+ nputs. The first is a piece of geometry\, which comes from study torus orb
+ it closures in Hilbert schemes\, following ideas of Kapranov and Tevelev. 
+ The second is an exceedingly useful piece of formalism\, in the shape of t
+ ropical moduli spaces and an associated collection of Artin stacks. I’ll
+  try to explain how to combine these ingredients to get what we get\, and 
+ also share some general lessons that we learned while working this stuff o
+ ut.\n\nThe synchronous discussion for Dhruv Ranganathan’s talk is taking
+  place not in zoom-chat\, but at  https://tinyurl.com/2021-05-28-dr  (and 
+ will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/52/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Lena Ji (Princeton/Michigan)
+DTSTART:20210611T190000Z
+DTEND:20210611T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/53
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/5
+ 3/">The Noether–Lefschetz theorem</a>\nby Lena Ji (Princeton/Michigan) a
+ s part of Stanford algebraic geometry seminar\n\n\nAbstract\nThe classical
+  Noether–Lefschetz theorem says that for a very general surface $S$ of d
+ egree $ \\geq 4$ in $\\mathbf{P}^3$ over the complex numbers\, the restric
+ tion map from the divisor class group on $\\mathbf{P}^3$ to $S$ is an isom
+ orphism. In this talk\, we give an elementary proof of Noether–Lefschetz
+ . We do not use any Hodge theory\, cohomology\, or monodromy. This argumen
+ t has the additional advantage that it works over fields of arbitrary char
+ acteristic and for singular varieties (for Weil divisors).\n\nThe synchron
+ ous discussion for Lena Ji’s talk is taking place not in zoom-chat\, but
+  at https://tinyurl.com/2021-06-11-lj  (and will be deleted after ~3-7 day
+ s).\n
+LOCATION:https://researchseminars.org/talk/agstanford/53/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Federico Scavia (UBC)
+DTSTART:20210730T190000Z
+DTEND:20210730T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/54
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/5
+ 4/">The Grothendieck ring of stacks</a>\nby Federico Scavia (UBC) as part 
+ of Stanford algebraic geometry seminar\n\n\nAbstract\nThe Grothendieck rin
+ g of algebraic stacks was introduced by T. Ekedahl in \n2009\, following u
+ p on work of other authors. It is a generalization of the \nGrothendieck r
+ ing of varieties. For every linear algebraic group $G$\, we may \nconsider
+  the class of its classifying stack $BG$ in this ring. Computing the \ncla
+ ss of $BG$ is related to the famous rationality problem for fields of \n$G
+ $-invariants (Noether's problem). I will give a brief introduction to the 
+ \nGrothendieck ring of stacks\, and then talk about some of my results in 
+ this \narea.\n\nThe synchronous discussion for Federico Scavia’s talk is
+  taking place not in zoom-chat\, but at https://tinyurl.com/2021-07-30-fs 
+ (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/54/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Raymond Cheng (Columbia)
+DTSTART:20210716T190000Z
+DTEND:20210716T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/55
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/5
+ 5/">$q$-bic Hypersurfaces</a>\nby Raymond Cheng (Columbia) as part of Stan
+ ford algebraic geometry seminar\n\n\nAbstract\nLet’s count: 1\, $q$\, $q
+ +1$\; here\, $q$ is a power of a prime $p$. In this talk\, I will sketch a
+ n analogy between the geometry of a class of hypersurfaces over a field of
+  positive characteristic $p$\, which I call $q$-bic hypersurfaces\, and th
+ e geometry of low degree hypersurfaces\, such as quadrics and cubics\, ove
+ r the complex numbers. For instance\, a smooth $q$-bic threefold has a smo
+ oth Fano surface of lines\, and the intermediate Jacobian of the threefold
+  is isogenous to the Albanese of the Fano surface.\n
+LOCATION:https://researchseminars.org/talk/agstanford/55/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Ritvik Ramkumar (Berkeley)
+DTSTART:20210806T190000Z
+DTEND:20210806T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/56
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/5
+ 6/">On the tangent space to the Hilbert scheme of points in $\\mathbf{P}^3
+ $</a>\nby Ritvik Ramkumar (Berkeley) as part of Stanford algebraic geometr
+ y seminar\n\n\nAbstract\nThe Hilbert scheme of $n$ points in $\\mathbf{P}^
+ 2$ is smooth of dimension $2n$ and the tangent space to any monomial subsc
+ heme admits a pleasant combinatorial description. On the other hand\, the 
+ Hilbert scheme of $n$ points in $\\mathbf{P}^3$ is almost always singular 
+ and there is a conjecture by Briançon and Iarrobino describing the monomi
+ al subscheme with the largest tangent space dimension. In this talk we wil
+ l generalize the combinatorial description to the Hilbert scheme of points
+  in $\\mathbf{P}^3$\, revealing new symmetries in the tangent space to any
+  monomial subscheme. We will use these symmetries to prove many cases of t
+ he conjecture and strengthen previous bounds on the dimension of the Hilbe
+ rt scheme. In addition\, we will also characterize smooth monomial points 
+ on the Hilbert scheme. This is joint work with Alessio Sammartano.\n
+LOCATION:https://researchseminars.org/talk/agstanford/56/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Elden Elmanto (Harvard)
+DTSTART:20210813T190000Z
+DTEND:20210813T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/57
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/5
+ 7/">The completely decomposed arc topology and motivic applications</a>\nb
+ y Elden Elmanto (Harvard) as part of Stanford algebraic geometry seminar\n
+ \n\nAbstract\nI will introduce a Grothendieck topology\, the cdarc topolog
+ y\, discovered in joint work with Marc Hoyois\, Ryomei Iwasa and Shane Kel
+ ly which is a completely decomposed counterpart to Bhatt and Mathew's arc 
+ topology. It is a non-noetherian analog of Suslin-Voevodsky's cdh topology
+  and is thus useful in the study of K-theory and algebraic cycles. I will 
+ focus on two applications to algebraic cycles and K-theory:\n\n1) an excis
+ ion result for algebraic cycles (joint with Hoyois\, Iwasa and Kelly) and\
+ n\n2) a motivic refinement of the equivalence $L_{cdh}K = KH$ (joint with 
+ Tom Bachmann and Matthew Morrow).\n\nThe synchronous discussion for Elden 
+ Elmanto’s talk is taking place not in zoom-chat\, but at https://tinyurl
+ .com/2021-08-13-ee (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/57/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Ming Hao Quek (Brown University)
+DTSTART:20210924T190000Z
+DTEND:20210924T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/58
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/5
+ 8/">Logarithmic resolution of singularities via multi-weighted blow-ups</a
+ >\nby Ming Hao Quek (Brown University) as part of Stanford algebraic geome
+ try seminar\n\n\nAbstract\nWe revisit the theorem of Hironaka that one can
+  resolve the singularities of a singular\, reduced closed subscheme X of a
+  smooth scheme Y over a field of characteristic zero\, such that the singu
+ lar locus of X is transformed to a simple normal crossings divisor. We pro
+ pose a computable yet efficient algorithm\, which accomplishes this by tak
+ ing successive proper transforms along a sequence of multi-weighted blow-u
+ ps\, where at each step\, the worst singular locus is blown up\, and one w
+ itnesses an immediate improvement in singularities. Here\, multi-weighted 
+ blow-ups are necessary to ensure that the ambient space remains smooth (in
+  fact\, also logarithmically smooth with respect to the logarithmic struct
+ ure associated to the exceptional divisors)\, although one has to work mor
+ e broadly with Artin stacks. This is joint work with Dan Abramovich.\n
+LOCATION:https://researchseminars.org/talk/agstanford/58/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Maria Yakerson (ETH)
+DTSTART:20210910T190000Z
+DTEND:20210910T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/59
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/5
+ 9/">Twisted K-theory in motivic homotopy theory</a>\nby Maria Yakerson (ET
+ H) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nIn this t
+ alk\, we will speak about algebraic K-theory of vector bundles twisted by 
+ a Brauer class\, and its place in motivic homotopy theory. In particular\,
+  we will discuss a new approach to the motivic spectral sequence for twist
+ ed K-theory\, constructed earlier by Bruno Kahn and Marc Levine. The talk 
+ is based on joint work in progress\, with Elden Elmanto and Denis Nardin.\
+ n
+LOCATION:https://researchseminars.org/talk/agstanford/59/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Tom Graber (Caltech)
+DTSTART:20210723T190000Z
+DTEND:20210723T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/60
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/6
+ 0/">Virtual localization for relative obstruction theories and stable log 
+ maps</a>\nby Tom Graber (Caltech) as part of Stanford algebraic geometry s
+ eminar\n\n\nAbstract\nI will discuss how to formulate and prove a localiza
+ tion theorem for the virtual fundamental class of a moduli space with a re
+ lative perfect obstruction theory over a singular base.  In the motivating
+  example of the moduli space of stable log maps\, I will explain how this 
+ leads to sums over types of tropical curves and cycle classes on moduli sp
+ aces of curves related to the double ramification cycle that have been of 
+ recent interest in other contexts.\n
+LOCATION:https://researchseminars.org/talk/agstanford/60/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Denis Nardin (Regensburg)
+DTSTART:20210709T190000Z
+DTEND:20210709T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/61
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/6
+ 1/">Quadratic forms on rings and the homotopy limit problem</a>\nby Denis 
+ Nardin (Regensburg) as part of Stanford algebraic geometry seminar\n\n\nAb
+ stract\nHermitian K-theory is an invariant of rings (or\, more generally\,
+  schemes) constructed using the behaviour of quadratic forms. In recent ye
+ ars significant progress has been made in the study of it for rings where 
+ 2 is not invertible. In this talk I will give an introduction to the subje
+ ct from a modern perspective\, using as a guide work in progress on the ho
+ motopy limit problem\, which essentially is asking how much information we
+  can recover from just knowing the algebraic K-theory of the ring.\n
+LOCATION:https://researchseminars.org/talk/agstanford/61/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Joaquín Moraga (Princeton University)
+DTSTART:20211008T190000Z
+DTEND:20211008T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/62
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/6
+ 2/">​​Toroidalization principles for klt singularities</a>\nby Joaquí
+ n Moraga (Princeton University) as part of Stanford algebraic geometry sem
+ inar\n\n\nAbstract\nIn this talk\, I will discuss some recent progress on 
+ toroidalization principles for klt singularities.  These toroidalizations 
+ allow us to prove theorems about the topology of klt singularities and abo
+ ut their minimal log discrepancies.  If time permits\, I will also explain
+  the relationship between these toroidalization principles and the termina
+ tion of flips.\n
+LOCATION:https://researchseminars.org/talk/agstanford/62/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Maddie Weinstein (Stanford University)
+DTSTART:20211015T190000Z
+DTEND:20211015T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/64
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/6
+ 4/">Algebraic Geometry of Curvature and Matrices with Partitioned Eigenval
+ ues</a>\nby Maddie Weinstein (Stanford University) as part of Stanford alg
+ ebraic geometry seminar\n\n\nAbstract\nThis talk is a combined discussion 
+ of an upcoming paper with Paul Breiding and Kristian Ranestad on the enume
+ rative geometry of the curvature of algebraic varieties and a past paper c
+ alled Real Symmetric Matrices with Partitioned Eigenvalues. Curvature is a
+ n important concept in differential geometry. We approach curvature from t
+ he perspective of algebraic geometry\, studying the critical curvature loc
+ us of an algebraic variety. A curvature feature known as an umbilical poin
+ t occurs when the eigenvalues of the second fundamental form coincide. Thi
+ s leads us to a discussion of the real algebraic variety of matrices with 
+ eigenvalue multiplicities determined by a partition.\n
+LOCATION:https://researchseminars.org/talk/agstanford/64/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Han-Bom Moon (Fordham/Stanford)
+DTSTART:20210917T190000Z
+DTEND:20210917T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/65
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/6
+ 5/">Derived category of moduli of vector bundles</a>\nby Han-Bom Moon (For
+ dham/Stanford) as part of Stanford algebraic geometry seminar\n\n\nAbstrac
+ t\nI will present recent progress on the structure of the derived category
+  of the moduli space of stable vector bundles on a curve. This talk is bas
+ ed on ongoing joint work with Kyoung-Seog Lee.\n
+LOCATION:https://researchseminars.org/talk/agstanford/65/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Arnav Tripathy (Stanford University)
+DTSTART:20211001T190000Z
+DTEND:20211001T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/66
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/6
+ 6/">Line bundles in equivariant elliptic cohomology</a>\nby Arnav Tripathy
+  (Stanford University) as part of Stanford algebraic geometry seminar\n\n\
+ nAbstract\nGiven a compact Lie group G acting on a space X\, the G-equivar
+ iant elliptic cohomology of X is naturally a scheme Ell_G(X) (with a map d
+ own to the moduli space of G-bundles on elliptic curves). Given a G-equiva
+ riant vector bundle V on X\, one obtains an interesting line bundle Thom(V
+ ) on Ell_G(X). Both topologists and string theorists have predicted that g
+ iven two vector bundles V_1\, V_2 whose first Chern classes both vanish an
+ d whose second Chern classes agree\, the resulting line bundles Thom(V_1) 
+ and Thom(V_2) should agree in Pic(Ell_G(X)). I'll describe how the theory 
+ of pushforwards in topology gives rise to this subtle question in algebrai
+ c geometry\, and I hope to indicate in broad strokes the proof of this con
+ jecture. This is joint work with D. Berwick-Evans.\n
+LOCATION:https://researchseminars.org/talk/agstanford/66/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Mohammed Abouzaid (Columbia University)
+DTSTART:20211105T190000Z
+DTEND:20211105T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/67
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/6
+ 7/">What can symplectic topology tell us about algebraic varieties?</a>\nb
+ y Mohammed Abouzaid (Columbia University) as part of Stanford algebraic ge
+ ometry seminar\n\nLecture held in 383-N.\n\nAbstract\nI will begin by brie
+ fly recalling the relationship between\ncomplex projective algebraic geome
+ try and symplectic topology\, which\ngoes through Kaehler manifolds. I wil
+ l then survey results from the\nend of the last century\, largely due to S
+ eidel and McDuff\, about the\nsymplectic topology of Hamiltonian fibration
+ s over the 2-sphere\, and\ntheir consequences for smooth projective maps o
+ ver the projective\nline. Finally\, I will indicate some recent advances i
+ n this area\,\nincluding the use of methods of Floer homotopy theory to\nr
+ efine our knowledge about the topology of these spaces.\n
+LOCATION:https://researchseminars.org/talk/agstanford/67/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Kai Behrend (UBC)
+DTSTART:20211112T200000Z
+DTEND:20211112T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/68
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/6
+ 8/">Donaldson-Thomas theory of the quantum Fermat quintic</a>\nby Kai Behr
+ end (UBC) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nWe
+  study non-commutative projective varieties in the sense of Artin-Zhang\, 
+ which are given by non-commutative homogeneous coordinate rings\, which ar
+ e finite over their centre.  We construct moduli spaces of stable modules 
+ for these\, and construct a symmetric obstruction theory in the CY3-case. 
+ This gives deformation invariants of Donaldson-Thomas type.  The simplest 
+ example is the Fermat quintic in quantum projective space\, where the coor
+ dinates commute up to carefully chosen 5th roots of unity. We explore the 
+ moduli theory of finite length modules\, which mixes features of the Hilbe
+ rt scheme of commutative 3-folds\, and the representation theory of quiver
+ s with potential.  This is mostly work of Yu-Hsiang Liu\, with contributio
+ ns by myself and Atsushi Kanazawa.\n
+LOCATION:https://researchseminars.org/talk/agstanford/68/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Renzo Cavalieri (Colorado State University)
+DTSTART:20211119T200000Z
+DTEND:20211119T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/69
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/6
+ 9/">The integral Chow ring of $M_{0}(\\mathbb{P}^r\,d)$</a>\nby Renzo Cava
+ lieri (Colorado State University) as part of Stanford algebraic geometry s
+ eminar\n\n\nAbstract\nWe give an efficient presentation of the Chow ring w
+ ith integral coefficients of the open part of the moduli space of rational
+  maps of odd degree to projective space. A less fancy description of this 
+ space has its closed points correspond to equivalence classes of $(r+1)$-t
+ uples of degree $d$ polynomials in one variable with no common positive de
+ gree factor. We identify this space as a $GL(2\,\\mathbb{C})$ quotient of 
+ an open set in a projective space\, and then obtain a (highly redundant) p
+ resentation by considering an envelope of the complement. A combinatorial 
+ analysis then leads us to eliminating a large number of relations\, and to
+  express the remaining ones in generating function form for all dimensions
+ . The upshot of this work is to observe the rich combinatorial structure c
+ ontained in the Chow rings of these moduli spaces as the degree and the ta
+ rget dimension vary. This is joint work with Damiano Fulghesu.\n\nThe sync
+ hronous discussion for Renzo Cavalieri’s talk is taking place not in zoo
+ m-chat\, but at https://tinyurl.com/2021-11-19-rc (and will be deleted aft
+ er ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/69/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Noah Olander (Columbia University)
+DTSTART:20211210T200000Z
+DTEND:20211210T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/70
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/7
+ 0/">Semiorthogonal decompositions and dimension</a>\nby Noah Olander (Colu
+ mbia University) as part of Stanford algebraic geometry seminar\n\n\nAbstr
+ act\nA conjecture of Orlov predicts that we can recover the dimension of a
+  smooth quasi-projective variety from its derived category via the Rouquie
+ r dimension. We explain the meaning of the conjecture and some things we k
+ now about it\, then we explain the proof of a weakened version. We use thi
+ s to prove a fact predicted by Orlov’s conjecture: If the derived catego
+ ry of X appears as a component of  a semiorthogonal decomposition of the d
+ erived category of Y (X\,Y smooth proper varieties) then the dimension of 
+ X is at most the dimension of Y.\n\nThe synchronous discussion for Noah Ol
+ ander’s talk is taking place not in zoom-chat\, but at https://tinyurl.c
+ om/2021-12-10-no (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/70/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Louis Esser (UCLA)
+DTSTART:20211203T200000Z
+DTEND:20211203T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/71
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/7
+ 1/">Varieties of general type with doubly exponential asymptotics</a>\nby 
+ Louis Esser (UCLA) as part of Stanford algebraic geometry seminar\n\n\nAbs
+ tract\nBy a theorem of Hacon–McKernan\, Takayama\, and Tsuji\, for every
+  $n$ there is a constant $r_n$ for which every smooth variety $X$ of dimen
+ sion $n$ of general type has birational pluricanonical maps $|mK_X|$ for $
+ m \\geq r_n$.  In joint work with Burt Totaro and Chengxi Wang (see https:
+ //arxiv.org/abs/2109.13383)\, we show that the constants $r_n$ grow at lea
+ st doubly exponentially.  Conjecturally\, it's expected that the optimal b
+ ound is in fact doubly exponential.  We do this by finding weighted projec
+ tive hypersurfaces of general type with extreme behavior: this includes ex
+ amples of very small volume and many vanishing plurigenera.  We also consi
+ der the analogous questions for other classes of varieties and provide som
+ e conjecturally optimal examples.  For instance\, we conjecture the termin
+ al Fano variety of minimal volume and the canonical Calabi-Yau variety of 
+ minimal volume in each dimension.\n\nThe synchronous discussion for Louis 
+ Esser’s talk is taking place not in zoom-chat\, but at https://tinyurl.c
+ om/2021-12-03-le (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/71/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Ziquan Zhuang (MIT)
+DTSTART:20211217T200000Z
+DTEND:20211217T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/72
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/7
+ 2/">Properness of the K-moduli space</a>\nby Ziquan Zhuang (MIT) as part o
+ f Stanford algebraic geometry seminar\n\n\nAbstract\nK-stability is an alg
+ ebraic condition that characterizes the existence of Kahler-Einstein metri
+ cs on Fano varieties. Recently there has been a lot of work on the constru
+ ction of the K-moduli space\, i.e. a good moduli space parametrizing K-pol
+ ystable Fano varieties. Motivated by results in differential geometry\, it
+  is conjectured that this K-moduli space is proper and projective. In this
+  talk\, I'll discuss some recent progress in birational geometry that lead
+ s to a full solution of this conjecture. Based on joint work with Yuchen L
+ iu and Chenyang Xu.\n\nThe synchronous discussion for Ziquan Zhuang’s ta
+ lk is taking place not in zoom-chat\, but at https://tinyurl.com/2021-12-1
+ 7-zz (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/72/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Chelsea Walton (Rice)
+DTSTART:20220121T200000Z
+DTEND:20220121T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/73
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/7
+ 3/">Representation theory of elliptic algebras</a>\nby Chelsea Walton (Ric
+ e) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nIn this t
+ alk\, I will discuss how to use algebro-geometric and Poisson geometric me
+ thods to study the representation theory of noncommutative algebras that a
+ re ‘close’ to being commutative. Such algebras will include the 3- and
+  the 4-dimensional Sklyanin algebras\, which are noncommutative analogues 
+ of polynomial algebras whose behavior is governed by a certain elliptic cu
+ rve. This will be based on joint work with Xingting Wang and Milen Yakimov
+  available in PLMS (2019) and Selecta Math (2021). I also aim to keep the 
+ presentation as down-to-earth as possible so that everybody will have fun.
+ \n\nThe synchronous discussion for Chelsea Walton’s talk is taking place
+  not in zoom-chat\, but at https://tinyurl.com/2022-01-21-cw (and will be 
+ deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/73/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Emily Clader (SFSU)
+DTSTART:20220114T200000Z
+DTEND:20220114T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/74
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/7
+ 4/">Permutohedral complexes and rational curves with cyclic action</a>\nby
+  Emily Clader (SFSU) as part of Stanford algebraic geometry seminar\n\n\nA
+ bstract\nAlthough the moduli space of genus-zero curves is not toric\, it 
+ shares an intriguing amount of the combinatorial structure that a toric va
+ riety would enjoy.  In fact\, by adjusting the moduli problem slightly\, o
+ ne finds a moduli space that is indeed toric\, known as Losev-Manin space.
+   The associated polytope is the permutohedron\, which also encodes the gr
+ oup-theoretic structure of the symmetric group.  Batyrev and Blume general
+ ized this story by constructing a type-B version of Losev-Manin space\, wh
+ ose associated polytope is a signed permutohedron that relates to the grou
+ p of signed permutations.  In joint work with C. Damiolini\, D. Huang\, S.
+  Li\, and R. Ramadas\, we carry out the next stage of generalization\, def
+ ining a family of moduli spaces of rational curves with Z_r action encoded
+  by an associated "permutohedral complex" for a more general complex refle
+ ction group\, which specializes when r=2 to Batyrev and Blume's moduli spa
+ ce.\n\nThe synchronous discussion for Emily Clader’s talk is taking plac
+ e not in zoom-chat\, but at https://tinyurl.com/2022-01-14-ec (and will be
+  deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/74/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Madeline Brandt (Brown)
+DTSTART:20220204T200000Z
+DTEND:20220204T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/75
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/7
+ 5/">Top Weight Cohomology of $A_g$</a>\nby Madeline Brandt (Brown) as part
+  of Stanford algebraic geometry seminar\n\n\nAbstract\nI will discuss a re
+ cent project in computing the top weight cohomology of the moduli space $A
+ _g$ of principally polarized abelian varieties of dimension $g$ for small 
+ values of $g$. This piece of the cohomology is controlled by the combinato
+ rics of the boundary strata of a compactification of $A_g$. Thus\, it can 
+ be computed combinatorially. This is joint work with Juliette Bruce\, Melo
+ dy Chan\, Margarida Melo\, Gwyneth Moreland\, and Corey Wolfe.\n\nThe sync
+ hronous discussion for Madeline Brandt’s talk is taking place not in zoo
+ m-chat\, but at https://tinyurl.com/2022-02-04-mb (and will be deleted aft
+ er ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/75/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Allen Knutson (Cornell)
+DTSTART:20220128T200000Z
+DTEND:20220128T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/76
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/7
+ 6/">Resolutions of Richardson varieties\, stable curves\, and dual simplic
+ ial spheres</a>\nby Allen Knutson (Cornell) as part of Stanford algebraic 
+ geometry seminar\n\n\nAbstract\nThe combinatorics of a simple normal cross
+ ings divisor determines a "dual" simplicial complex. Kollár and Xu showed
+  that when this divisor is anticanonical\, the simplicial complex has the 
+ rational homology of a sphere. I'll construct two resolutions-of-singulari
+ ties of Richardson varieties (a slight generalization of Schubert varietie
+ s)\, one using Bott-Samelson manifolds\, the other (requiring no choices!)
+  using circle-equivariant stable curves. In each case the dual simplicial 
+ complex is actually <b>homeomorphic</b> to a sphere.\n
+LOCATION:https://researchseminars.org/talk/agstanford/76/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Enrica Mazzon (University of Michigan)
+DTSTART:20220218T200000Z
+DTEND:20220218T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/77
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/7
+ 7/">Higher Fano manifolds</a>\nby Enrica Mazzon (University of Michigan) a
+ s part of Stanford algebraic geometry seminar\n\n\nAbstract\nFano manifold
+ s are complex projective manifolds having positive first Chern class. The 
+ positivity condition on the first Chern class has far-reaching geometric a
+ nd arithmetic implications. For instance\, Fano manifolds are covered by r
+ ational curves\, and families of Fano manifolds over one-dimensional bases
+  always admit holomorphic sections. In recent years\, there has been a gre
+ at effort towards defining suitable higher analogues of the Fano condition
+ . Higher Fano manifolds are expected to enjoy stronger versions of several
+  of the nice properties of Fano manifolds. For instance\, they should be c
+ overed by higher dimensional rational varieties\, and families of higher F
+ ano manifolds over higher-dimensional bases should admit meromorphic secti
+ ons (modulo Brauer obstruction). In this talk\, I will discuss a possible 
+ notion of higher Fano manifolds in terms of positivity of higher Chern cha
+ racters\, and discuss special geometric features of these manifolds.\n\nTh
+ e synchronous discussion for Enrica Mazzon’s talk is taking place not in
+  zoom-chat\, but at https://tinyurl.com/2022-02-18-em (and will be deleted
+  after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/77/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Yi Hu (University of Arizona)
+DTSTART:20220225T200000Z
+DTEND:20220225T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/78
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/7
+ 8/">Resolution of Singularities in Arbitrary Characteristics</a>\nby Yi Hu
+  (University of Arizona) as part of Stanford algebraic geometry seminar\n\
+ n\nAbstract\nLet X be an integral affine or projective scheme over a perfe
+ ct field of an arbitrary characteristic. Then\, X admits a resolution. Tha
+ t is\, there exists a smooth scheme Y and a projective birational morphism
+  from Y onto X.\n\nThe synchronous discussion for Yi Hu’s talk is taking
+  place not in zoom-chat\, but at https://tinyurl.com/2022-02-25-yh (and wi
+ ll be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/78/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Ana Balibanu (Harvard)
+DTSTART:20220304T200000Z
+DTEND:20220304T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/79
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/7
+ 9/">Regular centralizers and the wonderful compactification</a>\nby Ana Ba
+ libanu (Harvard) as part of Stanford algebraic geometry seminar\n\n\nAbstr
+ act\nThe universal centralizer of a complex semisimple adjoint group G is 
+ the family of regular centralizers in G\, parametrized by the regular conj
+ ugacy classes. It has a natural symplectic structure which is inherited fr
+ om the cotangent bundle of G. I will construct a smooth\, log-symplectic r
+ elative compactification of this family using the wonderful compactificati
+ on of G. Its compactified centralizer fibers are isomorphic to Hessenberg 
+ varieties\, and its symplectic leaves are indexed by root system combinato
+ rics. I will also explain how to produce a multiplicative analogue of this
+  construction\, by moving from the Poisson to the quasi-Poisson setting.\n
+ \nThe synchronous discussion for Ana Balibanu’s talk is taking place not
+  in zoom-chat\, but at https://tinyurl.com/2022-03-04-ab (and will be dele
+ ted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/79/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Omid Amini (École Polytechnique)
+DTSTART:20220311T200000Z
+DTEND:20220311T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/80
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/8
+ 0/">Geometry of hybrid curves and their moduli spaces\, with a view toward
+  applications</a>\nby Omid Amini (École Polytechnique) as part of Stanfor
+ d algebraic geometry seminar\n\n\nAbstract\nThe talk will be an introducti
+ on to the mathematics of geometric objects called hybrid curves and their 
+ moduli spaces\, which mix features from higher rank non-Archimedean\, trop
+ ical and complex geometries. Some applications to questions around the asy
+ mptotic geometry of Riemann surfaces close to the boundary of their moduli
+  spaces will be discussed.\n\nBased on joint works with Noema Nicolussi.\n
+ \nThe synchronous discussion for Omid Amini’s talk is taking place not i
+ n zoom-chat\, but at https://tinyurl.com/2022-03-11-oa (and will be delete
+ d after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/80/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Tony Yue Yu (Caltech)
+DTSTART:20220318T190000Z
+DTEND:20220318T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/81
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/8
+ 1/">Non-archimedean Quantum K-theory and Gromov-Witten invariants</a>\nby 
+ Tony Yue Yu (Caltech) as part of Stanford algebraic geometry seminar\n\n\n
+ Abstract\nMotivated by mirror symmetry and the enumeration of curves with 
+ boundaries\, it is desirable to develop a theory of Gromov-Witten invarian
+ ts in the setting of non-archimedean geometry. I will explain our recent w
+ orks in this direction. Our approach differs from the classical one in alg
+ ebraic geometry via perfect obstruction theory. Instead\, we build on our 
+ previous works on the foundation of derived non-archimedean geometry\, the
+  representability theorem and Gromov compactness. We obtain numerical inva
+ riants by passing to K-theory or motivic cohomology. We prove a list of na
+ tural geometric relations between the stacks of stable maps\, directly at 
+ the derived level\, with respect to elementary operations on graphs\, name
+ ly\, products\, cutting edges\, forgetting tails and contracting edges. Th
+ ey imply the corresponding properties of numerical invariants. The derived
+  approach produces highly intuitive statements and functorial proofs. Furt
+ hermore\, its flexibility allows us to impose not only simple incidence co
+ nditions for marked points\, but also incidence conditions with multiplici
+ ties. Joint work with M Porta.\n\nThe synchronous discussion for Tony Yue 
+ Yu’s  talk is taking place not in zoom-chat\, but at https://tinyurl.com
+ /2022-03-18-ty (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/81/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Hunter Spink (Stanford)
+DTSTART:20220325T190000Z
+DTEND:20220325T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/82
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/8
+ 2/">A new Chern character for "classical Lie type" combinatorics</a>\nby H
+ unter Spink (Stanford) as part of Stanford algebraic geometry seminar\n\n\
+ nAbstract\nFor X of “classical Lie type” (formally such that X has a G
+ KM torus action where all characters are of the form t_i\, t_i+t_j\, and t
+ _i-t_j for various i\,j)\, we adapt for combinatorial applications the (eq
+ uivariant) Hirzebruch-Riemann-Roch framework which computes Euler characte
+ ristics of vector bundles via cohomological computations\, extending previ
+ ous joint work in type A with Andrew Berget\, Chris Eur\, and Dennis Tseng
+ .\n\nThis framework directly relates the structure sheaf of Schubert varie
+ ties to Grothendieck polynomials\, produces formulas (some of them new) re
+ lating the number of lattice points and volumes for type A and B generaliz
+ ed permutahedrons\, and when applied to ample equivariant vector bundles o
+ n toric varieties is a key component in recent progress on establishing an
+ d unifying results on the log-concavity of sequences associated to matroid
+ s and delta-matroids.\n\n[This is joint work with Chris Eur\, Alex Fink\, 
+ and Matthew Larson.]\n\nThe synchronous discussion for Hunter Spink’s ta
+ lk is taking place not in zoom-chat\, but at https://tinyurl.com/2022-03-2
+ 5-hs (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/82/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Kiran Kedlaya (UC San Diego)
+DTSTART:20220415T190000Z
+DTEND:20220415T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/84
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/8
+ 4/">Angle ranks of abelian varieties</a>\nby Kiran Kedlaya (UC San Diego) 
+ as part of Stanford algebraic geometry seminar\n\n\nAbstract\nThe angle ra
+ nk of an abelian variety over a finite field (or a CM abelian variety over
+  C) quantifies the extent to which the Tate conjecture (or the Hodge conje
+ cture) holds "for trivial reasons"\; cases where this does not happen tend
+  to be rare in practice. Picking up a thread from some old (1980s and 1990
+ s) results of Tankeev and Lenstra-Zarhin\, we show that in many cases\, th
+ e Tate conjecture is forced to hold by the Newton polygon of the abelian v
+ ariety or the Galois group of the Frobenius eigenvalues. Joint work with T
+ aylor Dupuy and David Zureick-Brown.\n\nThe synchronous discussion for Kir
+ an Kedlaya’s talk is taking place not in zoom-chat\, but at https://tiny
+ url.com/2022-04-15-kk (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/84/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Michail Savvas (UT Austin)
+DTSTART:20220408T190000Z
+DTEND:20220408T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/85
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/8
+ 5/">Reduction of stabilizers and generalized Donaldson-Thomas invariants</
+ a>\nby Michail Savvas (UT Austin) as part of Stanford algebraic geometry s
+ eminar\n\n\nAbstract\nStarting with a sufficiently nice Artin stack\, we e
+ xplain a canonical blowup procedure that produces a Deligne-Mumford stack\
+ , resolving the locus of points with infinite automorphism group. This con
+ struction can be applied to moduli stacks parametrizing semistable sheaves
+  or complexes on Calabi-Yau threefolds. We show that their stabilizer redu
+ ctions admit natural virtual fundamental cycles\, allowing us to define ge
+ neralized Donaldson-Thomas invariants which act as counts of these objects
+ . Everything in this talk is (maybe not so) secretly expected to be the sh
+ adow of a corresponding phenomenon in derived algebraic geometry\, giving 
+ a new\, derived perspective on Donaldson-Thomas invariants.\n\nBased on jo
+ int work with Young-Hoon Kiem and Jun Li and joint work in progress with J
+ eroen Hekking and David Rydh.\n\nThe synchronous discussion for Michail Sa
+ vvas’ talk is taking place not in zoom-chat\, but at https://tinyurl.com
+ /2022-04-08-ms (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/85/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Daniele Agostini (Max Planck Institute (Leipzig))
+DTSTART:20220513T190000Z
+DTEND:20220513T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/86
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/8
+ 6/">Singular curves\, degenerate theta functions and KP solutions</a>\nby 
+ Daniele Agostini (Max Planck Institute (Leipzig)) as part of Stanford alge
+ braic geometry seminar\n\n\nAbstract\nSmooth algebraic curves give rise to
+  solutions to the KP equation\, which models waves in shallow water\, via
+  Riemann's theta function. Singular curves produce solutions as well\, but
+  the theta function in this case becomes degenerate. I will present some 
+ results and questions in this direction\, focusing on soliton and rationa
+ l solutions.\n\nThe synchronous discussion for Daniele Agostini’s talk i
+ s taking place not in zoom-chat\, but at https://tinyurl.com/2022-05-13-da
+  (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/86/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Soheyla Feyzbakhsh (Imperial College London)
+DTSTART:20220527T190000Z
+DTEND:20220527T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/87
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/8
+ 7/">Hyperkahler varieties as Brill-Noether loci on curves</a>\nby Soheyla 
+ Feyzbakhsh (Imperial College London) as part of Stanford algebraic geometr
+ y seminar\n\n\nAbstract\nConsider the moduli space $M_C(r\; K_C)$ of stabl
+ e rank r vector bundles on a curve $C$ with canonical determinant\, and le
+ t $h$ be the maximum number of linearly independent global sections of the
+ se bundles. If $C$ embeds in a K3 surface $X$ as a generator of $Pic(X)$ a
+ nd the genus of $C$ is sufficiently high\, I will show the Brill-Noether l
+ ocus $BN_C \\subset M_C(r\; K_C)$ of bundles with $h$ global sections is a
+  smooth projective Hyperkahler manifold\, isomorphic to a moduli space of 
+ stable vector bundles on $X$. The main technique is to apply wall-crossing
+  with respect to Bridgeland stability conditions on K3 surfaces.\n\nThe sy
+ nchronous discussion for Soheyla Feyzbakhsh’s talk is taking place not i
+ n zoom-chat\, but at https://tinyurl.com/2022-05-27-sf (and will be delete
+ d after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/87/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Daniil Rudenko (University of Chicago)
+DTSTART:20220506T190000Z
+DTEND:20220506T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/89
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/8
+ 9/">Rational Elliptic Surfaces and Trigonometry of Non-Euclidean Tetrahedr
+ a</a>\nby Daniil Rudenko (University of Chicago) as part of Stanford algeb
+ raic geometry seminar\n\n\nAbstract\nI will explain how to construct a rat
+ ional elliptic\nsurface out of every non-Euclidean tetrahedra. This surfac
+ e\n"remembers" the trigonometry of the tetrahedron: the length of edges\,\
+ ndihedral angles and the volume can be naturally computed in terms of\nthe
+  surface. The main property of this construction is self-duality:\nthe sur
+ faces obtained from the tetrahedron and its dual coincide. This\nleads to 
+ some unexpected relations between angles and edges of the tetrahedron. For
+  instance\, the cross-ratio of the exponents of the spherical angles  coin
+ cides with the cross-ratio of the exponents of the perimeters of its faces
+ . The construction is based on relating mixed Hodge structures\, associate
+ d to the tetrahedron and the corresponding surface.\n\nThe synchronous dis
+ cussion for Daniil Rudenko’s talk is taking place not in zoom-chat\, but
+  at https://tinyurl.com/2022-05-06-dr (and will be deleted after ~3-7 days
+ ).\n
+LOCATION:https://researchseminars.org/talk/agstanford/89/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Tony Feng (MIT)
+DTSTART:20220520T190000Z
+DTEND:20220520T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/90
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/9
+ 0/">Enumerative arithmetic geometry and automorphic forms</a>\nby Tony Fen
+ g (MIT) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nThe 
+ problem of counting vectors with given length in a lattice turns out to ha
+ ve much more structure than initially expected\, and is connected with the
+  theory of so-called automorphic forms. A geometric analogue of this probl
+ em is to count global sections of vector bundles on a curve over a finite 
+ field. The generating functions for such counts are special automorphic fo
+ rms called theta series. In joint work with Zhiwei Yun and Wei Zhang\, we 
+ find a family of generalizations of such counting problems in the enumerat
+ ive geometry of arithmetic moduli spaces\, which lead to generating functi
+ ons that we call higher theta series. I will explain theorems and conjectu
+ res around these higher theta series.\n\nThe synchronous discussion for To
+ ny Feng’s talk is taking place not in zoom-chat\, but at https://tinyurl
+ .com/2022-05-20-tf (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/90/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Siddarth Kannan (Brown University)
+DTSTART:20220401T190000Z
+DTEND:20220401T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/91
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/9
+ 1/">Moduli of relative stable maps to $\\mathbf{P}^1$: cut-and-paste invar
+ iants</a>\nby Siddarth Kannan (Brown University) as part of Stanford algeb
+ raic geometry seminar\n\n\nAbstract\nI will give an introduction to the mo
+ duli space of genus zero rubber stable maps to $\\mathbf{P}^1$\, relative 
+ to 0 and infinity\, with fixed ramification profiles. Then I will discuss 
+ two recent results on the topology of these moduli spaces. The first conce
+ rns a chamber structure for the classes of these moduli spaces in the Grot
+ hendieck ring of varieties. The second gives a recursive algorithm for the
+  calculation of the Euler characteristic\, in the case where the maps are 
+ fully ramified over zero\, and unramified over infinity. If time permits\,
+  I will also discuss some potential future directions.\n\nThe synchronous 
+ discussion for Siddarth Kannan’s talk is taking place not in zoom-chat\,
+  but at https://tinyurl.com/2022-04-01-sk (and will be deleted after ~3-7 
+ days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/91/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:David Anderson (Ohio State)
+DTSTART:20220429T190000Z
+DTEND:20220429T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/92
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/9
+ 2/">The direct sum morphism in (equivariant) Schubert calculus</a>\nby Dav
+ id Anderson (Ohio State) as part of Stanford algebraic geometry seminar\n\
+ n\nAbstract\nDirect sum of subspaces defines a map on Grassmannians\, whic
+ h\, after taking an appropriate limit\, leads to a product-like structure 
+ on the infinite Grassmannian.  The corresponding cohomology pullback coinc
+ ides with a famous co-product on the ring of symmetric functions.  I’ll 
+ describe torus-equivariant extensions of this setup\, along with positivit
+ y results for structure constants\, and some open questions.  This story p
+ artially extends work by Thomas-Yong\, Knutson-Lederer\, and Lam-Lee-Shimo
+ zono\, and connects to joint work with W. Fulton.  (No special knowledge o
+ f Schubert calculus -- equivariant or not -- will be assumed.)\n
+LOCATION:https://researchseminars.org/talk/agstanford/92/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Hunter Spink (Stanford)
+DTSTART:20220902T190000Z
+DTEND:20220902T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/93
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/9
+ 3/">Examples of o-minimality in algebraic geometry</a>\nby Hunter Spink (S
+ tanford) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nIn 
+ this introductory talk\, we will define o-minimality (a way of augmenting 
+ algebraic geometry with functions like $e^x$\, $\\sin$\, $\\cos$\, etc.)\,
+  and show:\n\n(1) The number of solutions to a system of polynomials equat
+ ions is bounded by a function of the sizes of the supports of the equation
+ s\, independent of the sizes of the exponents.\n\n(2) For an irreducible p
+ olynomial $f(x\,y)$ not of the form $ax^iy^j+bx^ky^l$ there are only finit
+ ely many solutions to $f(x\,y)=0$ with $x$\, $y$ roots of unity.\n
+LOCATION:https://researchseminars.org/talk/agstanford/93/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Adeel Khan (Academia Sinica)
+DTSTART:20220909T190000Z
+DTEND:20220909T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/94
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/9
+ 4/">An invitation to motivic sheaves (part 1)</a>\nby Adeel Khan (Academia
+  Sinica) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nThe
+ se lectures will be an introduction to Voevodsky's theory of motivic sheav
+ es.  In the first lecture we will try to understand what the theory is sup
+ posed to look like\, according to Beilinson's 1985 conjectures.  To better
+  appreciate these we will briefly review some of the ideas that influenced
+  him\, such as Grothendieck's theory of pure motives and Deligne's theory 
+ of mixed Hodge structures (i.e.\, why motives?)\, and the six functor form
+ alism on l-adic sheaves (i.e.\, why sheaves?).  In the second lecture\, we
+  will begin looking into Voevodsky's work on actually constructing categor
+ ies of motivic sheaves\, as well as the connection with invariants like Ch
+ ow groups and algebraic K-theory.\n\nDespite the seemingly forbidding natu
+ re of the topic\, these lectures are intended for an audience with familia
+ rity with basic algebraic geometry\, but no familiarity with any of the ad
+ vanced topics being addressed.\n\nThe synchronous discussion for Adeel Kha
+ n’s talk is taking place not in zoom-chat\, but at https://tinyurl.com/2
+ 022-09-09-ak  (and will be deleted after ~2 weeks).\n
+LOCATION:https://researchseminars.org/talk/agstanford/94/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Adeel Khan (Academia Sinica)
+DTSTART:20220916T190000Z
+DTEND:20220916T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/95
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/9
+ 5/">An invitation to motivic sheaves (part 2)</a>\nby Adeel Khan (Academia
+  Sinica) as part of Stanford algebraic geometry seminar\n\n\nAbstract\nThe
+ se lectures will be an introduction to Voevodsky's theory of motivic sheav
+ es.  In the first lecture we will try to understand what the theory is sup
+ posed to look like\, according to Beilinson's 1985 conjectures.  To better
+  appreciate these we will briefly review some of the ideas that influenced
+  him\, such as Grothendieck's theory of pure motives and Deligne's theory 
+ of mixed Hodge structures (i.e.\, why motives?)\, and the six functor form
+ alism on l-adic sheaves (i.e.\, why sheaves?).  In the second lecture\, we
+  will begin looking into Voevodsky's work on actually constructing categor
+ ies of motivic sheaves\, as well as the connection with invariants like Ch
+ ow groups and algebraic K-theory.\n\nDespite the seemingly forbidding natu
+ re of the topic\, these lectures are intended for an audience with familia
+ rity with basic algebraic geometry\, but no familiarity with any of the ad
+ vanced topics being addressed.\n\nThe synchronous discussion for Adeel Kha
+ n’s talk is taking place not in zoom-chat\, but at https://tinyurl.com/2
+ 022-09-16-ak (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/95/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Matthew Emerton (University of Chicago)
+DTSTART:20221028T190000Z
+DTEND:20221028T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/96
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/9
+ 6/">Stacks in the arithmetic Langlands program</a>\nby Matthew Emerton (Un
+ iversity of Chicago) as part of Stanford algebraic geometry seminar\n\nLec
+ ture held in Room 383-N.\n\nAbstract\nRecent years have seen the introduct
+ ion of geometric ideas\, formerly the sole province of the geometric Langl
+ ands program\, into the arithmetic Langlands program as well. In particula
+ r\, stacks of Langlands parameters have taken a central place in the arith
+ metic theory.\n\nIn this talk I will discuss some aspects of these stacks\
+ , with an emphasis on their interesting geometric features.  Much of the w
+ ork I’ll report on will be joint with Toby Gee.  Some will also be joint
+  with Xinwen Zhu.\n
+LOCATION:https://researchseminars.org/talk/agstanford/96/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Jacob Tsimerman (University of Toronto)
+DTSTART:20221111T200000Z
+DTEND:20221111T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/97
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/9
+ 7/">Abelian Varieties not Isogenous to Jacobians</a>\nby Jacob Tsimerman (
+ University of Toronto) as part of Stanford algebraic geometry seminar\n\nL
+ ecture held in Room 383-N.\n\nAbstract\nKatz and Oort raised the following
+  question: Given an algebraically closed field k\, and a positive integer 
+ g>3\, does there exist an abelian variety over k not isogenous to a Jacobi
+ an over k? There has been much progress on this question\, with several pr
+ oofs now existing over $\\overline{\\mathbb{Q}}$. We discuss recent work w
+ ith Ananth Shankar\, answering this question in the affirmative over $\\ov
+ erline{\\mathbb{F}_q(T)}$. Our method introduces new types of local obstru
+ ctions\, and can be used to give another proof over $\\overline{\\mathbb{Q
+ }}$.\n
+LOCATION:https://researchseminars.org/talk/agstanford/97/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Pierrick Bousseau (University of Georgia)
+DTSTART:20221118T200000Z
+DTEND:20221118T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/98
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/9
+ 8/">Fock–Goncharov Dual Cluster Varieties and Gross–Siebert Mirrors</a
+ >\nby Pierrick Bousseau (University of Georgia) as part of Stanford algebr
+ aic geometry seminar\n\n\nAbstract\nCluster varieties are algebraic variet
+ ies obtained by gluing together complex tori using explicit birational tra
+ nsformations. They play an important role in algebra and geometric represe
+ ntation theory\, and have the peculiarity to come in pairs (A\,X). On the 
+ other hand\, in the context of mirror symmetry\, associated with any log C
+ alabi–Yau variety is its mirror dual\, which can be constructed using th
+ e enumerative geometry of rational curves in the framework of the Gross–
+ Siebert program. I will explain how to bridge the theory of cluster variet
+ ies with the algebro-geometric framework of Gross–Siebert mirror symmetr
+ y and show that the mirror to the X-cluster variety is a degeneration of t
+ he Fock–Goncharov dual A-cluster variety and vice versa. To do this\, we
+  investigate how the cluster scattering diagram of Gross–Hacking–Keel
+ –Kontsevich compares with the canonical scattering diagram defined by Gr
+ oss–Siebert to construct mirror duals in arbitrary dimensions. This is j
+ oint work with Hulya Arguz.\n\nThe synchronous discussion for Pierrick Bou
+ sseau’s talk is taking place not in zoom-chat\, but at https://tinyurl.c
+ om/2022-11-18-pb (and will be deleted after ~3-7 days).\n
+LOCATION:https://researchseminars.org/talk/agstanford/98/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Matt Larson (Stanford)
+DTSTART:20221021T190000Z
+DTEND:20221021T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/99
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/9
+ 9/">The local motivic monodromy conjecture for simplicial nondegenerate si
+ ngularities</a>\nby Matt Larson (Stanford) as part of Stanford algebraic g
+ eometry seminar\n\nLecture held in 383-N.\n\nAbstract\nThe monodromy conje
+ cture predicts a relationship between the motivic zeta function of a hyper
+ surface V(f)\, which governs the number of solutions to f = 0 (mod p^n) if
+  f has integer coefficients and p is a sufficiently large prime\, and the 
+ eigenvalues of the monodromy action on the cohomology of the Milnor fiber\
+ , which is a topological invariant of the complex hypersurface. When f is 
+ nondegenerate with respect to its Newton polyhedron\, which is true for "g
+ eneric" polynomials\, there are combinatorial formulas for both the motivi
+ c zeta function and the eigenvalue of monodromy. I will describe recent re
+ sults (joint with S. Payne and A. Stapledon) which prove a version of the 
+ monodromy conjecture for nondegenerate polynomials which have a simplicial
+  Newton polyhedron.\n
+LOCATION:https://researchseminars.org/talk/agstanford/99/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Chengxi Wang (UCLA)
+DTSTART:20221202T200000Z
+DTEND:20221202T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/100
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 00/">Calabi-Yau varieties of large index</a>\nby Chengxi Wang (UCLA) as pa
+ rt of Stanford algebraic geometry seminar\n\n\nAbstract\nA projective vari
+ ety $X$ is called Calabi-Yau if its canonical divisor is $\\mathbb{Q}$-lin
+ early equivalent to zero. The smallest positive integer $m$ with $mK_X$ li
+ nearly equivalent to zero is called the index of $X$. Using ideas from mir
+ ror symmetry\, we construct Calabi-Yau varieties with index growing doubly
+  exponentially with dimension. We conjecture they are the largest index in
+  each dimension based on evidence in low dimensions. We also give Calabi-Y
+ au varieties with large orbifold Betti numbers or small minimal log discre
+ pancy. Joint work with Louis Esser and Burt Totaro.\n\nThe synchronous dis
+ cussion for Chengxi Wang’s talk is taking place not in zoom-chat\, but a
+ t https://tinyurl.com/2022-12-02-cw (and will be deleted after ~3-7 days).
+ \n
+LOCATION:https://researchseminars.org/talk/agstanford/100/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Patricio Gallardo Candela (UC Riverside)
+DTSTART:20230224T200000Z
+DTEND:20230224T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/101
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 01/">A perspective on explicit compactifications of the moduli space of su
+ rfaces and pairs</a>\nby Patricio Gallardo Candela (UC Riverside) as part 
+ of Stanford algebraic geometry seminar\n\nLecture held in Room 383-N.\n\nA
+ bstract\nIn this talk\, we will discuss techniques for explicitly describi
+ ng the degenerations parametrized by the KSBA moduli space of surfaces and
+  log pairs of general type. We will focus on specific examples\, such as c
+ ertain Horikawa surfaces and cubic surfaces\, and how our techniques have 
+ been applied to them. These results were obtained in joint work with L. Sc
+ haffler\, G. Pearlstein\, Z. Zhang\, and M. Kerr.\n
+LOCATION:https://researchseminars.org/talk/agstanford/101/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Will Sawin (Columbia)
+DTSTART:20230120T200000Z
+DTEND:20230120T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/102
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 02/">Quantitative $\\ell$-adic sheaf theory</a>\nby Will Sawin (Columbia) 
+ as part of Stanford algebraic geometry seminar\n\nLecture held in Room 383
+ -N.\n\nAbstract\nSheaf cohomology is a powerful tool both in algebraic \ng
+ eometry and its applications to other fields. Often\, one wants to \nprove
+  bounds for the dimension of sheaf cohomology groups. Katz gave \nbounds f
+ or the dimension of the étale cohomology groups of a variety \nin terms o
+ f its defining equations (degree\, number of equations\, \nnumber of varia
+ bles). But the utility of sheaf cohomology arises less \nfrom the ability 
+ to compute the cohomology of varieties and more from \nthe toolbox of func
+ tors that let us construct new sheaves from old\, \nwhich we often apply i
+ n quite complicated sequences. In joint work \nwith Arthur Forey\, Javier 
+ Fresán\, and Emmanuel Kowalski\, we prove \nbounds for the dimensions of 
+ étale cohomology groups which are \ncompatible with the six functors form
+ alism (and other functors \nbesides) in the sense that we define the “co
+ mplexity” of a sheaf and \ncontrol how much the complexity can grow when
+  we apply one of these \noperations.\n
+LOCATION:https://researchseminars.org/talk/agstanford/102/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Shiji Lyu (Princeton)
+DTSTART:20230310T200000Z
+DTEND:20230310T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/103
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 03/">Behavior of some invariants in characteristic $p$</a>\nby Shiji Lyu (
+ Princeton) as part of Stanford algebraic geometry seminar\n\nLecture held 
+ in Room 383-N.\n\nAbstract\nThere are many numerical invariants of a ring 
+ in characteristic $p$ measuring its singularity. In this talk\, we will di
+ scuss two classical ones\, Hilbert-Kunz multiplicity and the $F$-signature
+ \, and a rather recent one\, the $F$-rational signature. We will discuss s
+ everal properties of these invariants\, including semi-continuity and beha
+ vior under smooth extensions.\n
+LOCATION:https://researchseminars.org/talk/agstanford/103/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Ming Hao Quek (Brown University)
+DTSTART:20230519T190000Z
+DTEND:20230519T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/105
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 05/">Around the motivic monodromy conjecture for non-degenerate hypersurfa
+ ces</a>\nby Ming Hao Quek (Brown University) as part of Stanford algebraic
+  geometry seminar\n\nLecture held in Room 383-N.\n\nAbstract\nI will discu
+ ss my ongoing effort to comprehend\, from a geometric viewpoint\, the moti
+ vic monodromy conjecture for a "generic" complex multivariate polynomial $
+ f$\, namely any polynomial $f$ that is non-degenerate with respect to its 
+ Newton polyhedron. This conjecture\, due to Igusa and Denef--Loeser\, stat
+ es that for every pole $s$ of the motivic zeta function associated to $f$\
+ , $\\exp(2\\pi is)$ is a "monodromy eigenvalue" associated to $f$. On the 
+ other hand\, the non-degeneracy condition on $f$ ensures that the singular
+ ity theory of $f$ is governed\, up to a certain extent\, by faces of the N
+ ewton polyhedron of $f$. The extent to which the former is governed by the
+  latter is one key aspect of the conjecture\, and will be the main focus o
+ f my talk.\n
+LOCATION:https://researchseminars.org/talk/agstanford/105/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Dusty Ross (San Francisco State)
+DTSTART:20230127T200000Z
+DTEND:20230127T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/106
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 06/">Putting the “volume” back in “volume polynomials”</a>\nby Dus
+ ty Ross (San Francisco State) as part of Stanford algebraic geometry semin
+ ar\n\nLecture held in Room 383-N.\n\nAbstract\nRecent developments in trop
+ ical geometry and matroid theory have led to the study of “volume polyno
+ mials” associated to tropical varieties\, the coefficients of which reco
+ rd all possible degrees of top powers of tropical divisors. In this talk\,
+  I’ll discuss a volume-theoretic interpretation of volume polynomials of
+  tropical fans\; namely\, they measure volumes of polyhedral complexes obt
+ ained by truncating the tropical fan with normal hyperplanes. I’ll also 
+ discuss how this volume-theoretic interpretation inspires a general framew
+ ork for studying an analogue of the Alexandrov-Fenchel inequalities for de
+ grees of divisors on tropical fans. Parts of this work are joint with Anas
+ tasia Nathanson\, Lauren Nowak\, and Patrick O’Melveny.\n
+LOCATION:https://researchseminars.org/talk/agstanford/106/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Hernan Iriarte (UT Austin)
+DTSTART:20230203T200000Z
+DTEND:20230203T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/107
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 07/">Weak continuity on the variation of Newton Okounkov bodies</a>\nby He
+ rnan Iriarte (UT Austin) as part of Stanford algebraic geometry seminar\n\
+ nLecture held in Room 383-N.\n\nAbstract\nWe start by presenting new tools
+  and results suitable for\nthe study of valuations of higher rank on funct
+ ion fields of algebraic\nvarieties. This will be based on a study of highe
+ r rank quasi-monomial\nvaluations taking values in the lexicographically o
+ rdered group R^k.\nThis gives us a space of higher rank valuations that we
+  endow with a\nweak "tropical" topology. In this setting\, we show that th
+ e Newton\nOkounkov bodies of a given line bundle vary continuously with re
+ spect\nto the valuation. We explain how this result fits in the literature
+ \nand how it gives us a restriction in the existence of mutations of\nNewt
+ on Okounkov bodies. Joint work with Omid Amini.\n
+LOCATION:https://researchseminars.org/talk/agstanford/107/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Aaron Landesman (MIT)
+DTSTART:20230210T200000Z
+DTEND:20230210T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/108
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 08/">Splitting types of finite monodromy vector bundles</a>\nby Aaron Land
+ esman (MIT) as part of Stanford algebraic geometry seminar\n\nLecture held
+  in Room 383-N.\n\nAbstract\nGiven a finite degree $d$ cover of curves $f:
+  X \\to \\mathbb P^1$\, we study $f_* \\mathscr O_X$\, which is a rank $d$
+  vector bundle on $\\mathbb P^1$\, hence\ncan be written as a direct sum o
+ f line bundles \n$f_* \\mathscr O_X \\simeq \\oplus_{i=1}^d \\mathscr O(a_
+ i)$.\nNaively\, one might expect that if the cover above is general\, this
+  vector bundle is balanced\, meaning that the $a_i$'s are as close to each
+  other as possible.\nWhile this is not quite true\, we explain what can be
+  said about these splitting types\, by studying how they change as we defo
+ rm the cover. This is based on joint work with Daniel Litt.\n\nThe ideas c
+ ropping up here were also instrumental in resolving\nconjectures of Esnaul
+ t-Kerz and Budur-Wang regarding the density of geometric local\nsystems in
+  the moduli space of local systems.\n
+LOCATION:https://researchseminars.org/talk/agstanford/108/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Eric Larson (Brown University)
+DTSTART:20230421T190000Z
+DTEND:20230421T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/109
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 09/">Interpolation for Brill--Noether Curves</a>\nby Eric Larson (Brown Un
+ iversity) as part of Stanford algebraic geometry seminar\n\nLecture held i
+ n Room 383-N.\n\nAbstract\nIn this talk\, we determine when there is a Bri
+ ll--Noether curve of given degree and given genus that passes through a gi
+ ven number of general points in any projective space.\n
+LOCATION:https://researchseminars.org/talk/agstanford/109/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Hannah Larson (Harvard/Berkeley)
+DTSTART:20230505T190000Z
+DTEND:20230505T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/110
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 10/">The embedding theorem in Hurwitz--Brill--Noether theory</a>\nby Hanna
+ h Larson (Harvard/Berkeley) as part of Stanford algebraic geometry seminar
+ \n\nLecture held in Room 383-N.\n\nAbstract\nBrill--Noether theory studies
+  the maps of general curves to projective spaces. The embedding theorem of
+  Eisenbud and Harris states that a general degree $d$ map $C \\rightarrow 
+ \\mathbb{P}^r$ is an embedding when $r \\geq 3$. Hurwitz--Brill--Noether t
+ heory starts with a curve $C$ already equipped with a fixed map $C \\right
+ arrow \\mathbb{P}^1$ (which often forces $C$ to be special) and studies th
+ e maps of $C$ to other projective spaces. In this setting\, the appropriat
+ e analogue of the invariants $d$ and $r$ is a finer invariant called the s
+ plitting type. Our embedding theorem determines the splitting types $\\vec
+ {e}$ such that a general map of splitting type $\\vec{e}$ is an embedding.
+  This is joint work with Kaelin Cook--Powel\, Dave Jensen\, Eric Larson\, 
+ and Isabel Vogt.\n
+LOCATION:https://researchseminars.org/talk/agstanford/110/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Allen Knutson (Cornell)
+DTSTART:20230120T214500Z
+DTEND:20230120T224500Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/111
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 11/">Generic pipe dreams and the commuting scheme</a>\nby Allen Knutson (C
+ ornell) as part of Stanford algebraic geometry seminar\n\nLecture held in 
+ Room 383-N.\n\nAbstract\nConsider the equations XY=YX on a pair of matrice
+ s. Do these generate a prime ideal\, or\, are there secret equations that 
+ pairs of commuting matrices satisfy? Mel Hochster asked this in '84 and no
+ one has answered it (past small matrix size). I'll degenerate this scheme 
+ into pieces indexed by "generic pipe dreams"\, thereby giving a formula fo
+ r its degree as a sum of powers of 2\, and use an associated formula to de
+ rive both the ordinary and bumpless pipe dream formulae for Schubert polyn
+ omials. This work is joint with Paul Zinn-Justin.\n\nThis is the second al
+ gebraic geometry seminar of the day.  We will zip out to buy lunch in betw
+ een\, and enjoy lunchtime theater with this talk.\n
+LOCATION:https://researchseminars.org/talk/agstanford/111/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Chih-Wei Chang (UT Austin)
+DTSTART:20230217T200000Z
+DTEND:20230217T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/112
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 12/">The Iitaka dimensions of toric vector bundles</a>\nby Chih-Wei Chang 
+ (UT Austin) as part of Stanford algebraic geometry seminar\n\nLecture held
+  in Room 383-N.\n\nAbstract\nIn this talk\, we will start by briefly revie
+ wing the notion of the Iitaka dimension for vector bundles\, introduced by
+  E. C. Mistretta and S. Urbinati. Then we will discuss how to compute it i
+ n the toric geometry setting by studying the map defined by the global sec
+ tions of a toric vector bundle. We then demonstrate how to use this to con
+ struct some interesting examples.\n
+LOCATION:https://researchseminars.org/talk/agstanford/112/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Isabel Vogt (Brown University)
+DTSTART:20230414T190000Z
+DTEND:20230414T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/113
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 13/">Curve classes on conic bundles threefolds and applications to rationa
+ lity</a>\nby Isabel Vogt (Brown University) as part of Stanford algebraic 
+ geometry seminar\n\n\nAbstract\nIn this talk I'll discuss joint work with 
+ Sarah Frei\, Lena Ji\, Soumya Sankar and Bianca Viray on the problem of de
+ termining when a geometrically rational variety is birational to projectiv
+ e space over its field of definition.  Hassett--Tschinkel and Benoist--Wit
+ tenberg recently refined the classical intermediate Jacobian obstruction o
+ f Clemens--Griffiths by considering torsors under the intermediate Jacobia
+ n of a geometrically rational threefold.  By work of Hassett--Tschinkel\, 
+ Benoist--Wittenberg and Kuznetsov--Prokhorov\, this obstruction is strong 
+ enough to characterize rationality of geometrically rational Fano threefol
+ ds of geometric Picard rank 1.  Moving into higher Picard rank\, we comput
+ e this obstruction for conic bundles over $\\mathbf{P}^2$. As a consequenc
+ e of our work\, when the ground field is the real numbers\, we show that n
+ either the topological obstruction nor the refined intermediate Jacobian o
+ bstruction is sufficient to determine rationality.\n
+LOCATION:https://researchseminars.org/talk/agstanford/113/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Helene Esnault (Freie Universität Berlin)
+DTSTART:20230428T190000Z
+DTEND:20230428T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/114
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 14/">Crystallinity properties of complex rigid local systems [not online]<
+ /a>\nby Helene Esnault (Freie Universität Berlin) as part of Stanford alg
+ ebraic geometry seminar\n\nLecture held in 383-N.\n\nAbstract\nJoint work 
+ in progress with Michael Groechenig\n\n We prove in all generality that on
+  a smooth complex quasi-projective variety $X$\,   Rigid connections  yiel
+ d $F$-isocrystals on almost all good reductions $X_{\\mathbb F_q}$ and tha
+ t rigid local systems yield crystalline local systems on  $X_K$ for $K$ th
+ e field of fractions of the Witt vectors of a finite field $\\mathbb F_q$\
+ , for almost all $X_{\\mathbb F_q}$. This improves our earlier work where\
+ , if $X$ was not projective\, we assumed a strong cohomological condition 
+ (which is fulfilled for Shimura varieties of real rank $\\geq 2$)\,\n  and
+  we obtained only infinitely many $\\mathbb F_q$ of growing characteristic
+ . While the earlier proof was via characteristic $p$\, the new one is pure
+ ly $p$-adic and uses $p$-adic topology.\n\n We shall discuss the projectiv
+ e case during the lecture.\n
+LOCATION:https://researchseminars.org/talk/agstanford/114/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Nathan Chen (Columbia University)
+DTSTART:20230310T220000Z
+DTEND:20230310T230000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/115
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 15/">Fano hypersurfaces and differential forms via positive characteristic
+ </a>\nby Nathan Chen (Columbia University) as part of Stanford algebraic g
+ eometry seminar\n\nLecture held in 383-N.\n\nAbstract\nHolomorphic forms a
+ re an important birational invariant for studying the geometry of a variet
+ y. In characteristic 0\, Fano varieties do not have any holomorphic forms.
+  Surprisingly\, Kollár showed that in positive characteristic certain (si
+ ngular) Fano varieties admit many global (n-1)-forms\, and he combined thi
+ s with a specialization method to prove nonrationality of many complex Fan
+ o hypersurfaces. In this talk\, we will revisit this construction and use 
+ it to address several related questions for Fano hypersurfaces in certain 
+ ranges: (1) how can one further measure their nonrationality\, (2) what ar
+ e their possible rational endomorphisms\, and (3) is their birational auto
+ morphism group infinite or finite? Parts of this will be joint with David 
+ Stapleton as well as with Lena Ji-Stapleton.\n
+LOCATION:https://researchseminars.org/talk/agstanford/115/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Melody Chan (Brown University)
+DTSTART:20230602T190000Z
+DTEND:20230602T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/117
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 17/">The weight 0 compactly supported Euler characteristic of moduli space
+ s of marked hyperelliptic curves</a>\nby Melody Chan (Brown University) as
+  part of Stanford algebraic geometry seminar\n\nLecture held in 383-N.\n\n
+ Abstract\nJoint work with Madeline Brandt and Siddarth Kannan.  We use mod
+ uli spaces of $G$-admissible covers and tropical geometry to give a sum-ov
+ er-graphs formula for the weight-0 compactly supported Euler characteristi
+ c of the moduli spaces $H_{g\,n}$ of $n$-marked hyperelliptic curves of ge
+ nus $g$\, as a virtual representation of $S_n$.  Computer calculations the
+ n enable fully explicit formulas for the above in small genus.  My aim is 
+ to make this talk accessible to anyone with passing familiarity with $M_g$
+  and its Deligne-Mumford compactification.\n
+LOCATION:https://researchseminars.org/talk/agstanford/117/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Ben Church (Stanford University)
+DTSTART:20230609T190000Z
+DTEND:20230609T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/118
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 18/">Frames of 1-forms on varieties and maps to abelian varieties</a>\nby 
+ Ben Church (Stanford University) as part of Stanford algebraic geometry se
+ minar\n\nLecture held in 383-N.\n\nAbstract\nA fruitful question in comple
+ x algebraic geometry is how much the global 1-forms on a variety constrain
+ s its geometry. The foundational work of Popa and Schnell shows that if a 
+ variety admits a nowhere vanishing 1-form then it cannot be general type. 
+ We build off this theorem to consider varieties X admitting a frame of g e
+ verywhere independent 1-forms. This property heavily constrains the birati
+ onal type of X. Under additional hypotheses that ensure X is "as general t
+ ype as possible\," we prove that X is a smooth isotrivial fibration over a
+ n abelian variety. Our methods also verify certain conjectures about the e
+ xistence and structure of smooth maps to abelian varieties for source vari
+ eties with large Kodaira dimensions. This is joint work with Nathan Chen a
+ nd Feng Hao.\n
+LOCATION:https://researchseminars.org/talk/agstanford/118/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Sung Gi Park (Harvard University)
+DTSTART:20231020T183000Z
+DTEND:20231020T193000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/119
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 19/">Kodaira dimension and hyperbolicity for smooth families of varieties<
+ /a>\nby Sung Gi Park (Harvard University) as part of Stanford algebraic ge
+ ometry seminar\n\nLecture held in 383-N.\n\nAbstract\nIn this talk\, I wil
+ l discuss the behavior of positivity\, hyperbolicity\, and Kodaira dimensi
+ on under smooth morphisms of complex quasi-projective manifolds. This incl
+ udes a vast generalization of a classical result: a fibration from a proje
+ ctive surface of non-negative Kodaira dimension to a projective line has a
+ t least three singular fibers. Furthermore\, I will explain a proof of Pop
+ a's conjecture on the superadditivity of the log Kodaira dimension over ba
+ ses of dimension at most three. These theorems are applications of the mai
+ n technical result\, namely the logarithmic base change theorem.\n
+LOCATION:https://researchseminars.org/talk/agstanford/119/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Izzet Coskun (University of Illinois at Chicago)
+DTSTART:20231027T183000Z
+DTEND:20231027T193000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/120
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 20/">The cohomology of a general stable sheaf on a K3 surface</a>\nby Izze
+ t Coskun (University of Illinois at Chicago) as part of Stanford algebraic
+  geometry seminar\n\nLecture held in 383-N.\n\nAbstract\nClassical Brill-N
+ oether theory studies the cohomology jumping loci for line bundles on curv
+ es. On surfaces\, even the generic cohomology of a sheaf in a moduli space
+  may be hard to determine. In this talk\, I will explain how to compute th
+ e cohomology of a general stable sheaf on a K3 surface using Bridgeland st
+ ability. If time permits\, I will discuss the case of abelian surfaces. Th
+ is is joint work with Howard Nuer and Kota Yoshioka.\n
+LOCATION:https://researchseminars.org/talk/agstanford/120/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Renzo Cavalieri (Colorado State University)
+DTSTART:20231117T193000Z
+DTEND:20231117T203000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/121
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 21/">A log/tropical take on Hurwitz numbers</a>\nby Renzo Cavalieri (Color
+ ado State University) as part of Stanford algebraic geometry seminar\n\nLe
+ cture held in 383-N.\n\nAbstract\nI will present some joint work with Hann
+ ah Markwig and Dhruv Ranganathan\, in which we interpret double Hurwitz nu
+ mbers as intersection numbers of the double ramification cycle with a loga
+ rithmic boundary class on the moduli space of curves. This approach remove
+ s the "need" for a branch morphism and therefore allows the generalization
+  to related enumerative problems on moduli spaces of pluricanonical diviso
+ rs - which have a natural  combinatorial structure coming from their tropi
+ cal interpretation. I will discuss some generalizations springing out from
+  this approach that are currently being pursued in joint work with Hannah 
+ Markwig and Johannes Schmitt.\n
+LOCATION:https://researchseminars.org/talk/agstanford/121/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Angela Gibney (University of Pennsylvania)
+DTSTART:20231208T193000Z
+DTEND:20231208T203000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/122
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 22/">Vertex operator algebras and moduli spaces</a>\nby Angela Gibney (Uni
+ versity of Pennsylvania) as part of Stanford algebraic geometry seminar\n\
+ nLecture held in 383-N.\n\nAbstract\nVertex operator algebras (VOAs) are g
+ eneralizations of commutative associative algebras and of Lie algebras. As
+  I will illustrate\, there are a number of interesting examples of VOAs th
+ at come from moduli spaces\, and striking instances where the VOA formalis
+ m has been used to solve problems about these moduli spaces.  There are na
+ tural algebraic structures on moduli of curves derived from representation
+ s of more general VOAs. I’ll describe some open questions about the VOAs
+ \, and about the moduli spaces of curves which these structures have been 
+ used to investigate.\n
+LOCATION:https://researchseminars.org/talk/agstanford/122/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Michael Temkin (HUJI)
+DTSTART:20231002T213000Z
+DTEND:20231002T223000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/123
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 23/">Wild ramification and geometry of valuations (joint algebraic geometr
+ y and number theory seminar)</a>\nby Michael Temkin (HUJI) as part of Stan
+ ford algebraic geometry seminar\n\nLecture held in 383-N.\n\nAbstract\nWil
+ d ramification is known to be a major obstacle to solving various question
+ s in positive characteristic\, including resolution of singularities\, com
+ pactifying Hurwitz spaces\, etc.\, and the very terminology suggests that 
+ we are dealing with something not so controllable. Nevertheless\, in valua
+ tive geometries\, such as Berkovich or adic\, some wild ramification pheno
+ mena that originally look chaotic do get very conceptual explanations. In 
+ my talk I will give a few examples with the different function of a ramifi
+ ed covering being the main player.\n\n(At 2 pm in advance\, there will be 
+ an informal pre-talk giving an introduction to non-archimedean geometry.)\
+ n
+LOCATION:https://researchseminars.org/talk/agstanford/123/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Matt Satriano (University of Waterloo)
+DTSTART:20231201T193000Z
+DTEND:20231201T203000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/124
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 24/">Beyond twisted maps: crepant resolutions of log terminal singularitie
+ s and a motivic McKay correspondence</a>\nby Matt Satriano (University of 
+ Waterloo) as part of Stanford algebraic geometry seminar\n\nLecture held i
+ n 383-N.\n\nAbstract\nCrepant resolutions have inspired connections betwee
+ n birational geometry\, derived categories\, representation theory\, and m
+ otivic integration. In this talk\, we prove that every variety with log-te
+ rminal singularities admits a crepant resolution by a smooth stack. We add
+ itionally prove a motivic McKay correspondence for stack-theoretic resolut
+ ions. Finally\, we show how our work naturally leads to a generalization o
+ f twisted mapping spaces. No prior knowledge of stacks will be assumed. Th
+ is is joint work with Jeremy Usatine.\n
+LOCATION:https://researchseminars.org/talk/agstanford/124/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Eugene Gorsky (UC Davis)
+DTSTART:20231013T190000Z
+DTEND:20231013T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/125
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 25/">Braid varieties</a>\nby Eugene Gorsky (UC Davis) as part of Stanford 
+ algebraic geometry seminar\n\nLecture held in 383-N.\n\nAbstract\nI will i
+ ntroduce and discuss a remarkable class of algebraic varieties\, called br
+ aid varieties. These include all open Richardson and positroid varieties\,
+  and are closely related to augmentation varieties for Legendrian links. T
+ he topology of braid varieties is related to various link invariants such 
+ as HOMFLY polynomial and Khovanov-Rozansky homology\, while their coordina
+ te ring has a cluster structure.\n\nThe talk is based on joint works with 
+ Roger Casals\, Mikhail Gorsky\, Ian Le\, Linhui Shen and Jose Simental.\n
+LOCATION:https://researchseminars.org/talk/agstanford/125/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Louis Esser (Princeton)
+DTSTART:20231020T210000Z
+DTEND:20231020T220000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/126
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 26/">Symmetries of Fano varieties</a>\nby Louis Esser (Princeton) as part 
+ of Stanford algebraic geometry seminar\n\nLecture held in 383-N.\n\nAbstra
+ ct\nA landmark result of Birkar\, Prokhorov\, and Shramov shows that autom
+ orphism groups of Fano (or more generally rationally connected) varieties 
+ over C of a fixed dimension are uniformly Jordan.  This means in particula
+ r that there is some upper bound on the size of symmetric groups acting fa
+ ithfully on rationally connected varieties of fixed dimension.  We give th
+ e first effective asymptotic bound on these symmetric group actions\, as w
+ ell as optimal bounds in all dimensions for special classes\, such as Fano
+  weighted complete intersections and toric varieties.  Finally\, we show t
+ hat klt Fano fourfolds with maximal symmetric actions are bounded\, establ
+ ishing a link between boundedness and large group actions. This talk is ba
+ sed on joint work with Lena Ji and Joaquín Moraga.\n
+LOCATION:https://researchseminars.org/talk/agstanford/126/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Federico Scavia (UCLA)
+DTSTART:20231110T193000Z
+DTEND:20231110T203000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/127
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 27/">Massey products in Galois cohomology</a>\nby Federico Scavia (UCLA) a
+ s part of Stanford algebraic geometry seminar\n\nLecture held in 383-N.\n\
+ nAbstract\nBorn as part of algebraic topology\, Massey products have now m
+ ade a surprising appearance in Galois cohomology. The Massey Vanishing Con
+ jecture of Minac and Tan predicts that all Massey products in the Galois c
+ ohomology of a field vanish as soon as they are defined. This conjecture i
+ s motivated by the Profinite Inverse Galois Problem: which profinite group
+ s are absolute Galois groups? I will describe recent progress on the Masse
+ y Vanishing Conjecture\, joint with Alexander Merkurjev.\n
+LOCATION:https://researchseminars.org/talk/agstanford/127/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Michael Temkin (HUJI)
+DTSTART:20231005T233000Z
+DTEND:20231006T003000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/128
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 28/">Distinguished Lecture: Filling a few holes in the classical resolutio
+ n of singularities</a>\nby Michael Temkin (HUJI) as part of Stanford algeb
+ raic geometry seminar\n\nLecture held in TBA.\n\nAbstract\n"...in this fie
+ ld\, almost everything is already discovered\, and all that remains is to 
+ fill a few unimportant holes." Philipp von Jolly in his recommendation to 
+ Max Planck not to go into physics.\n\nSince 2015 I am taking part in a lon
+ g project (more precisely\, a series of projects) with Dan Abramovich and 
+ Jarek Wlodarczyk on resolution of singularities in characteristic zero -- 
+ a field which was (and sometimes still is) considered as accomplished up t
+ o a few unimportant holes. To our surprise it turned out that there were (
+ and still are) quite a few fundamental things to discover in this classica
+ l and thoroughly explored field\, and the new discoveries even provide a m
+ ore conceptual view on what was known before we started our project. It is
+  impossible to compress all results of this journey in one talk\, but I wi
+ ll try to outline a unified view on most of our discoveries in these proje
+ cts. If time permits in the end I will also say a couple of words about ou
+ r new project in progress with Andre Belotto -- still in characteristic ze
+ ro...\n
+LOCATION:https://researchseminars.org/talk/agstanford/128/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Ziquan Zhuang (Johns Hopkins University)
+DTSTART:20240119T200000Z
+DTEND:20240119T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/129
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 29/">Stability of klt singularities</a>\nby Ziquan Zhuang (Johns Hopkins U
+ niversity) as part of Stanford algebraic geometry seminar\n\nLecture held 
+ in 383-N.\n\nAbstract\nA theorem of Donaldson and Sun asserts that the met
+ ric tangent cone of a smoothable Kähler–Einstein Fano variety underlies
+  some algebraic structure\, and they conjecture that the metric tangent co
+ ne only depends on the algebraic structure of the singularity. Later Li an
+ d Xu extend this speculation and conjecture that every klt singularity has
+  a canonical “stable” degeneration induced by the valuation that minim
+ izes the normalized volume. I’ll talk about some recent work with Chenya
+ ng Xu on the solution of these conjectures. If time permits\, I will also 
+ discuss some further implications on the boundedness of singularities.\n
+LOCATION:https://researchseminars.org/talk/agstanford/129/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Junliang Shen (Yale University)
+DTSTART:20240126T200000Z
+DTEND:20240126T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/130
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 30/">Geometry of the P=W conjecture and beyond</a>\nby Junliang Shen (Yale
+  University) as part of Stanford algebraic geometry seminar\n\nLecture hel
+ d in 383-N.\n\nAbstract\nGiven a compact Riemann surface\, nonabelian Hodg
+ e theory relates topological and algebro-geometric objects associated to i
+ t. Specifically\, complex representations of the fundamental group are in 
+ correspondence with algebraic vector bundles\, equipped with an extra stru
+ cture called a Higgs field. This gives a transcendental matching between t
+ wo very different moduli spaces associated with the Riemann surface: the c
+ haracter variety (parameterizing representations of the fundamental group)
+  and the Hitchin moduli space (parameterizing Higgs bundles). In 2010\, de
+  Cataldo\, Hausel\, and Migliorini proposed the P=W conjecture\, which giv
+ es a precise link between the topology of the Hitchin space and the Hodge 
+ theory of the character variety\, imposing surprising constraints on each 
+ side. I will introduce the conjecture\, review its recent proofs\, and dis
+ cuss how the geometry hidden behind the P=W phenomenon is connected to oth
+ er branches of mathematics.\n
+LOCATION:https://researchseminars.org/talk/agstanford/130/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Farbod Shokrieh (University  of Washington)
+DTSTART:20240223T200000Z
+DTEND:20240223T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/131
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 31/">Heights\, abelian varieties\, and tropical geometry</a>\nby Farbod Sh
+ okrieh (University  of Washington) as part of Stanford algebraic geometry 
+ seminar\n\nLecture held in 383-N.\n\nAbstract\nI will describe some connec
+ tions between arithmetic geometry of abelian varieties\, non-archimedean/t
+ ropical geometry\, and combinatorics. For a principally polarized abelian 
+ variety\, we show an identity relating the Faltings height and the Néron-
+ -Tate height (of a symmetric effective divisor defining the polarization) 
+ which involves invariants arising from non-archimedean/tropical geometry. 
+ If time permits\, we also give formulas for (non-archimedean) canonical lo
+ cal heights in terms of tropical invariants. (Based on joint work with Rob
+ in de Jong)\n
+LOCATION:https://researchseminars.org/talk/agstanford/131/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Weite Pi (Yale University)
+DTSTART:20240412T190000Z
+DTEND:20240412T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/132
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 32/">Cohomology rings of the moduli of one-dimensional sheaves on the proj
+ ective plane</a>\nby Weite Pi (Yale University) as part of Stanford algebr
+ aic geometry seminar\n\nLecture held in 383-N.\n\nAbstract\nThe moduli spa
+ ces of one-dimensional sheaves on the projective plane have been studied t
+ hrough their connections to enumerative geometry and representation theory
+ . In this talk\, I will explain a systematic approach to study their cohom
+ ology rings\, using notably tautological relations of geometric origin. Ou
+ r study leads to a conjecture that describes a highly nontrivial perverse 
+ filtration (which carries important enumerative data) on the cohomology in
+  terms of explicit ring generators. This can be viewed as an analogue of t
+ he P=W conjecture in a compact and Fano setting. Based on joint work with 
+ Y. Kononov\, W. Lim\, M. Moreira\, and J. Shen.\n
+LOCATION:https://researchseminars.org/talk/agstanford/132/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Matt Baker (Georgia Tech)
+DTSTART:20240405T190000Z
+DTEND:20240405T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/133
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 33/">Representations of rigid matroids</a>\nby Matt Baker (Georgia Tech) a
+ s part of Stanford algebraic geometry seminar\n\nLecture held in 383-N.\n\
+ nAbstract\nWe give a new proof\, along with some generalizations\, of a fo
+ lklore theorem - attributed to Laurent Lafforgue - that a rigid matroid (i
+ .e.\, a matroid whose base polytope is indecomposable) has only finitely m
+ any projective equivalence classes of representations over any given field
+ . A key ingredient in the proof is a generalization of the category of com
+ mutative rings which we call *bands*.\n
+LOCATION:https://researchseminars.org/talk/agstanford/133/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Rosie Shen (Harvard University)
+DTSTART:20240315T190000Z
+DTEND:20240315T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/134
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 34/">Du Bois singularities\, rational singularities\, and beyond</a>\nby R
+ osie Shen (Harvard University) as part of Stanford algebraic geometry semi
+ nar\n\nLecture held in 383-N.\n\nAbstract\nWe survey some extensions of th
+ e classical notions of Du Bois and rational singularities\, known as the k
+ -Du Bois and k-rational singularities. By now\, these notions are well-und
+ erstood for local complete intersections (lci). We explain the difficultie
+ s beyond the lci case\, and propose new definitions in general to make fur
+ ther progress in the theory. This is joint work with Matthew Satriano\, Sr
+ idhar Venkatesh and Anh Duc Vo.\n
+LOCATION:https://researchseminars.org/talk/agstanford/134/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Joaquin Moraga (UCLA)
+DTSTART:20240531T190000Z
+DTEND:20240531T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/135
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 35/">Higher-dimensional Fano varieties</a>\nby Joaquin Moraga (UCLA) as pa
+ rt of Stanford algebraic geometry seminar\n\nLecture held in 383-N.\n\nAbs
+ tract\nFano varieties are one of the three building blocks of algebraic va
+ rieties. In this talk\, we will discuss how to describe a general n-dimens
+ ional Fano variety. Although there is no consensus on how to answer to thi
+ s question\, we will explore some new invariants motivated by combinatoric
+ s and toric geometry that may lead to a first approximation of an answer.\
+ n
+LOCATION:https://researchseminars.org/talk/agstanford/135/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Hannah Larson (Berkeley\, Clay Mathematical Institute)
+DTSTART:20240524T193000Z
+DTEND:20240524T203000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/136
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 36/">The Chow ring of the universal Picard stack over the hyperelliptic lo
+ cus</a>\nby Hannah Larson (Berkeley\, Clay Mathematical Institute) as part
+  of Stanford algebraic geometry seminar\n\nLecture held in 383-N.\n\nAbstr
+ act\nI'll start by defining the Chow ring\, which is an important invarian
+ t of a scheme (or stack). Next\, I will define the Picard variety and Pica
+ rd stack of a curve\, and then introduce their universal versions $J^d_g$ 
+ and $\\mathscr{J}^d_g$ over the moduli space of curves $M_g$. Recently\, p
+ rogress has been made studying the Chow ring of $M_g$ in low genus by stra
+ tifying the moduli space by gonality (the minimal degree of a map to $\\ma
+ thbb{P}^1$). The smallest piece in this stratification is the hyperellipti
+ c locus. Motivated by this\, I'll present several results about the restri
+ ction of $\\mathscr{J}^d_g$ to the hyperelliptic locus\, denoted $\\mathsc
+ r{J}^d_{2\,g}$. These include a presentation of the rational Chow ring of 
+ $\\mathscr{J}^d_{2\,g}$. I also determine the integral Picard group of $\\
+ mathscr{J}^d_{2\,g}$\, completing (and extending to the $PGL_2$-equivarian
+ t case) prior work of Erman and Wood.\n\nNotice unusual time so Eleny Ione
+ l can attend!\n
+LOCATION:https://researchseminars.org/talk/agstanford/136/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Matt Kerr (Washington University in St. Louis)
+DTSTART:20240503T190000Z
+DTEND:20240503T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/137
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 37/">Hypergeometric families and Beilinson’s conjectures (pre-talk)</a>\
+ nby Matt Kerr (Washington University in St. Louis) as part of Stanford alg
+ ebraic geometry seminar\n\nLecture held in 383-N.\n\nAbstract\nI will desc
+ ribe the construction of motivic cohomology classes on hypergeometric fami
+ lies of Calabi-Yau 3-folds using Hadamard convolutions.  One can view this
+  as a “higher” version of the Mordell-Weil group for families of ellip
+ tic curves\, giving rise to sections of “higher” Jacobian bundles whic
+ h produce solutions to certain inhomogeneous Picard-Fuchs equations.  This
+  is part of a joint project with Vasily Golyshev which aims to numerically
+  verify Beilinson’s conjectures in some new cases.\n\n(Matt Kerr kindly 
+ offered to give an introductory pre-talk on hypergeometric variations of h
+ odge structures (VHS).    So part 1\, 12-1 pm\, will be a friendly pre-tal
+ k\, and part 2\, 2:30-3:30 pm\, will be the friendly talk itself.)\n
+LOCATION:https://researchseminars.org/talk/agstanford/137/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Jakub Witaszek (Princeton)
+DTSTART:20240419T190000Z
+DTEND:20240419T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/138
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 38/">Singularities in mixed characteristic via the Riemann-Hilbert corresp
+ ondence</a>\nby Jakub Witaszek (Princeton) as part of Stanford algebraic g
+ eometry seminar\n\nLecture held in 383-N.\n\nAbstract\nIn my talk\, I will
+  start by reviewing how various properties of characteristic zero singular
+ ities can be understood topologically by ways of the Riemann-Hilbert corre
+ spondence. After that\, I will explain how similar ideas can be applied in
+  the study of mixed characteristic singularities. This is based on a joint
+  work with Bhargav Bhatt\, Linquan Ma\, Zsolt Patakfalvi\, Karl Schwede\, 
+ Kevin Tucker\, and Joe Waldron.\n
+LOCATION:https://researchseminars.org/talk/agstanford/138/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Nathan Chen (Columbia University)
+DTSTART:20240311T224500Z
+DTEND:20240311T234500Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/139
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 39/">An overview of measures of irrationality</a>\nby Nathan Chen (Columbi
+ a University) as part of Stanford algebraic geometry seminar\n\nLecture he
+ ld in 384-I (unusual date and location).\n\nAbstract\nThe classical questi
+ on of determining which varieties are rational has led to a huge amount of
+  interest and activity. On the other hand\, one can consider a complementa
+ ry perspective - given a smooth projective variety whose nonrationality is
+  known\, how "irrational" is it? I will survey what is currently known\, w
+ ith an emphasis on surfaces and open problems.\n
+LOCATION:https://researchseminars.org/talk/agstanford/139/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Dhruv Goel (Harvard University)
+DTSTART:20240312T200000Z
+DTEND:20240312T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/140
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 40/">Chow Classes of Varieties of Secant and Tangent Lines</a>\nby Dhruv G
+ oel (Harvard University) as part of Stanford algebraic geometry seminar\n\
+ nLecture held in 384-H.\n\nAbstract\n(special Student Algebraic Geometry S
+ eminar\; note unusual time and location)\n\nGiven a nondegenerate smooth v
+ ariety $X\\subset\\mathbb{P}^n$\, let $\\mathcal{S}(X)$ (resp. $\\mathcal{
+ T}(X)$) be the subvariety of the Grassmannian $\\mathbb{G}(1\, n)=\\mathrm
+ {Gr}(2\, n+1)$ of lines in $\\mathbb{P}^n$ consisting of secant (resp. tan
+ gent) lines to X. I will give closed-form formulae for the classes of $\\m
+ athcal{S}(X)$ and $\\mathcal{T}(X)$ in the Chow ring of $\\mathbb{G}(1\, n
+ )$ in terms of the “higher degrees” of the embedding\, by a simple app
+ lication of the Excess Intersection Formula on a flag variety. Using these
+  formulae\, one can recover classical results about the degree of the subv
+ ariety $\\mathrm{Sec}(X)$ (resp. $\\mathrm{Tan}(X)$) of $\\mathbb{P}^n$ sw
+ ept out by the lines in $\\mathcal{S}(X)$ (resp. $\\mathcal{T}(X)$)\, when
+  it has the expected dimension. Finally\, I will suggest potential extensi
+ ons of these techniques to varieties of trisecant or bitangent lines.\n
+LOCATION:https://researchseminars.org/talk/agstanford/140/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Hunter Spink (University of Toronto)
+DTSTART:20240315T213000Z
+DTEND:20240315T223000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/141
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 41/">A new divided difference\, with applications to Schubert polynomials<
+ /a>\nby Hunter Spink (University of Toronto) as part of Stanford algebraic
+  geometry seminar\n\nLecture held in 380-W (unusual room!).\n\nAbstract\nI
+  will talk about a new algebra of operations on polynomials which has the 
+ property \n$T_iT_j=T_jT_{i+1}$ for $i>j$ and a family of polynomials dual 
+ to them called forest polynomials. This family of operations plays the exa
+ ct role for quasisymmetric polynomials and forest polynomials as the divid
+ ed difference operations play for symmetric polynomials and Schubert polyn
+ omials. (Joint with Philippe Nadeau and Vasu Tewari)\n
+LOCATION:https://researchseminars.org/talk/agstanford/141/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Mura Yakerson (Oxford)
+DTSTART:20240419T213000Z
+DTEND:20240419T223000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/142
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 42/">Motivic Adams conjecture</a>\nby Mura Yakerson (Oxford) as part of St
+ anford algebraic geometry seminar\n\nLecture held in 383-N.\n\nAbstract\nT
+ he well-known Adams conjecture in topology is a theorem about compactifica
+ tions of real vector bundles on CW-complexes\, which has important implica
+ tions for analyzing stable homotopy groups of spheres. In the talk we will
+  discuss an algebro-geometric version of this statement\, which tackles al
+ gebraic vector bundles on smooth algebraic varieties. This is joint work w
+ ith Alexey Ananyevskiy\, Elden Elmanto and Oliver Röndigs.\n
+LOCATION:https://researchseminars.org/talk/agstanford/142/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Matt Kerr (Washington University in St. Louis)
+DTSTART:20240503T213000Z
+DTEND:20240503T223000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/143
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 43/">Hypergeometric families and Beilinson’s conjectures (main talk)</a>
+ \nby Matt Kerr (Washington University in St. Louis) as part of Stanford al
+ gebraic geometry seminar\n\nLecture held in 383-N.\n\nAbstract\nI will des
+ cribe the construction of motivic cohomology classes on hypergeometric fam
+ ilies of Calabi-Yau 3-folds using Hadamard convolutions.  One can view thi
+ s as a “higher” version of the Mordell-Weil group for families of elli
+ ptic curves\, giving rise to sections of “higher” Jacobian bundles whi
+ ch produce solutions to certain inhomogeneous Picard-Fuchs equations.  Thi
+ s is part of a joint project with Vasily Golyshev which aims to numericall
+ y verify Beilinson’s conjectures in some new cases.\n\n(Matt Kerr kindly
+  offered to give an introductory pre-talk on hypergeometric variations of 
+ hodge structures (VHS).    So part 1\, 12-1 pm\, will be a friendly pre-ta
+ lk\, and part 2\, 2:30-3:30 pm\, will be the friendly talk itself.)\n
+LOCATION:https://researchseminars.org/talk/agstanford/143/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Hannah Larson (Berkeley\, Clay Mathematical Institute)
+DTSTART:20240523T233000Z
+DTEND:20240524T003000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/144
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 44/">Yormark Distinguished Lecture:  Cohomology of moduli spaces of curves
+ </a>\nby Hannah Larson (Berkeley\, Clay Mathematical Institute) as part of
+  Stanford algebraic geometry seminar\n\nLecture held in 383-N.\n\nAbstract
+ \nThe moduli space M_g of genus g curves (or Riemann surfaces) is a centra
+ l object of study in algebraic geometry. Its cohomology is important in ma
+ ny fields. For example\, the cohomology of M_g is the same as the cohomolo
+ gy of the mapping class group\, and is also related to spaces of modular f
+ orms. Using its properties as a moduli space\, Mumford defined a distingui
+ shed subring of the cohomology of M_g called the tautological ring. The de
+ finition of the tautological ring was later extended to the compactificati
+ on M_g-bar and the moduli spaces with marked points M_{g\,n}-bar. While th
+ e full cohomology ring of M_{g\,n}-bar is quite mysterious\, the tautologi
+ cal subring is relatively well understood\, and conjecturally completely u
+ nderstood. In this talk\, I'll ask the question: which cohomology groups H
+ ^k(M_{g\,n}-bar) are tautological? And when they are not\, how can we bett
+ er understand them? This is joint work with Samir Canning and Sam Payne.\n
+LOCATION:https://researchseminars.org/talk/agstanford/144/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Dori Bejleri (University of Maryland)
+DTSTART:20240531T213000Z
+DTEND:20240531T223000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/145
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 45/">Moduli of boundary polarized Calabi-Yau pairs</a>\nby Dori Bejleri (U
+ niversity of Maryland) as part of Stanford algebraic geometry seminar\n\nL
+ ecture held in 383-N.\n\nAbstract\nThe theories of KSBA stability and K-st
+ ability furnish compact moduli spaces of general type pairs and Fano pairs
+  respectively. However\, much less is known about the moduli theory of Cal
+ abi-Yau pairs. In this talk I will present an approach to constructing a m
+ oduli space of Calabi-Yau pairs which should interpolate between KSBA and 
+ K-stable moduli via wall-crossing.  I will explain how this approach can b
+ e used to construct projective moduli spaces of plane curve pairs. This is
+  based on joint work with K. Ascher\, H. Blum\, K. DeVleming\, G. Inchiost
+ ro\, Y. Liu\, X. Wang.\n
+LOCATION:https://researchseminars.org/talk/agstanford/145/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Daniel Halpern-Leistner (Cornell)
+DTSTART:20240524T213000Z
+DTEND:20240524T223000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/146
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 46/">Infinite dimensional geometric invariant theory and gauged Gromov-Wit
+ ten theory</a>\nby Daniel Halpern-Leistner (Cornell) as part of Stanford a
+ lgebraic geometry seminar\n\nLecture held in 380-X (unusual room!).\n\nAbs
+ tract\nHarder-Narasimhan (HN) theory gives a structure theorem for princip
+ al G bundles on a smooth projective curve. A bundle is either semistable\,
+  or it admits a canonical filtration whose associated graded bundle is sem
+ istable in a graded sense. After reviewing recent advances in extending HN
+  theory to arbitrary algebraic stacks\, I will discuss work with Andres Fe
+ rnandez Herrero applying this general machinery to the stack of maps from 
+ a curve C to a quotient stack X/G\, where G is a reductive group and X is 
+ an affine G-scheme. Our main immediate application is to compute generatin
+ g functions for K-theoretic gauged Gromov-Witten invariants. The method we
+  develop to analyze this moduli problem is an infinite dimensional analog 
+ of geometric invariant theory\, which is potentially applicable to a much 
+ broader range of moduli problems.\n
+LOCATION:https://researchseminars.org/talk/agstanford/146/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Ziquan Zhuang (Johns Hopkins)
+DTSTART:20241011T190000Z
+DTEND:20241011T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/147
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 47/">Boundedness of singularities and discreteness of local volumes</a>\nb
+ y Ziquan Zhuang (Johns Hopkins) as part of Stanford algebraic geometry sem
+ inar\n\nLecture held in 383-N.\n\nAbstract\nThe local volume of a Kawamata
+  log terminal (klt) singularity is an invariant that plays a central role 
+ in the local theory of K-stability. By the stable degeneration theorem\, e
+ very klt singularity has a volume preserving degeneration to a K-semistabl
+ e Fano cone singularity. I will talk about a joint work with Chenyang Xu o
+ n the boundedness of Fano cone singularities when the volume is bounded aw
+ ay from zero. This implies that local volumes only accumulate around zero 
+ in any given dimension.\n
+LOCATION:https://researchseminars.org/talk/agstanford/147/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Jordan Ellenberg (University of Wisconsin)
+DTSTART:20240723T220000Z
+DTEND:20240723T230000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/148
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 48/">Smyth’s conjecture and a non-deterministic Hasse principle</a>\nby 
+ Jordan Ellenberg (University of Wisconsin) as part of Stanford algebraic g
+ eometry seminar\n\nLecture held in 383-N.\n\nAbstract\nSmyth asked in the 
+ 1980s which linear relations with integral coefficients $a_1 x_1 + ... + a
+ _r x_r$ could hold when $x_1$\, ...\, $x_r$ are Galois conjugates.  He fou
+ nd a necessary condition\, which he conjectured was sufficient.  Surprisin
+ gly\, this problem\, which appears to be about algebraic number theory\, e
+ nds up touching on many different areas.  I’ll explain how to express th
+ is problem in terms of eigenvalues of linear combinations of permutation m
+ atrices\, and finally how to solve it by means of a “non-deterministic H
+ asse principle\,” in which we solve Diophantine equations but take our v
+ ariables to be rational-valued random variables rather than deterministic 
+ rational numbers.  There will be almost no advanced math beyond the defini
+ tion of the p-adic numbers in this talk\, but we will at one point use Bri
+ anchon’s theorem on ellipses inscribed in hexagons.\n
+LOCATION:https://researchseminars.org/talk/agstanford/148/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Alex Kuronya (Goethe-Universität Frankfurt)
+DTSTART:20240909T190000Z
+DTEND:20240909T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/149
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 49/">Lattice polygons and finite generation of certain valuation semigroup
+ s</a>\nby Alex Kuronya (Goethe-Universität Frankfurt) as part of Stanford
+  algebraic geometry seminar\n\nLecture held in 383-I (unusual room).\n\nAb
+ stract\nThe main theme of the talk is the combinatorics of lattice polygon
+ s and its relationship to the geometry of the associated toric surfaces. O
+ ur point of view is to measure the complexity of lattice polygons via the 
+ complexity of geometric objects to which they give rise. For the latter\, 
+ we will focus on convex geometric finiteness properties such as the polyhe
+ drality of the cone of curves or the finite generation of valuation semigr
+ oups coming from Newton-Okounkov theory. The latter is a central (and wide
+  open)  question in combinatorial algebraic geometry with strong ties to r
+ epresentation theory.\n\nAlthough the talk is in algebraic geometry\, vari
+ ous parts of it will be understandable without much specialized knowledge 
+ from algebraic geometry. This is an account of joint work with Klaus Altma
+ nn\, Christian Haase\, Karin Schaller\, and Lena Walter.\n
+LOCATION:https://researchseminars.org/talk/agstanford/149/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Pierrick Bousseau (University of Georgia)
+DTSTART:20241101T190000Z
+DTEND:20241101T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/150
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 50/">Generalized Block-Göttsche polynomials and Welschinger invariants</a
+ >\nby Pierrick Bousseau (University of Georgia) as part of Stanford algebr
+ aic geometry seminar\n\nLecture held in 383-N.\n\nAbstract\nUsing tropical
+  geometry\, Block-Göttsche defined polynomials with the remarkable proper
+ ty to interpolate between Gromov-Witten counts of complex curves and Welsc
+ hinger counts of real curves in toric del Pezzo surfaces. I will describe 
+ a generalization of Block-Göttsche polynomials to arbitrary\, not-necessa
+ rily toric\, rational surfaces and propose a conjectural relation with ref
+ ined Donaldson-Thomas invariants. This is joint work in progress with Huly
+ a Arguz.\n
+LOCATION:https://researchseminars.org/talk/agstanford/150/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Ludmil Katzarkov (Miami)
+DTSTART:20241122T200000Z
+DTEND:20241122T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/151
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 51/">New birational invariants</a>\nby Ludmil Katzarkov (Miami) as part of
+  Stanford algebraic geometry seminar\n\nLecture held in 383-N.\n\nAbstract
+ \nIn this talk we will introduce new birational invariants.\nMany examples
+  of obstruction to rationality and G rationality will be\nconsidered.\n
+LOCATION:https://researchseminars.org/talk/agstanford/151/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Christopher Hacon (University of Utah)
+DTSTART:20241204T220000Z
+DTEND:20241204T230000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/152
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 52/">(Distinguished Lecture) Algebraic geometry vs Kahler geometry</a>\nby
+  Christopher Hacon (University of Utah) as part of Stanford algebraic geom
+ etry seminar\n\nLecture held in 383-N.\n\nAbstract\nAlgebraic geometry and
+  analytic geometry are two closely related subjects with many important in
+ teractions that have spurred major progress in both areas. In this talk we
+  will highlight some of these connections with an emphasis on recent progr
+ ess\, future directions\, and open questions.\n
+LOCATION:https://researchseminars.org/talk/agstanford/152/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Ben Church (Stanford)
+DTSTART:20250124T200000Z
+DTEND:20250124T210000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/153
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 53/">Curves on complete intersections and measures of irrationality</a>\nb
+ y Ben Church (Stanford) as part of Stanford algebraic geometry seminar\n\n
+ Lecture held in 383-N.\n\nAbstract\nGiven a projective variety $X$\, it is
+  always covered by curves obtained by taking the intersection with a linea
+ r subspace. We study whether there exist curves on $X$ that have smaller n
+ umerical invariants than those of the linear slices. If $X$ is a general c
+ omplete intersection of large degrees\, we show that there are no curves o
+ n $X$ of smaller degree\, nor are there curves of asymptotically smaller g
+ onality. This verifies a folklore conjecture on the degrees of subvarietie
+ s of complete intersections as well as a conjecture of Bastianelli--De Poi
+ --Ein--Lazarsfeld--Ullery on measures of irrationality for complete inters
+ ections. This is joint work with Nathan Chen and Junyan Zhao.\n
+LOCATION:https://researchseminars.org/talk/agstanford/153/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Frank Sottile (Texas A&M University)
+DTSTART:20250314T190000Z
+DTEND:20250314T200000Z
+DTSTAMP:20261111T161657Z
+UID:agstanford/154
+DESCRIPTION:Title: <a href="https://researchseminars.org/talk/agstanford/1
+ 54/">Galois groups in Enumerative Geometry</a>\nby Frank Sottile (Texas A&
+ M University) as part of Stanford algebraic geometry seminar\n\nLecture he
+ ld in 383-N.\n\nAbstract\nIn 1870 Jordan explained how Galois theory can b
+ e applied\n to problems from enumerative geometry\, with the group\n encod
+ ing intrinsic structure of the problem.  Earlier\n Hermite showed the equi
+ valence of Galois groups with\n geometric monodromy groups\, and in 1979 H
+ arris initiated the\n modern study of Galois groups of enumerative problem
+ s.  He\n posited that a Galois group should be `as large as possible'\n in
+  that it will be the largest group preserving internal\n symmetry in the g
+ eometric problem.\n\n   I will describe this background and discuss some w
+ ork of\n many to compute\, study\, and use Galois groups of geometric\n pr
+ oblems\, including those that arise in applications of\n algebraic geometr
+ y.\n
+LOCATION:https://researchseminars.org/talk/agstanford/154/
+END:VEVENT
+END:VCALENDAR
