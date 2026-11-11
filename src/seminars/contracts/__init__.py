@@ -75,6 +75,9 @@ do not run the CI, so a violation has to be stopped before it is committed:
   ids, so the run report and the uid map are safe however they are filled;
 * the LLM cache writes ASCII-only JSON (``seminars.models.dump_ascii_json``)
   and returns values unchanged; see ``LLMCache``;
+* a lone surrogate, which decoded JSON can contain and no file can hold,
+  never reaches a writer: models drop it from their strings and
+  ``clean_text`` removes it (``seminars.textrules``, "Lone surrogates");
 * ``seminars run`` verifies the result. After persisting, next to the secret
   scan, it calls ``data_tree_problems(paths.data_dir)``. Any problem is
   handled like a finding of the secret scan: it is stored in

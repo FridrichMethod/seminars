@@ -204,10 +204,12 @@ def llm_cache_key(prompt_version: str, task: str, payload: str) -> str:
     """Cache key of one LLM request: SHA-256 over prompt version, task and normalized input.
 
     Model and provider are deliberately not part of the key, so changing the
-    credential, the plan or the model never causes repeated calls.
+    credential, the plan or the model never causes repeated calls. Any
+    string gives a key: a lone surrogate, which has no UTF-8 form, is hashed
+    as the three bytes UTF-8 would use for its code point.
     """
     material = json.dumps([prompt_version, task, payload], ensure_ascii=False)
-    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+    return hashlib.sha256(material.encode("utf-8", "surrogatepass")).hexdigest()
 
 
 # --- field tagging by LLM ------------------------------------------------------------------

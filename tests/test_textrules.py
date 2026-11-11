@@ -159,15 +159,19 @@ COMBINING_ACUTE = "\u0301"
 WOMAN_RAISING_HAND = "\U0001f64b" + ZWJ + FEMALE + VARIATION_SELECTOR
 MAN_SHRUGGING = "\U0001f937" + ZWJ + MALE + VARIATION_SELECTOR
 
-any_text = st.text(alphabet=st.characters(exclude_categories=["Cs"]))
-"""Arbitrary Unicode text without lone surrogates (which cannot be written to a file)."""
+LONE_SURROGATES = ["\ud800", "\ud83d", "\udbff", "\udc00", "\ude80", "\udfff"]
+"""Halves of UTF-16 pairs: a string can hold one, a UTF-8 file cannot."""
+
+every_character = st.characters(exclude_categories=[])  # the default leaves surrogates out
+any_text = st.text(alphabet=st.one_of(every_character, st.sampled_from(LONE_SURROGATES)))
+"""Arbitrary strings, lone surrogates included (``json.loads`` produces them)."""
 
 _CLEANING_TARGETS = [NBSP, SOFT_HYPHEN, ZERO_WIDTH_SPACE, ZWJ, LIGATURE_FI, ROCKET, FEMALE, MALE]
 _CLEANING_TARGETS += [VARIATION_SELECTOR, COMBINING_ACUTE, E_ACUTE, "e", " ", "\n", "\r", "\t"]
 hostile_text = st.text(
     alphabet=st.one_of(
-        st.sampled_from([*_CLEANING_TARGETS, "\u2028", "\x85"]),
-        st.characters(exclude_categories=["Cs"]),
+        st.sampled_from([*_CLEANING_TARGETS, "\u2028", "\x85", *LONE_SURROGATES]),
+        every_character,
     )
 )
 """Text that is dense in the characters cleaning is about."""
@@ -235,6 +239,7 @@ class TestCleanText:
             "\x7f",
             "\x9f",
             *FORMAT_MARKS,
+            *LONE_SURROGATES,
         ],
     )
     def test_invisible_and_control_characters_are_removed(self, char: str) -> None:
@@ -264,11 +269,12 @@ class TestCleanText:
         assert clean_text("  a" + NBSP + NBSP + "b \n\n") == "  a  b \n\n"
 
     def test_every_code_point_is_handled(self) -> None:
-        everything = "".join(chr(code) for code in range(0x110000) if not 0xD800 <= code <= 0xDFFF)
+        everything = "".join(chr(code) for code in range(0x110000))
         cleaned = clean_text(everything)
         assert decorative_characters(cleaned) == []
         assert data_charset_problems(cleaned + "\n") == []
         assert clean_text(cleaned) == cleaned
+        assert cleaned.encode("utf-8").decode("utf-8") == cleaned
 
     @given(hostile_text)
     def test_result_passes_the_data_rule(self, text: str) -> None:
@@ -276,6 +282,13 @@ class TestCleanText:
         assert decorative_characters(cleaned) == []
         assert data_charset_problems(cleaned + "\n") == []
         assert gate.check_bytes("data/events.json", (cleaned + "\n").encode("utf-8")) == []
+
+    @given(any_text)
+    def test_result_can_always_be_encoded(self, text: str) -> None:
+        """Every writer encodes to UTF-8, so a lone surrogate must not survive cleaning."""
+        cleaned = clean_text(text)
+        assert cleaned.encode("utf-8").decode("utf-8") == cleaned
+        assert not any(0xD800 <= ord(char) <= 0xDFFF for char in cleaned)
 
     @given(hostile_text)
     def test_is_idempotent(self, text: str) -> None:
@@ -329,9 +342,18 @@ class TestDataCharsetProblems:
 
     @given(any_text.filter(lambda text: "\x00" not in text))
     def test_agrees_with_the_gate_on_what_is_acceptable(self, text: str) -> None:
-        """NUL is left out: the gate skips files with one as binary, this check rejects them."""
-        accepted_by_gate = gate.check_bytes("data/events.json", text.encode("utf-8")) == []
+        """NUL is left out: the gate skips files with one as binary, this check rejects them.
+
+        A lone surrogate has no UTF-8 form. The bytes a careless writer could
+        produce for one ("surrogatepass") are not valid UTF-8 to the gate.
+        """
+        on_disk = text.encode("utf-8", "surrogatepass")
+        accepted_by_gate = gate.check_bytes("data/events.json", on_disk) == []
         assert (data_charset_problems(text) == []) == accepted_by_gate
+
+    def test_lone_surrogates_are_reported(self) -> None:
+        assert data_charset_problems("a\ud83db\n") == ["1:2 U+D83D"]
+        assert data_charset_problems("\n\udfff\n") == ["2:1 U+DFFF"]
 
     def test_is_stricter_than_the_gate_for_binary_content(self) -> None:
         assert gate.check_bytes("data/events.json", b"a\x00b\n") == []

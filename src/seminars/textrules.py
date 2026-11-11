@@ -48,6 +48,21 @@ does it for the keys of events and of the uid map).
 
 ``seminars run`` checks its own output with ``data_tree_problems`` before it
 finishes; see the flow in ``seminars.contracts``.
+
+Lone surrogates
+---------------
+
+A Python string can hold half of a UTF-16 pair (U+D800 to U+DFFF) on its own:
+``json.loads`` returns one for an unpaired escape such as ``"\\ud83d"``, which
+sites produce when they cut a string in the middle of an emoji. No UTF-8 file
+can hold such a character, so writing it raises ``UnicodeEncodeError``. It is
+therefore removed wherever text enters or leaves the program: ``clean_text``
+deletes it, every model drops it from its strings on validation
+(``seminars.models.Model``), ``FetchedDocument.parse_json`` drops it from the
+decoded data, the readable JSON writers never emit it, and
+``data_charset_problems`` reports it. ``strip_surrogates`` and
+``without_surrogates`` are the helpers behind that. ``ascii_safe`` and
+ASCII-only JSON keep it as an escape, which is plain ASCII.
 """
 
 from __future__ import annotations
@@ -55,7 +70,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 CodePointRange = tuple[int, int]
 """Inclusive range of code points ``(first, last)``."""
@@ -118,10 +133,15 @@ def _character_class(ranges: tuple[CodePointRange, ...]) -> str:
     return "".join(f"{re.escape(chr(low))}-{re.escape(chr(high))}" for low, high in ranges)
 
 
+_SURROGATE_RANGE: Final[CodePointRange] = (0xD800, 0xDFFF)
+"""Halves of UTF-16 pairs. Alone they are not characters and cannot be encoded."""
+
 _TABLES: Final = _character_class(EMOJI_RANGES) + _character_class(DECORATIVE_RANGES)
 _CONTROLS: Final = "\x00-\x09\x0b-\x1f\x7f-\x9f"  # category Cc without the newline
+_SURROGATE_CLASS: Final = _character_class((_SURROGATE_RANGE,))
 _UNWANTED: Final = re.compile(f"[{_TABLES}]")
-_REJECTED_IN_DATA: Final = re.compile(f"[{_TABLES}{_CONTROLS}]")
+_REJECTED_IN_DATA: Final = re.compile(f"[{_TABLES}{_CONTROLS}{_SURROGATE_CLASS}]")
+_SURROGATES: Final = re.compile(f"[{_SURROGATE_CLASS}]")
 
 _LIGATURE_LETTERS: Final = ("ff", "fi", "fl", "ffi", "ffl", "st", "st")  # U+FB00 .. U+FB06
 _SPACES: Final = (0x0009, 0x00A0, *range(0x2000, 0x200B), 0x202F, 0x205F)
@@ -133,7 +153,8 @@ _EMOJI_GENDER: Final = re.compile("\u200d[\u2640\u2642]")
 def _cleaning_table() -> dict[int, str | None]:
     """Translation table of ``clean_text``: delete by default, replace where that reads better."""
     table: dict[int, str | None] = {}
-    for low, high in (*EMOJI_RANGES, *DECORATIVE_RANGES, (0x00, 0x09), (0x0B, 0x1F), (0x7F, 0x9F)):
+    controls = ((0x00, 0x09), (0x0B, 0x1F), (0x7F, 0x9F))
+    for low, high in (*EMOJI_RANGES, *DECORATIVE_RANGES, *controls, _SURROGATE_RANGE):
         table.update(dict.fromkeys(range(low, high + 1)))
     table.update({0xFB00 + offset: letters for offset, letters in enumerate(_LIGATURE_LETTERS)})
     table.update(dict.fromkeys(_SPACES, " "))
@@ -178,7 +199,9 @@ def clean_text(text: str) -> str:
     * every kind of line break (CR LF, CR, vertical tab, form feed, NEL,
       U+2028, U+2029) becomes a newline;
     * emoji, the other decorative and invisible characters and the remaining
-      control characters are removed.
+      control characters are removed;
+    * lone surrogates (U+D800 to U+DFFF) are removed, so the result can
+      always be encoded as UTF-8 and written to a file.
 
     Letters with accents, CJK text and symbols stay exactly as they are; no
     name is transliterated. Whitespace is neither collapsed nor stripped, so
@@ -191,12 +214,40 @@ def clean_text(text: str) -> str:
     return unicodedata.normalize("NFC", text)  # removals can bring a letter and its accent together
 
 
+def strip_surrogates(text: str) -> str:
+    """``text`` without lone surrogates (U+D800 to U+DFFF); everything else is kept.
+
+    The result can be encoded as UTF-8 whatever the input was. Use it for
+    text that must stay as it is otherwise (a URL, a response body);
+    ``clean_text`` already includes it.
+    """
+    return _SURROGATES.sub("", text)
+
+
+def without_surrogates(value: Any) -> Any:
+    """Plain data with ``strip_surrogates`` applied to every string in it.
+
+    Walks dictionaries (keys and values), lists and tuples, which is what
+    decoded JSON and the input of a model consist of; any other value is
+    returned as it is. Containers are copied, never changed in place.
+    """
+    if isinstance(value, str):
+        return _SURROGATES.sub("", value)
+    if isinstance(value, dict):
+        return {without_surrogates(key): without_surrogates(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [without_surrogates(item) for item in value]
+    if type(value) is tuple:
+        return tuple(without_surrogates(item) for item in value)
+    return value
+
+
 def ascii_safe(text: str) -> str:
     """Escape non-ASCII characters so that a message is safe for logs and reports.
 
     Every character outside ASCII becomes a backslash escape (``\\xe9``,
-    ``\\u2609``, ``\\U0001f680``); ASCII text is returned unchanged, so the
-    function is idempotent.
+    ``\\u2609``, ``\\U0001f680``; a lone surrogate becomes ``\\ud83d``); ASCII
+    text is returned unchanged, so the function is idempotent.
     """
     return text.encode("ascii", "backslashreplace").decode("ascii")
 
@@ -208,7 +259,8 @@ def data_charset_problems(text: str) -> list[str]:
     counted from 1), plus ``missing final newline`` when that applies. Emoji,
     decorative characters and control characters other than the newline are
     offending, which includes a byte order mark and the CR of a CRLF line
-    ending. An empty list means the gate accepts the text.
+    ending. A lone surrogate is offending as well: text that contains one
+    cannot be written at all. An empty list means the gate accepts the text.
     """
     problems = []
     if _REJECTED_IN_DATA.search(text) is not None:

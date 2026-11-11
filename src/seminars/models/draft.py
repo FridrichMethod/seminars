@@ -23,6 +23,7 @@ from seminars.models.base import (
     TimezoneName,
 )
 from seminars.textio import normalize_body
+from seminars.textrules import without_surrogates
 
 BodyText = Annotated[str, AfterValidator(normalize_body)]
 """Text of a response body in canonical form (see ``seminars.textio.normalize_body``)."""
@@ -109,8 +110,15 @@ class FetchedDocument(Model):
     label: str | None = None  # free for adapters, e.g. "index" or "detail"
 
     def parse_json(self) -> Any:
-        """Parse the body as JSON (raises ``ValueError`` when it is not JSON)."""
-        return json.loads(self.text)
+        """Parse the body as JSON (raises ``ValueError`` when it is not JSON).
+
+        An unpaired ``\\ud83d`` escape decodes to a lone surrogate, which
+        cannot be stored or sent anywhere. Such characters are dropped from
+        every key and string of the result
+        (``seminars.textrules.without_surrogates``); do the same when you
+        decode JSON yourself, for example a JSON-LD block of a page.
+        """
+        return without_surrogates(json.loads(self.text))
 
 
 class RawPayload(Model):

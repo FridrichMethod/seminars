@@ -9,9 +9,16 @@ from typing import Annotated, Any, Final, Literal, Self
 from urllib.parse import parse_qsl, quote, urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, StringConstraints
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    StringConstraints,
+    model_validator,
+)
 
-from seminars.textrules import ascii_safe, clean_text
+from seminars.textrules import ascii_safe, clean_text, strip_surrogates, without_surrogates
 
 # --- closed vocabularies -------------------------------------------------------------------
 
@@ -55,9 +62,20 @@ CREDENTIAL_QUERY_PARAMS: Final[frozenset[str]] = frozenset(
 
 
 class Model(BaseModel):
-    """Base class of every model: immutable, and unknown keys are an error."""
+    """Base class of every model: immutable, and unknown keys are an error.
+
+    No model holds a lone surrogate (U+D800 to U+DFFF, see
+    ``seminars.textrules``). They are dropped from every string of the
+    input, dictionary keys included, before the fields are validated, so a
+    model can always be dumped and written, whatever text it was built from.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_lone_surrogates(cls, data: Any) -> Any:
+        return without_surrogates(data)
 
     def evolve(self, **changes: Any) -> Self:
         """Return a validated copy with ``changes`` applied.
@@ -137,9 +155,10 @@ def ascii_url(url: str) -> str:
 
     Spaces and control characters are encoded too; existing escapes are left
     alone, so the function is idempotent. The result names the same resource
-    and is safe to write into any file.
+    and is safe to write into any file. A lone surrogate has no UTF-8 form
+    and is dropped.
     """
-    return quote(url, safe=string.punctuation)
+    return quote(strip_surrogates(url), safe=string.punctuation)
 
 
 def source_key(source_id: str, native_id: str) -> str:
@@ -150,7 +169,8 @@ def source_key(source_id: str, native_id: str) -> str:
     the source as it is, so characters outside ASCII are replaced by
     backslash escapes (``seminars.textrules.ascii_safe``). The key is plain
     ASCII and the same native id gives the same key in every run, whatever
-    the cleaning rules for text become.
+    the cleaning rules for text become. That holds for any string, a lone
+    surrogate included (it becomes ``\\ud83d``).
     """
     return f"{source_id}:{ascii_safe(native_id)}"
 

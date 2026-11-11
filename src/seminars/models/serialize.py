@@ -20,6 +20,10 @@ All of these writers keep non-ASCII text readable, so the text has to be
 clean before it gets here (``seminars.textrules.clean_text``). Data that
 cannot be cleaned because it must come back unchanged, such as the entries
 of the LLM cache, is written with ``dump_ascii_json`` instead.
+
+None of the writers can fail on a lone surrogate (see ``seminars.textrules``).
+Models never contain one, the readable writers drop one that reaches them
+some other way, and ``dump_ascii_json`` writes it as an escape.
 """
 
 from __future__ import annotations
@@ -34,6 +38,7 @@ from pydantic import BaseModel
 
 from seminars.models.event import Event
 from seminars.textio import read_text, write_text_atomic
+from seminars.textrules import strip_surrogates
 
 EVENTS_SCHEMA_VERSION: Final = 1
 
@@ -43,7 +48,8 @@ _LINE_SEPARATORS: Final = {chr(code): f"\\u{code:04x}" for code in (0x85, 0x2028
 
 
 def _encode(value: Any, *, indent: int | None = None) -> str:
-    text = json.dumps(value, ensure_ascii=False, allow_nan=False, indent=indent)
+    """Readable JSON that any UTF-8 file can hold: a lone surrogate is left out."""
+    text = strip_surrogates(json.dumps(value, ensure_ascii=False, allow_nan=False, indent=indent))
     for char, escaped in _LINE_SEPARATORS.items():
         text = text.replace(char, escaped)
     return text
@@ -106,8 +112,12 @@ def dump_ascii_json(value: Any) -> str:
 
     Every character outside ASCII is written as a ``\\uXXXX`` escape, so the
     file passes the charset rule of data/ whatever the strings contain, and
-    ``json.loads`` gives back exactly the value that went in. Keys are
-    sorted, the indentation is two spaces and the text ends with a newline.
+    ``json.loads`` gives back exactly the value that went in. A lone
+    surrogate is an escape like any other and comes back as well; only two
+    halves that stand next to each other in pair order come back as the one
+    character they spell, which is what decoded JSON holds in the first
+    place. Keys are sorted, the indentation is two spaces and the text ends
+    with a newline.
     Use it for files below data/ that hold text which was not normalized
     (data/llm_cache/).
     """

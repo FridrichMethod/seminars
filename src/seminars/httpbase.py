@@ -17,7 +17,7 @@ from typing import Final, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
 from seminars.models import FetchedDocument
-from seminars.textrules import ascii_safe
+from seminars.textrules import ascii_safe, strip_surrogates
 
 Clock = Callable[[], float]
 """Returns the current time as epoch seconds."""
@@ -276,8 +276,12 @@ def split_url(url: str) -> tuple[str, str, str]:
     """Split a URL into ``(origin, host, path-with-query)``; public http(s) only.
 
     ``host`` is in canonical form (see ``canonical_host``), so every spelling
-    of a host shares one request queue and one budget.
+    of a host shares one request queue and one budget. A URL that contains
+    a lone surrogate (see ``seminars.textrules``) cannot be sent, hashed or
+    stored and is refused like any other string that is not a URL.
     """
+    if strip_surrogates(url) != url:
+        raise UnsupportedSchemeError(url, "a URL with a lone surrogate cannot be fetched")
     parts = urlsplit(url)
     host = canonical_host(parts.hostname or "")
     if parts.scheme not in ("http", "https") or not host:
