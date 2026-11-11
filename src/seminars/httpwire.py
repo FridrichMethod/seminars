@@ -7,13 +7,39 @@ robots.txt, the pause between requests, budgets, retries and redirects.
 request, the connection to an address that lookup cleared
 (``seminars.httpconnect``) and the address of the peer before a body is
 read. The module docstring of ``seminars.http`` describes them.
+
+Bodies and memory
+-----------------
+
+The HTTP library is never asked to decode a body: it would undo every
+content coding a site lists, each in one go, and a few hundred bytes of
+stacked gzip unpack to gigabytes that way. ``Wire`` reads the body as it
+was sent and undoes the coding itself:
+
+* every request says ``Accept-Encoding: gzip, deflate``, and an answer may
+  use ONE of the two (``x-gzip`` is gzip, ``identity`` is nothing). Several
+  codings, or any other, are refused before the body is touched
+  (``UnsupportedContentEncodingError``);
+* the decompressor is told with every call how many bytes are still
+  allowed, so no call can produce more than that. The bound: the unpacked
+  bytes of one body never add up to more than ``max_body_bytes + 1``,
+  however little arrived, and no more than ``max_body_bytes`` bytes are
+  taken from the connection; one byte more of either ends the reading
+  with ``ResponseTooLargeError``. Reading a body thus takes about twice
+  ``max_body_bytes`` of memory at most (the pieces and what they are
+  joined to, or the output of one decompressor call and its working
+  copy), whether it is packed or not;
+* a packed body that is damaged, ends too early or goes on after its end
+  is a failed attempt like a network error (``AttemptFailed``, which the
+  caller retries and reports as ``HttpRequestError``).
 """
 
 from __future__ import annotations
 
 import socket
 import time
-from collections.abc import Mapping
+import zlib
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from http.cookiejar import CookieJar, DefaultCookiePolicy
 from typing import Final
@@ -27,6 +53,7 @@ from seminars.httpbase import (
     OwnAddressCheck,
     Resolver,
     ResponseTooLargeError,
+    UnsupportedContentEncodingError,
     UnsupportedContentTypeError,
     is_binary_media_type,
     media_type,
@@ -73,6 +100,17 @@ def system_own_address(address: str) -> bool:
 _SIZE_DIGITS: Final = 30
 """A declared body size is read this far; a number with more digits is too large anyway."""
 
+ACCEPT_ENCODING: Final = "gzip, deflate"
+"""What every request asks for; the only content codings ``Wire`` undoes."""
+
+_GZIP: Final = 16 + zlib.MAX_WBITS
+_ZLIB: Final = zlib.MAX_WBITS
+_BARE_DEFLATE: Final = -zlib.MAX_WBITS
+"""``wbits`` of the three stream formats: RFC 1952, RFC 1950 and RFC 1951."""
+
+_CODINGS: Final = {"gzip": _GZIP, "x-gzip": _GZIP, "deflate": None}
+"""Content coding -> stream format; ``None`` when the first bytes of the body decide."""
+
 
 class AttemptFailed(Exception):
     """One attempt got no answer for a reason that is worth another try."""
@@ -84,6 +122,66 @@ class AttemptFailed(Exception):
 
 class TookTooLong(Exception):
     """The answer was not complete when the time for it was over; reading it was given up."""
+
+
+class _Inflater:
+    """Undoes one content coding piece by piece, never producing more than it is asked for.
+
+    ``gzip`` is one gzip member. ``deflate`` is a zlib stream, as the
+    standard says, or the bare deflate stream that some servers send in
+    its place; the first two bytes of the body tell which. Damaged data
+    raises ``AttemptFailed``.
+    """
+
+    def __init__(self, coding: str) -> None:
+        wbits = _CODINGS[coding]
+        self._engine = None if wbits is None else zlib.decompressobj(wbits)
+        self._head = b""
+
+    def feed(self, data: bytes, room: int) -> bytes:
+        """What ``data`` unpacks to, cut off after ``room`` bytes.
+
+        No call of the decompressor may produce more than is left of
+        ``room``. A caller that gets ``room`` bytes has reached its limit
+        and stops; input that was still waiting then is never unpacked.
+        """
+        if self._engine is None:
+            self._head += data
+            if len(self._head) < 2:
+                return b""
+            data, self._head = self._head, b""
+            is_zlib = (data[0] & 0x0F) == 8 and ((data[0] << 8) | data[1]) % 31 == 0
+            self._engine = zlib.decompressobj(_ZLIB if is_zlib else _BARE_DEFLATE)
+        parts: list[bytes] = []
+        while data and room > 0:
+            try:
+                part = self._engine.decompress(data, room)
+            except zlib.error as error:
+                raise AttemptFailed("damaged compressed body") from error
+            if self._engine.unused_data:
+                raise AttemptFailed("data after the end of the compressed body")
+            parts.append(part)
+            room -= len(part)
+            data = self._engine.unconsumed_tail
+        return b"".join(parts)
+
+    def finish(self) -> None:
+        """Raise ``AttemptFailed`` unless the packed stream came to its end."""
+        if self._engine is None or not self._engine.eof:
+            raise AttemptFailed("compressed body ends too early")
+
+
+def _raw_pieces(response: httpx.Response) -> Iterator[bytes]:
+    """The body as it was sent, piece by piece, with its content coding still on.
+
+    An answer that a mock transport built from ready bytes was read by the
+    HTTP library when it was made; the bytes as sent are still in its
+    stream and are taken from there.
+    """
+    if not response.is_stream_consumed:
+        return response.iter_raw()
+    assert isinstance(response.stream, httpx.SyncByteStream)
+    return iter(response.stream)
 
 
 @dataclass(frozen=True)
@@ -125,7 +223,7 @@ class Wire:
             clock=clock,
         )
         self._client = httpx.Client(
-            headers={"User-Agent": settings.user_agent},
+            headers={"User-Agent": settings.user_agent, "Accept-Encoding": ACCEPT_ENCODING},
             timeout=settings.timeout_seconds,
             follow_redirects=False,
             transport=PinnedTransport(self._guard) if transport is None else transport,
@@ -182,7 +280,7 @@ class Wire:
                 content_type = media_type(response.headers.get("content-type"))
                 if is_binary_media_type(content_type):
                     raise UnsupportedContentTypeError(url, content_type)
-                body = self._read_body(url, response)
+                body = self._read_body(url, response, self._content_coding(url, response))
                 text = decode_body(body, response.headers.get("content-type"))
                 return Exchange(response.status_code, response.headers, text)
         except httpx.RequestError as error:
@@ -222,21 +320,46 @@ class Wire:
         if place is not None:
             raise ForbiddenHostError(url, f"refusing an answer from {place}")
 
-    def _read_body(self, url: str, response: httpx.Response) -> bytes:
-        """Read the body in pieces; stop when it is too large or its time is over.
+    @staticmethod
+    def _content_coding(url: str, response: httpx.Response) -> str | None:
+        """The one content coding that has to be undone; ``None`` when the body is not packed.
 
-        Too large is more than ``max_body_bytes``.
+        Raises ``UnsupportedContentEncodingError`` for an answer with
+        several codings or with one that is not gzip or deflate. Its body
+        has not been touched then.
+        """
+        values = response.headers.get_list("content-encoding", split_commas=True)
+        codings = [value.strip().lower() for value in values]
+        codings = [coding for coding in codings if coding not in ("", "identity")]
+        if not codings:
+            return None
+        if len(codings) > 1 or codings[0] not in _CODINGS:
+            raise UnsupportedContentEncodingError(url, ", ".join(codings))
+        return codings[0]
+
+    def _read_body(self, url: str, response: httpx.Response, coding: str | None) -> bytes:
+        """Read the body in pieces and undo ``coding``; stop when it is too large or too late.
+
+        Too large is more than ``max_body_bytes``, as sent or unpacked. The
+        module docstring states how much memory this can take.
         """
         limit = self._settings.max_body_bytes
         declared = response.headers.get("content-length", "")
         if declared.isascii() and declared.isdigit() and int(declared[:_SIZE_DIGITS]) > limit:
             raise ResponseTooLargeError(url, limit)
+        inflater = None if coding is None else _Inflater(coding)
         chunks: list[bytes] = []
-        size = 0
-        for chunk in response.iter_bytes():
+        received = size = 0
+        for piece in _raw_pieces(response):
+            received += len(piece)
+            if received > limit:
+                raise ResponseTooLargeError(url, limit)
+            chunk = piece if inflater is None else inflater.feed(piece, limit + 1 - size)
             size += len(chunk)
             if size > limit:
                 raise ResponseTooLargeError(url, limit)
             self._check_time()
             chunks.append(chunk)
+        if inflater is not None and received:
+            inflater.finish()
         return b"".join(chunks)

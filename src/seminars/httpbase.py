@@ -146,8 +146,24 @@ class UnsupportedContentTypeError(HttpError):
         super().__init__(url, f"refusing binary content type {content_type}")
 
 
+class UnsupportedContentEncodingError(HttpError):
+    """The body is packed in a way the client does not undo; it was not read.
+
+    Every request asks for ``gzip`` or ``deflate``, and one layer of either
+    is all that is unpacked. An answer that lists several content codings,
+    or another one, is refused.
+    """
+
+    def __init__(self, url: str, content_encoding: str) -> None:
+        super().__init__(url, f"refusing content encoding {content_encoding[:60]}")
+
+
 class ResponseTooLargeError(HttpError):
-    """The body is larger than ``max_body_bytes``; reading it was given up."""
+    """The body is larger than ``max_body_bytes``; reading it was given up.
+
+    The limit holds for the body as it was sent and for the body after
+    ``gzip`` or ``deflate`` was undone.
+    """
 
     def __init__(self, url: str, limit: int) -> None:
         self.limit = limit
@@ -167,10 +183,11 @@ class HttpClient(Protocol):
     ) -> FetchedDocument:
         """Fetch ``url`` and return its body as text in canonical form.
 
-        ``headers`` adds request headers (User-Agent cannot be overridden).
-        They are meant for the origin of ``url``: when a redirect leads to
-        another origin, only ``Accept`` and ``Accept-Language`` are sent
-        there, so a credential passed here stays with the site it is for.
+        ``headers`` adds request headers (User-Agent and Accept-Encoding
+        cannot be overridden). They are meant for the origin of ``url``:
+        when a redirect leads to another origin, only ``Accept`` and
+        ``Accept-Language`` are sent there, so a credential passed here
+        stays with the site it is for.
         Cookies are never kept between requests; a ``Cookie`` header given
         here is sent like any other header. A final status outside 2xx
         raises ``HttpStatusError`` unless it is listed in ``allow_statuses``.

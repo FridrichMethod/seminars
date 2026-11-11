@@ -91,9 +91,14 @@ Rules of the live client:
 * responses with an ETag or Last-Modified are cached under ``cache_dir`` and
   revalidated with a conditional request;
 * images and other binary media types are refused before the body is read;
+* every request asks for ``gzip`` or ``deflate``, and the client undoes one
+  layer of either itself. An answer that lists several content codings, or
+  another one, is refused unread (``UnsupportedContentEncodingError``);
 * a body is read in pieces and given up as soon as it exceeds
-  ``max_body_bytes`` (counted after decompression), which raises
-  ``ResponseTooLargeError``;
+  ``max_body_bytes``, as it was sent or after it was unpacked, which
+  raises ``ResponseTooLargeError``. However an answer is packed, reading
+  it takes no more memory than a body at that limit does;
+  ``seminars.httpwire`` states the bound;
 * bodies are decoded by ``decode_body``: a byte order mark decides first,
   then the charset of the Content-Type header, then the encoding the
   document itself declares (XML declaration, HTML ``<meta>``); undeclared
@@ -218,6 +223,7 @@ from seminars.httpbase import (
     RobotsUnavailableError,
     Sleeper,
     TooManyRedirectsError,
+    UnsupportedContentEncodingError,
     UnsupportedContentTypeError,
     UnsupportedSchemeError,
     is_binary_media_type,
@@ -264,6 +270,7 @@ __all__ = [
     "RobotsUnavailableError",
     "Sleeper",
     "TooManyRedirectsError",
+    "UnsupportedContentEncodingError",
     "UnsupportedContentTypeError",
     "UnsupportedSchemeError",
     "ascii_safe",
@@ -296,6 +303,9 @@ visible.
 
 _HEADERS_FOR_ANY_ORIGIN: Final = frozenset({"accept", "accept-language"})
 """Headers of the caller that also go to an origin a redirect leads to; all others stay home."""
+
+_FIXED_HEADERS: Final = frozenset({"user-agent", "accept-encoding"})
+"""Headers the client sets itself on every request; a caller cannot replace them."""
 
 _ROBOTS_MAX_CHARS: Final = 512_000
 """How much of a robots.txt is used; RFC 9309 asks a crawler for at least 500 kibibytes."""
@@ -506,7 +516,7 @@ class PoliteClient:
         headers = {
             name: value
             for name, value in (extra_headers or {}).items()
-            if name.lower() != "user-agent"
+            if name.lower() not in _FIXED_HEADERS
         }
         if cached is not None and cached.etag:
             headers["If-None-Match"] = cached.etag
@@ -615,6 +625,9 @@ class PoliteClient:
             raise self._block_origin(state, origin, reason) from error
         except UnsupportedContentTypeError as error:
             reason = "robots.txt is not a text file; host skipped"
+            raise self._block_origin(state, origin, reason) from error
+        except UnsupportedContentEncodingError as error:
+            reason = "robots.txt is packed in a way that is not read; host skipped"
             raise self._block_origin(state, origin, reason) from error
         except ResponseTooLargeError as error:
             limit = self._settings.max_body_bytes
