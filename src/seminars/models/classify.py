@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from typing import Literal, Self
 
-from seminars.models.base import FieldList, Model, SortedStrList, Timestamp, canonical_fields
+from seminars.models.base import (
+    AsciiUrl,
+    CleanText,
+    FieldList,
+    Model,
+    SortedStrList,
+    Timestamp,
+    canonical_fields,
+)
 from seminars.models.event import Event
 
 RuleExclusionReason = Literal[
@@ -98,14 +106,23 @@ class LLMTagResult(Model):
 
 
 class ExcludedEvent(Model):
-    """One event that was left out of every output, with the reason."""
+    """One event that was left out of every output, with the reason.
+
+    Excluded events are listed in data/run_report.json, and some of them
+    never went through normalization: a draft excluded as ``invalid`` is
+    described with the raw text of its source. The model therefore cleans
+    ``title`` and ``detail`` itself (``seminars.textrules.clean_text``) and
+    percent-encodes ``url`` to ASCII, so whatever it is built from, it passes
+    the charset rule of data/. ``source_ids`` holds keys built by
+    ``source_key`` (or plain source ids), which are ASCII already.
+    """
 
     source_ids: SortedStrList = []
-    title: str
+    title: CleanText
     start: Timestamp | None = None
-    url: str | None = None
+    url: AsciiUrl | None = None
     reason: ExclusionReason
-    detail: str | None = None  # the rule or keyword that decided, when there is one
+    detail: CleanText | None = None  # the rule or keyword that decided, when there is one
 
     @classmethod
     def from_event(cls, event: Event, reason: ExclusionReason, detail: str | None = None) -> Self:

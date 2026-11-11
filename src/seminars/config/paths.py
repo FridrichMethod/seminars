@@ -66,6 +66,14 @@ class ProjectPaths:
     # data (committed; everything in here is public)
     @property
     def data_dir(self) -> Path:
+        """Root of the committed data files (events, uid map, health, reports, LLM cache).
+
+        Everything below it is public and has to pass the charset rule for
+        ``data/**``: text from a source is cleaned before it is written here,
+        or the file is ASCII-only JSON. ``seminars.textrules`` has the rule,
+        the cleaning function and ``data_tree_problems``, the check that
+        ``seminars run`` applies to this directory before it finishes.
+        """
         return self.root / "data"
 
     @property

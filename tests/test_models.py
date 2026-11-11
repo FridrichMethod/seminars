@@ -45,11 +45,19 @@ from seminars.models import (
     TimeWindow,
     UidMap,
     canonical_fields,
+    dump_json,
     feed_path,
     source_key,
     split_source_key,
     url_has_credential,
 )
+from seminars.models.base import ascii_url
+from seminars.textrules import data_charset_problems
+
+NBSP = chr(0xA0)
+ZERO_WIDTH_SPACE = chr(0x200B)
+ROCKET = chr(0x1F680)
+E_ACUTE = chr(0xE9)
 
 EXPECTED_EVENT_FIELDS = [
     "uid",
@@ -116,6 +124,25 @@ class TestVocabularies:
         assert split_source_key("rsorg-x:uid:with:colons") == ("rsorg-x", "uid:with:colons")
         with pytest.raises(ValueError, match="not a source key"):
             split_source_key("no-separator")
+
+    def test_source_key_is_plain_ascii_whatever_the_native_id_holds(self) -> None:
+        native = "caf" + E_ACUTE + NBSP + "talk" + ROCKET
+        key = source_key("rsorg-x", native)
+        assert key == "rsorg-x:caf\\xe9\\xa0talk\\U0001f680"
+        assert key.isascii()
+        assert source_key("rsorg-x", native) == key
+        assert source_key("rsorg-x", "caf" + E_ACUTE) != source_key("rsorg-x", "cafe")
+        assert split_source_key(key) == ("rsorg-x", "caf\\xe9\\xa0talk\\U0001f680")
+        uid_map = UidMap().with_aliases({key: "evt-1"})
+        assert uid_map.resolve(source_key("rsorg-x", native)) == "evt-1"
+        assert data_charset_problems(dump_json(uid_map)) == []
+
+    def test_ascii_url(self) -> None:
+        plain = "https://example.edu/events?id=1&tag=a%20b#top"
+        assert ascii_url(plain) == plain
+        encoded = ascii_url("https://example.edu/caf" + E_ACUTE + "/" + ROCKET + " talk" + NBSP)
+        assert encoded == "https://example.edu/caf%C3%A9/%F0%9F%9A%80%20talk%C2%A0"
+        assert ascii_url(encoded) == encoded
 
 
 class TestEventSchema:
@@ -379,6 +406,29 @@ class TestClassificationModels:
         with pytest.raises(ValidationError):
             ExcludedEvent(title="x", reason="boring")  # type: ignore[arg-type]
 
+    def test_excluded_event_cleans_raw_text_of_an_invalid_draft(self) -> None:
+        """A draft that failed normalization is reported with the text of its source."""
+        excluded = ExcludedEvent(
+            source_ids=[source_key("custom-x", "id" + NBSP + "1")],
+            title="Of\ufb01ce" + NBSP + "hours " + ROCKET + ZERO_WIDTH_SPACE + "Poincar" + E_ACUTE,
+            url="https://example.edu/talks/" + ROCKET + "?q=a" + NBSP + "b",
+            reason="invalid",
+            detail="no usable start in " + chr(0x201C) + "next" + NBSP + "week" + chr(0x201D),
+        )
+        assert excluded.title == "Office hours Poincar" + E_ACUTE
+        assert excluded.url == "https://example.edu/talks/%F0%9F%9A%80?q=a%C2%A0b"
+        assert excluded.detail == "no usable start in " + chr(0x201C) + "next week" + chr(0x201D)
+        assert excluded.source_ids == ["custom-x:id\\xa01"]
+        assert ExcludedEvent.model_validate(excluded.model_dump()) == excluded
+        report = RunReport(
+            started_at=REFERENCE_NOW,
+            finished_at=REFERENCE_NOW,
+            mode="offline",
+            ok=True,
+            excluded=[excluded, ExcludedEvent(title="", reason="invalid")],
+        )
+        assert data_charset_problems(dump_json(report)) == []
+
 
 class TestRunReport:
     def test_to_last_run_condenses_the_report(self) -> None:
@@ -409,6 +459,17 @@ class TestRunReport:
     def test_counts_cannot_be_negative(self) -> None:
         with pytest.raises(ValidationError):
             RunCounts(events=-1)
+
+    def test_charset_findings_have_their_own_field(self) -> None:
+        report = RunReport(
+            started_at=REFERENCE_NOW, finished_at=REFERENCE_NOW, mode="live", ok=False
+        )
+        assert report.charset_findings == []
+        assert report.secret_findings == []
+        flagged = report.evolve(charset_findings=["data/events.json:12:40 U+00A0"])
+        assert '"charset_findings": [\n    "data/events.json:12:40 U+00A0"\n  ]' in dump_json(
+            flagged
+        )
 
 
 def _source_entry(minute: int, status: str = "ok", events: int = 3) -> SourceHealthEntry:

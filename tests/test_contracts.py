@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import json
 import re
 import sys
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -37,6 +40,7 @@ from seminars.contracts import (
     LLMAuthError,
     LLMBudgetExceededError,
     LLMCache,
+    LLMCacheFactory,
     LLMChainClient,
     LLMClient,
     LLMError,
@@ -57,8 +61,9 @@ from seminars.contracts import (
     load_implementation,
 )
 from seminars.http import HttpClient
-from seminars.models import LLMUsage
+from seminars.models import LLMUsage, dump_ascii_json
 from seminars.sources.base import Adapter
+from seminars.textrules import data_tree_problems
 
 PROTOCOL_FAKES: list[tuple[type, object]] = [
     (HttpClient, FakeHttpClient()),
@@ -211,6 +216,73 @@ class TestImplementationTable:
         if importlib.util.find_spec(module_name) is None:
             pytest.skip(f"{module_name} is not implemented yet")
         assert callable(load_implementation(key))
+
+
+HOSTILE_ANSWER = {
+    "drafts": [
+        {
+            "title": "Of" + chr(0xFB01) + "ce" + chr(0xA0) + "hours " + chr(0x1F680),
+            "speaker": "Poincar" + chr(0xE9) + chr(0x200B),
+            "abstract": "soft" + chr(0xAD) + "hyphen" + chr(0x2028) + "next\tline\r\n",
+        }
+    ]
+}
+"""What a page extraction answer can look like: it quotes page text that was not cleaned."""
+
+
+def check_cache_keeps_data_clean(open_cache: LLMCacheFactory, directory: Path) -> None:
+    """The part of the ``LLMCache`` contract that concerns the charset rule of data/."""
+    key = llm_cache_key("v1", "extract", "some page")
+    cache = open_cache(directory, ttl_days=30)
+    cache.put(key, HOSTILE_ANSWER)
+    assert cache.get(key) == HOSTILE_ANSWER
+    assert open_cache(directory, ttl_days=30).get(key) == HOSTILE_ANSWER
+    files = [path for path in directory.rglob("*") if path.is_file()]
+    assert files, "the cache wrote nothing below its directory"
+    assert data_tree_problems(directory) == []
+    assert all(path.read_bytes().isascii() for path in files)
+
+
+class _ReferenceCache(FakeLLMCache):
+    """The smallest cache that follows the rule: one ASCII-only JSON file per key."""
+
+    def __init__(self, directory: Path, *, escape: bool = True) -> None:
+        super().__init__()
+        self._directory = directory
+        self._escape = escape
+        for path in directory.glob("*.json") if directory.is_dir() else []:
+            self.entries[path.stem] = json.loads(path.read_text(encoding="utf-8"))
+
+    def put(self, key: str, value: Mapping[str, Any]) -> None:
+        super().put(key, value)
+        text = (
+            dump_ascii_json(dict(value)) if self._escape else json.dumps(value, ensure_ascii=False)
+        )
+        self._directory.mkdir(parents=True, exist_ok=True)
+        (self._directory / f"{key}.json").write_text(text, encoding="utf-8", newline="")
+
+
+class TestLLMCacheKeepsDataClean:
+    def test_a_cache_that_writes_ascii_json_passes(self, tmp_path: Path) -> None:
+        def open_cache(directory: Path, *, ttl_days: int) -> LLMCache:
+            return _ReferenceCache(directory)
+
+        check_cache_keeps_data_clean(open_cache, tmp_path / "data" / "llm_cache")
+
+    def test_a_cache_that_writes_readable_json_is_caught(self, tmp_path: Path) -> None:
+        def open_cache(directory: Path, *, ttl_days: int) -> LLMCache:
+            return _ReferenceCache(directory, escape=False)
+
+        with pytest.raises(AssertionError):
+            check_cache_keeps_data_clean(open_cache, tmp_path / "data" / "llm_cache")
+
+    def test_the_real_cache(self, tmp_path: Path) -> None:
+        """Runs as soon as ``seminars.llm.cache`` exists."""
+        module_name = IMPLEMENTATIONS["llm_cache"].split(":")[0]
+        if importlib.util.find_spec(module_name) is None:
+            pytest.skip(f"{module_name} is not implemented yet")
+        open_cache: LLMCacheFactory = load_implementation("llm_cache")
+        check_cache_keeps_data_clean(open_cache, tmp_path / "data" / "llm_cache")
 
 
 class TestLoadImplementation:

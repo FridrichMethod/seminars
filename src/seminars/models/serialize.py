@@ -15,6 +15,11 @@ newline. Loading such a file and dumping it again yields identical bytes.
 Every other JSON document (health, last run, uid map, run report, the public
 payloads) goes through ``dump_json``: two-space indentation, model field
 order, trailing newline.
+
+All of these writers keep non-ASCII text readable, so the text has to be
+clean before it gets here (``seminars.textrules.clean_text``). Data that
+cannot be cleaned because it must come back unchanged, such as the entries
+of the LLM cache, is written with ``dump_ascii_json`` instead.
 """
 
 from __future__ import annotations
@@ -94,6 +99,19 @@ def load_event_lines(text: str) -> list[Event]:
 def dump_json(model: BaseModel) -> str:
     """Serialize any model as a pretty, deterministic JSON document."""
     return _encode(model.model_dump(mode="json"), indent=2) + "\n"
+
+
+def dump_ascii_json(value: Any) -> str:
+    """Serialize plain JSON data as an ASCII-only document.
+
+    Every character outside ASCII is written as a ``\\uXXXX`` escape, so the
+    file passes the charset rule of data/ whatever the strings contain, and
+    ``json.loads`` gives back exactly the value that went in. Keys are
+    sorted, the indentation is two spaces and the text ends with a newline.
+    Use it for files below data/ that hold text which was not normalized
+    (data/llm_cache/).
+    """
+    return json.dumps(value, ensure_ascii=True, allow_nan=False, indent=2, sort_keys=True) + "\n"
 
 
 def load_json[T: BaseModel](text: str, model: type[T]) -> T:

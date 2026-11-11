@@ -17,6 +17,7 @@ from seminars.models import (
     LastRun,
     SourceHealthEntry,
     UidMap,
+    dump_ascii_json,
     dump_event_lines,
     dump_events,
     dump_json,
@@ -30,6 +31,7 @@ from seminars.models import (
     write_events,
     write_model,
 )
+from seminars.textrules import data_charset_problems
 
 E_ACUTE = chr(0xE9)
 LINE_SEPARATOR = chr(0x2028)
@@ -201,6 +203,26 @@ class TestDocuments:
     def test_non_ascii_is_written_as_is(self) -> None:
         uid_map = UidMap().with_aliases({"custom-x:caf" + E_ACUTE: "evt-1"})
         assert "caf" + E_ACUTE in dump_json(uid_map)
+
+    def test_ascii_json_escapes_everything_and_round_trips(self) -> None:
+        """For data that cannot be cleaned first, such as LLM cache entries."""
+        value = {
+            "title": "Of" + chr(0xFB01) + "ce" + chr(0xA0) + "hours " + chr(0x1F680),
+            "speaker": "Poincar" + E_ACUTE,
+            "note": "a" + LINE_SEPARATOR + "b\tc",
+            "b": [1, None, True],
+        }
+        text = dump_ascii_json(value)
+        assert text.isascii()
+        assert text.endswith("}\n")
+        assert "\r" not in text
+        assert "\t" not in text
+        assert json.loads(text) == value
+        assert list(json.loads(text)) == sorted(value)
+        assert dump_ascii_json(json.loads(text)) == text
+        assert data_charset_problems(text) == []
+        with pytest.raises(ValueError, match="Out of range float"):
+            dump_ascii_json({"x": float("nan")})
 
 
 class TestFiles:

@@ -156,13 +156,25 @@ class LLMProber(Protocol):
 
 @runtime_checkable
 class LLMCache(Protocol):
-    """Result cache under data/llm_cache/. Keys come from ``llm_cache_key``."""
+    """Result cache under data/llm_cache/. Keys come from ``llm_cache_key``.
+
+    The cache directory is committed and checked by the charset gate like
+    the rest of data/, while cached answers quote page text that was never
+    normalized (no-break spaces, soft hyphens, zero width characters, emoji).
+    An implementation must therefore write every file as ASCII-only JSON
+    (``seminars.models.dump_ascii_json``, or ``json.dumps`` with
+    ``ensure_ascii=True``) and must not clean the values: ``get`` returns
+    exactly what ``put`` received. tests/test_contracts.py checks both
+    against the real implementation.
+    """
 
     def get(self, key: str) -> dict[str, Any] | None:
         """The cached JSON object, or ``None``. A hit refreshes the entry's age."""
         ...
 
-    def put(self, key: str, value: Mapping[str, Any]) -> None: ...
+    def put(self, key: str, value: Mapping[str, Any]) -> None:
+        """Store ``value`` (plain JSON data) under ``key`` in an ASCII-only file."""
+        ...
 
     def prune(self) -> int:
         """Drop entries that were not hit for the configured number of days; return the count."""
@@ -179,7 +191,13 @@ class LLMCache(Protocol):
 class LLMCacheFactory(Protocol):
     """``seminars.llm.cache:open_llm_cache``."""
 
-    def __call__(self, directory: Path, *, ttl_days: int) -> LLMCache: ...
+    def __call__(self, directory: Path, *, ttl_days: int) -> LLMCache:
+        """Open the cache in ``directory`` (``paths.llm_cache_dir``), creating it when needed.
+
+        Everything the cache writes below ``directory`` is an ASCII-only text
+        file with LF line endings and a final newline; see ``LLMCache``.
+        """
+        ...
 
 
 def llm_cache_key(prompt_version: str, task: str, payload: str) -> str:

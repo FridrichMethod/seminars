@@ -60,7 +60,27 @@ How one run uses the contracts, in order::
     scoped     = EventFilter.drop_out_of_scope(events) # events without any field
     result     = PicksScorer.score(event)
     ... persist, then: write_ics_feeds, write_site_data, update_health
-    ... SecretScanner over data/ and public/ before anything is committed or deployed
+    ... output checks, before anything is committed or deployed:
+        seminars.textrules.data_tree_problems(paths.data_dir)   # charset rule of data/
+        SecretScanner over data/ and public/
+
+Who keeps data/ within the charset rule. Every file below data/ is committed
+and checked by scripts/check_ascii.py (no emoji, no decorative or invisible
+character, no raw control character), and the commits of the daily workflow
+do not run the CI, so a violation has to be stopped before it is committed:
+
+* normalization (pipeline) passes every text field of a draft through
+  ``seminars.textrules.clean_text`` before it builds an ``Event``;
+* ``ExcludedEvent`` cleans its own text and ``source_key`` escapes native
+  ids, so the run report and the uid map are safe however they are filled;
+* the LLM cache writes ASCII-only JSON (``seminars.models.dump_ascii_json``)
+  and returns values unchanged; see ``LLMCache``;
+* ``seminars run`` verifies the result. After persisting, next to the secret
+  scan, it calls ``data_tree_problems(paths.data_dir)``. Any problem is
+  handled like a finding of the secret scan: it is stored in
+  ``RunReport.charset_findings``, printed, and the command exits with
+  status 3. ``seminars validate`` runs the same check and fails on it, so a
+  workflow or a person can repeat it at any time.
 
 Command line surface that workflows may rely on::
 
@@ -75,7 +95,8 @@ Command line surface that workflows may rely on::
     seminars build-site                 # assemble public/
 
 Exit status: 0 success (a skipped run included), 1 failure, 2 usage error,
-3 the secret scan found something (nothing may be committed or deployed).
+3 an output check failed: the secret scan found something or a file below
+data/ breaks the charset rule (nothing may be committed or deployed).
 
 Environment read by implementations: the credentials in
 ``seminars.config.PROVIDER_CREDENTIAL_ENV``, plus GITHUB_TOKEN,

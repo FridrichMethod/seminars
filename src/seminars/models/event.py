@@ -53,6 +53,10 @@ class Event(Model):
     * ``fields`` is validated against FIELD_IDS and kept in canonical order;
       ``source_ids`` and ``source_urls`` are kept sorted and unique. The order
       of ``speakers`` and ``picks_reasons`` is meaningful and preserved.
+    * Every ``source_ids`` entry is built by ``source_key`` and is plain ASCII.
+    * Every text field taken from a source (title, speakers, series, host_org,
+      location, abstract) has been through ``seminars.textrules.clean_text``:
+      the event is written to data/events.json, which the charset gate checks.
     * ``title`` is exactly TBA_TITLE ("TBA") while the source has not announced
       one; ``is_tba`` tests for it.
     * An all-day event has ``all_day=True``, ``start`` at local midnight of its

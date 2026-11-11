@@ -100,6 +100,11 @@ class UidMap(Model):
     Keys are ``Event.source_ids`` entries (``<source id>:<native id>`` or a
     derived key). A run looks every incoming key up here first, which is what
     keeps uids stable across title changes, time changes and merges.
+
+    Build every key with ``seminars.models.source_key``, for lookups as well
+    as for new aliases: it escapes the native id to plain ASCII, so the keys
+    in this file pass the charset rule of data/ and a key always finds the
+    alias that was stored for it.
     """
 
     schema_version: Literal[1] = 1

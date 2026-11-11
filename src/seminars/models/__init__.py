@@ -13,6 +13,10 @@ unknown keys; use ``model.evolve(...)`` to derive a changed copy.
 * issues.py     Issue, DigestDocument, DigestOutcome
 * public.py     PublicEventsPayload, PublicStatusPayload: what the site reads
 * serialize.py  deterministic readers and writers for all of the above
+
+Most of these models are written to files below data/, which are committed
+and checked by the charset gate. ``seminars.textrules`` states the rule and
+what each writer has to do about it.
 """
 
 from seminars.models.base import (
@@ -101,6 +105,7 @@ from seminars.models.report import (
 )
 from seminars.models.serialize import (
     EVENTS_SCHEMA_VERSION,
+    dump_ascii_json,
     dump_event_lines,
     dump_events,
     dump_json,
@@ -201,6 +206,7 @@ __all__ = [
     "canonical_fields",
     "check_http_url",
     "check_timezone",
+    "dump_ascii_json",
     "dump_event_lines",
     "dump_events",
     "dump_json",

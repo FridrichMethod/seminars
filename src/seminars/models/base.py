@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import string
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Annotated, Any, Final, Literal, Self
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, quote, urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, StringConstraints
+
+from seminars.textrules import ascii_safe, clean_text
 
 # --- closed vocabularies -------------------------------------------------------------------
 
@@ -129,15 +132,34 @@ def url_has_credential(url: object) -> bool:
     return any(name.lower() in CREDENTIAL_QUERY_PARAMS for name, _ in pairs)
 
 
+def ascii_url(url: str) -> str:
+    """``url`` with everything outside printable ASCII percent-encoded (as UTF-8).
+
+    Spaces and control characters are encoded too; existing escapes are left
+    alone, so the function is idempotent. The result names the same resource
+    and is safe to write into any file.
+    """
+    return quote(url, safe=string.punctuation)
+
+
 def source_key(source_id: str, native_id: str) -> str:
-    """Build an ``Event.source_ids`` entry: ``<source id>:<source-native id>``."""
-    return f"{source_id}:{native_id}"
+    """Build an ``Event.source_ids`` entry: ``<source id>:<source-native id>``.
+
+    Always build keys with this function. They are written to
+    data/events.json and data/uid_map.json, and a native id is copied from
+    the source as it is, so characters outside ASCII are replaced by
+    backslash escapes (``seminars.textrules.ascii_safe``). The key is plain
+    ASCII and the same native id gives the same key in every run, whatever
+    the cleaning rules for text become.
+    """
+    return f"{source_id}:{ascii_safe(native_id)}"
 
 
 def split_source_key(key: str) -> tuple[str, str]:
-    """Inverse of ``source_key``: ``(source id, native id)``.
+    """Split a key built by ``source_key`` into ``(source id, native id)``.
 
     Source ids never contain a colon, so the first colon is the separator.
+    The native id comes back as it is written in the key, escapes included.
     """
     source_id, separator, native_id = key.partition(":")
     if not separator or not source_id:
@@ -156,6 +178,16 @@ FieldList = Annotated[list[str], AfterValidator(canonical_fields)]
 
 SortedStrList = Annotated[list[str], AfterValidator(_sorted_unique)]
 """List of strings kept sorted and without duplicates."""
+
+CleanText = Annotated[str, AfterValidator(clean_text)]
+"""Text that is cleaned on validation (``seminars.textrules.clean_text``).
+
+For fields that can receive text straight from a source and are written below
+data/ without passing through normalization.
+"""
+
+AsciiUrl = Annotated[str, AfterValidator(ascii_url)]
+"""URL that is percent-encoded to printable ASCII on validation; not checked otherwise."""
 
 TimezoneName = Annotated[str, AfterValidator(check_timezone)]
 HttpUrlStr = Annotated[str, AfterValidator(check_http_url)]

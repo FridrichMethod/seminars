@@ -139,9 +139,15 @@ class LastRun(Model):
 class RunReport(Model):
     """Full result of ``seminars run``; written to data/run_report.json.
 
-    ``ok`` is false only when every source failed or the secret scan found
-    something. ``excluded`` lists every event that was filtered out so that
-    false positives can be reviewed.
+    ``ok`` is false only when every source failed or an output check found
+    something: the secret scan (``secret_findings``) or the charset check of
+    data/ (``charset_findings``). ``excluded`` lists every event that was
+    filtered out so that false positives can be reviewed.
+
+    Like everything below data/, the report must pass the charset rule (see
+    ``seminars.textrules``). ``ExcludedEvent`` cleans its own text; every
+    other string in here (errors, warnings, findings) is an ASCII message
+    written by this project and never quotes scraped text.
     """
 
     schema_version: Literal[1] = 1
@@ -155,6 +161,7 @@ class RunReport(Model):
     counts: RunCounts = RunCounts()
     llm: LLMUsage = LLMUsage()
     secret_findings: list[SecretFinding] = []
+    charset_findings: list[str] = []  # output of seminars.textrules.data_tree_problems
     warnings: list[str] = []
 
     def to_last_run(self) -> LastRun:
