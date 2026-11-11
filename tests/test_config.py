@@ -457,6 +457,7 @@ class TestPathsAndEnvironment:
             "public_status_file": "public/status.json",
             "fixtures_dir": "tests/fixtures",
             "cache_dir": ".cache",
+            "scratch_dir": ".scratch",
             "env_file": ".env",
         }
         for name, expected in relative.items():

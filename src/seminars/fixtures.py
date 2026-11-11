@@ -21,7 +21,9 @@ researching sources too::
 ``record`` stores what it fetched as a fixture. ``fetch`` is for looking
 around: it shows status, final URL, content type and size of every answer
 and writes no fixture and no manifest; with ``--save-dir`` it also puts each
-body into a scratch directory (``.scratch/<topic>`` is ignored by git).
+body into a scratch directory (``.scratch/<topic>`` is ignored by git, and
+it is the only place inside the project that ``fetch`` writes to).
+``--source-id`` takes a source id, never a path.
 Both are the only way this project talks to a source site by hand: never
 use curl or another direct network tool, which would skip robots.txt, the
 crawl delay and the fixed User-Agent.
@@ -44,7 +46,7 @@ import sys
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Final, Literal
+from typing import TYPE_CHECKING, Annotated, Final, Literal, Self
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit
 
 from pydantic import AfterValidator, StringConstraints, ValidationError
@@ -71,6 +73,7 @@ MAX_FIXTURE_BYTES: Final = 500_000
 """Bodies larger than this must be trimmed by hand (and the trim noted in a README)."""
 
 _RESERVED_NAMES: Final = frozenset({MANIFEST_NAME})
+_MAX_SOURCE_ID_LENGTH: Final = 64
 _DEFAULT_PORTS: Final = {"http": 80, "https": 443}
 _NOTE_PREFIX: Final = "README"
 _EXTENSIONS: Final[dict[str, str]] = {
@@ -165,15 +168,39 @@ def scratch_file_name(url: str, content_type: str | None) -> str:
     return f"{prefix}-{default_file_name(url, content_type)}"
 
 
+def is_source_id(value: str) -> bool:
+    """Whether ``value`` has the form of a source id (``seminars.models.SourceId``).
+
+    A source id names a directory below tests/fixtures. Checking it before
+    a path is built from it is what keeps ``../elsewhere`` and ``a/b`` out.
+    """
+    return (
+        len(value) <= _MAX_SOURCE_ID_LENGTH and re.fullmatch(SOURCE_ID_PATTERN, value) is not None
+    )
+
+
 class FixtureStore:
-    """The recorded fixtures of one source (one directory below tests/fixtures/)."""
+    """The recorded fixtures of one source (one directory below tests/fixtures/).
+
+    Build it with ``FixtureStore.of(fixtures_dir, source_id)`` whenever the
+    id comes from outside (a command line, a configuration): that checks
+    the id before it becomes part of a path. The constructor takes the
+    directory itself and only looks at its last component.
+    """
 
     def __init__(self, directory: Path) -> None:
         self.directory = directory
         self.source_id = directory.name
-        if re.fullmatch(SOURCE_ID_PATTERN, self.source_id) is None:
+        if not is_source_id(self.source_id):
             raise FixtureError(f"{directory}: directory name is not a valid source id")
         self.manifest = self._load()
+
+    @classmethod
+    def of(cls, fixtures_dir: Path, source_id: str) -> Self:
+        """The store of ``source_id`` in ``fixtures_dir``; ``FixtureError`` for anything else."""
+        if not is_source_id(source_id):
+            raise FixtureError(f"{source_id[:80]!a} is not a valid source id")
+        return cls(fixtures_dir / source_id)
 
     def _load(self) -> FixtureManifest:
         path = self.directory / MANIFEST_NAME
@@ -296,7 +323,7 @@ def fixture_sources(fixtures_dir: Path) -> list[str]:
     return sorted(
         path.name
         for path in fixtures_dir.iterdir()
-        if (path / MANIFEST_NAME).is_file() and re.fullmatch(SOURCE_ID_PATTERN, path.name)
+        if (path / MANIFEST_NAME).is_file() and is_source_id(path.name)
     )
 
 
@@ -309,7 +336,7 @@ def reference_time(fixtures_dir: Path) -> datetime | None:
     moments = [
         entry.fetched_at
         for source_id in fixture_sources(fixtures_dir)
-        for entry in FixtureStore(fixtures_dir / source_id).manifest.entries.values()
+        for entry in FixtureStore.of(fixtures_dir, source_id).manifest.entries.values()
     ]
     return max(moments, default=None)
 
@@ -356,11 +383,12 @@ def offline_client(*source_ids: str, fixtures_dir: Path | None = None) -> Offlin
 
     ``fixtures_dir`` defaults to tests/fixtures of the current project. Pass
     exactly one source id per adapter run so that a source can only see its
-    own recordings.
+    own recordings. Raises ``FixtureError`` for anything that is not a
+    source id; a path is never accepted in its place.
     """
     directory = fixtures_dir or ProjectPaths(find_project_root()).fixtures_dir
     names = source_ids or tuple(fixture_sources(directory))
-    return OfflineHttpClient([FixtureStore(directory / name) for name in names])
+    return OfflineHttpClient([FixtureStore.of(directory, name) for name in names])
 
 
 def record(
@@ -382,10 +410,19 @@ def check_tree(fixtures_dir: Path, source_ids: Sequence[str] = ()) -> list[str]:
     problems: list[str] = []
     for source_id in source_ids or fixture_sources(fixtures_dir):
         try:
-            problems.extend(FixtureStore(fixtures_dir / source_id).problems())
+            problems.extend(FixtureStore.of(fixtures_dir, source_id).problems())
         except FixtureError as error:
-            problems.append(f"{source_id}: {error}")
+            problems.append(f"{ascii_safe(source_id)}: {error}")
     return problems
+
+
+def _source_id(value: str) -> str:
+    """Command line type of ``--source-id``: a source id and nothing that could be a path."""
+    if not is_source_id(value):
+        raise argparse.ArgumentTypeError(
+            f"{value[:80]!a} is not a valid source id (lower-case letters, digits, single hyphens)"
+        )
+    return value
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -395,7 +432,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", type=Path, default=None, help="project root (default: detect)")
     commands = parser.add_subparsers(dest="command", required=True)
     rec = commands.add_parser("record", help="fetch URLs politely and store them as fixtures")
-    rec.add_argument("--source-id", required=True, help="source id, names the fixture directory")
+    rec.add_argument(
+        "--source-id",
+        required=True,
+        type=_source_id,
+        help="source id, names the fixture directory",
+    )
     rec.add_argument(
         "url",
         nargs="+",
@@ -435,7 +477,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="DIR",
         help="also write each body to a file in DIR (relative to the project root), "
-        "for example .scratch/TOPIC; never a directory inside tests/fixtures",
+        "for example .scratch/TOPIC; inside the project only .scratch is accepted",
     )
     fet.add_argument(
         "--allow-status",
@@ -446,7 +488,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="do not treat a response with this non-2xx status as a failure; repeatable",
     )
     chk = commands.add_parser("check", help="verify manifests and body files")
-    chk.add_argument("--source-id", action="append", default=[], help="limit to this source")
+    chk.add_argument(
+        "--source-id", action="append", default=[], type=_source_id, help="limit to this source"
+    )
     return parser
 
 
@@ -501,7 +545,7 @@ def _record_command(
     """Record every URL in order through one client; a failed URL does not stop the others."""
     live = None
     try:
-        store = FixtureStore(paths.fixtures_dir / args.source_id)
+        store = FixtureStore.of(paths.fixtures_dir, args.source_id)
         if http is None:
             http = live = _live_client(paths, resolver)
         outcomes = [_record_one(args, http, store, url) for url in args.url]
@@ -543,17 +587,27 @@ def _fetch_one(
 def _scratch_dir(paths: ProjectPaths, directory: Path | None) -> Path | None:
     """The absolute directory ``fetch --save-dir`` writes to; ``FixtureError`` for a forbidden one.
 
-    A relative directory counts from the project root. Nothing below
-    tests/fixtures is accepted, however the directory is spelled: that tree
-    only holds what ``record`` wrote and what the manifests list.
+    A relative directory counts from the project root. What is saved is
+    whatever a site sent, unchecked, so inside the project it may only go
+    below ``.scratch``, which git ignores: never among the committed files,
+    the published data, the configuration or the recorded fixtures (that
+    tree only holds what ``record`` wrote and what the manifests list).
+    Symbolic links are followed before the place is judged. A directory
+    outside the project is the caller's business.
     """
     if directory is None:
         return None
-    target = (paths.root / directory.expanduser()).resolve()
+    root = paths.root.resolve()
+    target = (root / directory.expanduser()).resolve()
     if target.is_relative_to(paths.fixtures_dir.resolve()):
         raise FixtureError(
             "--save-dir: tests/fixtures is for recorded fixtures only; "
             "use a scratch directory such as .scratch/TOPIC"
+        )
+    if target.is_relative_to(root) and not target.is_relative_to(root / paths.scratch_dir.name):
+        raise FixtureError(
+            "--save-dir: inside the project only .scratch may be written to "
+            "(it is ignored by git); use .scratch/TOPIC"
         )
     return target
 

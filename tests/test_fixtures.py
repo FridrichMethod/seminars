@@ -265,6 +265,22 @@ class TestOfflineClient:
         with pytest.raises(FixtureNotFoundError, match=r"\[sites-c\]"):
             offline_client("sites-c", fixtures_dir=fixtures_dir).get(url)
 
+    @pytest.mark.parametrize("source_id", ["../evil", "a/b", "/abs/path", "..", "Bad_Id", ""])
+    def test_factory_takes_source_ids_not_paths(self, tmp_path: Path, source_id: str) -> None:
+        outside = tmp_path / "evil"
+        FixtureStore(tmp_path / "evil").add(make_document("https://a.example.edu/x", "stolen"))
+        (tmp_path / "fixtures").mkdir()
+        with pytest.raises(FixtureError, match="is not a valid source id"):
+            offline_client(source_id, fixtures_dir=tmp_path / "fixtures")
+        assert outside.is_dir()
+
+    def test_store_of_a_source_id(self, tmp_path: Path) -> None:
+        store = FixtureStore.of(tmp_path, "sites-a")
+        assert (store.directory, store.source_id) == (tmp_path / "sites-a", "sites-a")
+        for source_id in ("../sites-a", "sites-a/..", "x" * 65, "sites_a"):
+            with pytest.raises(FixtureError, match="is not a valid source id"):
+                FixtureStore.of(tmp_path, source_id)
+
     def test_conftest_fixture(
         self, offline_http: Callable[..., OfflineHttpClient], tmp_path: Path
     ) -> None:
@@ -326,6 +342,13 @@ class TestCheck:
         assert problems[0] == "sites-a: manifest source_id is 'sites-other'"
         assert "match the same requests" in problems[1]
         assert len(problems) == 2
+
+    def test_a_source_id_that_is_a_path_is_a_problem_and_is_not_read(self, tmp_path: Path) -> None:
+        FixtureStore(tmp_path / "evil").add(make_document("https://a.example.edu/x", "body"))
+        (tmp_path / "fixtures").mkdir()
+        problems = check_tree(tmp_path / "fixtures", ["../evil", "sites/x"])
+        assert len(problems) == 2
+        assert all("is not a valid source id" in problem for problem in problems)
 
     def test_broken_manifest_is_a_problem_not_a_crash(self, tmp_path: Path) -> None:
         directory = tmp_path / "sites-a"
@@ -461,9 +484,31 @@ class TestRecorder:
         arguments = ["--root", str(tmp_path), "record", "--source-id", "localist-example", PAGE_1]
         assert main(arguments, http=live) == 1
         assert "refusing binary content type image/png" in capsys.readouterr().err
-        bad_id = ["--root", str(tmp_path), "record", "--source-id", "Bad_Id", PAGE_1]
-        assert main(bad_id, http=live) == 1
-        assert "not a valid source id" in capsys.readouterr().err
+
+    @pytest.mark.parametrize(
+        "source_id",
+        ["Bad_Id", "../evil", "a/b", "/tmp/evil", "..", ".", "", "sites-", "x" * 65, "a b"],
+    )
+    def test_command_line_takes_a_source_id_not_a_path(
+        self,
+        live: PoliteClient,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        capsys: pytest.CaptureFixture[str],
+        source_id: str,
+    ) -> None:
+        """--source-id ../evil used to write tests/evil/manifest.json."""
+        (tmp_path / "tests" / "fixtures").mkdir(parents=True)
+        for command in (["record", "--source-id", source_id, PAGE_1], ["check", "--source-id"]):
+            arguments = ["--root", str(tmp_path), *command]
+            if command[0] == "check":
+                arguments.append(source_id)
+            with pytest.raises(SystemExit) as caught:
+                main(arguments, http=live)
+            assert caught.value.code == 2
+            assert "is not a valid source id" in capsys.readouterr().err
+        assert respx_router.calls.call_count == 0
+        assert sorted(path.name for path in tmp_path.rglob("*")) == ["fixtures", "tests"]
 
     def test_command_line_records_several_urls_one_after_another(
         self,

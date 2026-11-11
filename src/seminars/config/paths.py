@@ -149,6 +149,11 @@ class ProjectPaths:
     def cache_dir(self) -> Path:
         return self.root / ".cache"
 
+    @property
+    def scratch_dir(self) -> Path:
+        """Git-ignored space for looking at sources (``seminars.fixtures fetch --save-dir``)."""
+        return self.root / ".scratch"
+
     def http_cache_dir(self, env: Mapping[str, str] | None = None) -> Path:
         """Directory of the live HTTP client's cache, shared by all worktrees of the repository.
 

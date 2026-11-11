@@ -155,6 +155,12 @@ class TestFetch:
         assert f"fetched {HOST}/caf\\xe9\n" in out
 
 
+NOT_SCRATCH = ["data", "data/llm_cache", "public", "public/feeds", "config", "config/sources.d"]
+NOT_SCRATCH += [".git/hooks", ".github/workflows", "src/seminars", "tests", "scratch", ".", ""]
+NOT_SCRATCH += [".scratch/../data", ".scratchy", "locales", ".cache/http"]
+"""Places inside a project that are not its scratch directory."""
+
+
 class TestSaveDirectory:
     def test_the_decoded_body_is_written_and_the_path_is_printed(
         self,
@@ -262,12 +268,13 @@ class TestSaveDirectory:
         respx_router.get(ROBOTS).respond(404)
         respx_router.get(url__startswith=HOST).respond(200, text="ok")
         urls = [f"{HOST}/a/%2e%2e/%2e%2e/escape", f"{HOST}/list?file=../../secret", f"{HOST}/x/y/z"]
-        assert fetch(tmp_path / "root", live, *urls, "--save-dir", "scratch") == 0
-        directory = tmp_path / "root" / "scratch"
+        assert fetch(tmp_path / "root", live, *urls, "--save-dir", ".scratch/pages") == 0
+        directory = tmp_path / "root" / ".scratch" / "pages"
         assert len(list(directory.iterdir())) == 3
         assert all(path.is_file() for path in directory.iterdir())
         assert sorted(path.name for path in tmp_path.iterdir()) == ["root"]
-        assert sorted(path.name for path in (tmp_path / "root").iterdir()) == ["scratch"]
+        assert sorted(path.name for path in (tmp_path / "root").iterdir()) == [".scratch"]
+        assert sorted(path.name for path in (tmp_path / "root" / ".scratch").iterdir()) == ["pages"]
 
     @pytest.mark.parametrize(
         "directory", ["tests/fixtures", "tests/fixtures/sites-x", "tests/fixtures/_probe/deep"]
@@ -292,11 +299,54 @@ class TestSaveDirectory:
         self, live: PoliteClient, tmp_path: Path, respx_router: respx.MockRouter
     ) -> None:
         (tmp_path / "tests" / "fixtures" / "sites-x").mkdir(parents=True)
-        (tmp_path / "shortcut").symlink_to(tmp_path / "tests" / "fixtures" / "sites-x")
+        (tmp_path / "outside").mkdir()
+        (tmp_path / "outside" / "shortcut").symlink_to(tmp_path / "tests" / "fixtures" / "sites-x")
+        (tmp_path / ".scratch").symlink_to(tmp_path / "tests" / "fixtures")
+        for directory in (str(tmp_path / "outside" / "shortcut" / "pages"), ".scratch/sites-x"):
+            with pytest.raises(SystemExit) as caught:
+                fetch(tmp_path, live, PAGE, "--save-dir", directory)
+            assert caught.value.code == 2
+        assert respx_router.calls.call_count == 0
+
+    @pytest.mark.parametrize("directory", NOT_SCRATCH)
+    def test_inside_the_project_only_the_scratch_directory_is_accepted(
+        self,
+        live: PoliteClient,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        capsys: pytest.CaptureFixture[str],
+        directory: str,
+    ) -> None:
+        """A body is whatever a site sent; it does not belong among committed or published files."""
+        for spelling in (directory, str(tmp_path / directory)):
+            if not spelling:
+                continue
+            with pytest.raises(SystemExit) as caught:
+                fetch(tmp_path, live, PAGE, "--save-dir", spelling)
+            assert caught.value.code == 2
+            assert "inside the project only .scratch" in capsys.readouterr().err
+        assert respx_router.calls.call_count == 0
+        assert list(tmp_path.iterdir()) == []
+
+    def test_a_scratch_directory_that_points_into_the_project_is_refused(
+        self, live: PoliteClient, tmp_path: Path, respx_router: respx.MockRouter
+    ) -> None:
+        (tmp_path / "data").mkdir()
+        (tmp_path / ".scratch").symlink_to(tmp_path / "data")
         with pytest.raises(SystemExit) as caught:
-            fetch(tmp_path, live, PAGE, "--save-dir", "shortcut/pages")
+            fetch(tmp_path, live, PAGE, "--save-dir", ".scratch/topic")
         assert caught.value.code == 2
         assert respx_router.calls.call_count == 0
+        assert list((tmp_path / "data").iterdir()) == []
+
+    @pytest.mark.parametrize("directory", [".scratch", ".scratch/topic", ".scratch/a/b/c"])
+    def test_the_scratch_directory_and_everything_below_it_is_accepted(
+        self, live: PoliteClient, tmp_path: Path, respx_router: respx.MockRouter, directory: str
+    ) -> None:
+        respx_router.get(ROBOTS).respond(404)
+        respx_router.get(PAGE).respond(200, text="ok")
+        assert fetch(tmp_path, live, PAGE, "--save-dir", directory) == 0
+        assert len(list((tmp_path / directory).iterdir())) == 1
 
     def test_a_file_that_cannot_be_written_is_an_error_for_that_url_only(
         self,
@@ -307,8 +357,12 @@ class TestSaveDirectory:
     ) -> None:
         respx_router.get(ROBOTS).respond(404)
         respx_router.get(url__startswith=PAGE).respond(200, text="ok")
-        (tmp_path / "blocked").write_text("a file, not a directory\n", encoding="utf-8")
-        assert fetch(tmp_path, live, f"{PAGE}?a=1", f"{PAGE}?a=2", "--save-dir", "blocked") == 1
+        (tmp_path / ".scratch").mkdir()
+        (tmp_path / ".scratch" / "blocked").write_text(
+            "a file, not a directory\n", encoding="utf-8"
+        )
+        arguments = [f"{PAGE}?a=1", f"{PAGE}?a=2", "--save-dir", ".scratch/blocked"]
+        assert fetch(tmp_path, live, *arguments) == 1
         captured = capsys.readouterr()
         assert captured.err.count("error: cannot save") == 2
         assert captured.out.count("fetched ") == 2

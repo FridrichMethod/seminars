@@ -83,6 +83,10 @@ an error response. Options apply to every URL of the call. A URL that fails
 is reported and the remaining ones are still recorded; the exit status is 1
 when any failed.
 
+`--source-id` takes a source id (lower-case letters, digits and single
+hyphens, at most 64 characters), never a path: `../x` and `a/b` are refused,
+here and in `check --source-id`.
+
 - The recorder goes through the polite HTTP client: robots.txt is honoured,
   and the pause between two requests to one host is `max(1 s, Crawl-delay)`.
   Expect a 30 s wait per request on hosts that ask for `Crawl-delay: 30`.
@@ -109,6 +113,16 @@ when any failed.
   wins over the default everywhere.
 - The per-host lock needs a POSIX system. On Windows, never run two calls
   for the same host at the same time.
+- Nothing waits forever. One request with its whole answer is given up
+  after `http.max_exchange_seconds` (60 s), and one URL with everything it
+  takes (robots.txt, redirects, retries, the pauses, the wait for another
+  call that uses the host) after `http.max_get_seconds` (600 s). Such a URL
+  is reported as failed and the remaining ones are still fetched. When
+  several calls queue up for a host with a long Crawl-delay, the ones at
+  the back can run into the second limit; run them again afterwards.
+- Only public sites are contacted. A URL with a user name or password, a
+  host on this machine or in a private network, and a name that resolves
+  to such an address are refused, also as the target of a redirect.
 - Fetch each URL once and then work from the fixture. For trial requests
   that should not become fixtures, use `fetch` (next section).
 - Recording the same URL again replaces its entry and body.
@@ -151,7 +165,11 @@ fetched https://chemistry.stanford.edu/events
   hold it. The file name is built from the host, the path and a digest of
   the URL, so no URL can make it leave DIR. A relative DIR counts from the
   project root. Use `.scratch/<topic>`: `/.scratch/` is ignored by git.
-  A directory inside `tests/fixtures` is refused.
+- Inside the project, `.scratch` and the directories below it are the only
+  place `--save-dir` accepts. A body is whatever a site sent, so `data/`,
+  `public/`, `config/`, `tests/fixtures` and every other directory of the
+  project are refused, also through a symbolic link. A directory outside
+  the project is used as it is.
 - `--allow-status CODE` (repeatable) shows an error response instead of
   failing on it.
 - A URL that fails is reported on stderr and the remaining ones are still
