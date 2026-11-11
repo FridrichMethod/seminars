@@ -25,7 +25,8 @@ Contract -> fixture:
 No test may look a host name up for real. Every ``PoliteClient`` a test
 builds gets ``resolver=resolver`` (or its own ``StubResolver``), and the
 ``no_real_dns`` fixture, which is always active, makes ``socket.getaddrinfo``
-fail the test that reaches it.
+fail the test that reaches it. Only tests marked ``live``, which are not
+part of a normal run, keep the real resolver.
 
 Browser tests (``@pytest.mark.browser``) get Playwright from the
 ``playwright_sync_api`` fixture and never import it themselves; the fixture
@@ -88,14 +89,18 @@ def resolver() -> StubResolver:
 
 
 @pytest.fixture(autouse=True)
-def no_real_dns(monkeypatch: pytest.MonkeyPatch) -> None:
+def no_real_dns(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Fail any test that reaches the real resolver.
 
     ``socket.getaddrinfo`` is what the default resolver of the live client
     and every real connection use. The error is not an ``OSError``, so no
     retry logic can swallow it. Child processes are not covered; scripts a
-    test starts must pass their own stub.
+    test starts must pass their own stub. Tests marked ``live`` are exempt:
+    they exist to talk to the real network and only run on request
+    (``-m live``).
     """
+    if request.node.get_closest_marker("live") is not None:
+        return
 
     def refuse(host: object, *args: object, **kwargs: object) -> None:
         raise AssertionError(
