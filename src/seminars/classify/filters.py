@@ -35,7 +35,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final, get_args
 
-from seminars.classify.rules import Hit, TermMatcher, Words
+from seminars.classify.rules import TermMatcher, Words
 from seminars.config import Settings, Taxonomy
 from seminars.contracts import EventFilter
 from seminars.models import (
@@ -100,12 +100,6 @@ _KEEP: Final = _Verdict()
 _UNCERTAIN: Final = _Verdict(uncertain=True)
 
 
-def _overlaps(first: Hit, second: Hit) -> bool:
-    return (
-        first.segment == second.segment and first.start < second.stop and second.start < first.stop
-    )
-
-
 class RuleEventFilter:
     """``EventFilter`` driven by ``taxonomy.exclusions`` and the defense switch."""
 
@@ -138,8 +132,7 @@ class RuleEventFilter:
         """True when ``words`` hold a talk marker that is not part of an exclusion phrase."""
         phrases = [hit for _, matcher in self._phrases for hit in matcher.hits(words)]
         return any(
-            not any(_overlaps(marker, hit) for hit in phrases)
-            for marker in self._markers.hits(words)
+            not any(marker.overlaps(hit) for hit in phrases) for marker in self._markers.hits(words)
         )
 
     def _judge(self, candidate: Candidate) -> _Verdict:

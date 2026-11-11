@@ -5,7 +5,9 @@
 #   "AI" never matches "Taiwan", "Kahler" matches the accented spelling;
 # * spaces, hyphens and slashes are the same: "cryo-EM" matches "cryo EM";
 # * the words of a phrase must be adjacent and in one sentence;
-# * the last word may be singular or plural: "enzyme" matches "enzymes";
+# * the last word may be singular or plural: "enzyme" matches "enzymes"; a word
+#   in "-ics" is never made singular ("genetics" does not match "genetic"), so
+#   an adjective that should count is listed on its own ("genomic");
 # * a final "*" matches the start of a word: "superconduct*" matches
 #   "superconductivity" (at least three letters before the "*").
 #
@@ -15,7 +17,9 @@
 # 2. rules per field: a name in "series" found in the series or the title implies
 #    the field; otherwise the weights of the distinct keywords found in title,
 #    series and abstract must add up to min_score (1.0 unless set). Weak terms get
-#    0.5 so that they count only together with a second one. A match of
+#    0.5 so that they count only together with a second one. A word counts for
+#    one keyword of a field only: where keywords overlap ("drug" in "drug
+#    discovery"), the heaviest counts, then the longest. A match of
 #    exclude_keywords vetoes the rules of that field (never a source field);
 # 3. an event with no field at all is handed to the LLM tagger when there is one,
 #    and is otherwise dropped as out_of_scope.
@@ -246,6 +250,7 @@ fields:
       quantum algorithm: 1.0
       blockchain: 1.0
       robotics: 1.0
+      robotic: 0.5
       robot: 0.5
       autonomous vehicle: 0.5
       information theory: 1.0
@@ -505,7 +510,10 @@ fields:
       chemical biology: 1.0
       genetics: 1.0
       genetic: 0.5
+      genetic variation: 1.0
+      genetic variant: 1.0
       genomics: 1.0
+      genomic: 1.0
       genome: 1.0
       gene: 0.5
       gene expression: 1.0
@@ -671,6 +679,8 @@ fields:
       optics: 1.0
       photonics: 1.0
       nanophotonics: 1.0
+      photonic: 1.0
+      nanophotonic: 1.0
       metamaterial: 1.0
       laser: 0.5
       ultrafast: 1.0
@@ -700,6 +710,7 @@ fields:
       magnetism: 1.0
       magnetic: 0.5
       spintronics: 1.0
+      spintronic: 1.0
       spin: 0.5
       phonon: 1.0
       electron: 0.5
@@ -798,6 +809,7 @@ fields:
       pathology: 1.0
       "pediatric*": 1.0
       obstetrics: 1.0
+      obstetric: 1.0
       dermatology: 1.0
       ophthalmology: 1.0
       kidney: 0.5

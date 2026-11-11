@@ -175,11 +175,26 @@ class TestTermMatcher:
             ("processes", "a stochastic process"),
             ("stochastic differential equations", "a stochastic differential equation"),
             ("diffusion model", "Diffusion models for proteins"),
-            ("genomics", "genomic data"),
+            ("genomic", "Genomics of aging"),
         ],
     )
     def test_the_last_word_may_be_singular_or_plural(self, term: str, text: str) -> None:
         assert matched([term], text) == (term,)
+
+    @pytest.mark.parametrize(
+        ("term", "text"),
+        [
+            ("genomics", "genomic data"),
+            ("genetics", "Genetic variation"),
+            ("optics", "The optic nerve"),
+            ("robotics", "Robotic process automation"),
+            ("therapeutics", "A therapeutic approach"),
+            ("molecular dynamics", "a molecular dynamic"),
+        ],
+    )
+    def test_a_word_in_ics_is_never_made_singular(self, term: str, text: str) -> None:
+        assert matched([term], text) == ()
+        assert matched([term], term.upper()) == (term,)
 
     def test_only_the_last_word_is_inflected(self) -> None:
         assert matched(["protein design"], "proteins design") == ()
@@ -407,6 +422,61 @@ class TestRuleFields:
             candidate("AI and number theory", abstract="Physics of protein cell walls.")
         )
         assert decision.fields == ["math", "ai-ml", "bio", "physics"]
+
+
+OVERLAPS = Taxonomy.model_validate(
+    {
+        "fields": {
+            "math": {"keywords": {"statistical": 0.25, "statistical learning": 0.5}},
+            "med": {
+                "keywords": {
+                    "health": 0.5,
+                    "public health": 1.0,
+                    "drug": 0.5,
+                    "drug discovery": 0.5,
+                }
+            },
+        }
+    }
+)
+
+
+class TestOverlappingKeywords:
+    """A word counts for one keyword of a field: weak terms cannot add up inside one phrase."""
+
+    @pytest.fixture
+    def tagger(self) -> RuleFieldTagger:
+        return RuleFieldTagger(OVERLAPS)
+
+    @pytest.mark.parametrize(
+        "title", ["Drug discovery", "Statistical learning", "Drug discovery in public"]
+    )
+    def test_a_phrase_and_its_own_words_count_once(
+        self, tagger: RuleFieldTagger, title: str
+    ) -> None:
+        assert tagger.tag(candidate(title)).fields == []
+
+    def test_the_heaviest_overlapping_keyword_counts(self, tagger: RuleFieldTagger) -> None:
+        decision = tagger.tag(candidate("Public health"))
+        assert decision.fields == ["med"]
+        assert decision.reasons == ['med: keywords "public health" (1)']
+
+    def test_among_equal_weights_the_longest_counts(self, tagger: RuleFieldTagger) -> None:
+        decision = tagger.tag(candidate("Drug discovery and public health"))
+        assert decision.reasons == ['med: keywords "public health", "drug discovery" (1.5)']
+
+    def test_separate_mentions_still_add_up(self, tagger: RuleFieldTagger) -> None:
+        decision = tagger.tag(candidate("Drug discovery: a new drug", default_fields=["bio"]))
+        assert decision.reasons == [
+            "source default: bio",
+            'med: keywords "drug", "drug discovery" (1)',
+        ]
+
+    def test_overlaps_are_resolved_per_text(self, tagger: RuleFieldTagger) -> None:
+        decision = tagger.tag(
+            candidate("Drug discovery", abstract="Drugs for all.", default_fields=["bio"])
+        )
+        assert "med" in decision.fields
 
 
 class TestVetoes:

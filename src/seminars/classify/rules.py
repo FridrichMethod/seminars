@@ -18,8 +18,9 @@ picks keywords and names alike):
   not end a segment: "E. coli", "C. elegans" and "J. R. Doe" stay whole.
 * The last word of a term may appear singular or plural: "enzyme" matches
   "enzymes", "galaxy" matches "galaxies", and "equations" matches
-  "equation". Names and other terms that must match exactly are compiled
-  with ``inflect=False``.
+  "equation". A word that ends in "ics" is never made singular: "genetics"
+  does not match "genetic", nor "optics" "optic". Names and other terms
+  that must match exactly are compiled with ``inflect=False``.
 * A term that ends with ``*`` matches any word that starts with its last
   word: "superconduct*" matches "superconductivity" and "superconducting".
   The prefix must have at least three letters.
@@ -35,8 +36,12 @@ The field tagger (``build_field_tagger``) decides the fields of a candidate:
 2. Rule fields, per field of ``taxonomy.fields``: a name of ``series`` that
    appears in the series or the title implies the field; otherwise the
    weights of the distinct ``keywords`` found in title, series and abstract
-   must add up to ``min_score``. A match of ``exclude_keywords`` vetoes the
-   rule evidence of that field (never a source field).
+   must add up to ``min_score``. Each keyword counts once, and a word counts
+   for one keyword only: where keywords of one field overlap in a text
+   ("drug" and "drug discovery", "health" and "public health"), the
+   heaviest counts, then the longest, then the first. A match of
+   ``exclude_keywords`` vetoes the rule evidence of that field (never a
+   source field).
 3. The fields are the union of both. The method is ``"source"`` when there
    are source fields and the rules add nothing to them, else ``"rules"``.
    ``needs_llm`` is set when there is no field at all, and when an event
@@ -108,13 +113,17 @@ class Hit:
     start: int
     stop: int
 
+    def overlaps(self, other: Hit) -> bool:
+        """True when both hits cover a common word (of the same text)."""
+        return self.segment == other.segment and self.start < other.stop and other.start < self.stop
+
 
 def _forms(word: str) -> frozenset[str]:
     """Singular and plural forms of ``word`` that a text may use."""
     forms = {word, f"{word}s", f"{word}es"}
     if word.endswith("y") and len(word) > 2:
         forms.add(f"{word[:-1]}ies")
-    if word.endswith("s") and len(word) > 3:
+    if word.endswith("s") and len(word) > 3 and not word.endswith("ics"):
         forms.add(word[:-1])
     if word.endswith("es") and len(word) > 4:
         forms.add(word[:-2])
@@ -268,9 +277,27 @@ class _FieldRule:
             min_score=rules.min_score,
         )
 
+    def _rank(self, hit: Hit) -> tuple[float, int]:
+        return (-self.weights[hit.term], hit.start - hit.stop)
+
+    def counted(self, *texts: Words) -> tuple[str, ...]:
+        """The keywords that count in ``texts``, in configuration order.
+
+        Within one text, overlapping hits count once: the heaviest keyword,
+        then the longest, then the first (hits come by position).
+        """
+        found: set[str] = set()
+        for words in texts:
+            taken: list[Hit] = []
+            for hit in sorted(self.keywords.hits(words), key=self._rank):
+                if not any(hit.overlaps(other) for other in taken):
+                    taken.append(hit)
+            found.update(hit.term for hit in taken)
+        return tuple(term for term in self.keywords.terms if term in found)
+
     def evaluate(self, texts: EventTexts) -> _Evidence:
         series = self.series.first(texts.series, texts.title)
-        keywords = self.keywords.matched(texts.title, texts.series, texts.abstract)
+        keywords = self.counted(texts.title, texts.series, texts.abstract)
         score = sum(self.weights[term] for term in keywords)
         if series is None and score < self.min_score - SCORE_TOLERANCE:
             return _Evidence(self.field)

@@ -15,7 +15,7 @@ import yaml
 
 from factories import make_candidate, make_event
 from seminars.classify.filters import build_event_filter
-from seminars.classify.rules import TermMatcher, Words, build_field_tagger
+from seminars.classify.rules import TermMatcher, Words, build_field_tagger, label_key
 from seminars.config import Settings, Taxonomy, load_settings, load_taxonomy
 from seminars.contracts import EventFilter, FieldTagger
 from seminars.models import FIELD_IDS, Candidate, RuleExclusionReason
@@ -127,11 +127,25 @@ class TestFile:
             assert unmatchable(terms) == [], place
 
     def test_departments_are_distinct_labels(self, taxonomy: Taxonomy) -> None:
-        from seminars.classify.rules import label_key
-
         keys = [label_key(label) for label in taxonomy.departments]
         assert len(set(keys)) == len(keys)
         assert all(fields for fields in taxonomy.departments.values())
+
+    def test_a_keyword_alone_counts_once_and_alone(
+        self, taxonomy: Taxonomy, tagger: FieldTagger
+    ) -> None:
+        """A text that holds one keyword counts that keyword and nothing else of its field.
+
+        So a weak keyword (below min_score) never assigns its field alone, even
+        where other keywords overlap it ("drug" in "drug discovery"), and no
+        word counts twice ("therapeutic" and "therapeutics").
+        """
+        for field, rules in taxonomy.fields.items():
+            for term, weight in rules.keywords.items():
+                decision = tagger.tag(campus(term.rstrip("*")))
+                own = [reason for reason in decision.reasons if reason.startswith(f"{field}: ")]
+                strong = weight >= rules.min_score
+                assert own == ([f'{field}: keywords "{term}" ({weight:g})'] if strong else []), term
 
     @pytest.mark.parametrize("term", ["bio", "ai-ml", "ml", "med", "chem", "math*", "bio*"])
     def test_no_trap_terms(self, taxonomy: Taxonomy, term: str) -> None:
@@ -184,6 +198,8 @@ FIELD_CASES: list[tuple[str, str, str | None]] = [
     ("bio", "Synaptic plasticity in the hippocampus", None),
     ("bio", "Aging and dietary restriction in C. elegans", None),
     ("bio", "Quorum sensing: how E. coli counts its neighbors", None),
+    ("bio", "Genetic variation in human populations", None),
+    ("bio", "Genomic medicine for rare diseases", None),
     # physics
     ("physics", "Superconductivity in twisted bilayer graphene", None),
     ("physics", "Searching for dark matter with quantum sensors", None),
@@ -192,6 +208,7 @@ FIELD_CASES: list[tuple[str, str, str | None]] = [
     ("physics", "Attosecond science at LCLS", None),
     ("physics", "Turbulence in astrophysical plasmas", None),
     ("physics", "Topological insulators and Majorana modes", None),
+    ("physics", "Photonic integrated circuits", None),
     # med
     ("med", "Immunotherapy resistance in melanoma", None),
     ("med", "Clinical trials of gene therapy for sickle cell disease", None),
@@ -222,6 +239,8 @@ NEAR_MISSES: list[tuple[str, str, str | None]] = [
     ("cs", "Networking night for alumni", None),
     ("cs", "Computer science education in K-12 schools", None),
     ("cs", "International Security Seminar: nuclear deterrence", None),
+    ("cs", "Robotic process automation for accounting", None),
+    ("cs", "Computational biology of the gut", None),
     # ai-ml
     ("ai-ml", "Taiwan and the South China Sea", None),
     ("ai-ml", "Buffer exchange", "Dissolve 5 mL of buffer and wait 10 min."),
@@ -244,11 +263,15 @@ NEAR_MISSES: list[tuple[str, str, str | None]] = [
     ("physics", "Metaphysics and modal logic", None),
     ("physics", "Blood plasma proteomics", None),
     ("physics", "Physics education research in large lectures", None),
+    ("physics", "The optic nerve in glaucoma", None),
     # med
     ("med", "Mediterranean trade networks in antiquity", None),
     ("med", "Financial health of local governments", None),
     ("med", "The history of medicine in colonial India", None),
     ("med", "Immediate and remediated texts", None),
+    ("med", "A therapeutic approach to conflict", None),
+    ("med", "Drug discovery with small molecules", None),
+    ("med", "Biomedical engineering design", None),
 ]
 
 
