@@ -225,10 +225,26 @@ only ways to send a request to a source site by hand.
   `README.md` in the same directory.
 - Recordings are verbatim page snapshots and may contain any Unicode, emoji
   and invisible characters included; the charset check does not restrict
-  `tests/fixtures/**`. Do not clean them up: they are test input and are
-  never published, and the cleaning code is tested against them. Everything
-  derived from them (`data/**`, feeds, site data, digests) must be free of
-  emoji and decorative characters, and `data/**` is checked for that.
+  `tests/fixtures/**`. Do not clean up their text: they are test input, they
+  are not part of the published feeds or site data, and the cleaning code is
+  tested against them. Everything derived from them (`data/**`, feeds, site
+  data, digests) must be free of emoji and decorative characters, and
+  `data/**` is checked for that.
+- Verbatim with one exception: credentials and personal contact data. The
+  fixtures are committed to a public repository, so before the FIRST commit
+  of a recording replace
+  - meeting credentials: `pwd=` and passcode values in meeting links,
+    passcodes written out in text, API keys, session and CSRF tokens;
+  - personal contact data: personal e-mail addresses and telephone numbers.
+
+  Use `REDACTED` (repeated if a test needs the original length) and
+  `redacted@example.edu`, keep parameter names (`?pwd=REDACTED`) so tests can
+  still see that such a link must never be published, and list every
+  replacement in the `README.md` of the fixture directory. Speaker names and
+  affiliations shown on the public page stay, and so do the shared addresses
+  of departments and centers. A value that reached a commit is in the
+  history even after a later commit replaces it: tell the maintainer, and do
+  not merge that history.
 - Never record pages that need a login, and nothing that contains personal
   data beyond what the public page shows.
 
