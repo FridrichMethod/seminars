@@ -109,7 +109,7 @@ def test_every_protocol_has_a_fake() -> None:
         for name, value in vars(contracts).items()
         if isinstance(value, type)
         and getattr(value, "_is_protocol", False)
-        and value.__module__ == contracts.__name__
+        and value.__module__.startswith(contracts.__name__)
     }
     factories_and_reserved = {name for name in protocols if name.endswith("Factory")} | {
         "LLMProber",
