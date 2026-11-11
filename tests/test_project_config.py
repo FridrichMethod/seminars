@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import importlib
 import re
 import tomllib
@@ -148,6 +149,23 @@ class TestRepositoryFiles:
             package["version"] for package in lock["package"] if package["name"] == "ruff"
         )
         assert config["repos"][0]["rev"] == f"v{locked}"
+
+    def test_optional_dependencies_are_never_imported_statically(self) -> None:
+        """See the playwright_sync_api fixture in conftest.py for the reason and the remedy."""
+        optional = {"playwright"}
+        offenders: list[str] = []
+        files = [*(REPO_ROOT / "src").rglob("*.py"), *(REPO_ROOT / "tests").glob("*.py")]
+        for path in sorted(files):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if isinstance(node, ast.Import):
+                    modules = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom):
+                    modules = [node.module or ""]
+                else:
+                    continue
+                if any(module.split(".")[0] in optional for module in modules):
+                    offenders.append(f"{path.relative_to(REPO_ROOT)}:{node.lineno}")
+        assert offenders == []
 
     @pytest.mark.parametrize("name", SUBPACKAGES)
     def test_subpackages_exist_with_a_docstring_only(self, name: str) -> None:

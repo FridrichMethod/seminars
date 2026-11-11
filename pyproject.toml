@@ -71,6 +71,10 @@ pythonVersion = "3.12"
 typeCheckingMode = "standard"
 venvPath = "."
 venv = ".venv"
+# Consequence for optional dependencies (playwright in the "browser" extra): never import
+# them statically. Without the extra the import does not resolve, and an ignore comment on it
+# is an error once the extra is installed. Tests use the playwright_sync_api fixture
+# (tests/conftest.py); package code uses importlib.import_module.
 reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.pytest.ini_options]

@@ -18,6 +18,10 @@ fake_event_filter; PicksScorer -> fake_picks_scorer; PageExtractor ->
 fake_page_extractor; IssueClient -> fake_issues; SecretScanner ->
 fake_secret_scanner; the output functions and the source probe ->
 fake_emitters; time -> fake_clock.
+
+Browser tests (``@pytest.mark.browser``) get Playwright from the
+``playwright_sync_api`` fixture and never import it themselves; the fixture
+explains why.
 """
 
 from __future__ import annotations
@@ -25,6 +29,7 @@ from __future__ import annotations
 import shutil
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 import respx
@@ -177,6 +182,33 @@ def fake_secret_scanner() -> FakeSecretScanner:
 @pytest.fixture
 def fake_emitters() -> FakeEmitters:
     return FakeEmitters()
+
+
+# --- browser tests -------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def playwright_sync_api() -> Any:
+    """The ``playwright.sync_api`` module; the test is skipped when it is not installed.
+
+    Playwright is in the optional ``browser`` extra, and the type checker has
+    to pass both with and without it. A static ``import playwright`` fails
+    without the extra (unresolved import), and an ignore comment on that
+    import fails with the extra (unnecessary ignore comment). Browser tests
+    therefore never import Playwright; they take the module from here::
+
+        @pytest.mark.browser
+        def test_home_page(playwright_sync_api):
+            with playwright_sync_api.sync_playwright() as playwright:
+                browser = playwright.chromium.launch()
+                ...
+
+    tests/test_project_config.py fails when a module imports it statically.
+    """
+    return pytest.importorskip(
+        "playwright.sync_api",
+        reason="Playwright is not installed; run: uv sync --locked --extra browser",
+    )
 
 
 # --- configuration and model factories -----------------------------------------------------

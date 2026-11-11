@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import BaseModel
@@ -444,6 +445,10 @@ class TestFixtures:
         assert app_config.settings.uid_domain == "seminars.fridrichmethod.github.io"
         assert app_config.sources == ()
         assert not app_config.paths.data_dir.exists()
+
+    @pytest.mark.browser
+    def test_playwright_fixture_provides_the_sync_api(self, playwright_sync_api: Any) -> None:
+        assert callable(playwright_sync_api.sync_playwright)
 
     def test_factory_fixtures(
         self, make_event: Callable[..., Event], make_source: Callable[..., object]
