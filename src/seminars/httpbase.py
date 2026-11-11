@@ -3,8 +3,8 @@
 Kept separate from ``seminars.http`` so that modules which only need the
 types (for example ``seminars.fixtures``) do not import the live client.
 The URL rules live in ``seminars.httpurl`` and body decoding in
-``seminars.httptext``. Everything in the three modules is re-exported by
-``seminars.http``; import it from there.
+``seminars.httptext``. What adapters and their tests need of the three
+modules is re-exported by ``seminars.http``; import it from there.
 """
 
 from __future__ import annotations
@@ -73,7 +73,13 @@ class HttpError(Exception):
 
 
 class UnsupportedSchemeError(HttpError, ValueError):
-    """The URL is not an absolute http(s) URL."""
+    """The text is not a URL this project fetches.
+
+    It is not an absolute http(s) URL, or it is one that is refused as
+    such: with a user name or password, with a port or a host that cannot
+    be, with control characters, or too long. ``seminars.httpurl.parse_url``
+    has the list.
+    """
 
 
 class ForbiddenHostError(HttpError, ValueError):

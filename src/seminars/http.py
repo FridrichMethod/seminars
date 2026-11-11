@@ -19,6 +19,13 @@ Rules of the live client:
   private address, whichever way it is written, whatever a name resolves to
   and wherever a connection really ends up (see "Public hosts only" below);
   a fixed User-Agent from the settings;
+* a URL is never sent as it was written. ``parse_url`` builds its canonical
+  form (the host in its one spelling, no default port, no fragment, no dot
+  segments in the path), and that form is what robots.txt is asked about,
+  what is counted, cached and sent. A URL with a user name or password, a
+  port outside 1 to 65535 or a host that is no host is refused
+  (``UnsupportedSchemeError``). The document a caller gets back still names
+  the URL as the caller wrote it;
 * robots.txt is fetched once per origin and honoured for ``Disallow`` and
   ``Crawl-delay``; a missing one (4xx other than 429) allows everything
   (RFC 9309). An unreachable one (network error, 5xx, 429, not a text
