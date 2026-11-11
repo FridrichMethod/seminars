@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, time, timedelta
-from typing import Any, Self
+from typing import Annotated, Any, Self
 from zoneinfo import ZoneInfo
 
-from pydantic import model_validator
+from pydantic import AfterValidator, model_validator
 
 from seminars.models.base import (
     EventStatus,
@@ -20,6 +20,10 @@ from seminars.models.base import (
     Timestamp,
     TimezoneName,
 )
+from seminars.textio import normalize_body
+
+BodyText = Annotated[str, AfterValidator(normalize_body)]
+"""Text of a response body in canonical form (see ``seminars.textio.normalize_body``)."""
 
 
 class TimeWindow(Model):
@@ -55,15 +59,19 @@ class TimeWindow(Model):
 class FetchedDocument(Model):
     """One response body as returned by ``HttpClient.get`` (live or offline).
 
-    Only what a recorded fixture can reproduce is exposed: there are no
-    response headers, so adapters behave the same online and offline.
+    Only what a recorded fixture can reproduce is exposed, so adapters behave
+    the same online and offline: there are no response headers, and ``text``
+    is always in the form a fixture file has. Whatever a client received, a
+    leading byte order mark is gone, line endings are LF and the text ends
+    with a newline (an empty body is a single newline). Parsers therefore
+    never see CRLF, not even in ICS feeds.
     """
 
     url: str  # the URL that was requested
     final_url: str  # after redirects; equals ``url`` when there was none
     status: int
     content_type: str | None = None  # media type without parameters, lower case
-    text: str  # decoded body
+    text: BodyText  # decoded body in canonical form: no BOM, LF only, final newline
     fetched_at: Timestamp
     from_cache: bool = False  # body served from the conditional-request cache (HTTP 304)
     label: str | None = None  # free for adapters, e.g. "index" or "detail"

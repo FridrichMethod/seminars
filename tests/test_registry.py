@@ -418,7 +418,7 @@ class TestFetchHelpers:
         source = make_source()
         http = FakeHttpClient({"https://example.edu/a": "a", "https://example.edu/b": "b"})
         payload = fetch_urls(http, source, window=make_window(), urls=["https://example.edu/b"])
-        assert [document.text for document in payload.documents] == ["b"]
+        assert [document.text for document in payload.documents] == ["b\n"]
         assert payload.documents[0].label is None
 
     def test_http_errors_propagate(self) -> None:

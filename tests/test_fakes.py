@@ -73,11 +73,19 @@ class TestFakeHttpClient:
         fake_http.add("https://a.example.edu/x", "hello", content_type="text/plain")
         document = fake_http.get("https://a.example.edu/x")
         assert (document.text, document.content_type, document.status) == (
-            "hello",
+            "hello\n",
             "text/plain",
             200,
         )
         assert fake_http.requests == ["https://a.example.edu/x"]
+
+    def test_text_has_the_same_form_as_live_and_recorded_documents(
+        self, fake_http: FakeHttpClient
+    ) -> None:
+        fake_http.add("https://a.example.edu/feed.ics", "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n")
+        assert fake_http.get("https://a.example.edu/feed.ics").text == (
+            "BEGIN:VCALENDAR\nEND:VCALENDAR\n"
+        )
 
     def test_unknown_url_and_error_status(self, fake_http: FakeHttpClient) -> None:
         fake_http.add("https://a.example.edu/gone", "gone", status=410)

@@ -1,8 +1,10 @@
 """HTTP access for adapters: the polite live client and the offline client.
 
 Adapters only ever see the ``HttpClient`` protocol: ``get(url)`` returns a
-``FetchedDocument`` or raises a subclass of ``HttpError``. There are two
-implementations:
+``FetchedDocument`` or raises a subclass of ``HttpError``. The text of a
+document is always in canonical form (no byte order mark, LF line endings,
+final newline), so a live response and its recorded fixture give an adapter
+exactly the same text. There are two implementations:
 
 * ``OfflineHttpClient`` (build it with ``offline_client(source_id)``) serves
   recorded fixtures by URL and raises ``FixtureNotFoundError`` for a URL that

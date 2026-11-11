@@ -68,7 +68,7 @@ class TestBasics:
         assert document.final_url == PAGE
         assert document.status == 200
         assert document.content_type == "text/html"
-        assert document.text == "<html>hi</html>"
+        assert document.text == "<html>hi</html>\n"
         assert document.fetched_at == fake_clock.now()
         assert document.from_cache is False
         assert isinstance(client, HttpClient)
@@ -161,7 +161,7 @@ class TestBasics:
         no_robots(respx_router)
         respx_router.get(PAGE).respond(404, text="gone")
         document = client.get(PAGE, allow_statuses={404})
-        assert (document.status, document.text) == (404, "gone")
+        assert (document.status, document.text) == (404, "gone\n")
 
     @pytest.mark.parametrize("content_type", ["image/png", "application/pdf", "video/mp4"])
     def test_binary_content_is_refused(
@@ -205,7 +205,7 @@ class TestRobots:
         with pytest.raises(RobotsDisallowedError, match=r"disallowed by robots\.txt"):
             client.get(f"{HOST}/private/page")
         assert private.call_count == 0
-        assert client.get(PAGE).text == "ok"
+        assert client.get(PAGE).text == "ok\n"
 
     def test_rules_for_our_agent_are_used(
         self, client: PoliteClient, respx_router: respx.MockRouter
@@ -242,7 +242,7 @@ class TestRobots:
     ) -> None:
         respx_router.get(ROBOTS).respond(403)
         respx_router.get(PAGE).respond(200, text="ok")
-        assert client.get(PAGE).text == "ok"
+        assert client.get(PAGE).text == "ok\n"
 
     @pytest.mark.parametrize("status", [500, 503, 429])
     def test_unreachable_robots_blocks_the_host(
@@ -440,8 +440,8 @@ class TestBudget:
         no_robots(respx_router, other)
         respx_router.get(PAGE).respond(200, text="a")
         respx_router.get(f"{other}/events").respond(200, text="b")
-        assert client.get(PAGE).text == "a"
-        assert client.get(f"{other}/events").text == "b"
+        assert client.get(PAGE).text == "a\n"
+        assert client.get(f"{other}/events").text == "b\n"
         with pytest.raises(HostBudgetExceededError):
             client.get(PAGE)
 
@@ -468,7 +468,7 @@ class TestRetries:
         page = respx_router.get(PAGE).mock(
             side_effect=[httpx.Response(503), httpx.Response(502), httpx.Response(200, text="ok")]
         )
-        assert client.get(PAGE).text == "ok"
+        assert client.get(PAGE).text == "ok\n"
         assert page.call_count == 3
         assert fake_clock.sleeps == [1.0, 1.0, 2.0]
 
@@ -490,7 +490,7 @@ class TestRetries:
         page = respx_router.get(PAGE).mock(
             side_effect=[httpx.ReadTimeout("slow"), httpx.Response(200, text="ok")]
         )
-        assert client.get(PAGE).text == "ok"
+        assert client.get(PAGE).text == "ok\n"
         assert page.call_count == 2
 
     def test_persistent_network_error_raises(
@@ -512,7 +512,7 @@ class TestRetries:
                 httpx.Response(200, text="ok"),
             ]
         )
-        assert client.get(PAGE).text == "ok"
+        assert client.get(PAGE).text == "ok\n"
         assert fake_clock.sleeps == [1.0, 7.0]
 
     def test_retry_after_is_capped(
@@ -526,7 +526,7 @@ class TestRetries:
                 httpx.Response(200, text="ok"),
             ]
         )
-        assert client.get(PAGE).text == "ok"
+        assert client.get(PAGE).text == "ok\n"
         assert fake_clock.sleeps == [1.0, 60.0, 2.0]
 
     def test_client_errors_are_not_retried(

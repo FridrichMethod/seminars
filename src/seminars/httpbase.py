@@ -121,7 +121,7 @@ class HttpClient(Protocol):
         headers: Mapping[str, str] | None = None,
         allow_statuses: Collection[int] = (),
     ) -> FetchedDocument:
-        """Fetch ``url`` and return its body as text.
+        """Fetch ``url`` and return its body as text in canonical form.
 
         ``headers`` adds request headers (User-Agent cannot be overridden).
         A final status outside 2xx raises ``HttpStatusError`` unless it is

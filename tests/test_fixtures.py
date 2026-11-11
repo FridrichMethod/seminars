@@ -26,7 +26,6 @@ from seminars.fixtures import (
     fixture_key,
     fixture_sources,
     main,
-    normalize_body,
     record,
     reference_time,
 )
@@ -40,6 +39,7 @@ from seminars.http import (
     UnsupportedSchemeError,
     offline_client,
 )
+from seminars.textio import normalize_body
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 API = "https://events.example.edu/api/2/events"
@@ -94,6 +94,9 @@ class TestHelpers:
         assert normalize_body("a\rb") == "a\nb\n"
         assert normalize_body("") == "\n"
         assert normalize_body("ok\n") == "ok\n"
+        odd = BOM + BOM + "a\r\r\nb"
+        assert normalize_body(odd) == "a\n\nb\n"
+        assert normalize_body(normalize_body(odd)) == normalize_body(odd)
 
     @pytest.mark.parametrize(
         ("url", "content_type", "expected_prefix", "extension"),
@@ -367,6 +370,46 @@ class TestRecorder:
         assert document.parse_json() == {"events": []}
         assert offline.get(PAGE_1.replace("page=1", "page=2")).status == 200
         assert check_tree(store.directory.parent) == []
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            (BOM + '{"events": [],\r\n "page": 1}').encode(),
+            b"BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+            b"<html>\r<body>old mac line ends</body>\r</html>",
+            b"plain\n",
+            b"",
+        ],
+        ids=["bom-json", "crlf-ics", "cr-html", "clean", "empty"],
+    )
+    def test_live_and_offline_documents_have_the_same_text(
+        self, live: PoliteClient, store: FixtureStore, respx_router: respx.MockRouter, raw: bytes
+    ) -> None:
+        respx_router.get("https://events.example.edu/robots.txt").respond(404)
+        respx_router.get(url__startswith=API).respond(
+            200, content=raw, headers={"Content-Type": "text/plain; charset=utf-8"}
+        )
+        fetched = live.get(PAGE_1)
+        store.add(fetched)
+        replayed = OfflineHttpClient([FixtureStore(store.directory)]).get(PAGE_1)
+        assert fetched.text == replayed.text
+        assert not fetched.text.startswith(BOM)
+        assert "\r" not in fetched.text
+        assert fetched.text.endswith("\n")
+        assert (store.directory / store.manifest.entries[PAGE_1].file).read_bytes() == (
+            fetched.text.encode()
+        )
+
+    def test_live_json_with_a_byte_order_mark_parses(
+        self, live: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        respx_router.get("https://events.example.edu/robots.txt").respond(404)
+        respx_router.get(url__startswith=API).respond(
+            200,
+            content=(BOM + '{"events": []}').encode(),
+            headers={"Content-Type": "application/json; charset=utf-8"},
+        )
+        assert live.get(PAGE_1).parse_json() == {"events": []}
 
     def test_disallowed_url_is_not_recorded(
         self, live: PoliteClient, store: FixtureStore, respx_router: respx.MockRouter

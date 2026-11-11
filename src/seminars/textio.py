@@ -9,6 +9,22 @@ from __future__ import annotations
 import os
 import secrets
 from pathlib import Path
+from typing import Final
+
+_BOM: Final = chr(0xFEFF)
+
+
+def normalize_body(text: str) -> str:
+    """Bring the text of a response body into its canonical form.
+
+    Leading byte order marks are removed, CRLF and CR become LF and the text
+    ends with a newline. This is the form of ``FetchedDocument.text`` and of
+    every recorded fixture file, so parsers must accept LF-only input, which
+    matters for ICS files (the standard asks for CRLF). The function is
+    idempotent.
+    """
+    cleaned = text.lstrip(_BOM).replace("\r\n", "\n").replace("\r", "\n")
+    return cleaned if cleaned.endswith("\n") else cleaned + "\n"
 
 
 def read_text(path: Path) -> str:

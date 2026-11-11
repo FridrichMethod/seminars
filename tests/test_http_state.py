@@ -60,8 +60,8 @@ class TestConditionalRequests:
         second = client.get(PAGE)
         assert "if-none-match" not in page.calls[0].request.headers
         assert page.calls[1].request.headers["if-none-match"] == '"v1"'
-        assert (first.text, first.from_cache) == ("<p>first</p>", False)
-        assert (second.text, second.from_cache) == ("<p>first</p>", True)
+        assert (first.text, first.from_cache) == ("<p>first</p>\n", False)
+        assert (second.text, second.from_cache) == ("<p>first</p>\n", True)
         assert (second.status, second.content_type) == (200, "text/html")
 
     def test_last_modified_is_revalidated_by_a_new_client(
@@ -82,7 +82,7 @@ class TestConditionalRequests:
         make_client(http_settings, fake_clock, cache_dir).get(PAGE)
         document = make_client(http_settings, fake_clock, cache_dir).get(PAGE)
         assert page.calls[1].request.headers["if-modified-since"] == stamp
-        assert (document.text, document.from_cache) == ("body", True)
+        assert (document.text, document.from_cache) == ("body\n", True)
 
     def test_changed_content_replaces_the_cache(
         self,
@@ -100,7 +100,7 @@ class TestConditionalRequests:
         )
         client = make_client(http_settings, fake_clock, cache_dir)
         client.get(PAGE)
-        assert client.get(PAGE).text == "new"
+        assert client.get(PAGE).text == "new\n"
         cached = HttpCache(cache_dir).page(PAGE)
         assert cached is not None
         assert (cached.etag, cached.text) == ('"v2"', "new")
@@ -148,7 +148,7 @@ class TestRedirects:
         respx_router.get(PAGE).respond(301, headers={"Location": target})
         respx_router.get(target).respond(200, text="moved here")
         document = make_client(http_settings, fake_clock, None).get(PAGE)
-        assert (document.url, document.final_url, document.text) == (PAGE, target, "moved here")
+        assert (document.url, document.final_url, document.text) == (PAGE, target, "moved here\n")
 
     def test_relative_redirect(
         self, http_settings: HttpSettings, fake_clock: FakeClock, respx_router: respx.MockRouter
@@ -279,7 +279,7 @@ class TestThreads:
         ):
             urls = [f"{HOST}/events?page={number}" for number in range(16)]
             documents = list(pool.map(client.get, urls))
-        assert [document.text for document in documents] == ["ok"] * 16
+        assert [document.text for document in documents] == ["ok\n"] * 16
         assert probe.max_active["dept.example.edu"] == 1
         assert client.request_counts() == {"dept.example.edu": 16}
         assert len(clock.sleeps) == 16
@@ -295,6 +295,6 @@ class TestThreads:
         ):
             urls = ["https://a.example.edu/events", "https://b.example.edu/events"]
             documents = list(pool.map(client.get, urls))
-        assert [document.text for document in documents] == ["ok", "ok"]
+        assert [document.text for document in documents] == ["ok\n", "ok\n"]
         assert probe.max_total == 2
         assert probe.max_active == {"a.example.edu": 1, "b.example.edu": 1}

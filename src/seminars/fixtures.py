@@ -50,7 +50,6 @@ MAX_FIXTURE_BYTES: Final = 500_000
 """Bodies larger than this must be trimmed by hand (and the trim noted in a README)."""
 
 _RESERVED_NAMES: Final = frozenset({MANIFEST_NAME})
-_BOM: Final = chr(0xFEFF)
 _DEFAULT_PORTS: Final = {"http": 80, "https": 443}
 _NOTE_PREFIX: Final = "README"
 _EXTENSIONS: Final[dict[str, str]] = {
@@ -124,17 +123,6 @@ def fixture_key(url: str, volatile_params: Iterable[str] = ()) -> str:
     return f"{scheme}://{host}{unquote(parts.path) or '/'}{query}"
 
 
-def normalize_body(text: str) -> str:
-    """Bring a body into the form fixtures are stored in.
-
-    A leading byte order mark is removed, CRLF and CR become LF and the text
-    ends with a newline. Parsers must therefore accept LF-only input, which
-    matters for ICS files (the standard asks for CRLF).
-    """
-    cleaned = text.removeprefix(_BOM).replace("\r\n", "\n").replace("\r", "\n")
-    return cleaned if cleaned.endswith("\n") else cleaned + "\n"
-
-
 def default_file_name(url: str, content_type: str | None) -> str:
     """Readable, collision-free file name for the body of ``url``."""
     path = unquote(urlsplit(url).path).lower()
@@ -199,7 +187,9 @@ class FixtureStore:
 
         Recording a URL again replaces its entry and body. Binary content is
         refused. Without ``name`` the previous file name of the URL is kept,
-        or a new one is derived from the URL.
+        or a new one is derived from the URL. The body is written exactly as
+        ``document.text``, which is already in canonical form (no byte order
+        mark, LF line endings, final newline; see ``FetchedDocument``).
         """
         if is_binary_media_type(document.content_type) or "\x00" in document.text:
             raise FixtureError(f"refusing to store binary content of {ascii_safe(document.url)}")
@@ -225,7 +215,7 @@ class FixtureStore:
             )
         except ValidationError as error:
             raise FixtureError(f"cannot record {ascii_safe(document.url)}: {error}") from error
-        write_text_atomic(self.directory / file_name, normalize_body(document.text))
+        write_text_atomic(self.directory / file_name, document.text)
         if previous is not None and previous.file != file_name:
             (self.directory / previous.file).unlink(missing_ok=True)
         self.manifest = self.manifest.evolve(entries={**entries, document.url: entry})

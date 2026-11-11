@@ -82,6 +82,9 @@ EXPECTED_EVENT_FIELDS = [
 ]
 
 
+BOM = chr(0xFEFF)
+
+
 class TestVocabularies:
     def test_field_ids(self) -> None:
         assert FIELD_IDS == ("math", "cs", "ai-ml", "chem", "bio", "physics", "med")
@@ -327,6 +330,16 @@ class TestTimeWindow:
 
 
 class TestPayload:
+    def test_document_text_is_always_in_canonical_form(self) -> None:
+        document = make_document(text=BOM + "BEGIN\r\nSUMMARY:x\rEND")
+        assert document.text == "BEGIN\nSUMMARY:x\nEND\n"
+        assert document.evolve(label="index").text == document.text
+        assert make_document(text="").text == "\n"
+        assert make_document(text="already fine\n").text == "already fine\n"
+
+    def test_document_with_a_byte_order_mark_parses_as_json(self) -> None:
+        assert make_document(text=BOM + '{"a": 1}').parse_json() == {"a": 1}
+
     def test_document_json_and_labels(self) -> None:
         index = make_document(text='{"a": 1}', label="index")
         detail = make_document(url="https://x.example.edu/1", text="<p>hi</p>", label="detail")

@@ -92,9 +92,11 @@ volatile, `--allow-status CODE` (repeatable) also records an error response.
 
 - Text only (HTML, JSON, XML, ICS). Images and other binary content are
   refused; never store them.
-- Bodies are normalized when stored: a byte order mark is removed, CRLF and CR
-  become LF, and the file ends with a newline. Parsers must accept LF-only
-  input; this matters for ICS, where the standard asks for CRLF.
+- Bodies are stored in canonical form: no byte order mark, LF line endings
+  (CRLF and CR are converted) and a final newline. Every HTTP client hands out
+  document text in this same form, live as well as offline, so an adapter sees
+  identical text in both modes. Parsers must accept LF-only input; this
+  matters for ICS, where the standard asks for CRLF.
 - At most 500 KB per file. Trim a larger body by hand to what the tests need,
   keep it valid (JSON must still parse) and say what was removed in a
   `README.md` in the same directory.
