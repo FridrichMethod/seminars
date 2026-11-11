@@ -162,15 +162,11 @@ could tell where a request went.
 
 from __future__ import annotations
 
-import contextlib
 import logging
-import math
-import threading
 import time
-from collections.abc import Collection, Iterator, Mapping
-from dataclasses import dataclass, field
+from collections.abc import Collection, Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from email.utils import parsedate_to_datetime
 from pathlib import Path
 from types import TracebackType
 from typing import Final, Self
@@ -205,7 +201,8 @@ from seminars.httpbase import (
     is_binary_media_type,
     media_type,
 )
-from seminars.httpcache import CachedPage, CachedRobots, HostRecord, HttpCache, header_safe
+from seminars.httpcache import CachedPage, CachedRobots, HttpCache, header_safe
+from seminars.httppace import HostState, Pacer
 from seminars.httptext import decode_body
 from seminars.httpurl import (
     canonical_host,
@@ -214,7 +211,7 @@ from seminars.httpurl import (
     parse_url,
     split_url,
 )
-from seminars.httpwire import AttemptFailed, Exchange, Wire, system_own_address, system_resolver
+from seminars.httpwire import Exchange, Wire, system_own_address, system_resolver
 from seminars.models import FetchedDocument
 from seminars.robots import ALLOW_ALL, ROBOTS_PATH, RobotsPolicy, parse_robots
 from seminars.textrules import ascii_safe
@@ -274,15 +271,8 @@ Not ``Exception``: a failed assertion or a programming error must stay
 visible.
 """
 
-_REFUSED_EARLIER: Final = (
-    "refusing a host whose answer came from a local or private network address earlier in this run"
-)
-
 _HEADERS_FOR_ANY_ORIGIN: Final = frozenset({"accept", "accept-language"})
 """Headers of the caller that also go to an origin a redirect leads to; all others stay home."""
-
-_ROBOTS_COPIES_KEPT: Final = 4
-"""How many robots.txt copies of one host are kept in the cache directory (the newest ones)."""
 
 _ROBOTS_MAX_CHARS: Final = 512_000
 """How much of a robots.txt is used; RFC 9309 asks a crawler for at least 500 kibibytes."""
@@ -309,29 +299,6 @@ class _Hop:
     text: str
     from_cache: bool = False
     location: str | None = None  # absolute redirect target
-
-
-@dataclass
-class _HostState:
-    """Mutable per-host bookkeeping of one client.
-
-    ``lock`` guards one request to the host from start to end, together with
-    the host lock of the cache directory (``PoliteClient._turn``); ``record``
-    is brought up to date from that directory whenever the lock is taken.
-    ``robots_lock`` makes sure that only one thread works out the robots
-    policy of the host at a time. It is taken before ``lock``, never while
-    holding it, and a thread never holds two ``robots_lock`` at once.
-    """
-
-    record: HostRecord
-    lock: threading.Lock = field(default_factory=threading.Lock)
-    robots_lock: threading.Lock = field(default_factory=threading.Lock)
-    policies: dict[str, RobotsPolicy] = field(default_factory=dict)  # by origin
-    robots_failures: dict[str, str] = field(default_factory=dict)  # origin -> why it is blocked
-    refused: str | None = None  # why nothing more is sent to the host in this run
-    blocked_until: float = 0.0  # end of the current retry backoff
-    requests: int = 0  # page requests issued by this client
-    robots_requests: int = 0  # robots.txt requests issued by this client, hops to this host too
 
 
 class PoliteClient:
@@ -362,11 +329,9 @@ class PoliteClient:
     ) -> None:
         self._settings = settings
         self._clock = clock
-        self._sleep = sleep
         self._cache = HttpCache(cache_dir)
         self._wire = Wire(settings, transport=transport, resolver=resolver, own_address=own_address)
-        self._hosts: dict[str, _HostState] = {}
-        self._hosts_lock = threading.Lock()
+        self._pacer = Pacer(settings, cache=self._cache, wire=self._wire, clock=clock, sleep=sleep)
 
     def __enter__(self) -> Self:
         return self
@@ -385,8 +350,7 @@ class PoliteClient:
 
     def request_counts(self) -> dict[str, int]:
         """Page requests issued so far, per host (robots.txt requests are counted apart)."""
-        with self._hosts_lock:
-            return {host: state.requests for host, state in sorted(self._hosts.items())}
+        return self._pacer.request_counts()
 
     def get(
         self,
@@ -445,35 +409,18 @@ class PoliteClient:
                 for name, value in extra_headers.items()
                 if name.lower() in _HEADERS_FOR_ANY_ORIGIN
             }
-        state = self._state(target.host)
+        state = self._pacer.state(target.host)
         policy = self._policy(state, target.host, target.origin)
         if not policy.allows(target.path):
             raise RobotsDisallowedError(url, "disallowed by robots.txt")
         interval = self._interval(url, policy)
-        with self._turn(state, target.host):
+        with self._pacer.turn(state, target.host):
             cached = self._cache.page(target.url)
             request_headers = self._request_headers(extra_headers, cached)
-            exchange = self._send(
+            exchange = self._pacer.send(
                 state, target.host, target.url, request_headers, interval=interval
             )
             return self._to_hop(target.url, exchange, cached)
-
-    @contextlib.contextmanager
-    def _turn(self, state: _HostState, host: str) -> Iterator[None]:
-        """Be the only one who talks to ``host``: among threads, clients and processes.
-
-        Requests are only sent inside this block. Nothing else is locked
-        while it is held, so it cannot be part of a deadlock.
-        """
-        with state.lock, self._cache.host_lock(host):
-            # Other clients and processes may have used the host in the meantime.
-            now = self._clock()
-            state.record = state.record.merge(self._cache.host(host)).trimmed(
-                oldest=now - self._settings.robots_cache_seconds,
-                newest=now,
-                keep=_ROBOTS_COPIES_KEPT,
-            )
-            yield
 
     @staticmethod
     def _redirect_target(url: str, exchange: Exchange) -> str | None:
@@ -530,7 +477,7 @@ class PoliteClient:
 
     # --- robots.txt ------------------------------------------------------------------------
 
-    def _policy(self, state: _HostState, host: str, origin: str) -> RobotsPolicy:
+    def _policy(self, state: HostState, host: str, origin: str) -> RobotsPolicy:
         """The robots policy of ``origin``, worked out once per client."""
         with state.robots_lock:
             policy = state.policies.get(origin)
@@ -546,7 +493,7 @@ class PoliteClient:
                 state.policies[origin] = policy
             return policy
 
-    def _robots(self, state: _HostState, host: str, origin: str) -> CachedRobots:
+    def _robots(self, state: HostState, host: str, origin: str) -> CachedRobots:
         """The robots.txt of ``origin``: a recent copy from the cache directory, or fetched now.
 
         Redirects are followed hop by hop. Each hop takes the turn of the
@@ -557,7 +504,7 @@ class PoliteClient:
         """
         url, hop_state, hop_host = origin + ROBOTS_PATH, state, host
         for hop in range(self._settings.max_redirects + 1):
-            with self._turn(hop_state, hop_host):
+            with self._pacer.turn(hop_state, hop_host):
                 known = self._recent_robots(state, origin) if hop == 0 else None
                 if known is not None:
                     return known
@@ -573,15 +520,15 @@ class PoliteClient:
                 if next_hop is None and hop_state is state:
                     return self._store_robots(state, host, origin, exchange)
             if next_hop is None:
-                with self._turn(state, host):
+                with self._pacer.turn(state, host):
                     return self._store_robots(state, host, origin, exchange)
             url, hop_host = next_hop.url, next_hop.host
-            hop_state = self._state(hop_host)
+            hop_state = self._pacer.state(hop_host)
         limit = self._settings.max_redirects
         reason = f"robots.txt redirects more than {limit} times; host skipped"
         raise self._block_origin(state, origin, reason)
 
-    def _recent_robots(self, state: _HostState, origin: str) -> CachedRobots | None:
+    def _recent_robots(self, state: HostState, origin: str) -> CachedRobots | None:
         """The stored robots.txt of ``origin`` if it is young enough to be used."""
         robots = state.record.robots.get(origin)
         if robots is None:
@@ -590,7 +537,7 @@ class PoliteClient:
         return robots if 0 <= age <= self._settings.robots_cache_seconds else None
 
     def _robots_exchange(
-        self, state: _HostState, origin: str, hop_state: _HostState, hop_host: str, url: str
+        self, state: HostState, origin: str, hop_state: HostState, hop_host: str, url: str
     ) -> Exchange:
         """One request for the robots.txt of ``origin``; a failure blocks that origin.
 
@@ -598,7 +545,7 @@ class PoliteClient:
         """
         interval = max(self._settings.min_interval_seconds, self._known_crawl_delay(hop_state))
         try:
-            return self._send(hop_state, hop_host, url, {}, interval=interval, robots=True)
+            return self._pacer.send(hop_state, hop_host, url, {}, interval=interval, robots=True)
         except ForbiddenHostError as error:
             if hop_state is state:
                 raise  # the host of the origin itself: there is nothing to fetch from it
@@ -620,7 +567,7 @@ class PoliteClient:
             reason = f"robots.txt is larger than {limit} bytes; host skipped"
             raise self._block_origin(state, origin, reason) from error
 
-    def _known_crawl_delay(self, state: _HostState) -> float:
+    def _known_crawl_delay(self, state: HostState) -> float:
         """The longest crawl delay any origin of the host is known to ask for, capped.
 
         A robots.txt request cannot follow the policy of its own origin,
@@ -638,7 +585,7 @@ class PoliteClient:
         return min(max(delays, default=0.0), self._settings.max_crawl_delay_seconds)
 
     def _store_robots(
-        self, state: _HostState, host: str, origin: str, exchange: Exchange
+        self, state: HostState, host: str, origin: str, exchange: Exchange
     ) -> CachedRobots:
         """Turn the final answer into the robots.txt copy of ``origin`` and remember it.
 
@@ -657,7 +604,7 @@ class PoliteClient:
         return robots
 
     @staticmethod
-    def _block_origin(state: _HostState, origin: str, reason: str) -> RobotsUnavailableError:
+    def _block_origin(state: HostState, origin: str, reason: str) -> RobotsUnavailableError:
         """Remember that ``origin`` is off limits for this run; return the error to raise."""
         state.robots_failures[origin] = reason
         return RobotsUnavailableError(origin + ROBOTS_PATH, reason)
@@ -670,134 +617,3 @@ class PoliteClient:
                 url, f"robots.txt asks for a crawl delay of {delay:g} s (limit {limit:g} s)"
             )
         return max(self._settings.min_interval_seconds, delay)
-
-    # --- sending with rate limit, budget and retries ---------------------------------------
-
-    def _state(self, host: str) -> _HostState:
-        with self._hosts_lock:
-            state = self._hosts.get(host)
-            if state is None:
-                state = _HostState(record=HostRecord())
-                self._hosts[host] = state
-            return state
-
-    def _send(
-        self,
-        state: _HostState,
-        host: str,
-        url: str,
-        headers: Mapping[str, str],
-        *,
-        interval: float,
-        robots: bool = False,
-    ) -> Exchange:
-        """Send one request with retries; the caller holds the turn of ``host``.
-
-        ``robots`` says which of the two budgets of the host pays for it.
-        """
-        if state.refused is not None:
-            raise ForbiddenHostError(url, state.refused)
-        attempts = self._settings.retries + 1
-        for attempt in range(1, attempts + 1):
-            self._check_budget(state, host, url, robots=robots)
-            self._wait_turn(state, interval)
-            try:
-                exchange = self._attempt(state, host, url, headers, robots=robots)
-            except AttemptFailed as error:
-                logger.debug("request failed (%s): %s", error.reason, ascii_safe(url))
-                if attempt == attempts:
-                    raise HttpRequestError(
-                        url, f"request failed after {attempts} attempt(s) ({error.reason})"
-                    ) from error
-                state.blocked_until = self._clock() + self._backoff(attempt)
-                continue
-            logger.debug("HTTP %d: %s", exchange.status, ascii_safe(url))
-            if exchange.status in RETRY_STATUSES and attempt < attempts:
-                pause = max(self._backoff(attempt), self._retry_after(exchange.headers))
-                state.blocked_until = self._clock() + pause
-                continue
-            return exchange
-        raise AssertionError("unreachable: the retry loop always returns or raises")
-
-    def _attempt(
-        self, state: _HostState, host: str, url: str, headers: Mapping[str, str], *, robots: bool
-    ) -> Exchange:
-        """Look the host up, then send the request once.
-
-        ``ForbiddenHostError`` (the name resolves to a non-public address)
-        leaves before anything is counted or sent. Everything after that is
-        an attempt that uses up budget; ``AttemptFailed`` asks for another.
-
-        When the answer itself is refused because of where it came from,
-        the request has left already. The host then gets nothing more from
-        this client: the lookup said "public" and the connection went
-        somewhere else, and whoever arranged that would arrange it again.
-        """
-        resolves = self._wire.resolves(url)
-        if robots:
-            state.robots_requests += 1
-        else:
-            state.requests += 1
-        if not resolves:
-            raise AttemptFailed("host name does not resolve")
-        try:
-            return self._wire.exchange(url, headers)
-        except ForbiddenHostError:
-            state.refused = _REFUSED_EARLIER
-            raise
-        finally:
-            self._touch(state, host)
-
-    def _check_budget(self, state: _HostState, host: str, url: str, *, robots: bool) -> None:
-        """Refuse a request that the budget of ``host`` does not cover any more.
-
-        Pages and robots.txt requests have a budget of
-        ``max_requests_per_host`` each, counted on the host a request goes
-        to. A host therefore gets at most twice that many requests from
-        this client, whatever links, ports and redirects point at it.
-        """
-        limit = self._settings.max_requests_per_host
-        used, what = (
-            (state.robots_requests, "robots.txt request")
-            if robots
-            else (
-                state.requests,
-                "request",
-            )
-        )
-        if used >= limit:
-            raise HostBudgetExceededError(
-                url, f"{what} budget for host {host} is exhausted ({limit} requests per run)"
-            )
-
-    def _wait_turn(self, state: _HostState, interval: float) -> None:
-        now = self._clock()
-        ready = state.blocked_until
-        last = state.record.last_request_at
-        if last is not None:
-            ready = max(ready, min(last, now) + interval)
-        if ready > now:
-            self._sleep(ready - now)
-
-    def _touch(self, state: _HostState, host: str) -> None:
-        state.record = state.record.evolve(last_request_at=self._clock())
-        self._cache.store_host(host, state.record)
-
-    def _backoff(self, attempt: int) -> float:
-        delay = self._settings.backoff_base_seconds * 2 ** (attempt - 1)
-        return min(delay, self._settings.backoff_max_seconds)
-
-    def _retry_after(self, headers: httpx.Headers) -> float:
-        value = headers.get("retry-after")
-        if not value:
-            return 0.0
-        try:
-            seconds = float(value)
-        except ValueError:
-            try:
-                seconds = parsedate_to_datetime(value).timestamp() - self._clock()
-            except (TypeError, ValueError, OverflowError):
-                return 0.0
-        if math.isnan(seconds):  # "nan" is a float to Python; it would switch every wait off
-            return 0.0
-        return min(max(seconds, 0.0), self._settings.backoff_max_seconds)
