@@ -133,7 +133,9 @@ An API provider takes part only when it also has a model, from its variable or f
 `config/llm.yaml`. Changing a credential or a plan needs no code change: see
 [docs/LLM_CREDENTIALS.md](docs/LLM_CREDENTIALS.md). A manual run of the update
 workflow with the mode `llm-smoke` checks every configured provider and changes
-nothing.
+nothing. When the Claude Code CLI cannot be installed during a run (for example
+because npm is down), the workflow only warns, and the other providers still take
+part.
 
 Only the step that runs the pipeline and the smoke step receive the LLM credentials. The workflows
 that see a credential never run for pull requests, so code from a fork cannot reach

@@ -51,6 +51,8 @@
 #   privileged workflow.
 # - actions/setup-node (major tag v7): Node.js for the Claude Code CLI, installed only
 #   when CLAUDE_CODE_OAUTH_TOKEN is set, at the version recorded in config/llm.yaml.
+#   The LLM is optional, so when that install fails (an unknown version, a registry
+#   outage) the step only warns and the run goes on without Claude Code.
 # - actions/upload-pages-artifact (major tag v5): packs public/ for Pages.
 # - actions/configure-pages (major tag v6): checks that Pages is set up for this
 #   repository before the deployment.
@@ -125,14 +127,21 @@ jobs:
       - name: Install Claude Code at the recorded version
         id: claude
         if: env.HAS_CLAUDE_TOKEN == 'true'
+        # The LLM is optional: whatever goes wrong here is a warning, and the provider
+        # chain goes on without Claude Code.
         run: |
-          version="$(uv run --locked python -c 'from pathlib import Path; from seminars.config import load_llm_config; print(load_llm_config(Path("config/llm.yaml")).cli_versions.get("claude-cli") or "")')"
+          if ! version="$(uv run --locked python -c 'from pathlib import Path; from seminars.config import load_llm_config; print(load_llm_config(Path("config/llm.yaml")).cli_versions.get("claude-cli") or "")')"; then
+            echo "::warning::The claude-cli version could not be read from config/llm.yaml; Claude Code is not installed and the provider chain goes on without it."
+            exit 0
+          fi
           if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::warning::config/llm.yaml records no plain X.Y.Z version of claude-cli; Claude Code is not installed and the provider chain goes on without it."
             exit 0
           fi
-          npm install --global --no-audit --no-fund "@anthropic-ai/claude-code@${version}"
-          claude --version
+          if ! npm install --global --no-audit --no-fund "@anthropic-ai/claude-code@${version}" || ! claude --version; then
+            echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
+            exit 0
+          fi
       - name: Run the pipeline
         id: run
         env:
@@ -262,14 +271,21 @@ jobs:
       - name: Install Claude Code at the recorded version
         id: claude
         if: env.HAS_CLAUDE_TOKEN == 'true'
+        # The LLM is optional: whatever goes wrong here is a warning, and the provider
+        # chain goes on without Claude Code.
         run: |
-          version="$(uv run --locked python -c 'from pathlib import Path; from seminars.config import load_llm_config; print(load_llm_config(Path("config/llm.yaml")).cli_versions.get("claude-cli") or "")')"
+          if ! version="$(uv run --locked python -c 'from pathlib import Path; from seminars.config import load_llm_config; print(load_llm_config(Path("config/llm.yaml")).cli_versions.get("claude-cli") or "")')"; then
+            echo "::warning::The claude-cli version could not be read from config/llm.yaml; Claude Code is not installed and the provider chain goes on without it."
+            exit 0
+          fi
           if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::warning::config/llm.yaml records no plain X.Y.Z version of claude-cli; Claude Code is not installed and the provider chain goes on without it."
             exit 0
           fi
-          npm install --global --no-audit --no-fund "@anthropic-ai/claude-code@${version}"
-          claude --version
+          if ! npm install --global --no-audit --no-fund "@anthropic-ai/claude-code@${version}" || ! claude --version; then
+            echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
+            exit 0
+          fi
       - name: Probe every configured provider
         id: smoke
         env:

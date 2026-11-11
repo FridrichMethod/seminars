@@ -905,6 +905,40 @@ def test_claude_code_is_skipped_without_a_plain_recorded_version(
     assert not (work / "pwned").exists()
 
 
+INSTALL_CALL: Final = "npm install --global --no-audit --no-fund @anthropic-ai/claude-code@2.1.322"
+
+
+@needs_shell
+@pytest.mark.parametrize("job_id", ["update", "llm-smoke"])
+@pytest.mark.parametrize(
+    ("broken", "calls"),
+    [("npm", [INSTALL_CALL]), ("claude", [INSTALL_CALL, "claude --version"])],
+)
+def test_a_failed_claude_code_install_only_warns(
+    sandbox: Sandbox, job_id: str, broken: str, calls: list[str]
+) -> None:
+    # A version missing on npm, or a registry outage, must not cost the day's update:
+    # the LLM is optional and the provider chain copes without the claude binary.
+    work = sandbox.root / "work"
+    claude_config(work, "2.1.322")
+    sandbox.stub(broken, STUB_LOGGER + "exit 1\n")
+    result = sandbox.run_step("update.yml", job_id, "claude", work)
+    assert result.status == 0, result.stdout
+    assert result.calls[1:] == calls
+    assert "::warning::Claude Code 2.1.322 could not be installed" in result.stdout
+
+
+@needs_shell
+@pytest.mark.parametrize("job_id", ["update", "llm-smoke"])
+def test_an_unreadable_llm_config_only_warns_at_the_install(sandbox: Sandbox, job_id: str) -> None:
+    work = sandbox.root / "work"
+    write(work / "config" / "llm.yaml", "cli_versions: [unclosed\n")
+    result = sandbox.run_step("update.yml", job_id, "claude", work)
+    assert result.status == 0, result.stdout
+    assert [call for call in result.calls if not call.startswith("uv ")] == []
+    assert "::warning::The claude-cli version could not be read" in result.stdout
+
+
 @needs_shell
 @pytest.mark.parametrize(
     ("dry_run", "command"),
