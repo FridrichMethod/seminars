@@ -78,71 +78,86 @@ Rules of the live client:
   document itself declares (XML declaration, HTML ``<meta>``); undeclared
   text is UTF-8 when it is valid UTF-8 and windows-1252 otherwise.
 
-Time, sleeping and name resolution are injected (``clock``, ``sleep`` and
-``resolver``), so tests never wait and never touch DNS.
+Time, sleeping, name resolution and the question whether an address belongs
+to this machine are injected (``clock``, ``sleep``, ``resolver`` and
+``own_address``), so tests never wait and never touch DNS or the routing
+table.
 
 Public hosts only
 -----------------
 
 URLs come from the configuration, from redirects and from scraped pages, and
-what is fetched ends up in the public data directory. An answer from this
-machine or from a private network must therefore never be read. Every
-request the client sends (a page, a robots.txt, each redirect hop of either)
-passes three checks:
+what is fetched ends up in the public data directory. No request may go to
+this machine or to a private network, and no answer from there may be read.
+Every request the client sends (a page, a robots.txt, each redirect hop of
+either) passes four checks:
 
 1. The spelling of the host (``split_url``, ``is_public_host``). Localhost,
    internal names and non-global IP addresses in any notation are refused
    before anything else happens.
-2. The name is looked up through ``resolver`` (default: the system resolver,
-   ``socket.getaddrinfo``) right before the request is sent. When ANY
-   address of the answer is not globally routable, lies in one of the
-   networks of ``http.forbidden_networks`` (``is_public_address``) or is
-   an address of this machine (``own_address``, default
-   ``system_own_address``), the request is not sent and
-   ``ForbiddenHostError`` is raised. A host written as an IP address is
-   looked up and judged the same way. A refused
-   host costs no request and no budget. (When the refused host is the
+2. The lookup. The name is looked up through ``resolver`` (default: the
+   system resolver, ``socket.getaddrinfo``) right before the request. When
+   ANY address of the answer is not globally routable, lies in one of the
+   networks of ``http.forbidden_networks`` (``is_public_address``) or is an
+   address of this machine (``own_address``, default
+   ``system_own_address``), nothing is sent and ``ForbiddenHostError`` is
+   raised. A host written as an IP address is looked up and judged the same
+   way. A refused host costs no request and no budget. (When it is the
    target of a robots.txt redirect, the origin is blocked with
    ``RobotsUnavailableError``, like for any redirect that cannot be
    followed.) A name without an address is not forbidden but unreachable:
    an ordinary failed attempt, retried with backoff and reported as
    ``HttpRequestError`` in the end.
-3. Once the connection exists and before the body is read, the address of
-   the peer the connection really goes to is checked (the ``network_stream``
-   extension of httpx). An answer from a non-global or forbidden address,
-   from an address of this machine, or over a connection whose two ends
-   have the same address raises
-   ``ForbiddenHostError``: its body is not read, nothing is cached and
-   nothing is retried. The host is then refused for the rest of the run
-   without another lookup or request, whichever URL or origin of it is
-   asked for. A transport without a network connection (the mock
-   transports of the tests) has no peer and skips this check.
+3. The connection. The client opens its connections itself
+   (``seminars.httpconnect``): to one of the addresses check 2 has just
+   cleared, by address. The name is not looked up a second time, so a DNS
+   server cannot give one answer to the check and another to the connection
+   (DNS rebinding). Before anything is sent, both ends of the new
+   connection are examined; a peer that is not public, that is an address
+   of this machine or that is the same address as the local end gets the
+   connection closed unused. TLS still verifies the certificate against
+   the name.
+4. The answer. Before the body is read, the peer of the connection the
+   answer came over is examined the same way (the ``network_stream``
+   extension of httpx). A refused answer is not read, not cached and not
+   retried.
 
-What remains. Check 2 and the connection are two separate lookups, so a
-hostile DNS server can give a public address to the first and a private one
-to the second (DNS rebinding). Check 3 notices, but only after the request
-left. In that race one blind GET per host name and run can reach a
-non-public address (the name is refused from then on). It carries
-the fixed User-Agent and, when the host is the one the caller asked for,
-the headers the caller passed; it never carries a cookie, and this project
-holds no credentials for any site. Its answer is never read and nothing
-of it is kept.
+A host that check 3 or 4 refused gets nothing more for the rest of the run:
+every later request to it, for any URL or origin, raises
+``ForbiddenHostError`` at once, without a lookup or a request.
 
-What cannot be recognised at all: an internal host with a globally
-routable address. A machine of a network that uses public addresses behind
-a firewall, or a service of a cloud platform at a public address, looks
-like any site on the internet to every check above. The address of the
-machine the client runs on is found out (checks 2 and 3); for everything
-else there is ``http.forbidden_networks`` in config/settings.yaml, which
-holds the platform address of Azure by default. List the address ranges of
-your own network there when the client runs inside it.
+Checks 1, 2 and 4 hold for every transport. Check 3 belongs to the
+client's own transport. A transport that is passed in (the mock transports
+of the tests) takes its place, and one without network connections has no
+peer, so check 4 has nothing to look at.
+
+What remains:
+
+* With the client's own transport no request leaves for an address that
+  was not cleared.
+* A transport that is passed in and resolves names by itself makes a second
+  lookup, which can differ from the checked one. Check 4 notices, but only
+  after the request left: one blind GET per host name and run can reach a
+  non-public address. It carries the fixed User-Agent and, when the host is
+  the one the caller asked for, the headers the caller passed; never a
+  cookie, and this project holds no credentials for any site. Its answer
+  is never read and nothing of it is kept.
+* An internal host with a globally routable address cannot be recognised
+  at all. A machine of a network that uses public addresses behind a
+  firewall, or a service of a cloud platform at a public address, looks
+  like any site on the internet to every check. Only the address of the
+  machine the client runs on is found out (checks 2 to 4). For everything
+  else there is ``http.forbidden_networks`` in config/settings.yaml, which
+  holds the platform address of Azure by default; list the address ranges
+  of your own network there when the client runs inside it.
 
 Proxies are not supported. The client ignores the proxy variables of the
 environment (``HTTP_PROXY``, ``HTTPS_PROXY``, ``ALL_PROXY``, ``NO_PROXY``)
 together with the other settings httpx would take from there
 (``SSL_CERT_FILE``, ``SSL_CERT_DIR``, ``.netrc``); it is built with
-``trust_env=False``. Through a proxy the peer of every connection is the
-proxy, and check 3 could not tell where a request went.
+``trust_env=False``, and its own transport has no proxy support at all.
+Through a proxy the peer of every connection is the proxy, and no check
+could tell where a request went.
 """
 
 from __future__ import annotations

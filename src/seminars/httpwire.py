@@ -2,15 +2,15 @@
 
 ``PoliteClient`` (``seminars.http``) decides when a request may be sent:
 robots.txt, the pause between requests, budgets, retries and redirects.
-``Wire`` sends it and reads the answer, and it is where the two checks of
+``Wire`` sends it and reads the answer, and it is where the checks of
 "Public hosts only" that need the network happen: the lookup before a
-request and the address of the peer before a body is read. The module
-docstring of ``seminars.http`` describes them.
+request, the connection to an address that lookup cleared
+(``seminars.httpconnect``) and the address of the peer before a body is
+read. The module docstring of ``seminars.http`` describes them.
 """
 
 from __future__ import annotations
 
-import ipaddress
 import socket
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -29,8 +29,9 @@ from seminars.httpbase import (
     is_binary_media_type,
     media_type,
 )
+from seminars.httpconnect import Guard, PinnedTransport, Refused, ip_of
 from seminars.httptext import decode_body
-from seminars.httpurl import is_public_address, parse_networks
+from seminars.httpurl import parse_networks
 
 
 def system_resolver(host: str) -> list[str]:
@@ -44,16 +45,6 @@ def system_resolver(host: str) -> list[str]:
     return list(dict.fromkeys(str(answer[4][0]) for answer in answers))
 
 
-def _ip(address: object) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
-    """``address`` as an IP address without its zone id; ``None`` when it is not one."""
-    if not isinstance(address, str):
-        return None
-    try:
-        return ipaddress.ip_address(address.partition("%")[0])
-    except ValueError:
-        return None
-
-
 def system_own_address(address: str) -> bool:
     """True when ``address`` is an address of this machine; nothing is sent to find out.
 
@@ -64,7 +55,7 @@ def system_own_address(address: str) -> bool:
     address of a host is globally routable like any other, so this is the
     only way to tell it from a site on the internet.
     """
-    target = _ip(address)
+    target = ip_of(address)
     if target is None:
         return False
     family = socket.AF_INET6 if target.version == 6 else socket.AF_INET
@@ -74,12 +65,7 @@ def system_own_address(address: str) -> bool:
             source = probe.getsockname()[0]
     except OSError:  # no route, or no such address family here: not reachable at all
         return False
-    return _ip(source) == target
-
-
-def _end(address: object) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
-    """The IP address of one end of a connection, as ``getpeername`` and ``getsockname`` give it."""
-    return _ip(address[0]) if isinstance(address, tuple) and address else None
+    return ip_of(source) == target
 
 
 class AttemptFailed(Exception):
@@ -103,7 +89,10 @@ class Wire:
     """Looks hosts up, sends single requests and reads their answers.
 
     It knows nothing about politeness: every call is one lookup or one
-    request. Proxy settings of the environment are ignored; see "Public
+    request. Without a ``transport`` the requests go through
+    ``PinnedTransport``, which connects to the addresses the lookup cleared
+    and to nothing else; a transport that is passed in (tests) is used as
+    it is. Proxy settings of the environment are ignored; see "Public
     hosts only" in ``seminars.http``. No cookie is ever stored or sent
     back: the jar of the client accepts none, so no answer leaves a trace
     that changes a later request.
@@ -118,15 +107,17 @@ class Wire:
         own_address: OwnAddressCheck | None = None,
     ) -> None:
         self._settings = settings
-        self._resolver = system_resolver if resolver is None else resolver
-        self._own_address = system_own_address if own_address is None else own_address
-        self._forbidden = parse_networks(settings.forbidden_networks)
+        self._guard = Guard(
+            resolver=system_resolver if resolver is None else resolver,
+            own_address=system_own_address if own_address is None else own_address,
+            forbidden=parse_networks(settings.forbidden_networks),
+        )
         self._client = httpx.Client(
             headers={"User-Agent": settings.user_agent},
             timeout=settings.timeout_seconds,
             follow_redirects=False,
-            transport=transport,
-            trust_env=False,  # no proxies: the peer check needs the real peer
+            transport=PinnedTransport(self._guard) if transport is None else transport,
+            trust_env=False,  # no proxies: the peer of a connection has to be the site
             cookies=CookieJar(DefaultCookiePolicy(allowed_domains=[])),  # accepts nothing
         )
 
@@ -144,25 +135,19 @@ class Wire:
         (IDNA-encoded, IPv6 without brackets); a URL that httpx cannot parse
         is rejected here. An IP address in place of a name goes the same
         way: the resolver hands it back and it is judged like any answer.
+
+        The addresses are kept for ``exchange``: when that has to open a
+        connection, it is made to one of them and the name is not looked
+        up a second time.
         """
         try:
             name = httpx.URL(url).raw_host.decode("ascii")
         except httpx.InvalidURL as error:
             raise UnsupportedSchemeError(url, "invalid URL") from error
         try:
-            addresses = list(self._resolver(name))
-        except (OSError, UnicodeError):  # no such name, or not a name the resolver accepts
-            return False
-        for address in addresses:
-            if not is_public_address(address, self._forbidden):
-                raise ForbiddenHostError(
-                    url, "refusing a host name that resolves to a local or private network address"
-                )
-            if self._own_address(address):
-                raise ForbiddenHostError(
-                    url, "refusing a host name that resolves to an address of this machine"
-                )
-        return bool(addresses)
+            return bool(self._guard.lookup(name))
+        except Refused as error:
+            raise ForbiddenHostError(url, error.reason) from error
 
     def exchange(self, url: str, headers: Mapping[str, str]) -> Exchange:
         """One request and its answer; ``resolves`` has made sure that httpx accepts ``url``.
@@ -182,6 +167,10 @@ class Wire:
                 return Exchange(response.status_code, response.headers, text)
         except httpx.RequestError as error:
             raise AttemptFailed(type(error).__name__) from error
+        except Refused as error:  # the connection was turned down before anything was sent
+            raise ForbiddenHostError(url, error.reason) from error
+        finally:
+            self._guard.forget()
 
     def _check_peer(self, url: str, response: httpx.Response) -> None:
         """Refuse an answer that did not come from a public address; the body is still unread.
@@ -193,21 +182,19 @@ class Wire:
         address is. Without a network connection (mock transports) there
         is nothing to check; with one whose peer cannot be told, the answer
         is refused.
+
+        For the client's own transport this is the second look at a
+        connection that ``PinnedBackend`` examined when it opened it.
         """
         stream = response.extensions.get("network_stream")
         if stream is None:
             return
         try:
-            peer = _end(stream.get_extra_info("server_addr"))
-            local = _end(stream.get_extra_info("client_addr"))
+            place = self._guard.connection_place(stream)
         except OSError as error:  # the connection is gone already
             raise AttemptFailed("connection lost") from error
-        if peer is None or not is_public_address(str(peer), self._forbidden):
-            raise ForbiddenHostError(
-                url, "refusing an answer from a local or private network address"
-            )
-        if peer == local or self._own_address(str(peer)):
-            raise ForbiddenHostError(url, "refusing an answer from this machine")
+        if place is not None:
+            raise ForbiddenHostError(url, f"refusing an answer from {place}")
 
     def _read_body(self, url: str, response: httpx.Response) -> bytes:
         """Read the body in pieces and stop as soon as it is larger than ``max_body_bytes``."""

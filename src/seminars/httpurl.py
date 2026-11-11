@@ -235,10 +235,10 @@ def is_public_host(host: str) -> bool:
     looks every host up). It says nothing about where a name leads,
     because this function looks nothing up and does no I/O. A public name
     can resolve to 127.0.0.1 or to 169.254.169.254. Closing that is the job
-    of the live client, which resolves every name before each request and
-    checks the address of the peer before it reads an answer; see "Public
-    hosts only" in ``seminars.http`` for those checks and for the risk that
-    remains.
+    of the live client, which resolves every name before each request,
+    connects to the addresses it has checked and examines the peer of every
+    connection; see "Public hosts only" in ``seminars.http`` for those
+    checks and for the risk that remains.
     """
     try:
         return _is_public(canonical_host(host))
@@ -293,7 +293,8 @@ def parse_url(url: str) -> UrlParts:
     Like that function it judges the spelling of the host only and does no
     lookup: passing this check is necessary, not sufficient. The offline
     client needs no more, since it never opens a connection; the live
-    client adds the lookup and the peer check described in ``seminars.http``.
+    client adds the lookup and the checks of the connection described in
+    ``seminars.http``.
 
     The canonical URL has a lower-case scheme, the host in canonical form,
     the port only when it is not the default of the scheme, and no fragment.

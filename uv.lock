@@ -1113,6 +1113,7 @@ source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "feedparser" },
+    { name = "httpcore" },
     { name = "httpx" },
     { name = "icalendar" },
     { name = "openai" },
@@ -1145,6 +1146,7 @@ dev = [
 requires-dist = [
     { name = "anthropic", specifier = ">=2.8" },
     { name = "feedparser", specifier = ">=6.0" },
+    { name = "httpcore", specifier = ">=1.0" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "icalendar", specifier = ">=7.3" },
     { name = "openai", specifier = ">=3.49" },
