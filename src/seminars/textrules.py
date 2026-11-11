@@ -12,10 +12,18 @@ its own copy of the two tables. tests/test_textrules.py fails when the copies
 differ; change both together.
 
 "Decorative" means code points that carry no content of their own: ligatures,
-no-break and other special spaces, soft hyphens, zero width characters and
-direction marks. Accented letters, CJK text, Greek and mathematical symbols
-(including arrows, superscripts and double-struck letters) are ordinary text
-and are neither emoji nor decorative.
+no-break and other typographic spaces, soft hyphens, zero width characters,
+variation selectors, line separators and direction marks. Accented letters,
+CJK text, Greek and mathematical symbols (including arrows, superscripts and
+double-struck letters) are ordinary text and are neither emoji nor decorative.
+
+"Emoji" covers the pictograph blocks and the whole Miscellaneous Symbols and
+Dingbats blocks (U+2600-27BF: stars, check marks, hearts, warning signs,
+ornamental arrows), which pages use as decoration. A few characters of those
+blocks are notation in the sciences and count as ordinary text: the sun
+U+2609 (solar mass and radius), the planet signs U+263F-2647 (planetary
+masses; female U+2640 and male U+2642 in biology) and the musical flat,
+natural and sharp U+266D-266F (the musical isomorphisms of geometry).
 """
 
 from __future__ import annotations
@@ -27,7 +35,13 @@ CodePointRange = tuple[int, int]
 
 EMOJI_RANGES: Final[tuple[CodePointRange, ...]] = (
     (0x1F000, 0x1FAFF),  # Mahjong tiles .. Symbols and Pictographs Extended-A
-    (0x2600, 0x27BF),  # Miscellaneous Symbols and Dingbats
+    # Miscellaneous Symbols and Dingbats (U+2600-27BF) without the characters that are
+    # notation in the sciences: U+2609 sun, U+263F-2647 planets (with female and male),
+    # U+266D-266F musical flat, natural and sharp.
+    (0x2600, 0x2608),
+    (0x260A, 0x263E),
+    (0x2648, 0x266C),
+    (0x2670, 0x27BF),
     (0x231A, 0x231B),
     (0x2328, 0x2328),
     (0x23CF, 0x23CF),
@@ -55,12 +69,14 @@ EMOJI_RANGES: Final[tuple[CodePointRange, ...]] = (
 DECORATIVE_RANGES: Final[tuple[CodePointRange, ...]] = (
     (0x00A0, 0x00A0),  # no-break space
     (0x00AD, 0x00AD),  # soft hyphen
-    (0x2007, 0x2007),  # figure space
-    (0x200B, 0x200F),  # zero width characters and direction marks
-    (0x202A, 0x202F),  # bidi embedding controls, narrow no-break space
-    (0x2060, 0x2064),  # word joiner and invisible operators
+    (0x061C, 0x061C),  # Arabic letter mark
+    (0x180E, 0x180E),  # Mongolian vowel separator
+    (0x2000, 0x200F),  # typographic spaces, zero width characters and direction marks
+    (0x2028, 0x202F),  # line and paragraph separator, bidi controls, narrow no-break space
+    (0x205F, 0x2064),  # medium mathematical space, word joiner and invisible operators
     (0x2066, 0x2069),  # bidi isolates
     (0xFB00, 0xFB06),  # Latin ligatures
+    (0xFE0E, 0xFE0E),  # text variation selector
     (0xFEFF, 0xFEFF),  # zero width no-break space
 )
 """Code points that are not emoji but are still decorative or invisible."""

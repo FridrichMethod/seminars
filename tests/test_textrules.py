@@ -29,6 +29,17 @@ E_ACUTE = "\u00e9"
 DOUBLE_STRUCK_R = "\u211d"
 RIGHT_ARROW = "\u2192"
 CHINESE = "\u4e2d"
+SUN = "\u2609"
+FEMALE, MALE = "\u2640", "\u2642"
+JUPITER = "\u2643"
+FLAT, NATURAL, SHARP = "\u266d", "\u266e", "\u266f"
+SCIENCE_SIGNS = [SUN, "\u263f", FEMALE, "\u2641", MALE, JUPITER, "\u2647", FLAT, NATURAL, SHARP]
+"""Characters of the symbol blocks that are notation, not decoration."""
+_STILL_EMOJI = (0x2600, 0x2605, 0x2608, 0x260E, 0x263A, 0x2648, 0x2665, 0x266C, 0x2670)
+SYMBOL_BLOCK_EMOJI = [chr(code) for code in (*_STILL_EMOJI, 0x26A0, 0x2705, 0x2713, 0x2764, 0x27BF)]
+"""Stars, faces, zodiac, hearts, notes, warning signs, check marks: decoration."""
+TYPOGRAPHIC_SPACES = ["\u2000", "\u2002", "\u2003", "\u2009", "\u200a", "\u205f"]
+INVISIBLE = ["\u061c", "\u180e", "\u2028", "\u2029", "\u2060", "\ufe0e"]
 
 
 def _load_gate() -> ModuleType:
@@ -66,7 +77,7 @@ class TestTablesMatchTheGate:
             line = '{"title": "x' + char + '"}\n'
             assert gate.check_bytes("data/events.json", line.encode("utf-8")) != []
             assert decorative_characters(line) == [char]
-        for char in (E_ACUTE, DOUBLE_STRUCK_R, RIGHT_ARROW, CHINESE):
+        for char in (E_ACUTE, DOUBLE_STRUCK_R, RIGHT_ARROW, CHINESE, *SCIENCE_SIGNS):
             line = '{"title": "x' + char + '"}\n'
             assert gate.check_bytes("data/events.json", line.encode("utf-8")) == []
             assert decorative_characters(line) == []
@@ -88,6 +99,29 @@ class TestPredicates:
     )
     def test_ordinary_text_is_neither(self, char: str) -> None:
         assert not is_emoji(char)
+        assert not is_decorative(char)
+
+    @pytest.mark.parametrize("char", SCIENCE_SIGNS)
+    def test_scientific_signs_in_the_symbol_blocks_are_ordinary_text(self, char: str) -> None:
+        """Solar and planetary masses, female and male, flat and sharp must survive cleaning."""
+        assert not is_emoji(char)
+        assert not is_decorative(char)
+
+    @pytest.mark.parametrize("char", SYMBOL_BLOCK_EMOJI)
+    def test_the_rest_of_the_symbol_blocks_is_still_emoji(self, char: str) -> None:
+        assert is_emoji(char)
+
+    def test_exactly_the_scientific_signs_are_exempt_in_the_symbol_blocks(self) -> None:
+        exempt = [chr(code) for code in range(0x2600, 0x27C0) if not is_emoji(chr(code))]
+        assert exempt == [SUN, *map(chr, range(0x263F, 0x2648)), FLAT, NATURAL, SHARP]
+
+    @pytest.mark.parametrize("char", [*TYPOGRAPHIC_SPACES, *INVISIBLE])
+    def test_invisible_characters_and_typographic_spaces_are_decorative(self, char: str) -> None:
+        assert is_decorative(char)
+        assert not is_emoji(char)
+
+    @pytest.mark.parametrize("char", ["\u1fff", "\u2010", "\u2027", "\u2030", "\u205e", "\u3000"])
+    def test_neighbours_of_the_decorative_ranges_are_ordinary_text(self, char: str) -> None:
         assert not is_decorative(char)
 
     def test_tables_do_not_overlap(self) -> None:

@@ -96,6 +96,8 @@ class TestStrictFiles:
 
 
 CLEAN_PATHS = ["README.zh-CN.md", "locales/zh-CN.json", "data/events.json"]
+INVISIBLE = ["\u202f", "\u2009", "\u2028", "\u205f", "\u061c", "\u180e", "\ufe0e"]
+"""Narrow no-break, thin and mathematical space, line separator, marks and selectors."""
 
 
 class TestCleanFiles:
@@ -118,8 +120,13 @@ class TestCleanFiles:
         assert len(messages) == 1
         assert messages[0].startswith(f"{path}:1:3 U+{ord(char):04X}")
 
+    def test_scientific_signs_pass_in_data(self) -> None:
+        """Sun, planet, female, male, flat and sharp signs sit in the emoji blocks."""
+        line = '{"title": "A 10 M\u2609 star, 2 M\u2643, \u2640 and \u2642 mice, the \u266d map"}\n'
+        assert check("data/events.json", line) == []
+
     @pytest.mark.parametrize("path", CLEAN_PATHS)
-    @pytest.mark.parametrize("char", [NBSP, LIGATURE_FI, ZERO_WIDTH_SPACE, "\t", "\u202f"])
+    @pytest.mark.parametrize("char", [NBSP, LIGATURE_FI, ZERO_WIDTH_SPACE, "\t", *INVISIBLE])
     def test_decorative_and_invisible_characters_are_rejected(self, path: str, char: str) -> None:
         messages = check(path, '{"a": "' + char + '"}\n')
         assert len(messages) == 1
