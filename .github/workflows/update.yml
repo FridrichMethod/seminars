@@ -34,7 +34,9 @@
 # OPENAI_API_KEY and LLM_API_KEY reach only the step that runs the pipeline and the
 # smoke step, through env (empty when a secret is not set). The repository variables
 # LLM_PROVIDERS, LLM_MODEL_<PROVIDER> and LLM_BASE_URL go the same way. The workflow
-# token reaches only the pipeline step (for issues) and the push of the data commit.
+# token reaches only the pipeline step (for issues) and the commit step, which hands
+# it to git for the push. No checkout keeps it in .git/config, so the steps that
+# install packages (uv, npm) do not get it.
 # Nothing is ever interpolated into a script: scripts read values from env.
 #
 # Exit status of seminars run: 0 ok or skipped, 1 failed, 3 an output check failed
@@ -43,8 +45,8 @@
 # deployed.
 #
 # Actions, and why each one is used:
-# - actions/checkout (major tag v7): fetches the tip of main; the update job keeps the
-#   token in the checkout so that it can push the data commit, the other jobs do not.
+# - actions/checkout (major tag v7): fetches the tip of main and keeps no credential
+#   in the checkout (persist-credentials: false).
 # - astral-sh/setup-uv (third-party, without a floating major tag, so it is pinned to
 #   a full commit SHA with the release in a comment): installs uv, which installs the
 #   locked dependencies. Its cache is off here, so no cache entry can feed this
@@ -114,7 +116,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: main
-          persist-credentials: true
+          persist-credentials: false
       - name: Install uv
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
@@ -190,7 +192,15 @@ jobs:
           GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GITHUB_TOKEN: ${{ github.token }}
+        # The token reaches git only here, as the HTTP header of the push and the pull,
+        # set through git's environment (GIT_CONFIG_*): never on a command line and
+        # never written to .git/config.
         run: |
+          if [ -z "${GITHUB_TOKEN:-}" ]; then
+            echo "::error::The workflow token is missing: the data commit cannot be pushed."
+            exit 1
+          fi
           git add --all -- data
           if git diff --cached --quiet; then
             echo "data/ is unchanged: nothing to commit."
@@ -198,6 +208,10 @@ jobs:
           fi
           day="$(TZ=America/Los_Angeles date +%F)"
           git commit --quiet --message "chore(data): daily update ${day}"
+          basic="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 --wrap=0)"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL:-https://github.com}/.extraheader"
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${basic}"
           attempt=1
           until git push --quiet origin HEAD:main; do
             if [ "${attempt}" -ge 3 ]; then

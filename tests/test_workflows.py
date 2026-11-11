@@ -19,6 +19,7 @@ last part of this file keeps the two versions in step.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -79,8 +80,11 @@ EXPECTED_JOB_PERMISSIONS: Final[dict[tuple[str, str], dict[str, str] | None]] = 
 """Every job of every workflow and the token permissions it raises (None: inherits read)."""
 
 LLM_SECRET_STEPS: Final = {("update.yml", "update", "run"), ("update.yml", "llm-smoke", "smoke")}
-TOKEN_STEPS: Final = {("update.yml", "update", "run"), ("digest.yml", "digest", "digest")}
-PUSHING_CHECKOUTS: Final = {("update.yml", "update")}
+TOKEN_STEPS: Final = {
+    ("update.yml", "update", "run"),
+    ("update.yml", "update", "commit"),
+    ("digest.yml", "digest", "digest"),
+}
 
 EXPRESSION: Final = re.compile(r"\$\{\{(.*?)\}\}", re.DOTALL)
 CONTEXT_REFERENCE: Final = re.compile(
@@ -307,10 +311,11 @@ def test_every_job_that_checks_out_does_it_once() -> None:
     assert set(found.values()) == {1}
 
 
-def test_only_the_pushing_job_keeps_the_token_in_its_checkout() -> None:
+def test_no_checkout_keeps_the_token() -> None:
+    # Otherwise every later step, the package installs included, could read it from
+    # .git/config. The commit step hands the token to git itself.
     for name, job_id, entry in checkouts():
-        keep = entry.get("with", {}).get("persist-credentials")
-        assert keep is ((name, job_id) in PUSHING_CHECKOUTS), (name, job_id)
+        assert entry["with"]["persist-credentials"] is False, (name, job_id)
 
 
 def test_scheduled_workflows_check_out_the_tip_of_main() -> None:
@@ -742,6 +747,8 @@ def sandbox(tmp_path: Path) -> Sandbox:
 
 
 BASE_FILES: Final = {"data/last_run.json": "{}\n", "data/events.json": "[]\n", "README.md": "x\n"}
+STUB_TOKEN: Final = "stub-workflow-token"
+PUSH_ENV: Final = {"GITHUB_TOKEN": STUB_TOKEN, "GITHUB_SERVER_URL": "https://github.com"}
 
 
 @needs_shell
@@ -812,7 +819,7 @@ def test_the_commit_holds_only_data_and_is_pushed_by_the_bot(sandbox: Sandbox) -
     (work / "data" / "last_run.json").unlink()
     write(work / "README.md", "changed by a bug\n")
     write(work / "stray.txt", "not data\n")
-    result = sandbox.run_step("update.yml", "update", "commit", work)
+    result = sandbox.run_step("update.yml", "update", "commit", work, PUSH_ENV)
     assert result.status == 0, result.stdout
     head = sandbox.git(remote, "log", "-1", "--format=%an <%ae>|%cn|%s", "main")
     author, committer, subject = head.split("|")
@@ -834,7 +841,7 @@ def test_nothing_is_committed_when_data_is_unchanged(sandbox: Sandbox) -> None:
     remote, work = sandbox.repo(BASE_FILES)
     before = sandbox.git(remote, "rev-parse", "main")
     write(work / "README.md", "changed outside data\n")
-    result = sandbox.run_step("update.yml", "update", "commit", work)
+    result = sandbox.run_step("update.yml", "update", "commit", work, PUSH_ENV)
     assert result.status == 0
     assert sandbox.git(remote, "rev-parse", "main") == before
     assert "nothing to commit" in result.stdout
@@ -848,7 +855,7 @@ def test_the_data_commit_is_rebased_when_main_moved_during_the_run(sandbox: Sand
     sandbox.git(other, "commit", "--quiet", "--all", "--message", "docs: meanwhile")
     sandbox.git(other, "push", "--quiet", "origin", "main")
     write(work / "data" / "events.json", "[1]\n")
-    result = sandbox.run_step("update.yml", "update", "commit", work)
+    result = sandbox.run_step("update.yml", "update", "commit", work, PUSH_ENV)
     assert result.status == 0, result.stdout
     subjects = sandbox.git(remote, "log", "--format=%s", "main").splitlines()
     assert subjects == [f"chore(data): daily update {STUB_DAY}", "docs: meanwhile", "seed"]
@@ -864,7 +871,7 @@ def test_a_data_commit_that_conflicts_with_main_fails_cleanly(sandbox: Sandbox) 
     sandbox.git(other, "push", "--quiet", "origin", "main")
     pushed = sandbox.git(remote, "rev-parse", "main")
     write(work / "data" / "last_run.json", '{"by": "work"}\n')
-    result = sandbox.run_step("update.yml", "update", "commit", work)
+    result = sandbox.run_step("update.yml", "update", "commit", work, PUSH_ENV)
     assert result.status == 1, result.stdout
     assert "::error::The data commit could not be rebased onto main" in result.stdout
     assert sandbox.git(remote, "rev-parse", "main") == pushed
@@ -872,6 +879,50 @@ def test_a_data_commit_that_conflicts_with_main_fails_cleanly(sandbox: Sandbox) 
     assert "rebase" not in sandbox.git(work, "status")
     assert sandbox.git(work, "log", "-1", "--format=%s") == f"chore(data): daily update {STUB_DAY}"
     assert sandbox.git(work, "status", "--porcelain") == ""
+
+
+@needs_shell
+def test_the_push_gets_the_token_only_through_the_environment(sandbox: Sandbox) -> None:
+    real_git = shutil.which("git")
+    assert real_git
+    remote, work = sandbox.repo(BASE_FILES)
+    headers = sandbox.root / "headers.log"
+    # A git in front of the real one: logs every command line and, at the push, the
+    # header that git itself sees.
+    sandbox.stub(
+        "git",
+        "#!/bin/sh\n"
+        'printf \'git %s\\n\' "$*" >> "$STUB_LOG"\n'
+        'if [ "$1" = push ]; then\n'
+        '  "$REAL_GIT" config --get "http.https://github.com/.extraheader" >> "$STUB_HEADERS"\n'
+        "fi\n"
+        'exec "$REAL_GIT" "$@"\n',
+    )
+    write(work / "data" / "events.json", "[1]\n")
+    extra = {**PUSH_ENV, "REAL_GIT": real_git, "STUB_HEADERS": str(headers)}
+    result = sandbox.run_step("update.yml", "update", "commit", work, extra)
+    assert result.status == 0, result.stdout
+    basic = base64.b64encode(f"x-access-token:{STUB_TOKEN}".encode()).decode()
+    assert headers.read_text(encoding="utf-8") == f"AUTHORIZATION: basic {basic}\n"
+    assert "git push --quiet origin HEAD:main" in result.calls
+    for secret in (STUB_TOKEN, basic):
+        assert not [call for call in result.calls if secret in call]
+        assert secret not in result.stdout
+        assert secret not in (work / ".git" / "config").read_text(encoding="utf-8")
+    (sandbox.bin / "git").unlink()
+    assert sandbox.git(remote, "log", "-1", "--format=%s", "main").startswith("chore(data)")
+
+
+@needs_shell
+def test_the_commit_step_stops_without_the_token(sandbox: Sandbox) -> None:
+    remote, work = sandbox.repo(BASE_FILES)
+    before = sandbox.git(remote, "rev-parse", "main")
+    write(work / "data" / "events.json", "[1]\n")
+    result = sandbox.run_step("update.yml", "update", "commit", work, {"GITHUB_TOKEN": ""})
+    assert result.status == 1
+    assert "::error::The workflow token is missing" in result.stdout
+    assert sandbox.git(remote, "rev-parse", "main") == before
+    assert sandbox.git(work, "rev-parse", "HEAD") == before
 
 
 def claude_config(work: Path, version: str | None) -> None:
