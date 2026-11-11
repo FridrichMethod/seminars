@@ -1,0 +1,209 @@
+"""Rule-based event filter: what is not an academic talk, and what is out of scope.
+
+``EventFilter.filter`` runs before de-duplication and decides, per candidate:
+
+1. The PhD defense switch. When ``settings.events.include_defenses`` is
+   false, a candidate is excluded with reason ``defense`` when its event
+   type is ``defense``, and also when its title or series names one
+   (DEFENSE_PHRASES, for sources that do not set the type). When the
+   switch is on, defenses are ordinary talks.
+2. The exclusion phrases of ``taxonomy.exclusions``, one list per reason,
+   matched like every term of this package (whole words, see
+   ``seminars.classify.rules``). The reasons are tried in the order of
+   ``RuleExclusionReason`` and the phrases in the order of the file; the
+   first match decides. A phrase in the title or the series excludes the
+   candidate, unless that text also names a talk (TALK_MARKERS, outside the
+   matched phrase): "Career Development Seminar" or "Colloquium and
+   Reception" are kept and marked uncertain. A phrase that only matches one
+   of the source's category labels (``hints.categories``) marks the
+   candidate uncertain as well. Uncertain candidates stay in unless the LLM
+   tagger answers that they are not talks.
+3. Everything else is kept. The abstract is never read: announcements of
+   real talks routinely mention office hours or a reception afterwards.
+
+``EventFilter.drop_out_of_scope`` runs after classification and excludes
+every event that still has no field, with reason ``out_of_scope``.
+
+Both keep the order of their input, so the result is the same however
+often it is computed, and the decision about one event never depends on
+the others.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Final, get_args
+
+from seminars.classify.rules import Hit, TermMatcher, Words
+from seminars.config import Settings, Taxonomy
+from seminars.contracts import EventFilter
+from seminars.models import (
+    Candidate,
+    Event,
+    ExcludedEvent,
+    ExclusionReason,
+    FilterResult,
+    RuleExclusionReason,
+    ScopeResult,
+)
+
+RULE_REASONS: Final[tuple[RuleExclusionReason, ...]] = get_args(RuleExclusionReason)
+"""The rule reasons in the order they are tried."""
+
+TALK_MARKERS: Final[tuple[str, ...]] = (
+    "seminar",
+    "colloquium",
+    "colloquia",
+    "lecture",
+    "talk",
+    "symposium",
+    "keynote",
+    "grand rounds",
+)
+"""Words that name an academic talk; a title with one of them is never excluded by a phrase.
+
+"workshop", "webinar" and "panel" are not among them: career workshops and
+admission webinars are what the phrases are for.
+"""
+
+DEFENSE_PHRASES: Final[tuple[str, ...]] = (
+    "thesis defense",
+    "thesis defence",
+    "dissertation defense",
+    "dissertation defence",
+    "PhD defense",
+    "PhD defence",
+    "doctoral defense",
+    "doctoral defence",
+    "oral defense",
+    "oral defence",
+    "university oral examination",
+    "university oral exam",
+    "PhD oral examination",
+    "PhD oral exam",
+)
+"""Titles of PhD defenses, for sources that do not mark them with event type ``defense``."""
+
+DEFENSE_TYPE_DETAIL: Final = "event type defense"
+OUT_OF_SCOPE_DETAIL: Final = "no field after classification"
+
+
+@dataclass(frozen=True, slots=True)
+class _Verdict:
+    reason: ExclusionReason | None = None
+    detail: str | None = None
+    uncertain: bool = False
+
+
+_KEEP: Final = _Verdict()
+_UNCERTAIN: Final = _Verdict(uncertain=True)
+
+
+def _overlaps(first: Hit, second: Hit) -> bool:
+    return (
+        first.segment == second.segment and first.start < second.stop and second.start < first.stop
+    )
+
+
+class RuleEventFilter:
+    """``EventFilter`` driven by ``taxonomy.exclusions`` and the defense switch."""
+
+    def __init__(self, taxonomy: Taxonomy, settings: Settings) -> None:
+        self._include_defenses = settings.events.include_defenses
+        self._phrases: tuple[tuple[RuleExclusionReason, TermMatcher], ...] = tuple(
+            (
+                reason,
+                TermMatcher(
+                    taxonomy.exclusions.get(reason, []), label=f"taxonomy exclusions.{reason}"
+                ),
+            )
+            for reason in RULE_REASONS
+        )
+        self._markers = TermMatcher(TALK_MARKERS, label="talk markers")
+        self._defenses = TermMatcher(DEFENSE_PHRASES, label="defense phrases")
+
+    def _defense(self, event: Event, texts: dict[str, Words]) -> _Verdict | None:
+        if self._include_defenses:
+            return None
+        if event.event_type == "defense":
+            return _Verdict("defense", DEFENSE_TYPE_DETAIL)
+        for place, words in texts.items():
+            phrase = self._defenses.first(words)
+            if phrase is not None:
+                return _Verdict("defense", f'{place} matches "{phrase}"')
+        return None
+
+    def _names_a_talk(self, words: Words) -> bool:
+        """True when ``words`` hold a talk marker that is not part of an exclusion phrase."""
+        phrases = [hit for _, matcher in self._phrases for hit in matcher.hits(words)]
+        return any(
+            not any(_overlaps(marker, hit) for hit in phrases)
+            for marker in self._markers.hits(words)
+        )
+
+    def _judge(self, candidate: Candidate) -> _Verdict:
+        event = candidate.event
+        texts = {"title": Words.of(event.title), "series": Words.of(event.series)}
+        defense = self._defense(event, texts)
+        if defense is not None:
+            return defense
+        for reason, matcher in self._phrases:
+            for place, words in texts.items():
+                phrase = matcher.first(words)
+                if phrase is None:
+                    continue
+                if any(self._names_a_talk(text) for text in texts.values()):
+                    return _UNCERTAIN
+                return _Verdict(reason, f'{place} matches "{phrase}"')
+        categories = [Words.of(category) for category in candidate.hints.categories]
+        if any(matcher.first(*categories) for _, matcher in self._phrases):
+            return _UNCERTAIN
+        return _KEEP
+
+    def filter(self, candidates: Sequence[Candidate]) -> FilterResult:
+        """Exclude by rule and by the defense switch; see the module docstring."""
+        kept: list[Candidate] = []
+        excluded: list[ExcludedEvent] = []
+        uncertain: list[str] = []
+        for candidate in candidates:
+            verdict = self._judge(candidate)
+            if verdict.reason is not None:
+                excluded.append(
+                    ExcludedEvent.from_event(candidate.event, verdict.reason, verdict.detail)
+                )
+                continue
+            kept.append(candidate)
+            if verdict.uncertain:
+                uncertain.append(candidate.event.uid)
+        return FilterResult(kept=kept, excluded=excluded, uncertain=uncertain)
+
+    def drop_out_of_scope(self, events: Sequence[Event]) -> ScopeResult:
+        """Exclude every event without a field, with reason ``out_of_scope``."""
+        return ScopeResult(
+            kept=[event for event in events if event.fields],
+            excluded=[
+                ExcludedEvent.from_event(event, "out_of_scope", OUT_OF_SCOPE_DETAIL)
+                for event in events
+                if not event.fields
+            ],
+        )
+
+
+def build_event_filter(taxonomy: Taxonomy, settings: Settings) -> EventFilter:
+    """``EventFilterFactory``: the rule-based filter.
+
+    Raises ``ConfigError`` for an exclusion phrase that can never match.
+    """
+    return RuleEventFilter(taxonomy, settings)
+
+
+__all__ = [
+    "DEFENSE_PHRASES",
+    "DEFENSE_TYPE_DETAIL",
+    "OUT_OF_SCOPE_DETAIL",
+    "RULE_REASONS",
+    "TALK_MARKERS",
+    "RuleEventFilter",
+    "build_event_filter",
+]
