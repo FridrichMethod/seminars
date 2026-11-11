@@ -281,10 +281,12 @@ class FixtureStore:
         """Store ``document`` as the fixture of ``document.url`` and update the manifest.
 
         Recording a URL again replaces its entry and body. Binary content is
-        refused. Without ``name`` the previous file name of the URL is kept,
-        or a new one is derived from the URL. The body is written exactly as
-        ``document.text``, which is already in canonical form (no byte order
-        mark, LF line endings, final newline; see ``FetchedDocument``).
+        refused, and so is a ``name`` that is not a fixture file name
+        (``is_fixture_file_name``). Without ``name`` the previous file name
+        of the URL is kept, or a new one is derived from the URL. The body
+        is written exactly as ``document.text``, which is already in
+        canonical form (no byte order mark, LF line endings, final newline;
+        see ``FetchedDocument``).
         """
         if is_binary_media_type(document.content_type) or "\x00" in document.text:
             raise FixtureError(f"refusing to store binary content of {ascii_safe(document.url)}")
@@ -295,10 +297,6 @@ class FixtureStore:
         entries = dict(self.manifest.entries)
         if found is not None:
             del entries[found[0]]
-        try:
-            _fixture_file_name(file_name)
-        except ValueError as error:
-            raise FixtureError(str(error)) from error
         if file_name in _RESERVED_NAMES or file_name.startswith(_NOTE_PREFIX):
             raise FixtureError(f"file name {file_name!r} is reserved")
         if any(entry.file == file_name for entry in entries.values()):
