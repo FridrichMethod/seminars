@@ -546,6 +546,7 @@ class TestFilters:
         page.locator("#picks").check()
         assert first.shown() == ["sample-pick", "sample-arc"]
         page.locator("#search").fill("protein")
+        page.locator("#search").press("Enter")  # applies the search without the typing pause
         assert first.shown() == ["sample-pick"]
         assert first.query() == {"q": ["protein"], "field": ["ai-ml"], "picks": ["1"]}
         address = page.url

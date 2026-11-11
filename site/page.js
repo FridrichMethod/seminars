@@ -36,11 +36,44 @@ export async function fetchJson(path) {
   return value;
 }
 
-/** Show ``params`` in the address bar without adding a history entry. */
+/**
+ * Show ``params`` in the address bar without adding a history entry. A browser may
+ * refuse (Safari allows only so many updates in a short time); the page then goes on
+ * with the old address, and the refusal is logged as a warning.
+ */
 export function replaceQuery(params) {
   const query = params.toString();
   const { pathname, hash } = window.location;
-  window.history.replaceState(null, "", `${pathname}${query ? "?" : ""}${query}${hash}`);
+  try {
+    window.history.replaceState(null, "", `${pathname}${query ? "?" : ""}${query}${hash}`);
+  } catch (error) {
+    console.warn(error);
+  }
+}
+
+/**
+ * ``action`` put off until ``delayMs`` have passed without another ``schedule()``.
+ * ``flush()`` runs a pending call at once, ``cancel()`` drops it.
+ */
+export function debounced(action, delayMs) {
+  let timer = null;
+  const cancel = () => {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+      timer = null;
+    }
+  };
+  const flush = () => {
+    if (timer !== null) {
+      cancel();
+      action();
+    }
+  };
+  const schedule = () => {
+    cancel();
+    timer = window.setTimeout(flush, delayMs);
+  };
+  return Object.freeze({ schedule, flush, cancel });
 }
 
 /** A term and its description for a <dl>, or nothing when there is no value. */

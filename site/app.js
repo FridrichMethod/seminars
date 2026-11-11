@@ -14,7 +14,16 @@ import {
   toggled,
 } from "./filters.js";
 import { children, currentLang, parts, plural, t } from "./i18n.js";
-import { byId, fact, fetchJson, notice, replaceQuery, reportError, startPage } from "./page.js";
+import {
+  byId,
+  debounced,
+  fact,
+  fetchJson,
+  notice,
+  replaceQuery,
+  reportError,
+  startPage,
+} from "./page.js";
 import { renderSubscribe } from "./subscribe.js";
 import { parseTimestamp, zone } from "./time.js";
 
@@ -33,6 +42,10 @@ const ui = {
   steps: byId("apple-steps"),
   feeds: byId("feeds"),
 };
+
+// Typing in the search box updates the list and the address once the typing pauses
+// for this long, so a long list is not rebuilt on every key.
+const SEARCH_DELAY_MS = 200;
 
 // The page state; every change replaces the object.
 let view = Object.freeze({ model: null, failed: false, filters: NO_FILTERS });
@@ -64,11 +77,28 @@ function prepareModel(payload, now) {
   });
 }
 
-function setFilters(filters) {
-  view = Object.freeze({ ...view, filters: Object.freeze(filters) });
+/** Show the current filters: the address, the controls and the list. */
+function applyFilters() {
   replaceQuery(queryFromFilters(view.filters, window.location.search));
   syncControls();
   renderList();
+}
+
+const pendingSearch = debounced(applyFilters, SEARCH_DELAY_MS);
+
+/** Change the filters and show them at once (a pending search goes with them). */
+function setFilters(filters) {
+  pendingSearch.cancel();
+  view = Object.freeze({ ...view, filters: Object.freeze(filters) });
+  applyFilters();
+}
+
+/** Take the text of the search box; the list follows once the typing pauses. */
+function typeQuery() {
+  const filters = Object.freeze({ ...view.filters, query: ui.search.value });
+  view = Object.freeze({ ...view, filters });
+  ui.clear.disabled = isUnfiltered(filters);
+  pendingSearch.schedule();
 }
 
 function chip(label, value, selected, onToggle) {
@@ -142,7 +172,9 @@ function syncControls() {
 }
 
 function connectControls() {
-  ui.search.addEventListener("input", () => setFilters({ ...view.filters, query: ui.search.value }));
+  ui.search.addEventListener("input", typeQuery);
+  // Enter or leaving the box: no need to wait for the pause.
+  ui.search.addEventListener("change", () => pendingSearch.flush());
   ui.host.addEventListener("change", () => setFilters({ ...view.filters, host: ui.host.value }));
   ui.range.addEventListener("change", () => setFilters({ ...view.filters, range: ui.range.value }));
   ui.picks.addEventListener("change", () =>
@@ -347,6 +379,7 @@ async function main() {
     if (error !== null) {
       throw error;
     }
+    pendingSearch.flush(); // text typed while loading is in the address before it is read
     const model = prepareModel(payload, new Date());
     view = Object.freeze({
       model,
