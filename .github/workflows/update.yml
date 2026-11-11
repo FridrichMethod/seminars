@@ -20,8 +20,9 @@
 # - deploy: deploys the artifact (pages: write and id-token: write, nothing else).
 # - llm-smoke (manual, mode llm-smoke): probes every configured LLM provider and
 #   prints the result; it commits nothing and deploys nothing (contents: read).
-# All runs of this workflow queue in one concurrency group and none is cancelled, so
-# two runs never write data/ at the same time.
+# All runs of this workflow share one concurrency group, so two of them never run at
+# the same time. A run in progress is never cancelled (cancel-in-progress: false), but
+# GitHub keeps at most one waiting run per group: a newer run replaces a waiting one.
 #
 # Credentials: the LLM secrets CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY,
 # OPENAI_API_KEY and LLM_API_KEY reach only the step that runs the pipeline and the

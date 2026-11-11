@@ -26,7 +26,8 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same pull request replaces the older run; runs on main queue.
+# A newer push to the same pull request cancels the older run. On main a run in
+# progress is never cancelled; a newer run replaces only a run that still waits.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

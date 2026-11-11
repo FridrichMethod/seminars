@@ -5,7 +5,7 @@ everything about them that can be checked on one machine:
 
 * the security rules, by parsing the YAML: triggers, permissions, where
   secrets and the token go, pinned actions, no expression inside a script;
-* the schedules, the concurrency queue, the Pages deployment and the
+* the schedules, the concurrency groups, the Pages deployment and the
   commands each job runs;
 * the shell scripts of the steps that decide what is committed and
   deployed, by running them with bash against stub commands and throwaway
@@ -443,7 +443,7 @@ def test_common_settings(name: str) -> None:
 @pytest.mark.parametrize(
     ("name", "group"), [("update.yml", "daily-update"), ("digest.yml", "weekly-digest")]
 )
-def test_privileged_runs_queue_in_one_fixed_group(name: str, group: str) -> None:
+def test_privileged_runs_share_one_group_and_are_never_cancelled(name: str, group: str) -> None:
     assert load_workflow(name)["concurrency"] == {"group": group, "cancel-in-progress": False}
 
 
