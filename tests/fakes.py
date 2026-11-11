@@ -76,7 +76,8 @@ class FakeHttpClient:
     ``offline_client`` for recorded fixtures. Unknown URLs raise
     ``FixtureNotFoundError`` and error statuses behave like the live client.
     As with every client, the text of a returned document is in canonical
-    form (LF line endings, final newline), so ``add(url, "x")`` serves ``"x\n"``.
+    form (LF line endings, final newline): ``add(url, "x")`` serves ``x``
+    followed by a newline.
     """
 
     def __init__(self, pages: Mapping[str, str] | None = None, *, clock: FakeClock | None = None):

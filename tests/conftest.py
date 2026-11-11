@@ -9,15 +9,18 @@ The classes behind the fixtures live in importable modules next to this file
 * fakes_llm.py      FakeLLMClient, FakeLLMCache, FakeLLMFieldTagger, FakePageExtractor
 * fakes_outputs.py  FakeEmitters (ICS, site data, digest, health, source probe)
 
-Contract -> fixture: HttpClient -> fake_http / offline_http; Adapter ->
-fake_adapter (registered as "fake" in fake_registry, the empty stand-in for
-the process-wide adapter registry); LLMClient and
-LLMChainClient -> fake_llm; LLMCache -> fake_llm_cache; FieldTagger ->
-fake_field_tagger; LLMFieldTagger -> fake_llm_tagger; EventFilter ->
-fake_event_filter; PicksScorer -> fake_picks_scorer; PageExtractor ->
-fake_page_extractor; IssueClient -> fake_issues; SecretScanner ->
-fake_secret_scanner; the output functions and the source probe ->
-fake_emitters; time -> fake_clock.
+Contract -> fixture:
+
+* HttpClient -> fake_http / offline_http
+* Adapter and the adapter registry -> fake_adapter (a FakeAdapter registered
+  as "fake") / fake_registry (an empty process-wide registry)
+* LLMClient and LLMChainClient -> fake_llm; LLMCache -> fake_llm_cache
+* FieldTagger -> fake_field_tagger; LLMFieldTagger -> fake_llm_tagger
+* EventFilter -> fake_event_filter; PicksScorer -> fake_picks_scorer
+* PageExtractor -> fake_page_extractor
+* IssueClient -> fake_issues; SecretScanner -> fake_secret_scanner
+* the output functions and the source probe -> fake_emitters
+* time -> fake_clock
 
 Browser tests (``@pytest.mark.browser``) get Playwright from the
 ``playwright_sync_api`` fixture and never import it themselves; the fixture
