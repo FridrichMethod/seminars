@@ -14,7 +14,9 @@ from seminars.pipeline.tagging import tag_candidates
 
 def candidate(uid: str, *, fields: Sequence[str] = ()) -> Candidate:
     event = make_event(uid=uid, fields=[], source_ids=[f"sites-x:{uid}"])
-    return Candidate(event=event, hints=EventHints(source_ids=["sites-x"], default_fields=fields))
+    return Candidate(
+        event=event, hints=EventHints(source_ids=["sites-x"], default_fields=list(fields))
+    )
 
 
 class RaisingTagger:
