@@ -665,7 +665,7 @@ class TestProxies:
     ) -> None:
         monkeypatch.setenv(variable, "http://127.0.0.1:3128")
         with PoliteClient(http_settings, resolver=StubResolver()) as client:
-            inner = client._client
+            inner = client._wire._client
             assert inner.trust_env is False
             assert inner._mounts == {}
         with httpx.Client() as naive:
