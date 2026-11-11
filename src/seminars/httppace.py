@@ -230,7 +230,7 @@ class Pacer:
         deadline when that is less. An answer that is not complete by then
         is not waited for and not asked for again.
         """
-        resolves = self._wire.resolves(url)
+        resolves = self._wire.resolves(host, url)
         if robots:
             state.robots_requests += 1
         else:

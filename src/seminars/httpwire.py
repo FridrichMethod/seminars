@@ -27,7 +27,6 @@ from seminars.httpbase import (
     Resolver,
     ResponseTooLargeError,
     UnsupportedContentTypeError,
-    UnsupportedSchemeError,
     is_binary_media_type,
     media_type,
 )
@@ -134,32 +133,28 @@ class Wire:
         """Release the underlying connections."""
         self._client.close()
 
-    def resolves(self, url: str) -> bool:
-        """Look up the host of ``url``; False when it has no address.
+    def resolves(self, host: str, url: str) -> bool:
+        """Look ``host`` up, the host of ``url`` in canonical form; False when it has no address.
 
         Raises ``ForbiddenHostError`` when any address it resolves to is not
         public (``is_public_address`` with the forbidden networks of the
-        settings) or belongs to this machine. The name is taken from httpx,
-        so it is exactly the one the connection will be made to
-        (IDNA-encoded, IPv6 without brackets); a URL that httpx cannot parse
-        is rejected here. An IP address in place of a name goes the same
-        way: the resolver hands it back and it is judged like any answer.
+        settings) or belongs to this machine. An IP address in place of a
+        name goes the same way: the resolver hands it back and it is judged
+        like any answer.
 
-        The addresses are kept for ``exchange``: when that has to open a
+        The canonical host (``parse_url``) is the name a connection for
+        ``url`` is made to: ASCII, IDNA-encoded, IPv6 without brackets. The
+        addresses are kept for ``exchange``: when that has to open a
         connection, it is made to one of them and the name is not looked
         up a second time.
         """
         try:
-            name = httpx.URL(url).raw_host.decode("ascii")
-        except httpx.InvalidURL as error:
-            raise UnsupportedSchemeError(url, "invalid URL") from error
-        try:
-            return bool(self._guard.lookup(name))
+            return bool(self._guard.lookup(host))
         except Refused as error:
             raise ForbiddenHostError(url, error.reason) from error
 
     def exchange(self, url: str, headers: Mapping[str, str], *, give_up_at: float) -> Exchange:
-        """One request and its answer; ``resolves`` has made sure that httpx accepts ``url``.
+        """One request and its answer; ``url`` is in canonical form (``parse_url``).
 
         Raises ``AttemptFailed`` when no answer came for a reason that is
         worth another try (a network error), ``TookTooLong`` when the

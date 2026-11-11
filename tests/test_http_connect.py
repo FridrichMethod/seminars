@@ -172,9 +172,18 @@ class TestPinnedConnections:
         self, client: PoliteClient, sockets: FakeSockets, resolver: StubResolver
     ) -> None:
         resolver.answers[PUBLIC_V6] = [PUBLIC_V6]
-        client.get(f"http://[{PUBLIC_V6}]:8080/status")
+        client.get(f"http://[{PUBLIC_V6.upper()}]:8080/status")
         assert sockets.connects == [(PUBLIC_V6, 8080)]
-        assert set(resolver.calls) == {PUBLIC_V6}
+        assert resolver.calls == [PUBLIC_V6, PUBLIC_V6]
+
+    def test_a_name_with_other_letters_is_looked_up_once_under_its_ascii_form(
+        self, client: PoliteClient, sockets: FakeSockets, resolver: StubResolver
+    ) -> None:
+        """The name of the lookup and the name the pool connects for must be the same string."""
+        client.get(f"https://B{chr(0xFC)}cher.Example./katalog")
+        assert resolver.calls == ["xn--bcher-kva.example"] * 2
+        assert sockets.connects == [(PUBLIC_ADDRESS, 443)]
+        assert sockets.streams[0].tls_name == "xn--bcher-kva.example"
 
     def test_a_lookup_that_changes_its_mind_cannot_steer_a_connection_inside(
         self, client: PoliteClient, sockets: FakeSockets, resolver: StubResolver
@@ -329,6 +338,41 @@ class TestConnectionsThatMustNotBeUsed:
         assert len(sockets.connects) == 4
 
 
+class TestTheSecondLook:
+    """The peer is examined again when an answer arrives, over the client's own connections too."""
+
+    def test_an_answer_over_a_kept_connection_is_judged_by_where_it_comes_from(
+        self, client: PoliteClient, sockets: FakeSockets
+    ) -> None:
+        client.get(PAGE)
+        sockets.peers[PUBLIC_ADDRESS] = "10.0.0.5"  # the connection now reports another peer
+        with pytest.raises(ForbiddenHostError, match="refusing an answer from a local or private"):
+            client.get(f"{PAGE}?again")
+        assert len(sockets.connects) == 1
+        assert len(sockets.requests) == 3
+
+    def test_the_connection_pool_hands_the_connection_of_every_answer_to_the_check(
+        self, client: PoliteClient, sockets: FakeSockets, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Should a later httpcore stop doing so, this fails instead of the check going quiet."""
+        seen: list[object] = []
+        guard = client._wire._guard
+        examine = guard.connection_place
+
+        def recording(stream: object) -> str | None:
+            seen.append(stream)
+            return examine(stream)
+
+        monkeypatch.setattr(guard, "connection_place", recording)
+        client.get(PAGE)
+        assert len(seen) == 3  # the new connection, the robots.txt answer, the page
+        assert all(hasattr(stream, "get_extra_info") for stream in seen)
+
+    def test_a_connection_that_cannot_say_where_it_leads_is_not_trusted(self) -> None:
+        guard = Guard(resolver=StubResolver(), own_address=lambda address: False, forbidden=())
+        assert guard.connection_place(object()) == "a local or private network address"
+
+
 class TestNetworkErrors:
     @pytest.mark.parametrize(
         ("error", "name"),
@@ -360,12 +404,11 @@ class TestNetworkErrors:
         with pytest.raises(HttpRequestError, match="RemoteProtocolError"):
             client.get(PAGE)
 
-    def test_an_error_httpx_has_no_name_for_is_a_transport_error(self) -> None:
-        class Odd(httpcore.NetworkError):
-            pass
-
+    @pytest.mark.parametrize("name", ["Odd", "URL", "codes"])
+    def test_an_error_httpx_has_no_name_for_is_a_transport_error(self, name: str) -> None:
+        """Also when httpx has something else under that name."""
         failing = FakeSockets()
-        failing.connect_error = Odd("odd")
+        failing.connect_error = type(name, (httpcore.NetworkError,), {})("odd")
         guard = Guard(resolver=StubResolver(), own_address=lambda address: False, forbidden=())
         transport = PinnedTransport(guard, inner=failing)
         with httpx.Client(transport=transport) as plain, pytest.raises(httpx.TransportError):

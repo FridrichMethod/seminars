@@ -510,6 +510,39 @@ class TestRecorder:
         assert respx_router.calls.call_count == 0
         assert sorted(path.name for path in tmp_path.rglob("*")) == ["fixtures", "tests"]
 
+    def test_command_line_reports_a_broken_manifest_before_any_request(
+        self,
+        live: PoliteClient,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        directory = tmp_path / "tests" / "fixtures" / "localist-example"
+        directory.mkdir(parents=True)
+        (directory / MANIFEST_NAME).write_text("{not json", encoding="utf-8")
+        arguments = ["--root", str(tmp_path), "record", "--source-id", "localist-example", PAGE_1]
+        assert main(arguments, http=live) == 1
+        assert "invalid fixture manifest" in capsys.readouterr().err
+        assert respx_router.calls.call_count == 0
+
+    def test_command_line_goes_on_after_a_file_that_cannot_be_written(
+        self,
+        live: PoliteClient,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        (tmp_path / "tests" / "fixtures").mkdir(parents=True)
+        blocker = tmp_path / "tests" / "fixtures" / "localist-example"
+        blocker.write_text("a file where the directory should be\n", encoding="utf-8")
+        respx_router.get("https://events.example.edu/robots.txt").respond(404)
+        pages = respx_router.get(url__startswith=API).respond(200, text="{}")
+        arguments = ["--root", str(tmp_path), "record", "--source-id", "localist-example"]
+        assert main([*arguments, PAGE_1, f"{API}?page=2"], http=live) == 1
+        captured = capsys.readouterr()
+        assert captured.err.count("error: cannot store https://events.example.edu/") == 2
+        assert pages.call_count == 2
+
     def test_command_line_records_several_urls_one_after_another(
         self,
         live: PoliteClient,

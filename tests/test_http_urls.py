@@ -37,6 +37,8 @@ NOT_HOSTS = ["", ".", "..", "a..b", ".example.edu", "exa mple.edu", "a/b", "a@b"
 NOT_HOSTS += ["x" * 64 + ".edu", ".".join(["abcdefgh"] * 29), "2606:4700::1111%eth0", "[::1]"]
 NOT_HOSTS += [f"exa{SOFT_HYPHEN}mple.edu", f"exa{ZERO_WIDTH_SPACE}mple.edu"]
 NOT_HOSTS += [f"example.edu{ACCOUNT_OF}", "::1::", "1::2::3", "example.edu:80"]
+NOT_HOSTS += [f"b{U_UMLAUT}cher example", f"b{U_UMLAUT}cher@example", f"{U_UMLAUT}%41.example"]
+NOT_HOSTS += ["1.1.1.256", "1.1.65536", "1.16777216", "4294967296", "256.1.1.1", "1.256.1"]
 
 
 def no_robots(router: respx.MockRouter, host: str = HOST) -> respx.Route:
