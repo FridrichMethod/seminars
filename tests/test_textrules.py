@@ -53,8 +53,12 @@ FILLERS = ["\u115f", "\u1160", "\u3164", "\uffa0"]
 ANNOTATION_MARKS = ["\ufff9", "\ufffa", "\ufffb", "\ufffc"]
 """Interlinear annotation controls and the object replacement character."""
 WORD_BULLET = "\uf0b7"  # the bullet of the Symbol font, pasted from Word
+ICON = chr(0xF0045)  # a glyph of an icon font that uses plane 15
 PRIVATE_USE = ["\ue000", WORD_BULLET, "\uf8ff"]
+PRIVATE_USE += [chr(0xF0000), ICON, chr(0xFFFFD), chr(0x100000), chr(0x10ABCD), chr(0x10FFFD)]
 """Private use characters: they have no agreed meaning and show up as boxes."""
+PRIVATE_USE_PLANES = [(0xF0000, 0xFFFFD), (0x100000, 0x10FFFD)]
+"""The supplementary private use areas, planes 15 and 16 without their last two code points."""
 UNPRINTABLE = [*FILLERS, *ANNOTATION_MARKS, *PRIVATE_USE]
 REPLACEMENT_CHARACTER = "\ufffd"
 
@@ -156,6 +160,28 @@ class TestPredicates:
     def test_the_whole_private_use_area_is_decorative(self) -> None:
         assert all(is_decorative(chr(code)) for code in range(0xE000, 0xF900))
         assert all(unicodedata.category(chr(code)) == "Co" for code in range(0xE000, 0xF900))
+
+    @pytest.mark.parametrize(("first", "last"), PRIVATE_USE_PLANES)
+    def test_the_supplementary_private_use_planes_are_decorative(
+        self, first: int, last: int
+    ) -> None:
+        assert (first, last) in DECORATIVE_RANGES
+        assert all(is_decorative(chr(code)) for code in range(first, last + 1))
+        assert all(unicodedata.category(chr(code)) == "Co" for code in range(first, last + 1))
+        assert not any(is_emoji(chr(code)) for code in (first, last))
+
+    @pytest.mark.parametrize("code", [0xEFFFF, 0xFFFFE, 0xFFFFF, 0x10FFFE, 0x10FFFF])
+    def test_the_code_points_around_those_planes_are_not_in_the_table(self, code: int) -> None:
+        """The last two code points of a plane are no characters at all, private or not."""
+        assert unicodedata.category(chr(code)) == "Cn"
+        assert not is_decorative(chr(code))
+
+    def test_clean_text_removes_icon_font_characters_of_the_upper_planes(self) -> None:
+        text = "Colloquium " + ICON + " Room 101 " + chr(0x100000) + chr(0x10FFFD) + "\n"
+        assert clean_text(text) == "Colloquium  Room 101 \n"
+        assert decorative_characters(text) == [ICON, chr(0x100000), chr(0x10FFFD)]
+        assert data_charset_problems("ab" + ICON + "\n") == ["1:3 U+F0045"]
+        assert data_charset_problems(clean_text(text)) == []
 
     @pytest.mark.parametrize(
         "char",

@@ -101,6 +101,7 @@ INVISIBLE = ["\u202f", "\u2009", "\u2028", "\u205f", "\u061c", "\u180e", "\ufe0e
 """Narrow no-break, thin and mathematical space, line separator, marks and selectors."""
 UNPRINTABLE = ["\u115f", "\u1160", "\u3164", "\uffa0", "\ufff9", "\ufffb", "\ufffc"]
 UNPRINTABLE += ["\ue000", "\uf0b7", "\uf8ff"]
+UNPRINTABLE += [chr(0xF0000), chr(0xF0045), chr(0xFFFFD), chr(0x100000), chr(0x10FFFD)]
 """Hangul fillers, annotation marks, the object replacement character and private use."""
 
 

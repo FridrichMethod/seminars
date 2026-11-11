@@ -18,13 +18,15 @@ differ; change both together.
 no-break and other typographic spaces, soft hyphens, zero width characters,
 variation selectors, line separators and direction marks. Characters that
 cannot be shown count as well: the blank Hangul fillers, the interlinear
-annotation marks, the object replacement character and the private use area
-U+E000-F8FF, whose characters mean something only in the font of the page
-they came from (the bullet of the Symbol font that Word pastes as U+F0B7,
-icon fonts) and are boxes everywhere else. Accented letters, CJK text, Greek
-and mathematical symbols (including arrows, superscripts and double-struck
-letters) are ordinary text and are neither emoji nor decorative; so is the
-replacement character U+FFFD, which marks a byte that could not be decoded.
+annotation marks, the object replacement character and the private use
+areas (U+E000-F8FF and the two supplementary ones, U+F0000-FFFFD and
+U+100000-10FFFD), whose characters mean something only in the font of the
+page they came from (the bullet of the Symbol font that Word pastes as
+U+F0B7, icon fonts) and are boxes everywhere else. Accented letters, CJK
+text, Greek and mathematical symbols (including arrows, superscripts and
+double-struck letters) are ordinary text and are neither emoji nor
+decorative; so is the replacement character U+FFFD, which marks a byte that
+could not be decoded.
 
 "Emoji" covers the pictograph blocks and the whole Miscellaneous Symbols and
 Dingbats blocks (U+2600-27BF: stars, check marks, hearts, warning signs,
@@ -131,6 +133,8 @@ DECORATIVE_RANGES: Final[tuple[CodePointRange, ...]] = (
     (0xFEFF, 0xFEFF),  # zero width no-break space
     (0xFFA0, 0xFFA0),  # halfwidth Hangul filler
     (0xFFF9, 0xFFFC),  # interlinear annotation marks, object replacement character
+    (0xF0000, 0xFFFFD),  # supplementary private use area A (icon fonts)
+    (0x100000, 0x10FFFD),  # supplementary private use area B
 )
 """Code points that are not emoji but are still decorative or invisible."""
 

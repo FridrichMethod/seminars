@@ -106,6 +106,8 @@ DECORATIVE_RANGES: tuple[tuple[int, int], ...] = (
     (0xFEFF, 0xFEFF),  # zero width no-break space
     (0xFFA0, 0xFFA0),  # halfwidth Hangul filler
     (0xFFF9, 0xFFFC),  # interlinear annotation marks, object replacement character
+    (0xF0000, 0xFFFFD),  # supplementary private use area A (icon fonts)
+    (0x100000, 0x10FFFD),  # supplementary private use area B
 )
 
 
