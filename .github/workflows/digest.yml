@@ -1,0 +1,86 @@
+# Weekly digest: open this week's digest issue and close the previous one.
+#
+# It only reads the data that the daily update committed; it fetches nothing and needs
+# no LLM credential. The only credential it uses is the workflow token, with
+# issues: write in the one job, and only in the step that publishes the issue.
+#
+# Triggers: the schedule and a manual run on main only. Never pull_request or
+# pull_request_target, so code from a fork can never use the token.
+#
+# Schedule: Monday 07:07 Pacific time, and a catch-up run on Tuesday at the same time,
+# because GitHub delays or drops scheduled runs at times of high load. Publishing is
+# idempotent per week (an issue of this week is found and nothing is opened twice),
+# so the catch-up only acts when Monday's run did not happen. "timezone" is the IANA
+# zone of the schedule, a sibling of "cron" (checked against the GitHub documentation
+# of on.schedule).
+# UTC fallback, should the timezone key ever stop working: '7 15 * * 1' and
+# '7 15 * * 2' (07:07 PST, 08:07 PDT).
+#
+# A manual run can set dry_run: the digest is then printed in the log as markdown and
+# no issue is touched.
+#
+# Actions, and why each one is used:
+# - actions/checkout (major tag v7): fetches main with the committed data; it does not
+#   keep the token.
+# - astral-sh/setup-uv (third-party, without a floating major tag, so it is pinned to
+#   a full commit SHA with the release in a comment): installs uv, which installs the
+#   locked dependencies. Its cache is off here, so no cache entry can feed this
+#   privileged workflow.
+name: Weekly digest
+
+on:
+  schedule:
+    - cron: '7 7 * * 1'
+      timezone: America/Los_Angeles
+    - cron: '7 7 * * 2'
+      timezone: America/Los_Angeles
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Print the digest instead of opening the issue.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-digest
+  cancel-in-progress: false
+
+env:
+  PYTHONUTF8: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  digest:
+    name: Publish the weekly digest
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: false
+      - name: Publish the digest
+        id: digest
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "${DRY_RUN:-false}" = "true" ]; then
+            uv run --locked seminars digest --dry-run
+          else
+            uv run --locked seminars digest
+          fi

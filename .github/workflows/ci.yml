@@ -1,0 +1,86 @@
+# Continuous integration: every check of the project, on pushes to main and on pull
+# requests.
+#
+# Pull requests can come from forks, so this workflow gets no credential of any kind:
+# it references no repository credential, its token is read-only, and the checkout
+# does not keep the token (persist-credentials: false). It never fetches anything
+# from the network except the dependencies (the test suite blocks DNS lookups).
+#
+# The commits of the daily update are made with the workflow token, and GitHub never
+# starts a workflow for such a commit (its rule against loops). That is intended: the
+# data commits are checked by the update itself (seminars run and seminars validate).
+#
+# Actions, and why each one is used:
+# - actions/checkout (major tag v7): fetches the commit under test.
+# - astral-sh/setup-uv (third-party, without a floating major tag, so it is pinned to
+#   a full commit SHA with the release in a comment): installs uv. uv then installs
+#   the Python of .python-version and exactly the dependencies of uv.lock (--locked).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same pull request replaces the older run; runs on main queue.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PYTHONUTF8: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out the commit
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - name: Install the locked dependencies
+        run: uv sync --locked
+      - name: Charset rule
+        run: uv run --locked python scripts/check_ascii.py
+      - name: Lint
+        run: uv run --locked ruff check
+      - name: Formatting
+        run: uv run --locked ruff format --check
+      - name: Type check
+        run: uv run --locked pyright
+      # Offline: live tests and browser tests are deselected by the pytest settings.
+      # The coverage threshold is the one in pyproject.toml.
+      - name: Tests with coverage
+        run: uv run --locked pytest --cov
+      - name: Lint the workflows
+        run: uvx --from actionlint-py==1.7.12.25 actionlint
+
+  browser:
+    name: Browser smoke tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out the commit
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - name: Install the locked dependencies with the browser extra
+        run: uv sync --locked --extra browser
+      - name: Install Chromium
+        run: uv run --locked --extra browser playwright install --with-deps chromium
+      - name: Browser tests
+        run: uv run --locked --extra browser pytest -m browser
