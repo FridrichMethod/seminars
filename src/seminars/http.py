@@ -48,8 +48,13 @@ Rules of the live client:
   Windows there is no lock between processes; see ``seminars.httpcache``;
 * every host has a request budget per client (``max_requests_per_host``,
   retries included); exceeding it raises ``HostBudgetExceededError``.
-  robots.txt does not count: it costs at most ``retries + 1`` requests per
-  hop, origin and run, whether it can be fetched or not;
+  Requests for a robots.txt do not use it up. They have a budget of the
+  same size of their own, counted on the host each of them goes to (also
+  when it is a redirect hop of another host's robots.txt). One client thus
+  sends a host at most ``2 * max_requests_per_host`` requests per run,
+  however many links, ports and redirects point at it. A robots.txt costs
+  at most ``retries + 1`` requests per hop and origin, whether it can be
+  fetched or not; only its first 512000 characters are used;
 * network errors and 408/425/429/5xx answers are retried with exponential
   backoff (``Retry-After`` is respected);
 * redirects are followed hop by hop so that each hop obeys the rules of its
@@ -125,7 +130,7 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from types import TracebackType
-from typing import Self
+from typing import Final, Self
 from urllib.parse import urljoin
 
 import httpx
@@ -209,6 +214,25 @@ __all__ = [
 ]
 
 
+_ROBOTS_COPIES_KEPT: Final = 4
+"""How many robots.txt copies of one host are kept in the cache directory (the newest ones)."""
+
+_ROBOTS_MAX_CHARS: Final = 512_000
+"""How much of a robots.txt is used; RFC 9309 asks a crawler for at least 500 kibibytes."""
+
+
+def _robots_text(text: str) -> str:
+    """The part of a robots.txt that is parsed and kept: its first ``_ROBOTS_MAX_CHARS``.
+
+    The cut is made at the end of the last complete line, so that no rule
+    is used half.
+    """
+    if len(text) <= _ROBOTS_MAX_CHARS:
+        return text
+    head = text[:_ROBOTS_MAX_CHARS]
+    return head[: max(head.rfind("\n"), 0)]
+
+
 @dataclass(frozen=True)
 class _Hop:
     """The outcome of one hop after cache handling."""
@@ -238,7 +262,8 @@ class _HostState:
     policies: dict[str, RobotsPolicy] = field(default_factory=dict)  # by origin
     robots_failures: dict[str, str] = field(default_factory=dict)  # origin -> why it is blocked
     blocked_until: float = 0.0  # end of the current retry backoff
-    requests: int = 0  # budgeted requests issued by this client
+    requests: int = 0  # page requests issued by this client
+    robots_requests: int = 0  # robots.txt requests issued by this client, hops to this host too
 
 
 class PoliteClient:
@@ -287,7 +312,7 @@ class PoliteClient:
         self._wire.close()
 
     def request_counts(self) -> dict[str, int]:
-        """Budgeted requests issued so far, per host."""
+        """Page requests issued so far, per host (robots.txt requests are counted apart)."""
         with self._hosts_lock:
             return {host: state.requests for host, state in sorted(self._hosts.items())}
 
@@ -345,7 +370,12 @@ class PoliteClient:
         """
         with state.lock, self._cache.host_lock(host):
             # Other clients and processes may have used the host in the meantime.
-            state.record = state.record.merge(self._cache.host(host))
+            now = self._clock()
+            state.record = state.record.merge(self._cache.host(host)).trimmed(
+                oldest=now - self._settings.robots_cache_seconds,
+                newest=now,
+                keep=_ROBOTS_COPIES_KEPT,
+            )
             yield
 
     @staticmethod
@@ -461,11 +491,16 @@ class PoliteClient:
         """
         interval = max(self._settings.min_interval_seconds, self._known_crawl_delay(hop_state))
         try:
-            return self._send(hop_state, hop_host, url, {}, interval=interval, budgeted=False)
+            return self._send(hop_state, hop_host, url, {}, interval=interval, robots=True)
         except ForbiddenHostError as error:
             if hop_state is state:
                 raise  # the host of the origin itself: there is nothing to fetch from it
             reason = "robots.txt redirects to an address that must not be fetched; host skipped"
+            raise self._block_origin(state, origin, reason) from error
+        except HostBudgetExceededError as error:
+            if hop_state is state:
+                raise  # nothing more is sent to this host in this run anyway
+            reason = "robots.txt redirects to a host whose request budget is used up; host skipped"
             raise self._block_origin(state, origin, reason) from error
         except HttpRequestError as error:
             reason = "robots.txt is unreachable; host skipped"
@@ -503,7 +538,7 @@ class PoliteClient:
         The caller holds the turn of ``host``.
         """
         if 200 <= exchange.status < 300:
-            text: str | None = exchange.text
+            text: str | None = _robots_text(exchange.text)
         elif 400 <= exchange.status < 500 and exchange.status != 429:
             text = None
         else:
@@ -547,16 +582,18 @@ class PoliteClient:
         headers: Mapping[str, str],
         *,
         interval: float,
-        budgeted: bool = True,
+        robots: bool = False,
     ) -> Exchange:
-        """Send one request with retries; the caller holds the turn of ``host``."""
+        """Send one request with retries; the caller holds the turn of ``host``.
+
+        ``robots`` says which of the two budgets of the host pays for it.
+        """
         attempts = self._settings.retries + 1
         for attempt in range(1, attempts + 1):
-            if budgeted:
-                self._check_budget(state, host, url)
+            self._check_budget(state, host, url, robots=robots)
             self._wait_turn(state, interval)
             try:
-                exchange = self._attempt(state, host, url, headers, budgeted=budgeted)
+                exchange = self._attempt(state, host, url, headers, robots=robots)
             except AttemptFailed as error:
                 logger.debug("request failed (%s): %s", error.reason, ascii_safe(url))
                 if attempt == attempts:
@@ -574,7 +611,7 @@ class PoliteClient:
         raise AssertionError("unreachable: the retry loop always returns or raises")
 
     def _attempt(
-        self, state: _HostState, host: str, url: str, headers: Mapping[str, str], *, budgeted: bool
+        self, state: _HostState, host: str, url: str, headers: Mapping[str, str], *, robots: bool
     ) -> Exchange:
         """Look the host up, then send the request once.
 
@@ -583,7 +620,9 @@ class PoliteClient:
         an attempt that uses up budget; ``AttemptFailed`` asks for another.
         """
         resolves = self._wire.resolves(url)
-        if budgeted:
+        if robots:
+            state.robots_requests += 1
+        else:
             state.requests += 1
         if not resolves:
             raise AttemptFailed("host name does not resolve")
@@ -592,11 +631,26 @@ class PoliteClient:
         finally:
             self._touch(state, host)
 
-    def _check_budget(self, state: _HostState, host: str, url: str) -> None:
+    def _check_budget(self, state: _HostState, host: str, url: str, *, robots: bool) -> None:
+        """Refuse a request that the budget of ``host`` does not cover any more.
+
+        Pages and robots.txt requests have a budget of
+        ``max_requests_per_host`` each, counted on the host a request goes
+        to. A host therefore gets at most twice that many requests from
+        this client, whatever links, ports and redirects point at it.
+        """
         limit = self._settings.max_requests_per_host
-        if state.requests >= limit:
+        used, what = (
+            (state.robots_requests, "robots.txt request")
+            if robots
+            else (
+                state.requests,
+                "request",
+            )
+        )
+        if used >= limit:
             raise HostBudgetExceededError(
-                url, f"request budget for host {host} is exhausted ({limit} requests per run)"
+                url, f"{what} budget for host {host} is exhausted ({limit} requests per run)"
             )
 
     def _wait_turn(self, state: _HostState, interval: float) -> None:

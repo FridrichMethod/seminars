@@ -84,6 +84,25 @@ class HostRecord(Model):
                 robots[origin] = copy
         return type(self)(last_request_at=max(times, default=None), robots=robots)
 
+    def trimmed(self, *, oldest: float, newest: float, keep: int) -> Self:
+        """The record without the robots.txt copies nobody will use again.
+
+        A copy stays when it was fetched between ``oldest`` and ``newest``
+        (the window in which a copy counts as recent) and is among the
+        ``keep`` latest ones. A site decides how many origins a host has
+        (any port is one) and how large each robots.txt is, and the record
+        is read and written with every request, so it must not grow with
+        them.
+        """
+        recent = [
+            (copy.fetched_at, origin)
+            for origin, copy in self.robots.items()
+            if oldest <= copy.fetched_at <= newest
+        ]
+        kept = {origin for _, origin in sorted(recent)[max(len(recent) - keep, 0) :]}
+        robots = {origin: copy for origin, copy in self.robots.items() if origin in kept}
+        return self if len(robots) == len(self.robots) else self.evolve(robots=robots)
+
 
 class HttpCache:
     """Reads and writes the records described in the module docstring."""
