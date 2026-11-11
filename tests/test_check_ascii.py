@@ -48,12 +48,14 @@ class TestClassify:
             ("README.md", "strict"),
             ("locales/en.json", "strict"),
             ("docs/notes.zh-CN.txt", "strict"),
-            ("README.zh-CN.md", "zh"),
-            ("docs/ARCHITECTURE.zh-CN.md", "zh"),
-            ("locales/zh-CN.json", "zh"),
-            ("data/events.json", "free"),
-            ("data/archive/2026.jsonl", "free"),
+            ("README.zh-CN.md", "clean"),
+            ("docs/ARCHITECTURE.zh-CN.md", "clean"),
+            ("locales/zh-CN.json", "clean"),
+            ("data/events.json", "clean"),
+            ("data/archive/2026.jsonl", "clean"),
+            ("data/llm_cache/ab/cdef.json", "clean"),
             ("tests/fixtures/sites-chemistry/events.json", "free"),
+            ("tests/fixtures/_site/events.json", "free"),
             ("tests/data/sample.json", "strict"),
             ("mydata/events.json", "strict"),
         ],
@@ -93,33 +95,48 @@ class TestStrictFiles:
         assert [m.split(" ")[0] for m in messages] == ["a.md:1:1", "a.md:2:1", "a.md:2:2"]
 
 
-class TestZhFiles:
+CLEAN_PATHS = ["README.zh-CN.md", "locales/zh-CN.json", "data/events.json"]
+
+
+class TestCleanFiles:
+    """Files that may hold non-ASCII text but nothing decorative: zh-CN texts and data/."""
+
     def test_chinese_and_cjk_punctuation_pass(self) -> None:
         text = "# " + CHINESE + "\n\n" + CURLY_QUOTE + CHINESE + "\u201d\uff0c" + EM_DASH + "\n"
         assert check("README.zh-CN.md", text) == []
         assert check("locales/zh-CN.json", '{"a": "' + CHINESE + '"}\n') == []
 
-    @pytest.mark.parametrize("char", [ROCKET, "\u2705", "\u2b50", "\ufe0f"])
-    def test_emoji_is_rejected(self, char: str) -> None:
-        messages = check("README.zh-CN.md", CHINESE + char + "\n")
-        assert len(messages) == 1
-        assert messages[0].startswith(f"README.zh-CN.md:1:3 U+{ord(char):04X}")
+    def test_scraped_names_and_symbols_pass_in_data(self) -> None:
+        line = '{"speaker": "Poincar' + E_ACUTE + '", "title": "Maps \u211d\u00b2 \u2192 \u211d"}\n'
+        assert check("data/events.json", line) == []
+        assert check("data/archive/2026.jsonl", line) == []
 
+    @pytest.mark.parametrize("path", CLEAN_PATHS)
+    @pytest.mark.parametrize("char", [ROCKET, "\u2705", "\u2b50", "\ufe0f"])
+    def test_emoji_is_rejected(self, path: str, char: str) -> None:
+        messages = check(path, CHINESE + char + "\n")
+        assert len(messages) == 1
+        assert messages[0].startswith(f"{path}:1:3 U+{ord(char):04X}")
+
+    @pytest.mark.parametrize("path", CLEAN_PATHS)
     @pytest.mark.parametrize("char", [NBSP, LIGATURE_FI, ZERO_WIDTH_SPACE, "\t", "\u202f"])
-    def test_decorative_and_invisible_characters_are_rejected(self, char: str) -> None:
-        messages = check("locales/zh-CN.json", '{"a": "' + char + '"}\n')
+    def test_decorative_and_invisible_characters_are_rejected(self, path: str, char: str) -> None:
+        messages = check(path, '{"a": "' + char + '"}\n')
         assert len(messages) == 1
         assert f"U+{ord(char):04X}" in messages[0]
 
 
 class TestFreeFiles:
-    @pytest.mark.parametrize("path", ["data/events.json", "tests/fixtures/x/page.html"])
-    def test_any_unicode_is_allowed(self, path: str) -> None:
-        text = "Poincar" + E_ACUTE + " " + ROCKET + NBSP + "\tend\n"
-        assert check(path, text) == []
+    """Recorded fixtures are verbatim page snapshots: any valid UTF-8 is accepted."""
+
+    def test_any_unicode_is_allowed(self) -> None:
+        text = "Poincar" + E_ACUTE + " " + ROCKET + NBSP + LIGATURE_FI + "\tend\n"
+        assert check("tests/fixtures/x/page.html", text) == []
 
     def test_line_ending_and_newline_rules_still_apply(self) -> None:
-        assert check("data/a.json", "{}") == ["data/a.json: missing final newline"]
+        assert check("tests/fixtures/x/a.json", "{}") == [
+            "tests/fixtures/x/a.json: missing final newline"
+        ]
         assert check("tests/fixtures/x/a.ics", "BEGIN\r\nEND\r\n") == [
             "tests/fixtures/x/a.ics:1: CRLF line ending (2 line(s) in total)"
         ]
@@ -188,6 +205,19 @@ class TestCommandLine:
         assert result.returncode == 1
         assert "bad.md:1:3 U+2014 EM DASH" in result.stdout
         assert "1 violation(s) in 1 of 1 file(s)" in result.stderr
+
+    def test_emoji_in_data_fails_but_not_in_fixtures(self, repo: Path) -> None:
+        for directory in ("data", "tests/fixtures/sites-x"):
+            (repo / directory).mkdir(parents=True)
+            (repo / directory / "events.json").write_text(
+                '{"title": "Launch ' + ROCKET + '"}\n', encoding="utf-8"
+            )
+        _git(repo, "add", "-A")
+        result = _run_script(repo)
+        assert result.returncode == 1
+        assert "data/events.json:1:19 U+1F680 ROCKET" in result.stdout
+        assert "tests/fixtures" not in result.stdout
+        assert "1 violation(s) in 1 of 2 file(s)" in result.stderr
 
     def test_untracked_files_are_ignored(self, repo: Path) -> None:
         (repo / "ok.py").write_text("x = 1\n", encoding="utf-8")

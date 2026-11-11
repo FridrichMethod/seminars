@@ -98,8 +98,12 @@ volatile, `--allow-status CODE` (repeatable) also records an error response.
 - At most 500 KB per file. Trim a larger body by hand to what the tests need,
   keep it valid (JSON must still parse) and say what was removed in a
   `README.md` in the same directory.
-- Recordings are real content and may contain any Unicode; the charset check
-  does not restrict `tests/fixtures/**`.
+- Recordings are verbatim page snapshots and may contain any Unicode, emoji
+  and invisible characters included; the charset check does not restrict
+  `tests/fixtures/**`. Do not clean them up: they are test input and are
+  never published, and the cleaning code is tested against them. Everything
+  derived from them (`data/**`, feeds, site data, digests) must be free of
+  emoji and decorative characters, and `data/**` is checked for that.
 - Never record pages that need a login, and nothing that contains personal
   data beyond what the public page shows.
 

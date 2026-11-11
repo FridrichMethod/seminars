@@ -9,14 +9,24 @@ Scans every git-tracked file and enforces the charset rules of the project:
   and newlines (tabs are tolerated in Makefiles only);
 * the allow-list is ``*.zh-CN.md``, ``locales/zh-CN.json``, ``data/**`` and
   ``tests/fixtures/**``;
-* emoji and other decorative code points stay forbidden in the two zh-CN
-  entries of the allow-list; ``data/**`` and ``tests/fixtures/**`` hold real
-  scraped content and may contain anything that is valid UTF-8.
+* ``*.zh-CN.md``, ``locales/zh-CN.json`` and ``data/**`` may hold non-ASCII
+  text (Chinese, accented names, mathematical symbols) but no emoji, no
+  decorative or invisible code points (ligatures, no-break spaces, zero
+  width characters, ...) and no control characters. ``data/**`` is published
+  output: the pipeline cleans scraped text before it is stored, and this
+  check catches whatever slips through;
+* ``tests/fixtures/**`` holds verbatim snapshots of real pages. They are test
+  input and are never published, and the cleaning code has to be tested
+  against exactly what the sites serve, so anything that is valid UTF-8 is
+  accepted there.
 
 Binary files (detected by a NUL byte) are skipped. Violations are printed as
 ``path:line:col U+XXXX NAME`` and the exit status is non-zero.
 
-The script uses the standard library only and runs under any Python 3.
+The script uses the standard library only and runs under any Python 3, so it
+cannot import the project. EMOJI_RANGES and DECORATIVE_RANGES are therefore
+repeated in ``src/seminars/textrules.py`` for the code that cleans and checks
+text at run time; tests/test_textrules.py fails when the two copies differ.
 Usage: ``python3 scripts/check_ascii.py [--root DIR]``
 """
 
@@ -28,13 +38,14 @@ import subprocess
 import sys
 import unicodedata
 
-MODE_STRICT = "strict"
-MODE_ZH = "zh"
-MODE_FREE = "free"
+MODE_STRICT = "strict"  # printable ASCII only
+MODE_CLEAN = "clean"  # any script, but no emoji, decorative or control characters
+MODE_FREE = "free"  # any valid UTF-8
 
-FREE_PREFIXES = ("data/", "tests/fixtures/")
-ZH_PATHS = ("locales/zh-CN.json",)
-ZH_SUFFIX = ".zh-CN.md"
+FREE_PREFIXES = ("tests/fixtures/",)
+CLEAN_PREFIXES = ("data/",)
+CLEAN_PATHS = ("locales/zh-CN.json",)
+CLEAN_SUFFIX = ".zh-CN.md"
 TAB_BASENAMES = ("Makefile", "makefile", "GNUmakefile")
 TAB_SUFFIXES = (".mk",)
 
@@ -42,7 +53,7 @@ BOM = b"\xef\xbb\xbf"
 BINARY_SNIFF_BYTES = 8000
 MAX_REPORTS_PER_FILE = 20
 
-# Inclusive code point ranges treated as emoji.
+# Inclusive code point ranges treated as emoji. Mirrored in src/seminars/textrules.py.
 EMOJI_RANGES: tuple[tuple[int, int], ...] = (
     (0x1F000, 0x1FAFF),  # Mahjong tiles .. Symbols and Pictographs Extended-A
     (0x2600, 0x27BF),  # Miscellaneous Symbols and Dingbats
@@ -70,6 +81,7 @@ EMOJI_RANGES: tuple[tuple[int, int], ...] = (
 )
 
 # Inclusive ranges that are not emoji but are still decorative or invisible.
+# Mirrored in src/seminars/textrules.py.
 DECORATIVE_RANGES: tuple[tuple[int, int], ...] = (
     (0x00A0, 0x00A0),  # no-break space
     (0x00AD, 0x00AD),  # soft hyphen
@@ -101,8 +113,8 @@ def classify(path: str) -> str:
     """Map a repository-relative POSIX path to its charset mode."""
     if path.startswith(FREE_PREFIXES):
         return MODE_FREE
-    if path in ZH_PATHS or path.endswith(ZH_SUFFIX):
-        return MODE_ZH
+    if path.startswith(CLEAN_PREFIXES) or path in CLEAN_PATHS or path.endswith(CLEAN_SUFFIX):
+        return MODE_CLEAN
     return MODE_STRICT
 
 
