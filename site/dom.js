@@ -9,7 +9,8 @@
 const EXTERNAL_REL = "noopener noreferrer";
 const WEB_PROTOCOLS = Object.freeze(["http:", "https:"]);
 // Attributes that load or run something (all src* included); h() refuses them, so that
-// only link() and siteLink() set an address.
+// an address is only ever set by link() or, for the feed addresses built from this
+// site's own address by siteUrl(), by subscribe.js.
 const UNSAFE_ATTRIBUTE = /^(on|href$|src|style$|action$|formaction$|xlink:)/i;
 
 function appendChildren(node, children) {
@@ -95,13 +96,6 @@ export function link(value, props = {}, ...children) {
   return anchor;
 }
 
-/** A link to a page or file of this site (``path`` is relative to the current page). */
-export function siteLink(path, props = {}, ...children) {
-  const anchor = h("a", props, ...children);
-  anchor.href = siteUrl(path);
-  return anchor;
-}
-
 /** Absolute address of ``path`` on this site; anything that leaves the site is refused. */
 export function siteUrl(path) {
   const url = new URL(String(path), document.baseURI);
@@ -109,9 +103,4 @@ export function siteUrl(path) {
     throw new Error("a site path must stay on this site");
   }
   return url.href;
-}
-
-/** Text of an untrusted value: strings as they are, anything else as nothing. */
-export function text(value) {
-  return typeof value === "string" ? value : "";
 }

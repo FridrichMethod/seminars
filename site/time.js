@@ -69,10 +69,6 @@ export function zone(timeZone) {
       }
       return plainSpaces(new Intl.DateTimeFormat(lang, options).format(noon));
     },
-    /** A date such as "Nov 21, 2026" (for the last day of an event of several days). */
-    formatDate(date, lang) {
-      return format(date, lang, { year: "numeric", month: "short", day: "numeric" });
-    },
     /** A time of day such as "4:00 PM". */
     formatTime(date, lang) {
       return format(date, lang, { hour: "numeric", minute: "2-digit" });
