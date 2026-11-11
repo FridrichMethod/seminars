@@ -149,6 +149,11 @@ class Pacer:
         Requests are only sent inside this block. Nothing else is locked
         while it is held, so it cannot be part of a deadlock. Waiting for
         the turn ends with ``DeadlineExceededError`` at the deadline.
+
+        Clients and processes take turns, one request each: the host lock
+        is reached through the queue of the host (``HttpCache.host_lock``),
+        where the one who has just had a turn stands behind the one who
+        waited.
         """
         deadline.take(state.lock)
         try:

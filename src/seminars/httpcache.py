@@ -1,12 +1,14 @@
 """On-disk state of the polite HTTP client, kept under a git-ignored cache directory.
 
-Three kinds of files:
+Four kinds of files:
 
 * ``pages/<sha256 of url>.json``: body plus ETag / Last-Modified of a response,
   used for conditional requests;
 * ``hosts/<host>.json``: when the host was last contacted and the robots.txt
   copies of its origins;
-* ``hosts/<host>.lock``: an empty file that carries the lock of the host.
+* ``hosts/<host>.lock``: an empty file that carries the lock of the host;
+* ``hosts/<host>.queue``: an empty file that carries the lock of the queue
+  for the host.
 
 The host record and the host lock are what make the crawl delay and "one
 request at a time per host" hold between processes: a client takes the lock,
@@ -17,9 +19,19 @@ worktree of one repository the directory of the main checkout. Separate
 clones have a directory each and know nothing about each other unless
 ``SEMINARS_HTTP_CACHE_DIR`` points them at one directory.
 
-The lock is an advisory ``flock``. It exists on POSIX systems; on Windows
-``host_lock`` does nothing, so there the guarantee is limited to a single
-process.
+Taking turns: nobody goes for the host lock directly. A client first takes
+the lock of the queue, then waits for the lock of the host, and lets go of
+the queue the moment it has the host. So at most one client waits for the
+host itself, and it holds the queue while it does. A client that has just
+released the host and wants it again finds the queue taken and has to line
+up behind the one that waited: the lock is tried again every few
+milliseconds, and without the queue whoever released it would always be
+first. Processes with several URLs for one host therefore alternate,
+request by request, instead of one running through its whole list.
+
+Both locks are advisory ``flock`` locks. They exist on POSIX systems; on
+Windows ``host_lock`` does nothing, so there the guarantee is limited to a
+single process.
 
 The cache is disposable: unreadable or outdated files are treated as absent.
 With ``directory=None`` nothing is read, written or locked. A directory
@@ -217,30 +229,61 @@ class HttpCache:
         Without a directory, with one that cannot be written to, and on
         Windows, this is a no-op.
 
-        With ``wait``, the lock is tried instead of waited for: as long as
-        somebody else holds it, ``wait`` is called before the next try. It
-        should pause for a moment, and it ends the waiting by raising.
+        The way to the lock leads through the queue of the host (see the
+        module docstring), so callers that want the same host take turns:
+        whoever has just released the lock comes after the one who waited.
+
+        With ``wait``, the locks are tried instead of waited for: as long
+        as somebody else holds one, ``wait`` is called before the next try.
+        It should pause for a moment, and it ends the waiting by raising.
         """
-        path = self._host_path(host, ".lock")
-        if path is None or sys.platform == "win32":
+        descriptors = self._open_lock_files(host)
+        if descriptors is None:
             yield
             return
+        queue, descriptor = descriptors
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
-        except OSError as error:
-            self._complain("locking", error)
-            yield
-            return
-        try:
-            locked = self._acquire(descriptor, wait)
+            locked = self._through_the_queue(queue, descriptor, wait)
             try:
                 yield
             finally:
                 if locked:
                     fcntl.flock(descriptor, fcntl.LOCK_UN)
         finally:
+            os.close(queue)
             os.close(descriptor)
+
+    def _open_lock_files(self, host: str) -> tuple[int, int] | None:
+        """Descriptors of the queue file and the lock file of ``host``; ``None`` without locks."""
+        queue_path, lock_path = self._host_path(host, ".queue"), self._host_path(host, ".lock")
+        if queue_path is None or lock_path is None or sys.platform == "win32":
+            return None
+        opened: list[int] = []
+        try:
+            queue_path.parent.mkdir(parents=True, exist_ok=True)
+            for path in (queue_path, lock_path):
+                opened.append(os.open(path, os.O_RDWR | os.O_CREAT, 0o644))
+        except OSError as error:
+            for descriptor in opened:
+                os.close(descriptor)
+            self._complain("locking", error)
+            return None
+        return opened[0], opened[1]
+
+    def _through_the_queue(
+        self, queue: int, descriptor: int, wait: Callable[[], None] | None
+    ) -> bool:
+        """Take the host lock by way of the queue; False when this file system cannot lock.
+
+        The queue is held from before the first try for the host lock until
+        that lock is taken (or the waiting is given up), never longer.
+        """
+        if not self._acquire(queue, wait):
+            return False
+        try:
+            return self._acquire(descriptor, wait)
+        finally:
+            fcntl.flock(queue, fcntl.LOCK_UN)
 
     def _acquire(self, descriptor: int, wait: Callable[[], None] | None) -> bool:
         """Take the lock on ``descriptor``; False when this file system cannot lock at all."""

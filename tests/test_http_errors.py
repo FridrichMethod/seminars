@@ -390,6 +390,26 @@ class TestCacheDirectoryTrouble:
         ]
         assert HttpCache(tmp_path).host("dept.example.edu").last_request_at == fake_clock()
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="there is no lock on Windows")
+    def test_a_lock_file_that_cannot_be_opened_is_like_no_lock(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        hosts = tmp_path / "hosts"
+        (hosts / "dept.example.edu.lock").mkdir(parents=True)  # where the lock file should be
+        cache = HttpCache(tmp_path)
+        with caplog.at_level(logging.WARNING, logger="seminars.httpcache"):
+            for _ in range(2):
+                with cache.host_lock("dept.example.edu"):
+                    cache.store_host("dept.example.edu", HostRecord(last_request_at=1.0))
+        assert len(caplog.records) == 1
+        assert "locking" in caplog.records[0].getMessage()
+        assert cache.host("dept.example.edu").last_request_at == 1.0
+        assert sorted(path.name for path in hosts.iterdir()) == [
+            "dept.example.edu.json",
+            "dept.example.edu.lock",
+            "dept.example.edu.queue",
+        ]
+
     def test_a_long_host_gets_a_short_file_name(self, tmp_path: Path) -> None:
         cache = HttpCache(tmp_path)
         host = ".".join(["a" * 60] * 4)  # 243 characters, a valid name
@@ -400,7 +420,7 @@ class TestCacheDirectoryTrouble:
         assert cache.host(host).last_request_at == 1.0
         assert cache.host(other).last_request_at == 2.0
         names = sorted(path.name for path in (tmp_path / "hosts").iterdir())
-        assert len(names) == 4
+        assert len(names) == 6  # a record, a lock and a queue for each of the two
         assert all(len(name) < 120 for name in names)
 
     def test_hosts_that_differ_only_in_odd_characters_do_not_share_a_file(

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import functools
+import os
 import subprocess
 import sys
 import threading
@@ -317,6 +319,21 @@ posix_only = pytest.mark.skipif(
     sys.platform == "win32", reason="the per-host lock between processes needs flock"
 )
 
+
+def can_lock(path: Path) -> bool:
+    """Whether the lock that ``path`` carries is free right now (it is not kept)."""
+    import fcntl
+
+    descriptor = os.open(path, os.O_RDWR)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return False
+    finally:
+        os.close(descriptor)
+    return True
+
+
 TRY_LOCK = """\
 import fcntl
 import os
@@ -368,6 +385,48 @@ with PoliteClient(
     client.get("https://dept.example.edu/events")
 """
 """One fixture recorder run: a live client with the real clock, a fake network and a log."""
+
+BATCH = """\
+import sys
+import time
+from pathlib import Path
+
+import httpx
+
+from seminars.config import HttpSettings
+from seminars.http import PoliteClient
+
+name, count, cache_dir, log = sys.argv[1], int(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4])
+
+
+def handler(request):
+    with log.open("a", encoding="utf-8") as stream:
+        stream.write(f"{request.url.path}\\n")
+    time.sleep(0.03)
+    return httpx.Response(404 if request.url.path == "/robots.txt" else 200, text="ok")
+
+
+settings = HttpSettings(user_agent="seminars-bot/1.0 (+https://example.org/)")
+settings = settings.evolve(min_interval_seconds=0.25)
+with PoliteClient(
+    settings,
+    cache_dir=cache_dir,
+    transport=httpx.MockTransport(handler),
+    resolver=lambda host: ["93.184.216.34"],  # a child process is outside the DNS guard
+    own_address=lambda address: False,
+) as client:
+    if name == "b":
+        client.get("https://dept.example.edu/b/warm-up")  # learns the robots.txt of the host
+    print("ready", flush=True)
+    sys.stdin.readline()
+    for number in range(count):
+        client.get(f"https://dept.example.edu/{name}/{number}")
+"""
+"""One call with ``count`` URLs for one host: a live client, the real clock, a fake network.
+
+The log gets one line per request. Requests of one host never overlap, so
+the lines are in the order the requests were made.
+"""
 
 
 class TestHostRecord:
@@ -482,7 +541,10 @@ class TestSharedCacheDirectory:
         with cache.host_lock("Dept.Example.edu"):
             assert probe() == "busy\n"
         assert probe() == "free\n"
-        assert [path.name for path in (cache_dir / "hosts").iterdir()] == ["dept.example.edu.lock"]
+        assert sorted(path.name for path in (cache_dir / "hosts").iterdir()) == [
+            "dept.example.edu.lock",
+            "dept.example.edu.queue",
+        ]
 
     def test_host_lock_is_released_when_the_block_fails(self, cache_dir: Path) -> None:
         cache = HttpCache(cache_dir)
@@ -495,6 +557,112 @@ class TestSharedCacheDirectory:
         with HttpCache(None).host_lock("dept.example.edu"):
             pass
         assert list(tmp_path.iterdir()) == []
+
+    @posix_only
+    def test_whoever_waits_for_a_host_goes_before_the_one_who_just_used_it(
+        self, cache_dir: Path
+    ) -> None:
+        """The queue of a host: its last user cannot take it again ahead of somebody waiting."""
+        order: list[str] = []
+        pause = functools.partial(time.sleep, 0.005)
+
+        def wait_for_the_host() -> None:
+            with HttpCache(cache_dir).host_lock("dept.example.edu", pause):
+                order.append("the one who waited")
+
+        user = HttpCache(cache_dir)
+        waiter = threading.Thread(target=wait_for_the_host)
+        with user.host_lock("dept.example.edu", pause):
+            waiter.start()
+            queue = cache_dir / "hosts" / "dept.example.edu.queue"
+            for _ in range(1000):  # until the waiter stands in the queue
+                if queue.is_file() and not can_lock(queue):
+                    break
+                time.sleep(0.005)
+            assert not can_lock(queue)
+        with user.host_lock("dept.example.edu", pause):
+            order.append("the one who just used it")
+        waiter.join(timeout=5)
+        assert order == ["the one who waited", "the one who just used it"]
+
+    @posix_only
+    def test_the_queue_is_free_while_the_host_is_in_use(self, cache_dir: Path) -> None:
+        cache = HttpCache(cache_dir)
+        hosts = cache_dir / "hosts"
+        with cache.host_lock("dept.example.edu"):
+            assert not can_lock(hosts / "dept.example.edu.lock")
+            assert can_lock(hosts / "dept.example.edu.queue")
+        assert can_lock(hosts / "dept.example.edu.lock")
+
+    @posix_only
+    def test_a_call_that_gives_up_waiting_leaves_the_queue(self, cache_dir: Path) -> None:
+        tries = 0
+
+        def give_up_on_the_third_try() -> None:
+            nonlocal tries
+            tries += 1
+            if tries == 3:
+                raise RuntimeError("waited long enough")
+
+        queue = cache_dir / "hosts" / "dept.example.edu.queue"
+        with HttpCache(cache_dir).host_lock("dept.example.edu"):
+            with (
+                pytest.raises(RuntimeError, match="waited long enough"),
+                HttpCache(cache_dir).host_lock("dept.example.edu", give_up_on_the_third_try),
+            ):
+                pytest.fail("the host is in use")  # pragma: no cover
+            assert can_lock(queue)
+
+    @posix_only
+    def test_a_second_call_gets_a_turn_after_at_most_one_more_request_of_the_first(
+        self, tmp_path: Path
+    ) -> None:
+        """Two calls for one host, as two real processes: they alternate, request by request.
+
+        Call "a" has five URLs. Call "b" (two URLs) joins while "a" is at
+        its second one, and must not have to wait for the whole list.
+        """
+        log = tmp_path / "requests.log"
+
+        def start(name: str, count: int) -> subprocess.Popen[str]:
+            arguments = [name, str(count), str(tmp_path / "http"), str(log)]
+            run = subprocess.Popen(
+                [sys.executable, "-c", BATCH, *arguments],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                text=True,
+            )
+            assert run.stdout is not None
+            assert run.stdout.readline() == "ready\n"
+            return run
+
+        def go(run: subprocess.Popen[str]) -> None:
+            assert run.stdin is not None
+            run.stdin.write("go\n")
+            run.stdin.flush()
+
+        def requests() -> list[str]:
+            return log.read_text(encoding="utf-8").split()
+
+        runs = [start("b", 2), start("a", 5)]
+        try:
+            go(runs[1])
+            for _ in range(3000):  # until "a" is in the middle of its list
+                if "/a/1" in requests():
+                    break
+                time.sleep(0.005)
+            go(runs[0])
+            assert [run.wait(timeout=60) for run in runs] == [0, 0]
+        finally:
+            for run in runs:
+                run.kill()
+                run.communicate()
+        pages = [path for path in requests() if path != "/robots.txt"]
+        assert sorted(pages) == [*(f"/a/{n}" for n in range(5)), "/b/0", "/b/1", "/b/warm-up"]
+        after = "".join(path[1] for path in pages[pages.index("/a/1") + 1 :])
+        # "b" is next, or "a" was already on its way to one more request when "b" joined.
+        # Without the queue "a" finishes its list first: "aaabb".
+        assert after in ("babaa", "ababa"), after
 
     @posix_only
     def test_two_processes_started_together_do_not_overlap(self, tmp_path: Path) -> None:

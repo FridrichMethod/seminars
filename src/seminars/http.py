@@ -49,8 +49,12 @@ Rules of the live client:
   its host in that directory, and the time of the last request is read from
   there after the lock was taken. Parallel runs wait for each other instead
   of overlapping (until the ``get`` that waits runs out of time, see
-  below). Clients without a cache directory, or with different
-  ones, do not see each other. Always build the live client with
+  below), and they take turns: whoever waits for a host stands in its
+  queue (a second lock), and whoever has just used the host has to line up
+  behind. A run with many URLs for one host therefore lets a second run in
+  after at most one more request, not after its whole list. Clients
+  without a cache directory, or with different ones, do not see each
+  other. Always build the live client with
   ``cache_dir=paths.http_cache_dir()``: that directory is the same for
   every git worktree of one repository, and ``SEMINARS_HTTP_CACHE_DIR``
   moves it, which separate clones that fetch at the same time need. On

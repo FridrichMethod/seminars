@@ -97,6 +97,12 @@ here and in `check --source-id`.
   kept in the HTTP cache directory, and a call waits while another one is
   using the host. This works only between calls that use the same cache
   directory.
+- Calls that want the same host take turns, one request each. A call that
+  waits stands in the queue of the host (`hosts/<host>.queue` in the cache
+  directory), and the call that has just made a request lines up behind
+  it. A second call therefore gets its first request in after at most one
+  more request of the first, however many URLs that one still has: with a
+  Crawl-delay of 30 s, two calls alternate every 30 s.
 - The cache directory is `.cache/http/` of the main checkout. A linked git
   worktree (made with `git worktree add`) has no directory of its own: it
   finds the main checkout through its `.git` file and uses
