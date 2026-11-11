@@ -24,9 +24,19 @@ Rules of the live client:
   ``RobotsUnavailableError`` at once, without contacting the host again;
 * the pause between two requests to one host is
   ``max(min_interval_seconds, Crawl-delay)``, measured from the end of the
-  previous request, and it also holds across processes through the cache;
+  previous request;
 * requests to one host are strictly serial, different hosts may be used
   concurrently from several threads;
+* both rules also hold between clients and between processes, provided they
+  share one ``cache_dir``: every request is made while holding the lock of
+  its host in that directory, and the time of the last request is read from
+  there after the lock was taken. Parallel runs wait for each other instead
+  of overlapping. Clients without a cache directory, or with different
+  ones, do not see each other: checkouts that fetch from the same hosts at
+  the same time (git worktrees) must be given a common directory through
+  ``SEMINARS_HTTP_CACHE_DIR``. Always build the live client with
+  ``cache_dir=paths.http_cache_dir()``, which honours that variable. On
+  Windows there is no lock between processes; see ``seminars.httpcache``;
 * every host has a request budget per client (``max_requests_per_host``,
   retries included); exceeding it raises ``HostBudgetExceededError``.
   robots.txt does not count: it costs at most ``retries + 1`` requests per
@@ -150,7 +160,11 @@ class _Hop:
 
 @dataclass
 class _HostState:
-    """Mutable per-host bookkeeping; guarded by ``lock`` for the whole request."""
+    """Mutable per-host bookkeeping; guarded by ``lock`` for the whole request.
+
+    ``record`` is brought up to date from the cache directory at the start of
+    every hop, under the host lock of that directory.
+    """
 
     record: HostRecord
     lock: threading.Lock = field(default_factory=threading.Lock)
@@ -164,7 +178,8 @@ class PoliteClient:
     """Live ``HttpClient``; see the module docstring for the rules it follows.
 
     One instance serves one run: budgets and robots policies are kept per
-    instance. It is safe to share between threads.
+    instance. It is safe to share between threads, and several instances
+    (in one process or in several) coordinate through a common ``cache_dir``.
     """
 
     def __init__(
@@ -241,7 +256,9 @@ class PoliteClient:
     def _fetch_hop(self, url: str, extra_headers: Mapping[str, str] | None) -> _Hop:
         origin, host, path = split_url(url)
         state = self._state(host)
-        with state.lock:
+        with state.lock, self._cache.host_lock(host):
+            # Other clients and processes may have used the host since the last hop.
+            state.record = state.record.merge(self._cache.host(host))
             policy = self._policy(state, host, origin)
             if not policy.allows(path):
                 raise RobotsDisallowedError(url, "disallowed by robots.txt")
@@ -358,7 +375,7 @@ class PoliteClient:
         with self._hosts_lock:
             state = self._hosts.get(host)
             if state is None:
-                state = _HostState(record=self._cache.host(host))
+                state = _HostState(record=HostRecord())
                 self._hosts[host] = state
             return state
 

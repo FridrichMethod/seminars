@@ -14,8 +14,14 @@ is an ``HttpClient`` that serves recorded bodies by URL and raises
 through the polite client, so robots.txt and Crawl-delay are honoured while
 researching sources too::
 
-    uv run python -m seminars.fixtures record --source-id ID URL [--name FILE]
+    uv run python -m seminars.fixtures record --source-id ID URL [URL ...] [--name FILE]
     uv run python -m seminars.fixtures check [--source-id ID]
+
+Give ``record`` all URLs of one host in a single call: they are fetched one
+after another with the pause the host asks for. Calls that run at the same
+time and share a cache directory wait for each other; calls from different
+checkouts only do so when ``SEMINARS_HTTP_CACHE_DIR`` names one directory for
+all of them (see ``seminars.config.ProjectPaths.http_cache_dir``).
 """
 
 from __future__ import annotations
@@ -360,10 +366,17 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--root", type=Path, default=None, help="project root (default: detect)")
     commands = parser.add_subparsers(dest="command", required=True)
-    rec = commands.add_parser("record", help="fetch one URL politely and store it as a fixture")
+    rec = commands.add_parser("record", help="fetch URLs politely and store them as fixtures")
     rec.add_argument("--source-id", required=True, help="source id, names the fixture directory")
-    rec.add_argument("url", help="absolute http(s) URL to record")
-    rec.add_argument("--name", default=None, help="file name for the body (default: derived)")
+    rec.add_argument(
+        "url",
+        nargs="+",
+        metavar="URL",
+        help="absolute http(s) URL to record; several are fetched one after another",
+    )
+    rec.add_argument(
+        "--name", default=None, help="file name for the body (default: derived); one URL only"
+    )
     rec.add_argument(
         "--volatile-param",
         action="append",
@@ -384,29 +397,20 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _record_command(args: argparse.Namespace, paths: ProjectPaths, http: HttpClient | None) -> int:
-    live = None
+def _record_one(args: argparse.Namespace, http: HttpClient, store: FixtureStore, url: str) -> bool:
+    """Record ``url`` and report the outcome on the console; False when it failed."""
     try:
-        store = FixtureStore(paths.fixtures_dir / args.source_id)
-        if http is None:
-            from seminars.http import PoliteClient
-
-            settings = load_settings(paths.settings_file)
-            http = live = PoliteClient(settings.http, cache_dir=paths.http_cache_dir)
         entry = record(
             http,
             store,
-            args.url,
+            url,
             name=args.name,
             volatile_params=args.volatile_param,
             allow_statuses=args.allow_status,
         )
     except (HttpError, FixtureError) as error:
         print(f"error: {error}", file=sys.stderr)
-        return 1
-    finally:
-        if live is not None:
-            live.close()
+        return False
     size = (store.directory / entry.file).stat().st_size
     print(f"recorded {args.source_id}/{entry.file} (HTTP {entry.status}, {size} bytes)")
     if size > MAX_FIXTURE_BYTES:
@@ -415,14 +419,37 @@ def _record_command(args: argparse.Namespace, paths: ProjectPaths, http: HttpCli
             "need and note the trim in a README next to it",
             file=sys.stderr,
         )
-    return 0
+    return True
+
+
+def _record_command(args: argparse.Namespace, paths: ProjectPaths, http: HttpClient | None) -> int:
+    """Record every URL in order through one client; a failed URL does not stop the others."""
+    live = None
+    try:
+        store = FixtureStore(paths.fixtures_dir / args.source_id)
+        if http is None:
+            from seminars.http import PoliteClient
+
+            settings = load_settings(paths.settings_file)
+            http = live = PoliteClient(settings.http, cache_dir=paths.http_cache_dir())
+        outcomes = [_record_one(args, http, store, url) for url in args.url]
+    except FixtureError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+    finally:
+        if live is not None:
+            live.close()
+    return 0 if all(outcomes) else 1
 
 
 def main(argv: Sequence[str] | None = None, *, http: HttpClient | None = None) -> int:
     """Command line entry point; ``http`` replaces the live client (for tests)."""
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
+    args = parser.parse_args(argv)
     paths = ProjectPaths(args.root or find_project_root())
     if args.command == "record":
+        if args.name is not None and len(args.url) > 1:
+            parser.error("--name names a single file; record one URL at a time with it")
         return _record_command(args, paths, http)
     problems = check_tree(paths.fixtures_dir, args.source_id)
     for problem in problems:

@@ -71,18 +71,35 @@ returns the latest `fetched_at` of all fixtures; use it as "now".
 
 ```
 uv run python -m seminars.fixtures record --source-id sites-chemistry \
-    "https://chemistry.stanford.edu/jsonapi/node/hs_event?page[limit]=50"
+    "https://chemistry.stanford.edu/jsonapi/node/hs_event?page[limit]=50" \
+    "https://chemistry.stanford.edu/jsonapi/node/hs_event?page[limit]=50&page[offset]=50"
 ```
 
 Options: `--name FILE` chooses the body file name (default: derived from the
-URL), `--volatile-param NAME` (repeatable) marks a query parameter as
-volatile, `--allow-status CODE` (repeatable) also records an error response.
+URL; only with a single URL), `--volatile-param NAME` (repeatable) marks a
+query parameter as volatile, `--allow-status CODE` (repeatable) also records
+an error response. Options apply to every URL of the call. A URL that fails
+is reported and the remaining ones are still recorded; the exit status is 1
+when any failed.
 
 - The recorder goes through the polite HTTP client: robots.txt is honoured,
-  and the pause between two requests to one host is
-  `max(1 s, Crawl-delay)`, also across separate invocations (the last request
-  time is kept in `.cache/http/`). Expect a 30 s wait per request on hosts
-  that ask for `Crawl-delay: 30`.
+  and the pause between two requests to one host is `max(1 s, Crawl-delay)`.
+  Expect a 30 s wait per request on hosts that ask for `Crawl-delay: 30`.
+- Pass all URLs of one host to a single call. They are fetched one after
+  another, which is the simplest way to stay serial.
+- The pause also holds between separate calls, one after another or at the
+  same time: the last request time of every host and a per-host lock are
+  kept in the HTTP cache directory (`.cache/http/`), and a call waits while
+  another one is using the host. This works only between calls that use the
+  same cache directory.
+- Every checkout has its own `.cache/http/`. When several git worktrees
+  record at the same time and may touch the same host, either let exactly one
+  of them own each host, or export one common absolute path in all of them
+  before recording: `export SEMINARS_HTTP_CACHE_DIR=/path/to/shared/http-cache`.
+  Without one of the two, two worktrees can hit a host at the same moment and
+  break its Crawl-delay.
+- The per-host lock needs a POSIX system. On Windows, never run two calls
+  for the same host at the same time.
 - Fetch each URL once and then work from the fixture.
 - Recording the same URL again replaces its entry and body.
 - Always quote the URL in the shell (`?`, `[` and `&` are special).

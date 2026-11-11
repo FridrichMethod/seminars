@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 import threading
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from itertools import pairwise
 from pathlib import Path
 
 import httpx
@@ -21,7 +24,7 @@ from seminars.http import (
     TooManyRedirectsError,
     UnsupportedSchemeError,
 )
-from seminars.httpcache import CachedPage, HttpCache
+from seminars.httpcache import CachedPage, CachedRobots, HostRecord, HttpCache
 
 HOST = "https://dept.example.edu"
 PAGE = f"{HOST}/events"
@@ -298,3 +301,208 @@ class TestThreads:
         assert [document.text for document in documents] == ["ok\n", "ok\n"]
         assert probe.max_total == 2
         assert probe.max_active == {"a.example.edu": 1, "b.example.edu": 1}
+
+
+posix_only = pytest.mark.skipif(
+    sys.platform == "win32", reason="the per-host lock between processes needs flock"
+)
+
+TRY_LOCK = """\
+import fcntl
+import os
+import sys
+
+descriptor = os.open(sys.argv[1], os.O_RDWR)
+try:
+    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except BlockingIOError:
+    print("busy")
+else:
+    print("free")
+"""
+"""Reports whether the lock file given as the argument can be taken right now."""
+
+RECORDER = """\
+import sys
+import time
+from pathlib import Path
+
+import httpx
+
+from seminars.config import HttpSettings
+from seminars.http import PoliteClient
+
+cache_dir, log = Path(sys.argv[1]), Path(sys.argv[2])
+
+
+def handler(request):
+    begin = time.time()
+    time.sleep(0.05)
+    robots = request.url.path == "/robots.txt"
+    with log.open("a", encoding="utf-8") as stream:
+        stream.write(f"{request.url.path} {begin!r} {time.time()!r}\\n")
+    return httpx.Response(200, text="User-agent: *\\nCrawl-delay: 0.3\\n" if robots else "ok")
+
+
+settings = HttpSettings(user_agent="seminars-bot/1.0 (+https://example.org/)")
+settings = settings.evolve(min_interval_seconds=0.0)
+with PoliteClient(settings, cache_dir=cache_dir, transport=httpx.MockTransport(handler)) as client:
+    print("ready", flush=True)
+    sys.stdin.readline()
+    client.get("https://dept.example.edu/events")
+"""
+"""One fixture recorder run: a live client with the real clock, a fake network and a log."""
+
+
+class TestHostRecord:
+    def test_merge_keeps_the_later_request_and_the_newer_robots(self) -> None:
+        origin, other_origin = "https://dept.example.edu", "http://dept.example.edu"
+        mine = HostRecord(
+            last_request_at=100.0,
+            robots={origin: CachedRobots(fetched_at=50.0, text="old")},
+        )
+        theirs = HostRecord(
+            last_request_at=130.0,
+            robots={
+                origin: CachedRobots(fetched_at=90.0, text="new"),
+                other_origin: CachedRobots(fetched_at=10.0),
+            },
+        )
+        merged = mine.merge(theirs)
+        assert merged.last_request_at == 130.0
+        assert merged.robots[origin].text == "new"
+        assert merged.robots[other_origin].text is None
+        assert theirs.merge(mine) == merged
+        assert mine.merge(HostRecord()) == mine
+        assert HostRecord().merge(HostRecord()) == HostRecord()
+
+
+class TestSharedCacheDirectory:
+    def test_two_clients_at_once_take_turns_and_keep_the_crawl_delay(
+        self, http_settings: HttpSettings, cache_dir: Path
+    ) -> None:
+        clock = FakeClock()
+        guard = threading.Lock()
+        active = 0
+        max_active = 0
+        seen: list[tuple[str, float]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal active, max_active
+            with guard:
+                active += 1
+                max_active = max(max_active, active)
+                seen.append((request.url.path, clock()))
+            time.sleep(0.02)
+            with guard:
+                active -= 1
+            if request.url.path == "/robots.txt":
+                return httpx.Response(200, text="User-agent: *\nCrawl-delay: 30\n")
+            return httpx.Response(200, text="ok")
+
+        start = threading.Barrier(2)
+
+        def run_once() -> str:
+            with PoliteClient(
+                http_settings,
+                cache_dir=cache_dir,
+                clock=clock,
+                sleep=clock.sleep,
+                transport=httpx.MockTransport(handler),
+            ) as client:
+                start.wait(timeout=5)
+                return client.get(PAGE).text
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(run_once) for _ in range(2)]
+            texts = [future.result(timeout=10) for future in futures]
+        assert texts == ["ok\n", "ok\n"]
+        assert max_active == 1
+        assert [path for path, _ in seen] == ["/robots.txt", "/events", "/events"]
+        first = seen[0][1]
+        assert [moment - first for _, moment in seen] == [0.0, 30.0, 60.0]
+
+    def test_a_client_sees_requests_other_clients_made_after_it_started(
+        self,
+        http_settings: HttpSettings,
+        fake_clock: FakeClock,
+        respx_router: respx.MockRouter,
+        cache_dir: Path,
+    ) -> None:
+        respx_router.get(f"{HOST}/robots.txt").respond(200, text="User-agent: *\nCrawl-delay: 30\n")
+        respx_router.get(PAGE).respond(200, text="ok")
+        early = make_client(http_settings, fake_clock, cache_dir)
+        early.get(PAGE)
+        fake_clock.advance(100.0)
+        make_client(http_settings, fake_clock, cache_dir).get(PAGE)
+        fake_clock.advance(10.0)
+        early.get(PAGE)
+        assert fake_clock.sleeps == [30.0, 20.0]
+
+    def test_clients_with_different_directories_do_not_see_each_other(
+        self,
+        http_settings: HttpSettings,
+        fake_clock: FakeClock,
+        respx_router: respx.MockRouter,
+        tmp_path: Path,
+    ) -> None:
+        """Why worktrees need SEMINARS_HTTP_CACHE_DIR: this is the unprotected case."""
+        respx_router.get(f"{HOST}/robots.txt").respond(200, text="User-agent: *\nCrawl-delay: 30\n")
+        respx_router.get(PAGE).respond(200, text="ok")
+        make_client(http_settings, fake_clock, tmp_path / "one").get(PAGE)
+        make_client(http_settings, fake_clock, tmp_path / "two").get(PAGE)
+        assert fake_clock.sleeps == [30.0, 30.0]
+
+    @posix_only
+    def test_host_lock_excludes_other_processes(self, cache_dir: Path) -> None:
+        cache = HttpCache(cache_dir)
+
+        def probe() -> str:
+            (lock_file,) = (cache_dir / "hosts").glob("*.lock")
+            command = [sys.executable, "-c", TRY_LOCK, str(lock_file)]
+            return subprocess.run(command, capture_output=True, text=True, check=True).stdout
+
+        with cache.host_lock("Dept.Example.edu"):
+            assert probe() == "busy\n"
+        assert probe() == "free\n"
+        assert [path.name for path in (cache_dir / "hosts").iterdir()] == ["dept.example.edu.lock"]
+
+    def test_host_lock_is_released_when_the_block_fails(self, cache_dir: Path) -> None:
+        cache = HttpCache(cache_dir)
+        with pytest.raises(RuntimeError, match="boom"), cache.host_lock("dept.example.edu"):
+            raise RuntimeError("boom")
+        with cache.host_lock("dept.example.edu"):
+            pass
+
+    def test_no_lock_file_without_a_cache_directory(self, tmp_path: Path) -> None:
+        with HttpCache(None).host_lock("dept.example.edu"):
+            pass
+        assert list(tmp_path.iterdir()) == []
+
+    @posix_only
+    def test_two_processes_started_together_do_not_overlap(self, tmp_path: Path) -> None:
+        """Two parallel fixture recorder runs for one host, as two real processes."""
+        log = tmp_path / "requests.log"
+        command = [sys.executable, "-c", RECORDER, str(tmp_path / "http"), str(log)]
+        runs = [
+            subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+            for _ in range(2)
+        ]
+        try:
+            for run in runs:
+                assert run.stdout is not None
+                assert run.stdout.readline() == "ready\n"
+            for run in runs:
+                assert run.stdin is not None
+                run.stdin.write("go\n")
+                run.stdin.flush()
+            assert [run.wait(timeout=30) for run in runs] == [0, 0]
+        finally:
+            for run in runs:
+                run.kill()
+                run.communicate()
+        requests = [line.split() for line in log.read_text(encoding="utf-8").splitlines()]
+        spans = sorted((float(begin), float(end), path) for path, begin, end in requests)
+        assert [path for _, _, path in spans] == ["/robots.txt", "/events", "/events"]
+        for (_, previous_end, _), (begin, _, _) in pairwise(spans):
+            assert begin - previous_end >= 0.3 - 0.01

@@ -49,7 +49,12 @@ from seminars.config.loader import (
     read_env,
     read_yaml,
 )
-from seminars.config.paths import ConfigError, ProjectPaths, find_project_root
+from seminars.config.paths import (
+    ENV_HTTP_CACHE_DIR,
+    ConfigError,
+    ProjectPaths,
+    find_project_root,
+)
 from seminars.config.settings import (
     DedupSettings,
     EventSettings,
@@ -63,6 +68,7 @@ from seminars.config.settings import (
 
 __all__ = [
     "ENV_GITHUB_ACTIONS",
+    "ENV_HTTP_CACHE_DIR",
     "ENV_LLM_BASE_URL",
     "ENV_LLM_MODEL_PREFIX",
     "ENV_LLM_PROVIDERS",

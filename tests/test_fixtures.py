@@ -14,7 +14,7 @@ import respx
 
 from factories import REFERENCE_NOW, make_document
 from fakes import FakeClock
-from seminars.config import HttpSettings
+from seminars.config import ENV_HTTP_CACHE_DIR, HttpSettings
 from seminars.fixtures import (
     MANIFEST_NAME,
     MAX_FIXTURE_BYTES,
@@ -460,6 +460,75 @@ class TestRecorder:
         bad_id = ["--root", str(tmp_path), "record", "--source-id", "Bad_Id", PAGE_1]
         assert main(bad_id, http=live) == 1
         assert "not a valid source id" in capsys.readouterr().err
+
+    def test_command_line_records_several_urls_one_after_another(
+        self,
+        live: PoliteClient,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        fake_clock: FakeClock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        robots = respx_router.get("https://events.example.edu/robots.txt").respond(
+            200, text="User-agent: *\nCrawl-delay: 30\n"
+        )
+        respx_router.get(url__startswith=API).respond(200, text="{}")
+        pages = [PAGE_1.replace("page=1", f"page={number}") for number in (1, 2, 3)]
+        arguments = ["--root", str(tmp_path), "record", "--source-id", "localist-example"]
+        assert main([*arguments, *pages, "--volatile-param", "start"], http=live) == 0
+        assert capsys.readouterr().out.count("recorded localist-example/") == 3
+        assert robots.call_count == 1
+        assert fake_clock.sleeps == [30.0, 30.0, 30.0]
+        recorded = FixtureStore(tmp_path / "tests" / "fixtures" / "localist-example")
+        assert sorted(recorded.manifest.entries) == sorted(pages)
+        assert all(e.volatile_params == ["start"] for e in recorded.manifest.entries.values())
+
+    def test_command_line_goes_on_after_a_url_that_fails(
+        self,
+        live: PoliteClient,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        respx_router.get("https://events.example.edu/robots.txt").respond(404)
+        respx_router.get(f"{API}/missing").respond(404)
+        respx_router.get(f"{API}/present").respond(200, text="{}")
+        arguments = ["--root", str(tmp_path), "record", "--source-id", "localist-example"]
+        assert main([*arguments, f"{API}/missing", f"{API}/present"], http=live) == 1
+        captured = capsys.readouterr()
+        assert "error: HTTP 404" in captured.err
+        assert captured.out.count("recorded localist-example/") == 1
+        recorded = FixtureStore(tmp_path / "tests" / "fixtures" / "localist-example")
+        assert list(recorded.manifest.entries) == [f"{API}/present"]
+
+    def test_command_line_refuses_one_file_name_for_several_urls(
+        self, live: PoliteClient, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        arguments = ["--root", str(tmp_path), "record", "--source-id", "localist-example"]
+        with pytest.raises(SystemExit) as caught:
+            main([*arguments, PAGE_1, f"{API}/other", "--name", "page.json"], http=live)
+        assert caught.value.code == 2
+        assert "--name names a single file" in capsys.readouterr().err
+        assert not (tmp_path / "tests").exists()
+
+    def test_command_line_builds_its_client_on_the_shared_cache_directory(
+        self, tmp_path: Path, respx_router: respx.MockRouter, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Without ``http`` the recorder is live: settings and cache come from the project."""
+        settings = (REPO_ROOT / "config" / "settings.yaml").read_text(encoding="utf-8")
+        settings = settings.replace("min_interval_seconds: 1.0", "min_interval_seconds: 0")
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "settings.yaml").write_text(settings, encoding="utf-8")
+        shared = tmp_path / "shared-http-cache"
+        monkeypatch.setenv(ENV_HTTP_CACHE_DIR, str(shared))
+        robots = respx_router.get("https://events.example.edu/robots.txt").respond(404)
+        respx_router.get(url__startswith=API).respond(200, text="{}")
+        arguments = ["--root", str(tmp_path), "record", "--source-id", "localist-example"]
+        assert main([*arguments, PAGE_1]) == 0
+        expected = "seminars-bot/1.0 (+https://fridrichmethod.github.io/seminars/)"
+        assert robots.calls.last.request.headers["user-agent"] == expected
+        assert (shared / "hosts" / "events.example.edu.json").is_file()
+        assert not (tmp_path / ".cache").exists()
 
     def test_command_line_check_reports_problems(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]

@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
 
 from seminars.models import FEEDS_DIRNAME
+
+ENV_HTTP_CACHE_DIR: Final = "SEMINARS_HTTP_CACHE_DIR"
+"""Environment variable that moves the HTTP cache; see ``ProjectPaths.http_cache_dir``."""
 
 
 class ConfigError(Exception):
@@ -133,8 +139,24 @@ class ProjectPaths:
     def cache_dir(self) -> Path:
         return self.root / ".cache"
 
-    @property
-    def http_cache_dir(self) -> Path:
+    def http_cache_dir(self, env: Mapping[str, str] | None = None) -> Path:
+        """Directory of the live HTTP client's cache: ``.cache/http`` unless ``env`` moves it.
+
+        ``env`` defaults to ``os.environ``. A non-empty ``SEMINARS_HTTP_CACHE_DIR``
+        replaces the default; a relative value is resolved against the
+        project root.
+
+        The directory holds more than cached pages: the time of the last
+        request to every host and the per-host lock live here, and they are
+        what keeps the crawl delay between separate processes (see
+        ``seminars.httpcache``). Every process that may contact the same
+        hosts at the same time has to use the same directory. Several git
+        worktrees of this project therefore need the variable, set to one
+        common absolute path, before any of them fetches from the network.
+        """
+        override = (os.environ if env is None else env).get(ENV_HTTP_CACHE_DIR, "")
+        if override:
+            return self.root / Path(override).expanduser()
         return self.cache_dir / "http"
 
 

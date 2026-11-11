@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from factories import REFERENCE_NOW
 from seminars.config import (
+    ENV_HTTP_CACHE_DIR,
     LOCAL_ONLY_PROVIDERS,
     OPT_IN_PROVIDERS,
     PROVIDER_CREDENTIAL_ENV,
@@ -456,12 +457,26 @@ class TestPathsAndEnvironment:
             "public_status_file": "public/status.json",
             "fixtures_dir": "tests/fixtures",
             "cache_dir": ".cache",
-            "http_cache_dir": ".cache/http",
             "env_file": ".env",
         }
         for name, expected in relative.items():
             assert getattr(paths, name) == tmp_path / expected, name
         assert paths.archive_file(2026) == tmp_path / "data" / "archive" / "2026.jsonl"
+
+    def test_http_cache_dir_can_be_moved_by_the_environment(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        paths = ProjectPaths(tmp_path / "worktree")
+        shared = tmp_path / "shared" / "http"
+        assert ENV_HTTP_CACHE_DIR == "SEMINARS_HTTP_CACHE_DIR"
+        assert paths.http_cache_dir({}) == tmp_path / "worktree" / ".cache" / "http"
+        assert paths.http_cache_dir({ENV_HTTP_CACHE_DIR: ""}) == paths.http_cache_dir({})
+        assert paths.http_cache_dir({ENV_HTTP_CACHE_DIR: str(shared)}) == shared
+        assert paths.http_cache_dir({ENV_HTTP_CACHE_DIR: "elsewhere"}) == paths.root / "elsewhere"
+        monkeypatch.setenv(ENV_HTTP_CACHE_DIR, str(shared))
+        assert paths.http_cache_dir() == shared
+        monkeypatch.delenv(ENV_HTTP_CACHE_DIR)
+        assert paths.http_cache_dir() == paths.http_cache_dir({})
 
     def test_read_env_merges_dotenv_under_the_real_environment(
         self, project: Path, monkeypatch: pytest.MonkeyPatch
