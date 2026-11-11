@@ -7,8 +7,10 @@ extension that httpx attaches to real responses.
 
 from __future__ import annotations
 
+import functools
 import http.server
 import socket
+import socketserver
 import threading
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -622,7 +624,8 @@ class TestRealConnection:
                 pass
 
         try:
-            server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+            # A plain TCP server: http.server.HTTPServer would ask for the name of its host.
+            server = socketserver.TCPServer(("127.0.0.1", 0), Handler)
         except OSError as error:  # pragma: no cover - a sandbox without loopback sockets
             pytest.skip(f"cannot listen on the loopback interface: {error}")
         port = server.server_address[1]
@@ -632,7 +635,8 @@ class TestRealConnection:
             return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", port))]
 
         monkeypatch.setattr(socket, "getaddrinfo", literal_only)
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        serve = functools.partial(server.serve_forever, poll_interval=0.01)
+        thread = threading.Thread(target=serve, daemon=True)
         thread.start()
         try:
             with (
