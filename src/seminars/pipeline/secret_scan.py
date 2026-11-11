@@ -51,18 +51,23 @@ MIN_KNOWN_LENGTH: Final = 8
 
 ENV_GITHUB_TOKEN: Final = "GITHUB_TOKEN"
 
-_NOT_AFTER_WORD: Final = r"(?<![A-Za-z0-9_-])"
+_ESCAPED: Final = r"(?<=\\[nrtbf])|(?<=\\u[0-9A-Fa-f]{4})"
+_NOT_AFTER_WORD: Final = rf"(?:(?<![A-Za-z0-9_-])|{_ESCAPED})"
+"""Start of a generic pattern: not inside a word, but right after an escape such as ``\\n``.
+
+JSON and other serialized text write a line break or a no-break space as an
+escape (backslash ``n``, backslash ``u00a0``), so a token that starts a line
+of an abstract follows a letter or a digit in the file that holds it.
+"""
 
 RULES: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
-    ("github-token", re.compile(_NOT_AFTER_WORD + r"gh[pousr]_[A-Za-z0-9]{20,}")),
-    ("github-token", re.compile(_NOT_AFTER_WORD + r"github_pat_[A-Za-z0-9_]{20,}")),
-    ("anthropic-key", re.compile(_NOT_AFTER_WORD + r"sk-ant-[A-Za-z0-9_-]{16,}")),
-    (
-        "openai-key",
-        re.compile(_NOT_AFTER_WORD + r"sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{16,}"),
-    ),
+    # Distinctive prefixes need no guard: they are found even when glued to a word.
+    ("github-token", re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}")),
+    ("github-token", re.compile(r"github_pat_[A-Za-z0-9_]{20,}")),
+    ("anthropic-key", re.compile(r"sk-ant-[A-Za-z0-9_-]{16,}")),
+    ("openai-key", re.compile(r"sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{16,}")),
     ("openai-key", re.compile(_NOT_AFTER_WORD + r"sk-[A-Za-z0-9]{20,}")),
-    ("bearer-token", re.compile(r"(?i:\bbearer)\s+[A-Za-z0-9._~+/=-]{20,}")),
+    ("bearer-token", re.compile(rf"(?:\b|{_ESCAPED})(?i:bearer)\s+[A-Za-z0-9._~+/=-]{{20,}}")),
     (
         "jwt",
         re.compile(
@@ -73,7 +78,7 @@ RULES: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     (
         "token-keyword",
         re.compile(
-            r"(?i:\b(?:refresh_token|access_token|id_token|client_secret)\b)"
+            rf"(?:\b|{_ESCAPED})(?i:(?:refresh_token|access_token|id_token|client_secret)\b)"
             r"[\"']?\s*[:=]\s*[\"']?[A-Za-z0-9._~+/=-]{12,}"
         ),
     ),
