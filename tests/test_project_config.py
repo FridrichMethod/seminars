@@ -89,6 +89,21 @@ class TestPyproject:
         assert addopts[addopts.index("-m") + 1] == "not live and not browser"
         assert {marker.split(":")[0] for marker in options["markers"]} == {"live", "browser"}
 
+    def test_the_live_test_file_holds_one_test_and_it_is_marked_live(self) -> None:
+        """Whatever is in tests/test_live_http.py talks to the real network.
+
+        Every test function there carries the ``live`` marker, so a normal
+        run leaves it out, and a test that builds a client on the real
+        resolver lives nowhere else.
+        """
+        tree = ast.parse((REPO_ROOT / "tests" / "test_live_http.py").read_text(encoding="utf-8"))
+        tests = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+        assert [node.name.startswith("test_") for node in tests] == [True]
+        assert [ast.unparse(decorator) for decorator in tests[0].decorator_list] == [
+            "pytest.mark.live"
+        ]
+        assert not [node for node in tree.body if isinstance(node, ast.ClassDef)]
+
     def test_coverage_targets_the_package(self, pyproject: dict[str, Any]) -> None:
         assert pyproject["tool"]["coverage"]["run"]["source_pkgs"] == ["seminars"]
         assert pyproject["tool"]["coverage"]["report"]["fail_under"] == 80
