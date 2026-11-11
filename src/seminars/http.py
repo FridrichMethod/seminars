@@ -37,7 +37,11 @@ Rules of the live client:
   own host;
 * responses with an ETag or Last-Modified are cached under ``cache_dir`` and
   revalidated with a conditional request;
-* images and other binary media types are refused before the body is read.
+* images and other binary media types are refused before the body is read;
+* bodies are decoded by ``decode_body``: a byte order mark decides first,
+  then the charset of the Content-Type header, then the encoding the
+  document itself declares (XML declaration, HTML ``<meta>``); undeclared
+  text is UTF-8 when it is valid UTF-8 and windows-1252 otherwise.
 
 Time and sleeping are injected (``clock`` and ``sleep``), so tests never wait.
 """
@@ -80,6 +84,7 @@ from seminars.httpbase import (
     UnsupportedContentTypeError,
     UnsupportedSchemeError,
     ascii_safe,
+    decode_body,
     is_binary_media_type,
     is_public_host,
     media_type,
@@ -114,6 +119,7 @@ __all__ = [
     "UnsupportedContentTypeError",
     "UnsupportedSchemeError",
     "ascii_safe",
+    "decode_body",
     "is_binary_media_type",
     "is_public_host",
     "media_type",
@@ -401,8 +407,8 @@ class PoliteClient:
                 content_type = media_type(response.headers.get("content-type"))
                 if is_binary_media_type(content_type):
                     raise UnsupportedContentTypeError(url, content_type)
-                response.read()
-                return _Exchange(response.status_code, response.headers, response.text)
+                text = decode_body(response.read(), response.headers.get("content-type"))
+                return _Exchange(response.status_code, response.headers, text)
         except httpx.InvalidURL as error:
             raise UnsupportedSchemeError(url, "invalid URL") from error
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 import httpx
 import pytest
@@ -23,6 +24,7 @@ from seminars.http import (
     RobotsUnavailableError,
     UnsupportedContentTypeError,
     UnsupportedSchemeError,
+    decode_body,
     is_binary_media_type,
     is_public_host,
     media_type,
@@ -193,6 +195,138 @@ class TestBasics:
             "dept.example.edu",
             "/a?b=1",
         )
+
+
+NAME = "Poincar" + chr(0xE9)  # e with acute accent
+QUOTED = chr(0x201C) + "flow" + chr(0x201D)  # curly double quotes
+REPLACEMENT = chr(0xFFFD)
+BOM = chr(0xFEFF)
+
+
+class TestDecodeBody:
+    def test_charset_of_the_content_type_header(self) -> None:
+        assert decode_body(NAME.encode("latin-1"), "text/html; charset=ISO-8859-1") == NAME
+        assert decode_body(NAME.encode("utf-8"), 'text/html; charset="utf-8"') == NAME
+        assert decode_body(NAME.encode("utf-16-le"), "text/plain;charset=utf-16le") == NAME
+
+    @pytest.mark.parametrize(
+        "declaration",
+        [
+            '<meta charset="iso-8859-1">',
+            "<META CHARSET=ISO-8859-1>",
+            "<meta http-equiv='Content-Type' content='text/html; charset=windows-1252'>",
+            '<meta content="text/html; charset=latin1" http-equiv="content-type" />',
+        ],
+    )
+    def test_html_meta_charset(self, declaration: str) -> None:
+        page = f"<html><head>{declaration}<title>x</title></head><body>{NAME}</body></html>"
+        assert decode_body(page.encode("latin-1"), "text/html") == page
+        assert decode_body(page.encode("latin-1"), None) == page
+
+    @pytest.mark.parametrize("quote", ['"', "'"])
+    def test_xml_declaration(self, quote: str) -> None:
+        feed = (
+            f"<?xml version={quote}1.0{quote} encoding={quote}ISO-8859-1{quote}?>\n"
+            f"<rss><channel><title>{NAME}</title></channel></rss>"
+        )
+        assert decode_body(feed.encode("latin-1"), "application/rss+xml") == feed
+        assert decode_body(b"\n  " + feed.encode("latin-1"), "text/xml") == "\n  " + feed
+
+    def test_undeclared_text_is_utf8_when_it_is_valid_utf8(self) -> None:
+        assert decode_body(NAME.encode("utf-8"), "text/html") == NAME
+        assert decode_body(b"plain ascii", None) == "plain ascii"
+        assert decode_body(b"", None) == ""
+
+    def test_undeclared_text_that_is_not_utf8_is_windows_1252(self) -> None:
+        text = f"{NAME} on {QUOTED}"
+        assert decode_body(text.encode("cp1252"), "text/html") == text
+        assert REPLACEMENT not in decode_body(NAME.encode("latin-1"), None)
+
+    def test_latin1_labels_mean_windows_1252_as_in_browsers(self) -> None:
+        body = QUOTED.encode("cp1252")
+        assert decode_body(body, "text/html; charset=iso-8859-1") == QUOTED
+        assert decode_body(b'<meta charset="us-ascii">' + body, None).endswith(QUOTED)
+
+    def test_byte_order_mark_decides_and_is_consumed(self) -> None:
+        assert decode_body((BOM + NAME).encode("utf-8"), "text/html") == NAME
+        assert decode_body((BOM + NAME).encode("utf-8"), "text/html; charset=iso-8859-1") == NAME
+        assert decode_body(NAME.encode("utf-16"), "text/html") == NAME
+        assert decode_body((BOM + NAME).encode("utf-16-be"), None) == NAME
+        assert decode_body(NAME.encode("utf-32"), None) == NAME
+
+    def test_header_wins_over_a_declaration_in_the_document(self) -> None:
+        page = f'<meta charset="iso-8859-1">{NAME}'
+        assert decode_body(page.encode("utf-8"), "text/html; charset=utf-8") == page
+
+    def test_only_the_start_of_the_document_is_searched(self) -> None:
+        late = "<p>" + "x" * 3000 + '</p><meta charset="koi8-r">' + NAME
+        assert decode_body(late.encode("utf-8"), "text/html") == late
+
+    @pytest.mark.parametrize("label", ["x-user-defined-nonsense", "base64", "idna", "undefined"])
+    def test_unknown_and_unusable_labels_are_ignored(self, label: str) -> None:
+        page = f'<meta charset="{label}">{NAME}'
+        assert decode_body(page.encode("utf-8"), f"text/html; charset={label}") == page
+        assert decode_body(page.encode("utf-8"), "text/html") == page
+
+    def test_declared_16_bit_encoding_in_ascii_readable_text_is_ignored(self) -> None:
+        page = f'<meta charset="utf-16">{NAME}'
+        assert decode_body(page.encode("utf-8"), "text/html") == page
+
+    def test_invalid_bytes_become_replacement_characters(self) -> None:
+        assert decode_body(b"ok \xff\xfe", "text/plain; charset=utf-8") == "ok " + REPLACEMENT * 2
+
+
+class TestEncoding:
+    def test_latin1_page_without_header_charset(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        page = f'<html><head><meta charset="iso-8859-1"></head><body>{NAME}</body></html>'
+        no_robots(respx_router)
+        respx_router.get(PAGE).respond(
+            200, content=page.encode("latin-1"), headers={"Content-Type": "text/html"}
+        )
+        assert client.get(PAGE).text == page + "\n"
+
+    def test_latin1_feed_with_an_xml_declaration(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        feed = f'<?xml version="1.0" encoding="ISO-8859-1"?><rss><title>{NAME}</title></rss>'
+        no_robots(respx_router)
+        respx_router.get(PAGE).respond(
+            200, content=feed.encode("latin-1"), headers={"Content-Type": "application/rss+xml"}
+        )
+        document = client.get(PAGE)
+        assert NAME in document.text
+        assert REPLACEMENT not in document.text
+
+    def test_old_page_without_any_declaration(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        no_robots(respx_router)
+        respx_router.get(PAGE).respond(200, content=f"<p>{NAME}</p>".encode("latin-1"))
+        assert client.get(PAGE).text == f"<p>{NAME}</p>\n"
+
+    def test_cached_body_keeps_its_decoded_text(
+        self,
+        http_settings: HttpSettings,
+        fake_clock: FakeClock,
+        respx_router: respx.MockRouter,
+        tmp_path: Path,
+    ) -> None:
+        page = f'<meta charset="iso-8859-1">{NAME}'
+        no_robots(respx_router)
+        respx_router.get(PAGE).mock(
+            side_effect=[
+                httpx.Response(200, content=page.encode("latin-1"), headers={"ETag": '"v1"'}),
+                httpx.Response(304),
+            ]
+        )
+        client = PoliteClient(
+            http_settings, cache_dir=tmp_path, clock=fake_clock, sleep=fake_clock.sleep
+        )
+        client.get(PAGE)
+        again = client.get(PAGE)
+        assert (again.from_cache, again.text) == (True, page + "\n")
 
 
 class TestRobots:
