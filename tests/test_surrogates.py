@@ -379,9 +379,32 @@ class TestDeepNesting:
 
     def test_of_two_keys_that_become_one_the_later_one_counts(self) -> None:
         value = {"a" + HIGH: ["first"], "a": "second", "b": 1, "b" + LOW: {"x": 2}}
+        value |= {"c": "one", "c" + HIGH: "two", "d" + HIGH: (1,), "d" + LOW: [2], "d": 3}
         cleaned = without_surrogates(value)
-        assert cleaned == {"a": "second", "b": {"x": 2}}
-        assert list(cleaned) == ["a", "b"]
+        assert cleaned == {"a": "second", "b": {"x": 2}, "c": "two", "d": 3}
+        assert list(cleaned) == ["a", "b", "c", "d"]
+        assert cleaned == reference(value)
+
+    def test_data_that_contains_itself_is_a_value_error_not_an_endless_walk(self) -> None:
+        loop: list[Any] = ["a" + HIGH]
+        loop.append(loop)
+        ring: dict[str, Any] = {"items": [1, 2, ("x", [])]}
+        ring["items"][2][1].append(ring)
+        wide: list[Any] = []
+        wide.extend([wide] * 1000)
+        for value in (loop, ring, wide, {"k": (loop,)}):
+            with pytest.raises(ValueError, match="contains itself"):
+                without_surrogates(value)
+        with pytest.raises(ValidationError):
+            Loose(data=loop)
+        with pytest.raises(ValidationError):
+            Bag.model_validate({"nested": [ring]})
+
+    def test_a_value_that_occurs_twice_is_not_data_that_contains_itself(self) -> None:
+        shared = ["x" + HIGH]
+        value = {"a": shared, "b": [shared, (shared, shared)], "c": shared}
+        assert without_surrogates(value) == {"a": ["x"], "b": [["x"], (["x"], ["x"])], "c": ["x"]}
+        assert without_surrogates([shared, shared]) == [["x"], ["x"]]
 
     @pytest.mark.parametrize("kind", ["list", "dict"])
     def test_parse_json_reads_deeply_nested_json(self, kind: str) -> None:

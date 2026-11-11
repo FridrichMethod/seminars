@@ -157,6 +157,7 @@ _SURROGATE_CLASS: Final = _character_class((_SURROGATE_RANGE,))
 _UNWANTED: Final = re.compile(f"[{_TABLES}]")
 _REJECTED_IN_DATA: Final = re.compile(f"[{_TABLES}{_CONTROLS}{_SURROGATE_CLASS}]")
 _SURROGATES: Final = re.compile(f"[{_SURROGATE_CLASS}]")
+_DICT_OR_LIST: Final = (dict, list)
 _CONTROL_CHARACTERS: Final = re.compile(r"[\x00-\x1f\x7f]")
 _CONTROL_ESCAPES: Final = {"\n": "\\n", "\r": "\\r", "\t": "\\t"}
 
@@ -252,42 +253,60 @@ def without_surrogates(value: Any) -> Any:
     Data may be nested to any depth. The walk keeps a list of what is
     still to do instead of calling itself once per level, so JSON that is
     nested deeper than the recursion limit of the interpreter is cleaned
-    like any other and never ends in a ``RecursionError``.
+    like any other and never ends in a ``RecursionError``. Data that
+    contains itself (a list that is one of its own items) has no copy and
+    raises ``ValueError``.
     """
     result: list[Any] = [None]
-    # Each entry: a container that is being built, a place in it, the value that belongs
-    # there, and whether that value is the finished list of items of a tuple.
-    todo: list[tuple[Any, Any, Any, bool]] = [(result, 0, value, False)]
+    inside: set[int] = set()  # ids of the containers the walk is in the middle of
+    # Each entry is one step: put the copy of a container at a place of the container it
+    # is in, which is being built. An entry with a fourth part instead marks the end of
+    # the container with that id; for a tuple it also makes one of the list of its items.
+    # Values without parts are put in place at once and never wait here.
+    todo: list[tuple[Any, Any, Any, int]] = [(result, 0, value, 0)]
     while todo:
-        target, place, item, is_tuple_items = todo.pop()
-        if is_tuple_items:
-            target[place] = tuple(item)
-        elif isinstance(item, str):
-            target[place] = _SURROGATES.sub("", item)
+        target, place, item, finished = todo.pop()
+        if finished:
+            inside.discard(finished)
+            if target is not None:
+                target[place] = tuple(item)
+        elif not (isinstance(item, _DICT_OR_LIST) or type(item) is tuple):
+            target[place] = _SURROGATES.sub("", item) if isinstance(item, str) else item
+        elif id(item) in inside:
+            raise ValueError("data that contains itself cannot be copied")
         elif isinstance(item, dict):
+            inside.add(id(item))
             copy: dict[Any, Any] = {}
             target[place] = copy
-            entries = []
+            todo.append((None, None, None, id(item)))
+            later = []
             for key, inner in item.items():
                 if isinstance(key, str):
                     key = _SURROGATES.sub("", key)
                 elif type(key) is tuple:
                     key = without_surrogates(key)  # a key is hashable, so it is not deep
-                copy[key] = None  # keeps the keys in their order
-                entries.append((copy, key, inner, False))
-            # The last entry added is the next one taken, so the first one goes in last.
-            # Entries are then set in their order: of two keys that became one, the later
-            # one counts, as in a dictionary that is built in one go.
-            todo.extend(reversed(entries))
-        elif isinstance(item, list) or type(item) is tuple:
+                if key in copy or isinstance(inner, _DICT_OR_LIST) or type(inner) is tuple:
+                    # A container waits for its turn. So does any value under a key that
+                    # is there already: of two keys that became one, the later one counts,
+                    # as in a dictionary built in one go, so it must be set after the first.
+                    copy[key] = None  # keeps the keys in their order
+                    later.append((copy, key, inner, 0))
+                else:
+                    copy[key] = _SURROGATES.sub("", inner) if isinstance(inner, str) else inner
+            todo.extend(reversed(later))  # the last entry added is the next one taken
+        else:
+            inside.add(id(item))
             items: list[Any] = [None] * len(item)
             if isinstance(item, list):
                 target[place] = items
+                todo.append((None, None, None, id(item)))
             else:
-                todo.append((target, place, items, True))  # its turn comes after its items
-            todo.extend((items, index, inner, False) for index, inner in enumerate(item))
-        else:
-            target[place] = item
+                todo.append((target, place, items, id(item)))
+            for index, inner in enumerate(item):
+                if isinstance(inner, _DICT_OR_LIST) or type(inner) is tuple:
+                    todo.append((items, index, inner, 0))
+                else:
+                    items[index] = _SURROGATES.sub("", inner) if isinstance(inner, str) else inner
     return result[0]
 
 
