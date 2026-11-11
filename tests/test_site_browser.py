@@ -594,6 +594,32 @@ class TestFilters:
         assert current.query()["range"] == ["week"]
         current.assert_clean()
 
+    def test_institution_chips_and_the_organizer_list_change_the_address(
+        self, session: Callable[..., Session]
+    ) -> None:
+        current = session().open("index.html")
+        page = current.page
+        chips = page.locator("#institution-chips")
+        chips.locator('button[data-value="slac"]').click()
+        assert current.shown() == ["sample-all-day", "sample-tentative-physics"]
+        chips.locator('button[data-value="arc"]').click()
+        assert current.shown() == ["sample-all-day", "sample-tentative-physics", "sample-arc"]
+        assert current.query() == {"inst": ["slac", "arc"]}
+        chips.locator('button[data-value="slac"]').click()
+        assert current.shown() == ["sample-arc"]
+        assert chips.locator('button[data-value="slac"]').get_attribute("aria-pressed") == "false"
+        assert chips.locator('button[data-value="arc"]').get_attribute("aria-pressed") == "true"
+        page.locator("#host").select_option("Arc Institute")
+        assert current.shown() == ["sample-arc"]
+        assert current.query() == {"inst": ["arc"], "host": ["Arc Institute"]}
+        page.locator("#host").select_option("SLAC")
+        assert current.shown() == []
+        page.locator("#clear").click()
+        assert current.shown() == UPCOMING
+        assert page.locator("#host").input_value() == ""
+        assert chips.locator("button[aria-pressed=true]").count() == 0
+        current.assert_clean()
+
     def test_today_without_talks_shows_the_empty_notice(
         self, session: Callable[..., Session]
     ) -> None:
@@ -640,6 +666,84 @@ class TestPanels:
         steps = page.locator("#apple-steps li").all_text_contents()
         assert len(steps) == 5
         current.assert_clean()
+
+    def test_without_a_clipboard_the_copy_button_says_so(
+        self, session: Callable[..., Session]
+    ) -> None:
+        current = session()
+        current.page.add_init_script(
+            'Object.defineProperty(Navigator.prototype, "clipboard", '
+            "{ get: () => undefined, configurable: true });"
+        )
+        current.open("index.html")
+        item = current.page.locator('#feeds li[data-feed="all"]')
+        item.locator("button.copy").last.click()
+        note = item.locator(".copy-note", has_text=re.compile(r"\S"))
+        note.wait_for()
+        assert note.text_content() == catalog("en")["site.subscribe.copy_failed"]
+        current.assert_clean()
+
+    def test_status_values_that_cannot_be_shown_are_left_out(
+        self, session: Callable[..., Session]
+    ) -> None:
+        payload = {
+            "generated_at": "not a time",
+            "last_run_at": None,
+            "last_run_ok": False,
+            "event_count": -3,
+            "llm_provider": None,
+            "sources": [
+                None,
+                "text",
+                {"id": "custom-nameless", "state": "ok"},
+                {
+                    "id": "custom-odd",
+                    "name": "Odd source",
+                    "group": 5,
+                    "url": "javascript:alert(1)",
+                    "state": "exploded",
+                    "events": 2.5,
+                    "last_run_at": "yesterday",
+                    "consecutive_failures": -1,
+                    "error": "",
+                },
+                {"id": "custom-off", "name": "Switched off", "state": "disabled"},
+            ],
+        }
+        current = session()
+        serve_json(current, "status.json", payload)
+        current.open("status.html")
+        page = current.page
+        english = catalog("en")
+        assert page.locator("#updated").text_content() == ""
+        assert page.locator("#summary li").all_text_contents() == [
+            english["site.status.no_run"],
+            english["site.status.last_run_failed"],
+            "0 talks on the site",
+            "0 of 1 active sources are healthy.",
+            english["site.status.llm_none"],
+        ]
+        ids = page.eval_on_selector_all("#sources article", "es => es.map((e) => e.dataset.source)")
+        assert ids == ["custom-odd", "custom-off"]
+        odd = page.locator('article[data-source="custom-odd"]')
+        assert odd.locator(".source-name a").count() == 0
+        assert odd.locator(".badge-state").text_content() == english["site.status.states.unknown"]
+        assert odd.locator("dt").all_text_contents() == [
+            english["site.status.columns.events"],
+            english["site.status.columns.last_run"],
+            english["site.status.columns.last_success"],
+            english["site.status.columns.failures"],
+        ]
+        never = english["site.status.never"]
+        assert odd.locator("dd").all_text_contents() == ["0", never, never, "0"]
+        current.assert_clean()
+
+        empty = session()
+        serve_json(empty, "status.json", {"generated_at": "2026-11-10T12:30:00Z"})
+        empty.open("status.html")
+        notice = empty.page.locator("#sources .notice").text_content()
+        assert notice == english["site.status.empty"]
+        empty.assert_clean()
 
     def test_status_page_lists_every_source(self, session: Callable[..., Session]) -> None:
         current = session().open("status.html")
