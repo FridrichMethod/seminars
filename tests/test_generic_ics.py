@@ -94,6 +94,14 @@ def by_id(drafts: tuple[EventDraft, ...], native_id: str) -> EventDraft:
     return draft
 
 
+LA = "TZID=America/Los_Angeles"
+PST_4PM = datetime(2026, 11, 17, 16, 0, tzinfo=PACIFIC)
+PST_5PM = datetime(2026, 11, 17, 17, 0, tzinfo=PACIFIC)
+UTC_4PM = datetime(2026, 11, 17, 16, 0, tzinfo=UTC)
+FLOATING_4PM = datetime(2026, 11, 17, 16, 0)
+FLOATING_5PM = datetime(2026, 11, 17, 17, 0)
+
+
 def calendar(*events: str, header: str = "") -> str:
     return (
         "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:test\n" + header + "".join(events) + "END:VCALENDAR\n"
@@ -323,30 +331,11 @@ class TestOneEvent:
     @pytest.mark.parametrize(
         ("lines", "start", "end"),
         [
-            (
-                [
-                    "DTSTART;TZID=America/Los_Angeles:20261117T160000",
-                    "DTEND;TZID=America/Los_Angeles:20261117T170000",
-                ],
-                datetime(2026, 11, 17, 16, 0, tzinfo=PACIFIC),
-                datetime(2026, 11, 17, 17, 0, tzinfo=PACIFIC),
-            ),
-            (
-                ["DTSTART;TZID=Pacific Standard Time:20261117T160000"],
-                datetime(2026, 11, 17, 16, 0, tzinfo=PACIFIC),
-                None,
-            ),
-            (
-                ["DTSTART:20261117T160000", "DURATION:PT1H30M"],
-                datetime(2026, 11, 17, 16, 0),
-                datetime(2026, 11, 17, 17, 30),
-            ),
-            (["DTSTART;TZID=Nowhere/Land:20261117T160000"], datetime(2026, 11, 17, 16, 0), None),
-            (
-                ["DTSTART:20261117T160000Z", "DTEND:20261117T160000Z"],
-                datetime(2026, 11, 17, 16, 0, tzinfo=UTC),
-                None,
-            ),
+            ([f"DTSTART;{LA}:20261117T160000", f"DTEND;{LA}:20261117T170000"], PST_4PM, PST_5PM),
+            (["DTSTART;TZID=Pacific Standard Time:20261117T160000"], PST_4PM, None),
+            (["DTSTART:20261117T160000", "DURATION:PT1H"], FLOATING_4PM, FLOATING_5PM),
+            (["DTSTART;TZID=Nowhere/Land:20261117T160000"], FLOATING_4PM, None),
+            (["DTSTART:20261117T160000Z", "DTEND:20261117T160000Z"], UTC_4PM, None),
         ],
     )
     def test_times(self, lines: list[str], start: datetime, end: datetime | None) -> None:
@@ -384,41 +373,22 @@ class TestOneEvent:
         assert unknown.timezone is None
 
     @pytest.mark.parametrize(
-        ("lines", "start", "end"),
+        ("lines", "last_day"),
         [
-            (["DTSTART;VALUE=DATE:20261117"], date(2026, 11, 17), None),
-            (
-                ["DTSTART;VALUE=DATE:20261117", "DTEND;VALUE=DATE:20261118"],
-                date(2026, 11, 17),
-                None,
-            ),
-            (
-                ["DTSTART;VALUE=DATE:20261117", "DTEND;VALUE=DATE:20261120"],
-                date(2026, 11, 17),
-                date(2026, 11, 19),
-            ),
-            (
-                ["DTSTART;VALUE=DATE:20261117", "DURATION:P3D"],
-                date(2026, 11, 17),
-                date(2026, 11, 19),
-            ),
-            (
-                ["DTSTART;VALUE=DATE:20261117", "DTEND:20261119T120000"],
-                date(2026, 11, 17),
-                date(2026, 11, 19),
-            ),
-            (
-                ["DTSTART;VALUE=DATE:20261117", "DTEND;VALUE=DATE:20261117"],
-                date(2026, 11, 17),
-                None,
-            ),
+            ([], None),
+            (["DTEND;VALUE=DATE:20261118"], None),
+            (["DTEND;VALUE=DATE:20261120"], date(2026, 11, 19)),
+            (["DURATION:P3D"], date(2026, 11, 19)),
+            (["DTEND:20261119T120000"], date(2026, 11, 19)),
+            (["DTEND;VALUE=DATE:20261117"], None),
         ],
     )
     def test_all_day_events_end_on_their_last_day(
-        self, lines: list[str], start: date, end: date | None
+        self, lines: list[str], last_day: date | None
     ) -> None:
-        draft = parse_one(*lines, start=None)
-        assert (draft.start, draft.end, draft.all_day, draft.is_all_day) == (start, end, True, True)
+        draft = parse_one(*lines, start="DTSTART;VALUE=DATE:20261117")
+        assert (draft.start, draft.end, draft.all_day) == (date(2026, 11, 17), last_day, True)
+        assert draft.is_all_day
 
     @pytest.mark.parametrize(
         ("status", "hint"),
@@ -491,15 +461,12 @@ class TestOneEvent:
         draft = parse_one("DTEND;VALUE=DATE:20261118", "SUMMARY:mixed types")
         assert draft.start == datetime(2026, 11, 17, 16, 0, tzinfo=UTC)
         assert draft.end is None
-        recurring = parse(
-            calendar(
-                vevent(
-                    "DTEND;VALUE=DATE:20261021",
-                    "RRULE:FREQ=DAILY;COUNT=2",
-                    start="DTSTART:20261020T230000Z",
-                )
-            ),
-            window=WINDOW,
+        recurring = expand(
+            vevent(
+                "DTEND;VALUE=DATE:20261021",
+                "RRULE:FREQ=DAILY;COUNT=2",
+                start="DTSTART:20261020T230000Z",
+            )
         )
         assert [(draft.start.day, draft.end) for draft in recurring] == [(20, None), (21, None)]  # type: ignore[union-attr]
 
@@ -548,18 +515,20 @@ WINDOW = TimeWindow(
 )
 
 
+def expand(*events: str) -> list[EventDraft]:
+    """The drafts of a calendar of ``events`` in the window ``WINDOW``."""
+    return parse(calendar(*events), window=WINDOW)
+
+
 class TestRecurrence:
     def test_a_weekly_rule_keeps_the_local_time_across_the_change_of_offset(self) -> None:
-        drafts = parse(
-            calendar(
-                vevent(
-                    "DTEND;TZID=America/Los_Angeles:20260901T170000",
-                    "RRULE:FREQ=WEEKLY;BYDAY=TU",
-                    "SUMMARY:Weekly seminar",
-                    start="DTSTART;TZID=America/Los_Angeles:20260901T160000",
-                )
-            ),
-            window=WINDOW,
+        drafts = expand(
+            vevent(
+                "DTEND;TZID=America/Los_Angeles:20260901T170000",
+                "RRULE:FREQ=WEEKLY;BYDAY=TU",
+                "SUMMARY:Weekly seminar",
+                start="DTSTART;TZID=America/Los_Angeles:20260901T160000",
+            )
         )
         starts = [draft.start for draft in drafts]
         assert starts == [datetime(2026, 10, day, 16, 0, tzinfo=PACIFIC) for day in (20, 27)] + [
@@ -574,30 +543,27 @@ class TestRecurrence:
         assert all(draft.end == draft.start + timedelta(hours=1) for draft in drafts)  # type: ignore[operator]
 
     def test_exdate_rdate_and_a_moved_occurrence(self) -> None:
-        drafts = parse(
-            calendar(
-                vevent(
-                    "RRULE:FREQ=WEEKLY;COUNT=10",
-                    "EXDATE:20261027T230000Z",
-                    "RDATE:20261029T230000Z",
-                    "SUMMARY:Weekly",
-                    start="DTSTART:20261013T230000Z",
-                ),
-                vevent(
-                    "RECURRENCE-ID:20261103T230000Z",
-                    "DTSTART:20261105T230000Z",
-                    "SUMMARY:Moved to Thursday",
-                    start=None,
-                ),
-                vevent(
-                    "RECURRENCE-ID:20261110T230000Z",
-                    "DTSTART:20261110T230000Z",
-                    "STATUS:CANCELLED",
-                    "SUMMARY:Weekly",
-                    start=None,
-                ),
+        drafts = expand(
+            vevent(
+                "RRULE:FREQ=WEEKLY;COUNT=10",
+                "EXDATE:20261027T230000Z",
+                "RDATE:20261029T230000Z",
+                "SUMMARY:Weekly",
+                start="DTSTART:20261013T230000Z",
             ),
-            window=WINDOW,
+            vevent(
+                "RECURRENCE-ID:20261103T230000Z",
+                "DTSTART:20261105T230000Z",
+                "SUMMARY:Moved to Thursday",
+                start=None,
+            ),
+            vevent(
+                "RECURRENCE-ID:20261110T230000Z",
+                "DTSTART:20261110T230000Z",
+                "STATUS:CANCELLED",
+                "SUMMARY:Weekly",
+                start=None,
+            ),
         )
         found = [(draft.native_id, draft.start, draft.title, draft.status_hint) for draft in drafts]
         assert found == [
@@ -618,70 +584,53 @@ class TestRecurrence:
         ]
 
     def test_an_override_without_its_occurrence_stands_alone_inside_the_window(self) -> None:
-        drafts = parse(
-            calendar(
-                vevent(
-                    "RECURRENCE-ID:20260101T230000Z",
-                    "DTSTART:20261104T230000Z",
-                    "SUMMARY:moved in",
-                    start=None,
-                    uid="gone",
-                ),
-                vevent(
-                    "RECURRENCE-ID:20260108T230000Z",
-                    "DTSTART:20270104T230000Z",
-                    "SUMMARY:outside",
-                    start=None,
-                    uid="gone",
-                ),
-                vevent(
-                    "RECURRENCE-ID:20260115T230000Z", "SUMMARY:no start", start=None, uid="gone"
-                ),
+        drafts = expand(
+            vevent(
+                "RECURRENCE-ID:20260101T230000Z",
+                "DTSTART:20261104T230000Z",
+                "SUMMARY:moved in",
+                start=None,
+                uid="gone",
             ),
-            window=WINDOW,
+            vevent(
+                "RECURRENCE-ID:20260108T230000Z",
+                "DTSTART:20270104T230000Z",
+                "SUMMARY:outside",
+                start=None,
+                uid="gone",
+            ),
+            vevent("RECURRENCE-ID:20260115T230000Z", "SUMMARY:no start", start=None, uid="gone"),
         )
         assert [(draft.native_id, draft.title) for draft in drafts] == [
             ("gone/20260101T230000Z", "moved in")
         ]
 
     def test_until_in_utc_with_a_floating_start_and_until_as_a_date(self) -> None:
-        floating = parse(
-            calendar(
-                vevent("RRULE:FREQ=WEEKLY;UNTIL=20261028T000000Z", start="DTSTART:20261013T160000")
-            ),
-            window=WINDOW,
+        floating = expand(
+            vevent("RRULE:FREQ=WEEKLY;UNTIL=20261028T000000Z", start="DTSTART:20261013T160000")
         )
         # UNTIL is 2026-10-27 17:00 PDT, so the occurrence at 16:00 that day is the last one
         assert [draft.start for draft in floating] == [
             datetime(2026, 10, 20, 16, 0),
             datetime(2026, 10, 27, 16, 0),
         ]
-        by_date = parse(
-            calendar(
-                vevent(
-                    "RRULE:FREQ=WEEKLY;UNTIL=20261027",
-                    start="DTSTART;TZID=America/Los_Angeles:20261013T160000",
-                )
-            ),
-            window=WINDOW,
+        by_date = expand(
+            vevent(
+                "RRULE:FREQ=WEEKLY;UNTIL=20261027",
+                start="DTSTART;TZID=America/Los_Angeles:20261013T160000",
+            )
         )
         assert [draft.start for draft in by_date] == [
             datetime(2026, 10, 20, 16, 0, tzinfo=PACIFIC),
             datetime(2026, 10, 27, 16, 0, tzinfo=PACIFIC),
         ]
-        naive_until = parse(
-            calendar(
-                vevent("RRULE:FREQ=WEEKLY;UNTIL=20261021T000000", start="DTSTART:20261013T230000Z")
-            ),
-            window=WINDOW,
+        naive_until = expand(
+            vevent("RRULE:FREQ=WEEKLY;UNTIL=20261021T000000", start="DTSTART:20261013T230000Z")
         )
         assert [draft.start for draft in naive_until] == [datetime(2026, 10, 20, 23, 0, tzinfo=UTC)]
 
     def test_floating_recurrences_use_the_zone_of_the_source(self) -> None:
-        drafts = parse(
-            calendar(vevent("RRULE:FREQ=DAILY;COUNT=40", start="DTSTART:20261016T230000")),
-            window=WINDOW,
-        )
+        drafts = expand(vevent("RRULE:FREQ=DAILY;COUNT=40", start="DTSTART:20261016T230000"))
         # 23:00 on 19 October is before midnight PDT of the 20th, the first day of the window
         assert drafts[0].start == datetime(2026, 10, 20, 23, 0)
         assert drafts[-1].start == datetime(2026, 11, 16, 23, 0)
@@ -708,15 +657,12 @@ class TestRecurrence:
         ]
 
     def test_rdate_alone_and_periods_are_read(self) -> None:
-        drafts = parse(
-            calendar(
-                vevent(
-                    "RDATE:20261021T230000Z,20261028T230000Z",
-                    "RDATE;VALUE=PERIOD:20261030T230000Z/PT1H",
-                    start="DTSTART:20261014T230000Z",
-                )
-            ),
-            window=WINDOW,
+        drafts = expand(
+            vevent(
+                "RDATE:20261021T230000Z,20261028T230000Z",
+                "RDATE;VALUE=PERIOD:20261030T230000Z/PT1H",
+                start="DTSTART:20261014T230000Z",
+            )
         )
         assert [draft.start for draft in drafts] == [
             datetime(2026, 10, 21, 23, 0, tzinfo=UTC),
@@ -724,21 +670,14 @@ class TestRecurrence:
         ]
 
     def test_expansion_is_capped(self) -> None:
-        hourly = parse(
-            calendar(vevent("RRULE:FREQ=HOURLY", start="DTSTART:20261020T070000Z")), window=WINDOW
-        )
+        hourly = expand(vevent("RRULE:FREQ=HOURLY", start="DTSTART:20261020T070000Z"))
         assert len(hourly) == MAX_OCCURRENCES
-        ancient = parse(
-            calendar(vevent("RRULE:FREQ=HOURLY", start="DTSTART:19900101T000000Z")), window=WINDOW
-        )
+        ancient = expand(vevent("RRULE:FREQ=HOURLY", start="DTSTART:19900101T000000Z"))
         assert ancient == []
 
     def test_a_recurring_event_without_uid_has_no_native_id(self) -> None:
-        drafts = parse(
-            calendar(
-                vevent("RRULE:FREQ=WEEKLY;COUNT=2", uid=None, start="DTSTART:20261020T230000Z")
-            ),
-            window=WINDOW,
+        drafts = expand(
+            vevent("RRULE:FREQ=WEEKLY;COUNT=2", uid=None, start="DTSTART:20261020T230000Z")
         )
         assert [draft.native_id for draft in drafts] == [None, None]
 
@@ -769,52 +708,29 @@ class TestRecurrence:
 # --- YAML-driven fields --------------------------------------------------------------------
 
 
+ADA = "Ada Lovelace (Cambridge)"
+ZOOM = "https://zoom.example.com/j/1?pwd=x"
+PAGE = "https://talks.example.edu/1"
+
+
 class TestPropertyFields:
     @pytest.mark.parametrize(
         ("mapping", "expected"),
         [
-            ({"SUMMARY": "speaker"}, {"title": None, "speaker_text": "Ada Lovelace (Cambridge)"}),
-            (
-                {"SUMMARY": "series", "DESCRIPTION": "title"},
-                {"series": "Ada Lovelace (Cambridge)", "title": "Engines", "abstract": None},
-            ),
-            (
-                {"LOCATION": "stream_url"},
-                {
-                    "location": None,
-                    "stream_url": "https://zoom.example.com/j/1?pwd=x",
-                    "is_online": True,
-                },
-            ),
-            (
-                {"LOCATION": "url", "URL": None},
-                {"location": None, "url": "https://zoom.example.com/j/1?pwd=x"},
-            ),
-            ({"URL": "stream_url"}, {"url": None, "stream_url": "https://talks.example.edu/1"}),
-            (
-                {"DESCRIPTION": None, "SUMMARY": "title"},
-                {"abstract": None, "title": "Ada Lovelace (Cambridge)"},
-            ),
-            (
-                {"SUMMARY": "location", "LOCATION": "abstract"},
-                {
-                    "location": "Ada Lovelace (Cambridge)",
-                    "abstract": "https://zoom.example.com/j/1?pwd=x",
-                },
-            ),
+            ({"SUMMARY": "speaker"}, {"title": None, "speaker_text": ADA}),
+            ({"SUMMARY": "series", "DESCRIPTION": "title"}, {"series": ADA, "title": "Engines"}),
+            ({"LOCATION": "stream_url"}, {"location": None, "stream_url": ZOOM, "is_online": True}),
+            ({"LOCATION": "url", "URL": None}, {"location": None, "url": ZOOM}),
+            ({"URL": "stream_url"}, {"url": None, "stream_url": PAGE}),
+            ({"DESCRIPTION": None, "SUMMARY": "title"}, {"abstract": None, "title": ADA}),
+            ({"SUMMARY": "location", "LOCATION": "abstract"}, {"location": ADA, "abstract": ZOOM}),
         ],
     )
     def test_a_property_fills_another_field(
         self, mapping: dict[str, Any], expected: dict[str, Any]
     ) -> None:
-        text = calendar(
-            vevent(
-                "SUMMARY:Ada Lovelace (Cambridge)",
-                "DESCRIPTION:Engines",
-                "LOCATION:https://zoom.example.com/j/1?pwd=x",
-                "URL:https://talks.example.edu/1",
-            )
-        )
+        lines = ("SUMMARY:" + ADA, "DESCRIPTION:Engines", "LOCATION:" + ZOOM, "URL:" + PAGE)
+        text = calendar(vevent(*lines))
         (draft,) = parse(text, property_fields=mapping)
         assert {key: getattr(draft, key) for key in expected} == expected
 

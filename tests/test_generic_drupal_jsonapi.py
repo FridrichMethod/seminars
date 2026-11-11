@@ -6,7 +6,7 @@ import functools
 import json
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 from urllib.parse import parse_qsl, urlsplit
 from zoneinfo import ZoneInfo
 
@@ -17,7 +17,7 @@ from fakes import FakeHttpClient
 from seminars.config import ConfigError
 from seminars.config.loader import load_sources
 from seminars.http import offline_client
-from seminars.models import EventDraft, SourceConfig, TimeWindow
+from seminars.models import EventDraft, RawPayload, SourceConfig, TimeWindow
 from seminars.sources import base
 from seminars.sources.base import AdapterError, ForeignHostError, ParseError
 from seminars.sources.generic.drupal_jsonapi import (
@@ -88,18 +88,8 @@ def node(identifier: str = "n1", **attributes: Any) -> dict[str, Any]:
         "title": "A talk",
         "path": {"alias": "/events/a-talk"},
         "body": {"value": "<p>Abstract</p>", "processed": "<p>Abstract</p>"},
-        "field_hs_event_date": {
-            "value": "2026-11-18T00:00:00+00:00",
-            "end_value": "2026-11-18T01:00:00+00:00",
-            "duration": 60,
-            "rrule": None,
-            "rrule_index": None,
-        },
+        "field_hs_event_date": span("2026-11-18T00:00", "2026-11-18T01:00", duration=60),
         "field_hs_event_location": "Room 101",
-        "field_hs_event_instances": [],
-        "field_hs_event_link": None,
-        "field_hs_event_experience": None,
-        "field_hs_event_stream": None,
         **attributes,
     }
     return {
@@ -108,6 +98,19 @@ def node(identifier: str = "n1", **attributes: Any) -> dict[str, Any]:
         "attributes": values,
         "relationships": {name: {"data": data} for name, data in relationships.items()},
     }
+
+
+def span(start: str, end: str | None = None, **extra: Any) -> dict[str, Any]:
+    """A Smart Date value from UTC times written as ``YYYY-MM-DDTHH:MM``."""
+    return {"value": f"{start}:00+00:00", "end_value": end and f"{end}:00+00:00", **extra}
+
+
+def utc(day: int, hour: int) -> datetime:
+    """A time in November 2026, UTC."""
+    return datetime(2026, 11, day, hour, 0, tzinfo=UTC)
+
+
+PST_4PM_NOV_2: Final = datetime(2026, 11, 2, 16, 0, tzinfo=PACIFIC)
 
 
 def term(kind: str, identifier: str, **attributes: Any) -> dict[str, Any]:
@@ -413,39 +416,39 @@ class TestRequests:
             http.add(f"{ENDPOINT}?page={number}", text)
         return http
 
+    def fetch(self, http: FakeHttpClient, source: SourceConfig | None = None) -> RawPayload:
+        return DrupalJsonApiAdapter().fetch(http, source or example_source(), window=make_window())
+
     def test_pages_are_followed_and_parsed(self) -> None:
         http = self.pages(
             answer([node("a")], next_href=f"{ENDPOINT}?page=2"),
             answer([node("b")]),
         )
-        source = example_source()
-        adapter = DrupalJsonApiAdapter()
-        payload = adapter.fetch(http, source, window=make_window())
+        drafts = DrupalJsonApiAdapter().parse(self.fetch(http), example_source())
         assert http.requests[1:] == [f"{ENDPOINT}?page=2"]
-        assert [draft.native_id for draft in adapter.parse(payload, source)] == ["a", "b"]
+        assert [draft.native_id for draft in drafts] == ["a", "b"]
 
     def test_a_next_link_without_href_ends_the_pages(self) -> None:
         last = json.dumps({"data": [], "links": {"next": {"href": None}}})
         http = self.pages(answer([], next_href=f"{ENDPOINT}?page=2"), last)
-        DrupalJsonApiAdapter().fetch(http, example_source(), window=make_window())
+        self.fetch(http)
         assert len(http.requests) == 2
 
     def test_a_relative_next_link_resolves_against_the_page(self) -> None:
         http = self.pages(answer([], next_href="/jsonapi/node/hs_event?page=2"), answer([]))
-        DrupalJsonApiAdapter().fetch(http, example_source(), window=make_window())
+        self.fetch(http)
         assert http.requests[1] == f"{ENDPOINT}?page=2"
 
     def test_a_next_link_to_another_host_is_refused(self) -> None:
         http = self.pages(answer([], next_href="https://elsewhere.example.org/jsonapi?page=2"))
         with pytest.raises(ForeignHostError, match=r"elsewhere\.example\.org"):
-            DrupalJsonApiAdapter().fetch(http, example_source(), window=make_window())
+            self.fetch(http)
         assert len(http.requests) == 1
 
     def test_a_next_link_to_an_extra_host_is_followed(self) -> None:
         http = self.pages(answer([], next_href="https://mirror.example.org/page2"))
         http.add("https://mirror.example.org/page2", answer([]))
-        source = example_source(extra_hosts=["mirror.example.org"])
-        DrupalJsonApiAdapter().fetch(http, source, window=make_window())
+        self.fetch(http, example_source(extra_hosts=["mirror.example.org"]))
         assert http.requests[-1] == "https://mirror.example.org/page2"
 
     def test_a_repeated_page_is_an_error(self) -> None:
@@ -453,13 +456,13 @@ class TestRequests:
             answer([], next_href=f"{ENDPOINT}?page=2"), answer([], next_href=f"{ENDPOINT}?page=2")
         )
         with pytest.raises(ParseError, match="repeats a page"):
-            DrupalJsonApiAdapter().fetch(http, example_source(), window=make_window())
+            self.fetch(http)
 
     def test_more_pages_than_max_pages_fail_the_source(self) -> None:
         texts = [answer([], next_href=f"{ENDPOINT}?page={n + 2}") for n in range(5)]
         http = self.pages(*texts)
         with pytest.raises(AdapterError, match=r"more than max_pages \(4\)"):
-            DrupalJsonApiAdapter().fetch(http, example_source(), window=make_window())
+            self.fetch(http)
         assert len(http.requests) == 4
 
     @pytest.mark.parametrize(
@@ -474,7 +477,7 @@ class TestRequests:
     )
     def test_an_answer_that_cannot_be_read(self, text: str, message: str) -> None:
         with pytest.raises(ParseError, match=message):
-            DrupalJsonApiAdapter().fetch(self.pages(text), example_source(), window=make_window())
+            self.fetch(self.pages(text))
 
 
 # --- mapping -------------------------------------------------------------------------------
@@ -674,64 +677,25 @@ class TestMapping:
         ("date_field", "start", "end", "all_day"),
         [
             # 2026-11-05 00:00 to 23:59 PST, duration 1439
-            (
-                {"value": "2026-11-05T08:00:00+00:00", "end_value": "2026-11-06T07:59:00+00:00"},
-                date(2026, 11, 5),
-                None,
-                True,
-            ),
+            (span("2026-11-05T08:00", "2026-11-06T07:59"), date(2026, 11, 5), None, True),
             # three days, 17 to 19 November
             (
-                {"value": "2026-11-17T08:00:00+00:00", "end_value": "2026-11-20T07:59:00+00:00"},
+                span("2026-11-17T08:00", "2026-11-20T07:59"),
                 date(2026, 11, 17),
                 date(2026, 11, 19),
                 True,
             ),
             # across the change to standard time: 1 November 00:00 PDT to 23:59 PST
-            (
-                {"value": "2026-11-01T07:00:00+00:00", "end_value": "2026-11-02T07:59:00+00:00"},
-                date(2026, 11, 1),
-                None,
-                True,
-            ),
+            (span("2026-11-01T07:00", "2026-11-02T07:59"), date(2026, 11, 1), None, True),
             # no end time
-            (
-                {
-                    "value": "2026-11-03T00:00:00+00:00",
-                    "end_value": "2026-11-03T00:00:00+00:00",
-                    "duration": 0,
-                },
-                datetime(2026, 11, 2, 16, 0, tzinfo=PACIFIC),
-                None,
-                False,
-            ),
-            (
-                {"value": "2026-11-03T00:00:00+00:00", "end_value": None},
-                datetime(2026, 11, 3, 0, 0, tzinfo=UTC),
-                None,
-                False,
-            ),
-            # midnight to midnight is not all day by this rule, so keep the times
-            (
-                {"value": "2026-11-05T08:00:00+00:00", "end_value": "2026-11-06T08:00:00+00:00"},
-                datetime(2026, 11, 5, 8, 0, tzinfo=UTC),
-                datetime(2026, 11, 6, 8, 0, tzinfo=UTC),
-                False,
-            ),
+            (span("2026-11-03T00:00", "2026-11-03T00:00", duration=0), PST_4PM_NOV_2, None, False),
+            (span("2026-11-03T00:00"), datetime(2026, 11, 3, tzinfo=UTC), None, False),
+            # midnight to midnight is not all day by this rule, so the times stay
+            (span("2026-11-05T08:00", "2026-11-06T08:00"), utc(5, 8), utc(6, 8), False),
             # an end before the start is passed on as the source says
-            (
-                {"value": "2026-11-05T08:00:00+00:00", "end_value": "2026-11-05T07:00:00+00:00"},
-                datetime(2026, 11, 5, 8, 0, tzinfo=UTC),
-                datetime(2026, 11, 5, 7, 0, tzinfo=UTC),
-                False,
-            ),
+            (span("2026-11-05T08:00", "2026-11-05T07:00"), utc(5, 8), utc(5, 7), False),
             # a naive time stays naive
-            (
-                {"value": "2026-11-05T16:00:00", "end_value": "2026-11-05T17:00:00"},
-                datetime(2026, 11, 5, 16, 0),
-                datetime(2026, 11, 5, 17, 0),
-                False,
-            ),
+            ({"value": "2026-11-05T16:00:00"}, datetime(2026, 11, 5, 16, 0), None, False),
         ],
     )
     def test_dates(self, date_field: dict[str, Any], start: Any, end: Any, all_day: bool) -> None:
@@ -740,21 +704,9 @@ class TestMapping:
 
     def test_several_dates_give_several_drafts(self) -> None:
         dates = [
-            {
-                "value": "2026-11-18T00:00:00+00:00",
-                "end_value": "2026-11-18T01:00:00+00:00",
-                "rrule_index": 0,
-            },
-            {
-                "value": "2026-11-25T00:00:00+00:00",
-                "end_value": "2026-11-25T01:00:00+00:00",
-                "rrule_index": 1,
-            },
-            {
-                "value": "2026-11-25T00:00:00+00:00",
-                "end_value": "2026-11-25T01:00:00+00:00",
-                "rrule_index": 1,
-            },
+            span("2026-11-18T00:00", "2026-11-18T01:00", rrule_index=0),
+            span("2026-11-25T00:00", "2026-11-25T01:00", rrule_index=1),
+            span("2026-11-25T00:00", "2026-11-25T01:00", rrule_index=1),
             {"value": "bad", "end_value": None},
             "junk",
         ]
@@ -763,10 +715,7 @@ class TestMapping:
         assert drafts[1].start == datetime(2026, 11, 24, 16, 0, tzinfo=PACIFIC)
 
     def test_instances_of_an_import_come_first(self) -> None:
-        instances = [
-            {"value": "2026-11-18T00:00:00+00:00", "end_value": "2026-11-18T01:00:00+00:00"},
-            {"value": "2026-11-19T00:00:00+00:00", "end_value": "2026-11-19T01:00:00+00:00"},
-        ]
+        instances = [span("2026-11-18T00:00", "2026-11-18T01:00"), span("2026-11-19T00:00")]
         drafts = parse_nodes(node(field_hs_event_instances=instances))
         assert [draft.native_id for draft in drafts] == ["n1/0", "n1/1"]
         same = parse_nodes(node(field_hs_event_instances=[instances[0]]))
