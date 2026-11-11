@@ -113,6 +113,12 @@ here and in `check --source-id`.
   stderr: `HTTP cache directory: /path/to/.cache/http`. Look at that line
   when in doubt: two calls protect a host from each other only when they
   print the same path.
+- `record` and `fetch` do not run without that directory. When it cannot
+  be created or a lock cannot be taken in it (a read-only checkout, a file
+  in its place, a file system without locks), the call prints
+  `error: the HTTP cache directory cannot be used (...)` and ends with
+  status 1 before any request. Make the directory writable or set
+  `SEMINARS_HTTP_CACHE_DIR`; do not work around it.
 - Separate clones of the repository do not know about each other, and
   neither does a worktree of a bare repository, which has no main checkout.
   There, export one common absolute path in all of them before recording:

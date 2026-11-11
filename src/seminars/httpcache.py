@@ -37,7 +37,10 @@ The cache is disposable: unreadable or outdated files are treated as absent.
 With ``directory=None`` nothing is read, written or locked. A directory
 that cannot be written to (read-only, full, a file in its place) is the
 same as none: the failure is logged once and the client goes on without a
-cache and without the lock between processes.
+cache and without the lock between processes. That suits a run that must
+not fail over its cache. Whoever must not go on unprotected asks
+``lock_problem`` first; the commands of ``seminars.fixtures`` do, and its
+``hosts/access.check`` is the one other file in the directory.
 """
 
 from __future__ import annotations
@@ -63,6 +66,30 @@ if sys.platform != "win32":
 logger = logging.getLogger(__name__)
 
 _MAX_HOST_FILE_STEM: Final = 80
+_CHECK_FILE: Final = "access.check"
+"""The file ``lock_problem`` locks. No host file has this name: they end in .json, .lock, .queue."""
+
+
+def lock_problem(directory: Path) -> str | None:
+    """Why ``directory`` cannot carry the locks between processes; ``None`` when it can.
+
+    Makes the directory and takes a lock on a file in it, the way
+    ``HttpCache.host_lock`` does it for a host, and lets go again. On
+    Windows, where there are no locks, only the directory and the file are
+    made.
+    """
+    try:
+        (directory / "hosts").mkdir(parents=True, exist_ok=True)
+        descriptor = os.open(directory / "hosts" / _CHECK_FILE, os.O_RDWR | os.O_CREAT, 0o644)
+        try:
+            if sys.platform != "win32":
+                fcntl.flock(descriptor, fcntl.LOCK_EX)
+                fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(descriptor)
+    except OSError as error:
+        return error.strerror or type(error).__name__
+    return None
 
 
 def header_safe(value: str | None) -> str | None:

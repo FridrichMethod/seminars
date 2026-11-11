@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import errno
+import os
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -12,6 +15,7 @@ from fakes import FakeClock, StubResolver
 from seminars.config import ENV_HTTP_CACHE_DIR, HttpSettings
 from seminars.fixtures import main, scratch_file_name
 from seminars.http import PoliteClient
+from seminars.httpcache import HostRecord, HttpCache, lock_problem
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOST = "https://events.example.edu"
@@ -396,6 +400,179 @@ class TestLiveClientOfTheCommand:
         assert (tmp_path / ".cache" / "http" / "hosts" / "events.example.edu.json").is_file()
         assert not (tmp_path / "tests").exists()
         assert set(resolver.calls) == {"events.example.edu"}
+
+
+def project(root: Path) -> Path:
+    """Make ``root`` a project with the settings of this repository; returns ``root``."""
+    (root / "config").mkdir(parents=True)
+    settings = (REPO_ROOT / "config" / "settings.yaml").read_text(encoding="utf-8")
+    (root / "config" / "settings.yaml").write_text(settings, encoding="utf-8")
+    return root
+
+
+COMMANDS = [["record", "--source-id", "sites-a"], ["fetch"]]
+
+
+class TestCacheDirectoryThatCannotBeUsed:
+    """The two commands a person runs do not go on without the lock between processes."""
+
+    def refused(
+        self,
+        root: Path,
+        command: list[str],
+        router: respx.MockRouter,
+        capsys: pytest.CaptureFixture[str],
+        directory: Path,
+    ) -> str:
+        """Run ``command`` for PAGE; it must fail before any request. Returns its last line."""
+        assert main(["--root", str(root), *command, PAGE], resolver=StubResolver()) == 1
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        first, last = captured.err.splitlines()
+        assert first == f"HTTP cache directory: {directory}"
+        assert last.startswith("error: the HTTP cache directory cannot be used (")
+        assert "SEMINARS_HTTP_CACHE_DIR" in last
+        assert router.calls.call_count == 0
+        assert not (root / "tests").exists()
+        return last
+
+    @pytest.mark.parametrize("command", COMMANDS)
+    def test_a_file_in_its_place_stops_the_command(
+        self,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        command: list[str],
+    ) -> None:
+        monkeypatch.delenv(ENV_HTTP_CACHE_DIR, raising=False)
+        root = project(tmp_path)
+        (root / ".cache").write_text("a file where the directory should be\n", encoding="utf-8")
+        directory = root / ".cache" / "http"
+        assert "Not a directory" in self.refused(root, command, respx_router, capsys, directory)
+
+    @pytest.mark.parametrize("command", COMMANDS)
+    @pytest.mark.skipif(
+        sys.platform == "win32" or os.geteuid() == 0, reason="needs file permissions that bind"
+    )
+    def test_a_directory_that_cannot_be_written_stops_the_command(
+        self,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        command: list[str],
+    ) -> None:
+        root = project(tmp_path / "project")
+        shared = tmp_path / "read-only" / "http-cache"
+        shared.parent.mkdir()
+        shared.parent.chmod(0o500)
+        monkeypatch.setenv(ENV_HTTP_CACHE_DIR, str(shared))
+        try:
+            last = self.refused(root, command, respx_router, capsys, shared)
+        finally:
+            shared.parent.chmod(0o700)
+        assert "Permission denied" in last
+        assert not shared.exists()
+
+    @pytest.mark.parametrize("command", COMMANDS)
+    @pytest.mark.skipif(sys.platform == "win32", reason="there is no lock on Windows")
+    def test_a_file_system_without_locks_stops_the_command(
+        self,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        command: list[str],
+    ) -> None:
+        def no_locks(descriptor: int, operation: int) -> None:
+            raise OSError(errno.ENOLCK, "No locks available")
+
+        monkeypatch.setattr("fcntl.flock", no_locks)
+        monkeypatch.delenv(ENV_HTTP_CACHE_DIR, raising=False)
+        root = project(tmp_path)
+        directory = root / ".cache" / "http"
+        assert "No locks available" in self.refused(root, command, respx_router, capsys, directory)
+
+    def test_the_check_is_made_once_and_leaves_one_small_file(
+        self,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        monkeypatch.delenv(ENV_HTTP_CACHE_DIR, raising=False)
+        root = project(tmp_path)
+        respx_router.get(ROBOTS).respond(404)
+        respx_router.get(url__startswith=PAGE).respond(200, text="ok")
+        arguments = ["--root", str(root), "fetch", f"{PAGE}?a=1", f"{PAGE}?a=2"]
+        assert main(arguments, resolver=StubResolver()) == 0
+        assert capsys.readouterr().err.count("HTTP cache directory") == 1
+        names = sorted(path.name for path in (root / ".cache" / "http" / "hosts").iterdir())
+        assert names == [
+            "access.check",
+            "events.example.edu.json",
+            "events.example.edu.lock",
+            "events.example.edu.queue",
+        ]
+        assert (root / ".cache" / "http" / "hosts" / "access.check").read_bytes() == b""
+
+
+class TestLockProblem:
+    def test_a_directory_that_can_be_made_and_locked_has_none(self, tmp_path: Path) -> None:
+        directory = tmp_path / "a" / "b" / "http"
+        assert lock_problem(directory) is None
+        assert lock_problem(directory) is None
+        assert [path.name for path in (directory / "hosts").iterdir()] == ["access.check"]
+
+    def test_a_file_in_the_way_is_one(self, tmp_path: Path) -> None:
+        (tmp_path / "http").write_text("not a directory\n", encoding="utf-8")
+        assert lock_problem(tmp_path / "http") in ("File exists", "Not a directory")
+        (tmp_path / "other").mkdir()
+        (tmp_path / "other" / "hosts").write_text("not a directory\n", encoding="utf-8")
+        assert lock_problem(tmp_path / "other") in ("File exists", "Not a directory")
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="there is no lock on Windows")
+    def test_a_lock_that_cannot_be_taken_is_one(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def no_locks(descriptor: int, operation: int) -> None:
+            raise OSError(errno.ENOLCK, "No locks available")
+
+        monkeypatch.setattr("fcntl.flock", no_locks)
+        assert lock_problem(tmp_path) == "No locks available"
+
+    def test_the_file_of_the_check_cannot_be_the_file_of_a_host(self, tmp_path: Path) -> None:
+        """Host files end in .json, .lock or .queue, whatever the host is called."""
+        cache = HttpCache(tmp_path)
+        for host in ("access.check", "access", "check", "ACCESS.CHECK"):
+            with cache.host_lock(host):
+                cache.store_host(host, HostRecord(last_request_at=1.0))
+        names = {path.name for path in (tmp_path / "hosts").iterdir()}
+        assert "access.check" not in names
+        assert all(name.endswith((".json", ".lock", ".queue")) for name in names)
+
+    def test_a_client_still_goes_on_without_the_directory(
+        self,
+        http_settings: HttpSettings,
+        fake_clock: FakeClock,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+    ) -> None:
+        """Only the two commands insist; the pipeline's client warns and fetches."""
+        blocked = tmp_path / "cache"
+        blocked.write_text("a file where the directory should be\n", encoding="utf-8")
+        assert lock_problem(blocked) is not None
+        respx_router.get(ROBOTS).respond(404)
+        respx_router.get(PAGE).respond(200, text="ok")
+        client = PoliteClient(
+            http_settings,
+            cache_dir=blocked,
+            clock=fake_clock,
+            sleep=fake_clock.sleep,
+            resolver=StubResolver(),
+        )
+        assert client.get(PAGE).text == "ok\n"
 
 
 class TestRepository:

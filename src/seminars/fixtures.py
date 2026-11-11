@@ -34,7 +34,9 @@ time and share a cache directory wait for each other. All git worktrees of
 one repository share it by default; separate clones only do when
 ``SEMINARS_HTTP_CACHE_DIR`` names one directory for all of them (see
 ``seminars.config.ProjectPaths.http_cache_dir``). The command prints the
-directory it uses on stderr before its first request.
+directory it uses on stderr before its first request. When that directory
+cannot be created or locked, ``record`` and ``fetch`` say so and end with
+status 1 without fetching anything: they never run unprotected.
 """
 
 from __future__ import annotations
@@ -51,7 +53,7 @@ from urllib.parse import parse_qsl, unquote, urlencode, urlsplit
 
 from pydantic import AfterValidator, ValidationError
 
-from seminars.config import ProjectPaths, find_project_root, load_settings
+from seminars.config import ENV_HTTP_CACHE_DIR, ProjectPaths, find_project_root, load_settings
 from seminars.httpbase import (
     HttpClient,
     HttpError,
@@ -59,6 +61,7 @@ from seminars.httpbase import (
     Resolver,
     is_binary_media_type,
 )
+from seminars.httpcache import lock_problem
 from seminars.httpurl import split_url
 from seminars.models import SOURCE_ID_PATTERN, FetchedDocument, Model, dump_json
 from seminars.models.base import SortedStrList, SourceId, Timestamp, sorted_dict
@@ -587,13 +590,24 @@ def _live_client(paths: ProjectPaths, resolver: Resolver | None) -> PoliteClient
     """The polite client of the project; says on stderr which cache directory it uses.
 
     The directory decides who this process keeps the crawl delay with, so
-    it is shown once, before the first request.
+    it is shown once, before the first request. A client goes on with a
+    warning when the directory cannot be used; a command that a person or
+    an agent runs by hand must not, because nothing would then keep it
+    from using a host at the same time as another call. It raises
+    ``FixtureError`` instead, before anything is fetched.
     """
     from seminars.http import PoliteClient  # seminars.http imports this module
 
     settings = load_settings(paths.settings_file)
     cache_dir = paths.http_cache_dir()
     print(f"HTTP cache directory: {cache_dir}", file=sys.stderr)
+    problem = lock_problem(cache_dir)
+    if problem is not None:
+        raise FixtureError(
+            f"the HTTP cache directory cannot be used ({problem}), and without it nothing "
+            "keeps this call from using a host at the same time as another one; make it "
+            f"writable or name another directory in {ENV_HTTP_CACHE_DIR}"
+        )
     return PoliteClient(settings.http, cache_dir=cache_dir, resolver=resolver)
 
 
@@ -686,6 +700,9 @@ def _fetch_command(
         if http is None:
             http = live = _live_client(paths, resolver)
         outcomes = [_fetch_one(http, url, args.allow_status, save_dir) for url in args.url]
+    except FixtureError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
     finally:
         if live is not None:
             live.close()
