@@ -153,6 +153,24 @@ def test_an_allowlisted_series_makes_a_pick(scorer: PicksScorer, series: str) ->
     assert result.reasons == [f'series "{series}" (+3)']
 
 
+@pytest.mark.parametrize(
+    ("series", "allowed"),
+    [
+        # spellings that the sources were seen to use
+        ("Applied Physics/Physics Colloquium", "Applied Physics/Physics Colloquium"),
+        ("NLP Seminar", "NLP seminar"),
+        ("MLSys Seminar", "MLSys seminar"),
+        ("SLAC Colloquium", "SLAC Colloquium"),
+        ("Statistics Seminar", "Statistics seminar"),
+        # the Mathematics site names its colloquium like this: a known gap (see the file)
+        ("Department Colloquium", None),
+    ],
+)
+def test_recorded_series_spellings(scorer: PicksScorer, series: str, allowed: str | None) -> None:
+    reasons = scorer.score(talk("TBA", series=series)).reasons
+    assert reasons == ([f'series "{allowed}" (+3)'] if allowed else [])
+
+
 PICKS: list[tuple[dict[str, Any], float, list[str]]] = [
     (
         {"title": "Inverse folding with ProteinMPNN and beyond"},

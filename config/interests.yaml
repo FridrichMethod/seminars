@@ -74,6 +74,15 @@ series_bonus: 3.0
 
 # Matched as phrases inside the series or the title: "NLP seminar" also
 # matches "Stanford NLP Seminar Series", and the last word may be plural.
+#
+# Known gap: the Mathematics department site names its colloquium only
+# "Department Colloquium", which matches neither "Math Colloquium" nor
+# "Mathematics Colloquium". Listing "Department Colloquium" here would make
+# every department's colloquium a pick, so that series is not caught until
+# normalization renames it for that source or the list can name a host
+# together with a series. The other names below match the spellings that the
+# sources were seen to use (Applied Physics/Physics Colloquium, NLP Seminar,
+# MLSys Seminar, SLAC Colloquium, Statistics Seminar).
 series_allowlist:
   - Math Colloquium
   - Mathematics Colloquium
