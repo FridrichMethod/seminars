@@ -89,15 +89,23 @@ when any failed.
   another, which is the simplest way to stay serial.
 - The pause also holds between separate calls, one after another or at the
   same time: the last request time of every host and a per-host lock are
-  kept in the HTTP cache directory (`.cache/http/`), and a call waits while
-  another one is using the host. This works only between calls that use the
-  same cache directory.
-- Every checkout has its own `.cache/http/`. When several git worktrees
-  record at the same time and may touch the same host, either let exactly one
-  of them own each host, or export one common absolute path in all of them
-  before recording: `export SEMINARS_HTTP_CACHE_DIR=/path/to/shared/http-cache`.
-  Without one of the two, two worktrees can hit a host at the same moment and
-  break its Crawl-delay.
+  kept in the HTTP cache directory, and a call waits while another one is
+  using the host. This works only between calls that use the same cache
+  directory.
+- The cache directory is `.cache/http/` of the main checkout. A linked git
+  worktree (made with `git worktree add`) has no directory of its own: it
+  finds the main checkout through its `.git` file and uses
+  `<main checkout>/.cache/http/`. Worktrees that record at the same time
+  therefore keep the Crawl-delay between them without any setup.
+- Every call prints the directory it uses before its first request, on
+  stderr: `HTTP cache directory: /path/to/.cache/http`. Look at that line
+  when in doubt: two calls protect a host from each other only when they
+  print the same path.
+- Separate clones of the repository do not know about each other, and
+  neither does a worktree of a bare repository, which has no main checkout.
+  There, export one common absolute path in all of them before recording:
+  `export SEMINARS_HTTP_CACHE_DIR=/path/to/shared/http-cache`. The variable
+  wins over the default everywhere.
 - The per-host lock needs a POSIX system. On Windows, never run two calls
   for the same host at the same time.
 - Fetch each URL once and then work from the fixture.

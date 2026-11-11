@@ -521,6 +521,7 @@ class TestRecorder:
         respx_router: respx.MockRouter,
         monkeypatch: pytest.MonkeyPatch,
         resolver: StubResolver,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
         """Without ``http`` the recorder is live: settings and cache come from the project."""
         settings = (REPO_ROOT / "config" / "settings.yaml").read_text(encoding="utf-8")
@@ -532,7 +533,10 @@ class TestRecorder:
         robots = respx_router.get("https://events.example.edu/robots.txt").respond(404)
         respx_router.get(url__startswith=API).respond(200, text="{}")
         arguments = ["--root", str(tmp_path), "record", "--source-id", "localist-example"]
-        assert main([*arguments, PAGE_1], resolver=resolver) == 0
+        assert (
+            main([*arguments, PAGE_1, PAGE_1.replace("page=1", "page=2")], resolver=resolver) == 0
+        )
+        assert capsys.readouterr().err == f"HTTP cache directory: {shared}\n"
         assert set(resolver.calls) == {"events.example.edu"}
         expected = "seminars-bot/1.0 (+https://fridrichmethod.github.io/seminars/)"
         assert robots.calls.last.request.headers["user-agent"] == expected

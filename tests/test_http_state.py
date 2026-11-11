@@ -463,7 +463,7 @@ class TestSharedCacheDirectory:
         respx_router: respx.MockRouter,
         tmp_path: Path,
     ) -> None:
-        """Why worktrees need SEMINARS_HTTP_CACHE_DIR: this is the unprotected case."""
+        """The unprotected case, and why all worktrees get one directory by default."""
         respx_router.get(f"{HOST}/robots.txt").respond(200, text="User-agent: *\nCrawl-delay: 30\n")
         respx_router.get(PAGE).respond(200, text="ok")
         make_client(http_settings, fake_clock, tmp_path / "one").get(PAGE)

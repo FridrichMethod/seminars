@@ -19,9 +19,11 @@ researching sources too::
 
 Give ``record`` all URLs of one host in a single call: they are fetched one
 after another with the pause the host asks for. Calls that run at the same
-time and share a cache directory wait for each other; calls from different
-checkouts only do so when ``SEMINARS_HTTP_CACHE_DIR`` names one directory for
-all of them (see ``seminars.config.ProjectPaths.http_cache_dir``).
+time and share a cache directory wait for each other. All git worktrees of
+one repository share it by default; separate clones only do when
+``SEMINARS_HTTP_CACHE_DIR`` names one directory for all of them (see
+``seminars.config.ProjectPaths.http_cache_dir``). The command prints the
+directory it uses on stderr before its first request.
 """
 
 from __future__ import annotations
@@ -33,7 +35,7 @@ import sys
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Final, Literal
+from typing import TYPE_CHECKING, Annotated, Final, Literal
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit
 
 from pydantic import AfterValidator, StringConstraints, ValidationError
@@ -51,6 +53,9 @@ from seminars.httpbase import (
 from seminars.models import SOURCE_ID_PATTERN, FetchedDocument, Model, dump_json
 from seminars.models.base import SortedStrList, SourceId, Timestamp, sorted_dict
 from seminars.textio import read_text, write_text_atomic
+
+if TYPE_CHECKING:
+    from seminars.http import PoliteClient
 
 MANIFEST_NAME: Final = "manifest.json"
 MAX_FIXTURE_BYTES: Final = 500_000
@@ -423,6 +428,20 @@ def _record_one(args: argparse.Namespace, http: HttpClient, store: FixtureStore,
     return True
 
 
+def _live_client(paths: ProjectPaths, resolver: Resolver | None) -> PoliteClient:
+    """The polite client of the project; says on stderr which cache directory it uses.
+
+    The directory decides who this process keeps the crawl delay with, so
+    it is shown once, before the first request.
+    """
+    from seminars.http import PoliteClient  # seminars.http imports this module
+
+    settings = load_settings(paths.settings_file)
+    cache_dir = paths.http_cache_dir()
+    print(f"HTTP cache directory: {cache_dir}", file=sys.stderr)
+    return PoliteClient(settings.http, cache_dir=cache_dir, resolver=resolver)
+
+
 def _record_command(
     args: argparse.Namespace,
     paths: ProjectPaths,
@@ -434,12 +453,7 @@ def _record_command(
     try:
         store = FixtureStore(paths.fixtures_dir / args.source_id)
         if http is None:
-            from seminars.http import PoliteClient
-
-            settings = load_settings(paths.settings_file)
-            http = live = PoliteClient(
-                settings.http, cache_dir=paths.http_cache_dir(), resolver=resolver
-            )
+            http = live = _live_client(paths, resolver)
         outcomes = [_record_one(args, http, store, url) for url in args.url]
     except FixtureError as error:
         print(f"error: {error}", file=sys.stderr)

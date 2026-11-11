@@ -13,6 +13,8 @@ from seminars.models import FEEDS_DIRNAME
 ENV_HTTP_CACHE_DIR: Final = "SEMINARS_HTTP_CACHE_DIR"
 """Environment variable that moves the HTTP cache; see ``ProjectPaths.http_cache_dir``."""
 
+_GITDIR_KEYWORD: Final = "gitdir:"
+
 
 class ConfigError(Exception):
     """A configuration file is missing, malformed or inconsistent."""
@@ -148,24 +150,69 @@ class ProjectPaths:
         return self.root / ".cache"
 
     def http_cache_dir(self, env: Mapping[str, str] | None = None) -> Path:
-        """Directory of the live HTTP client's cache: ``.cache/http`` unless ``env`` moves it.
-
-        ``env`` defaults to ``os.environ``. A non-empty ``SEMINARS_HTTP_CACHE_DIR``
-        replaces the default; a relative value is resolved against the
-        project root.
+        """Directory of the live HTTP client's cache, shared by all worktrees of the repository.
 
         The directory holds more than cached pages: the time of the last
         request to every host and the per-host lock live here, and they are
         what keeps the crawl delay between separate processes (see
         ``seminars.httpcache``). Every process that may contact the same
-        hosts at the same time has to use the same directory. Several git
-        worktrees of this project therefore need the variable, set to one
-        common absolute path, before any of them fetches from the network.
+        hosts at the same time has to use the same directory, so the default
+        is the same for every checkout of one repository:
+
+        * an ordinary checkout (``.git`` is a directory) and a tree without
+          git use ``<root>/.cache/http``;
+        * a linked git worktree (``.git`` is a file) uses
+          ``<main checkout>/.cache/http``, the directory of the checkout it
+          was created from. The main checkout is found by reading two small
+          files, the ``gitdir:`` line of ``.git`` and the ``commondir`` file
+          in the directory it names; git is not run.
+
+        Whenever those files are not what a linked worktree has (a
+        submodule, a bare repository without a main checkout, something
+        unreadable), the answer is ``<root>/.cache/http``; this method never
+        raises. In those layouts, and for separate clones, set the variable.
+
+        ``env`` defaults to ``os.environ``. A non-empty ``SEMINARS_HTTP_CACHE_DIR``
+        replaces the default in every case; a relative value is resolved
+        against the project root.
         """
         override = (os.environ if env is None else env).get(ENV_HTTP_CACHE_DIR, "")
         if override:
             return self.root / Path(override).expanduser()
-        return self.cache_dir / "http"
+        main = main_checkout(self.root)
+        return (main if main is not None else self.root) / ".cache" / "http"
+
+
+def main_checkout(root: Path) -> Path | None:
+    """The main checkout of the repository when ``root`` is a linked git worktree.
+
+    A linked worktree has a file ``.git`` that reads ``gitdir: <directory>``.
+    That directory, ``<main checkout>/.git/worktrees/<name>``, has a file
+    ``commondir`` with the path of the repository's ``.git`` directory
+    (usually ``../..``); relative paths count from the file they stand in.
+    The parent of that ``.git`` directory is the main checkout.
+
+    ``None`` for anything else: an ordinary checkout, a tree without git, a
+    submodule, a bare repository, unreadable or malformed files. Nothing is
+    raised and git is not run.
+    """
+    try:
+        pointer = root / ".git"
+        if not pointer.is_file():
+            return None
+        line = pointer.read_text(encoding="utf-8").strip()
+        if not line.startswith(_GITDIR_KEYWORD):
+            return None
+        git_dir = root / line.removeprefix(_GITDIR_KEYWORD).strip()
+        common = (git_dir / "commondir").read_text(encoding="utf-8").strip()
+        if not common:
+            return None
+        repository = (git_dir / common).resolve()
+        if repository.name != ".git" or not repository.is_dir():
+            return None
+        return repository.parent
+    except (OSError, ValueError, RuntimeError):  # unreadable, not text, NUL in a path, loops
+        return None
 
 
 def find_project_root(start: Path | None = None) -> Path:

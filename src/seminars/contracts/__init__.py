@@ -104,11 +104,12 @@ data/ breaks the charset rule (nothing may be committed or deployed).
 Environment read by implementations: the credentials in
 ``seminars.config.PROVIDER_CREDENTIAL_ENV``, plus GITHUB_TOKEN,
 GITHUB_REPOSITORY (``owner/name``) and GITHUB_REPOSITORY_OWNER for issues.
-SEMINARS_HTTP_CACHE_DIR moves the HTTP cache: whatever fetches from the
-network builds its client as
+Whatever fetches from the network builds its client as
 ``PoliteClient(settings.http, cache_dir=paths.http_cache_dir())``, so that
 processes which share that directory keep the crawl delay between them (see
-``seminars.http``).
+``seminars.http``). The directory is ``.cache/http`` of the main checkout,
+also when the command runs in a linked git worktree; SEMINARS_HTTP_CACHE_DIR
+moves it.
 """
 
 from __future__ import annotations

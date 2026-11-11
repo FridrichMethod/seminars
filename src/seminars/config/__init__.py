@@ -54,6 +54,7 @@ from seminars.config.paths import (
     ConfigError,
     ProjectPaths,
     find_project_root,
+    main_checkout,
 )
 from seminars.config.settings import (
     DedupSettings,
@@ -105,6 +106,7 @@ __all__ = [
     "load_settings",
     "load_sources",
     "load_taxonomy",
+    "main_checkout",
     "model_env_var",
     "parse_provider_list",
     "read_env",

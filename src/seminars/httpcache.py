@@ -11,10 +11,11 @@ Three kinds of files:
 The host record and the host lock are what make the crawl delay and "one
 request at a time per host" hold between processes: a client takes the lock,
 reads the record, waits, sends its request, writes the record and releases
-the lock. This only covers processes that use the SAME cache directory. Two
-checkouts of the project (git worktrees) have a directory each and know
-nothing about each other unless ``SEMINARS_HTTP_CACHE_DIR`` points both at
-one directory (see ``seminars.config.ProjectPaths.http_cache_dir``).
+the lock. This only covers processes that use the SAME cache directory.
+``seminars.config.ProjectPaths.http_cache_dir`` therefore gives every git
+worktree of one repository the directory of the main checkout. Separate
+clones have a directory each and know nothing about each other unless
+``SEMINARS_HTTP_CACHE_DIR`` points them at one directory.
 
 The lock is an advisory ``flock``. It exists on POSIX systems; on Windows
 ``host_lock`` does nothing, so there the guarantee is limited to a single

@@ -41,10 +41,10 @@ Rules of the live client:
   its host in that directory, and the time of the last request is read from
   there after the lock was taken. Parallel runs wait for each other instead
   of overlapping. Clients without a cache directory, or with different
-  ones, do not see each other: checkouts that fetch from the same hosts at
-  the same time (git worktrees) must be given a common directory through
-  ``SEMINARS_HTTP_CACHE_DIR``. Always build the live client with
-  ``cache_dir=paths.http_cache_dir()``, which honours that variable. On
+  ones, do not see each other. Always build the live client with
+  ``cache_dir=paths.http_cache_dir()``: that directory is the same for
+  every git worktree of one repository, and ``SEMINARS_HTTP_CACHE_DIR``
+  moves it, which separate clones that fetch at the same time need. On
   Windows there is no lock between processes; see ``seminars.httpcache``;
 * every host has a request budget per client (``max_requests_per_host``,
   retries included); exceeding it raises ``HostBudgetExceededError``.
