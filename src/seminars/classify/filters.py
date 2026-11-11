@@ -12,12 +12,15 @@
    ``seminars.classify.rules``). The reasons are tried in the order of
    ``RuleExclusionReason`` and the phrases in the order of the file; the
    first match decides. A phrase in the title or the series excludes the
-   candidate, unless that text also names a talk (TALK_MARKERS, outside the
-   matched phrase): "Career Development Seminar" or "Colloquium and
-   Reception" are kept and marked uncertain. A phrase that only matches one
-   of the source's category labels (``hints.categories``) marks the
-   candidate uncertain as well. Uncertain candidates stay in unless the LLM
-   tagger answers that they are not talks.
+   candidate, unless the title or the series also names a talk
+   (TALK_MARKERS, outside the matched phrases): "Career Development
+   Seminar" or "Colloquium and Welcome Reception" are kept and marked
+   uncertain. A phrase that names a talk itself ("no seminar", "career
+   talk") was written for such titles and always excludes; these phrases
+   are tried first. A phrase that only matches one of the source's category
+   labels (``hints.categories``) marks the candidate uncertain as well.
+   Uncertain candidates stay in unless the LLM tagger answers that they are
+   not talks.
 3. Everything else is kept. The abstract is never read: announcements of
    real talks routinely mention office hours or a reception afterwards.
 
@@ -61,7 +64,8 @@ TALK_MARKERS: Final[tuple[str, ...]] = (
     "keynote",
     "grand rounds",
 )
-"""Words that name an academic talk; a title with one of them is never excluded by a phrase.
+"""Words that name an academic talk; a title with one of them is only excluded by a phrase
+that contains one itself ("no seminar").
 
 "workshop", "webinar" and "panel" are not among them: career workshops and
 admission webinars are what the phrases are for.
@@ -99,13 +103,25 @@ class _Verdict:
 _KEEP: Final = _Verdict()
 _UNCERTAIN: Final = _Verdict(uncertain=True)
 
+_Phrases = tuple[tuple[RuleExclusionReason, TermMatcher], ...]
+
+
+def _first_match(phrases: _Phrases, texts: dict[str, Words]) -> _Verdict | None:
+    """The first phrase found, by reason, then place, then the order of the file."""
+    for reason, matcher in phrases:
+        for place, words in texts.items():
+            phrase = matcher.first(words)
+            if phrase is not None:
+                return _Verdict(reason, f'{place} matches "{phrase}"')
+    return None
+
 
 class RuleEventFilter:
     """``EventFilter`` driven by ``taxonomy.exclusions`` and the defense switch."""
 
     def __init__(self, taxonomy: Taxonomy, settings: Settings) -> None:
         self._include_defenses = settings.events.include_defenses
-        self._phrases: tuple[tuple[RuleExclusionReason, TermMatcher], ...] = tuple(
+        self._phrases: _Phrases = tuple(
             (
                 reason,
                 TermMatcher(
@@ -116,6 +132,14 @@ class RuleEventFilter:
         )
         self._markers = TermMatcher(TALK_MARKERS, label="talk markers")
         self._defenses = TermMatcher(DEFENSE_PHRASES, label="defense phrases")
+        self._final: _Phrases = tuple(
+            (reason, TermMatcher(self._naming_a_talk(matcher.terms)))
+            for reason, matcher in self._phrases
+        )
+
+    def _naming_a_talk(self, phrases: Sequence[str]) -> list[str]:
+        """The phrases that contain a talk marker themselves ("no seminar")."""
+        return [phrase for phrase in phrases if self._markers.first(Words.of(phrase.rstrip("*")))]
 
     def _defense(self, event: Event, texts: dict[str, Words]) -> _Verdict | None:
         if self._include_defenses:
@@ -141,14 +165,13 @@ class RuleEventFilter:
         defense = self._defense(event, texts)
         if defense is not None:
             return defense
-        for reason, matcher in self._phrases:
-            for place, words in texts.items():
-                phrase = matcher.first(words)
-                if phrase is None:
-                    continue
-                if any(self._names_a_talk(text) for text in texts.values()):
-                    return _UNCERTAIN
-                return _Verdict(reason, f'{place} matches "{phrase}"')
+        final = _first_match(self._final, texts)
+        if final is not None:
+            return final
+        verdict = _first_match(self._phrases, texts)
+        if verdict is not None:
+            names_a_talk = any(self._names_a_talk(text) for text in texts.values())
+            return _UNCERTAIN if names_a_talk else verdict
         categories = [Words.of(category) for category in candidate.hints.categories]
         if any(matcher.first(*categories) for _, matcher in self._phrases):
             return _UNCERTAIN

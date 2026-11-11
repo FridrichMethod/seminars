@@ -30,7 +30,7 @@ PHRASES: dict[str, list[str]] = {
     "fitness": ["yoga"],
     "religious": ["bible study"],
     "administrative": ["faculty meeting"],
-    "academic_calendar": ["tuition due"],
+    "academic_calendar": ["tuition due", "no seminar"],
 }
 TAXONOMY = Taxonomy.model_validate({"exclusions": PHRASES})
 
@@ -172,6 +172,33 @@ class TestUncertain:
             "career",
             'title matches "career talk"',
         )
+
+    @pytest.mark.parametrize(
+        ("title", "series", "reason", "phrase"),
+        [
+            ("No Seminar - Thanksgiving", None, "academic_calendar", "no seminar"),
+            ("No seminar this week", "Chemistry Seminar", "academic_calendar", "no seminar"),
+            ("Career talk with alumni", "Bioengineering Seminar", "career", "career talk"),
+            ("Holiday party, no seminar", "Physics Colloquium", "academic_calendar", "no seminar"),
+        ],
+    )
+    def test_a_phrase_that_names_a_talk_itself_always_excludes(
+        self,
+        event_filter: RuleEventFilter,
+        title: str,
+        series: str | None,
+        reason: str,
+        phrase: str,
+    ) -> None:
+        """Talk markers elsewhere do not help, and such a phrase beats an earlier reason."""
+        item = candidate(title, series=series)
+        assert outcome(event_filter, item) == (reason, f'title matches "{phrase}"')
+
+    def test_a_talk_naming_phrase_in_the_series_excludes(
+        self, event_filter: RuleEventFilter
+    ) -> None:
+        item = candidate("Week 9: Colloquium", series="No Seminar")
+        assert outcome(event_filter, item) == ("academic_calendar", 'series matches "no seminar"')
 
     def test_a_phrase_in_a_category_only_is_uncertain(self, event_filter: RuleEventFilter) -> None:
         item = candidate("Dark matter at SLAC", categories=["Social Event / Reception"])
