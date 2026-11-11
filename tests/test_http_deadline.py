@@ -547,7 +547,9 @@ class TestRealSocketsAndRealTime:
                 while b"\r\n\r\n" not in request:
                     request += connection.recv(4096)
                 if b"GET /robots.txt " in request:
-                    connection.sendall(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n")
+                    # "close": the client must not try this connection again while it goes away.
+                    head = b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n"
+                    connection.sendall(head + b"\r\n")
                     return
                 if b"GET /slow-headers " in request:
                     connection.sendall(b"HTTP/1.1 200 OK\r\n")
