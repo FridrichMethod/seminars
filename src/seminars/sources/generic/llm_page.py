@@ -26,7 +26,8 @@ model behaving:
   normalization, or with a few characters of difference at most
   (``grounding_min_similarity``, and never more than
   ``seminars.llm.grounding.MAX_FUZZY_EDITS`` characters). A value that does
-  not is dropped.
+  not is dropped. What is kept is the text of the page for that part,
+  never the words of the model, so the model cannot add a character.
 * The answer has no free-text URL. A link is the number of a marker and is
   looked up in the links of the page; any other number is dropped.
 * Dates and times are numbers, and they must show up in the text as well:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from seminars.llm.grounding import MAX_FUZZY_EDITS, Grounding, normalize_for_grounding
 
 
@@ -28,9 +30,9 @@ class TestGrounding:
     def grounding(self, similarity: int = 90) -> Grounding:
         return Grounding(self.PAGE, min_similarity=similarity)
 
-    def test_a_value_on_the_page_is_kept_in_the_tidy_form_of_the_answer(self) -> None:
+    def test_a_value_on_the_page_is_kept_as_the_page_writes_it(self) -> None:
         assert self.grounding().text("  protein DESIGN with\ndiffusion ") == (
-            "protein DESIGN with diffusion"
+            "Protein design with diffusion"
         )
 
     def test_a_value_that_is_not_on_the_page_is_dropped(self) -> None:
@@ -83,3 +85,63 @@ class TestGrounding:
         assert Grounding("This talk is CANCELLED", min_similarity=90).cancellation()
         assert Grounding("Postponed to spring", min_similarity=90).cancellation()
         assert not self.grounding().cancellation()
+
+
+class TestTheTextOfThePage:
+    ABSTRACT = (
+        "We present generative models for de novo protein design, test the designs in the "
+        "lab and discuss what the measured activities tell us about the models themselves."
+    )
+    PAGE = f"Protein design seminar [[1]]\nJane Doe, Stanford University\n{ABSTRACT}\nRoom 104"
+
+    def grounding(self) -> Grounding:
+        return Grounding(self.PAGE, min_similarity=90)
+
+    @pytest.mark.parametrize("inserted", [" bit.ly/x", " t.co/ab", "PWNED", " Call 555"])
+    def test_text_the_model_adds_to_a_value_never_reaches_the_result(self, inserted: str) -> None:
+        cut = self.ABSTRACT.index(" test the designs")
+        changed = self.ABSTRACT[:cut] + inserted + self.ABSTRACT[cut:]
+        assert self.grounding().text(changed) == self.ABSTRACT
+
+    def test_a_change_of_case_is_undone(self) -> None:
+        assert self.grounding().text(self.ABSTRACT.upper()) == self.ABSTRACT
+
+    def test_a_typo_of_the_model_gives_the_words_of_the_page(self) -> None:
+        assert self.grounding().text("Jane Doe, Stanfrd Universty") == (
+            "Jane Doe, Stanford University"
+        )
+
+    def test_a_typo_at_the_end_does_not_cut_off_the_page_text(self) -> None:
+        typo = self.ABSTRACT.replace("themselves.", "themselvs.")
+        assert self.grounding().text(typo) == self.ABSTRACT
+
+    def test_a_typo_at_the_start_does_not_cut_off_the_page_text(self) -> None:
+        typo = self.ABSTRACT.replace("We present", "W present")
+        assert self.grounding().text(typo) == self.ABSTRACT
+
+    def test_link_markers_are_neither_compared_nor_kept(self) -> None:
+        grounding = self.grounding()
+        assert grounding.text("Protein design seminar [[1]]") == "Protein design seminar"
+        assert grounding.text("seminar Jane Doe") == "seminar Jane Doe"
+        assert grounding.text("[[1]]") is None
+
+    def test_marker_numbers_are_not_numbers_of_the_page(self) -> None:
+        grounding = Grounding("Talk on November 3 [[17]]", min_similarity=90)
+        assert not grounding.number(17)
+        assert grounding.number(3)
+
+    def test_the_place_written_like_the_value_wins(self) -> None:
+        grounding = Grounding("Bioengineering seminars\nBioengineering Seminar", min_similarity=90)
+        assert grounding.text("Bioengineering Seminar") == "Bioengineering Seminar"
+        assert grounding.text("bioengineering seminar") == "Bioengineering Seminar"
+
+    def test_accents_and_compatibility_forms_come_back_as_the_page_has_them(self) -> None:
+        page = "Talk by Zoe\u0308 Mu\u0308ller at the \ufb01eld station"
+        grounding = Grounding(page, min_similarity=90)
+        assert grounding.text("Zo\u00eb M\u00fcller") == "Zoe\u0308 Mu\u0308ller"
+        assert grounding.text("field station") == "\ufb01eld station"
+
+    def test_a_letter_that_folds_to_two_maps_back_to_itself(self) -> None:
+        grounding = Grounding("Stra\u00dfe 12, Gro\u00dfer Saal", min_similarity=90)
+        assert grounding.text("STRASSE 12") == "Stra\u00dfe 12"
+        assert grounding.text("strasse") == "Stra\u00dfe"

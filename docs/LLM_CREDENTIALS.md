@@ -316,8 +316,9 @@ Whatever the provider, a page cannot steer the result:
   discarded as a whole; tagging answers can only hold the field ids of the taxonomy.
 * Every text value of a page reading (title, speaker, affiliation, series, location,
   abstract) must occur in the page text after normalization, or differ from it by a few
-  characters at most (`grounding_min_similarity`, 90). Dates and times must show up in the
-  text as well. Anything else is dropped.
+  characters at most (`grounding_min_similarity`, 90). What is kept is the text of the page
+  itself, never the words of the model, so the model cannot add a single character of its
+  own. Dates and times must show up in the text as well. Anything else is dropped.
 * The model never writes a URL. Links are numbered markers in the page text, and an answer
   names a marker; only links that are really on the page can come out.
 * Before anything is written to `data/` or `public/`, a secret scan looks for API keys,

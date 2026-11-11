@@ -244,6 +244,20 @@ class TestGroundingOfTheAnswer:
         assert draft.speakers == [SpeakerDraft(name="Jane Doe")]
         assert (draft.series, draft.location, draft.abstract) == (None, None, None)
 
+    def test_a_value_the_model_changed_is_taken_in_the_words_of_the_page(self) -> None:
+        changed = {
+            **TALK,
+            "title": TALK["title"].upper(),
+            "abstract": TALK["abstract"].replace("de novo", "de novo t.co/x"),
+            "location": "Shriram Centre, Room 104",
+        }
+        [draft] = extract(FakeLLMClient(answer(changed)))
+        assert (draft.title, draft.abstract, draft.location) == (
+            TALK["title"],
+            TALK["abstract"],
+            TALK["location"],
+        )
+
     def test_an_item_whose_title_and_speakers_are_invented_is_dropped(self) -> None:
         item = {**TALK, "title": "A talk that does not exist", "speakers": [{"name": "Nobody"}]}
         assert extract(FakeLLMClient(answer(item))) == []
