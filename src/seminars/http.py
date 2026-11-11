@@ -1,8 +1,14 @@
 """HTTP access for adapters: the polite live client and its error types.
 
 Adapters only ever see the ``HttpClient`` protocol: ``get(url)`` returns a
-``FetchedDocument`` or raises a subclass of ``HttpError``. ``PoliteClient`` is
-the live implementation and follows SPEC section 2:
+``FetchedDocument`` or raises a subclass of ``HttpError``. There are two
+implementations:
+
+* ``OfflineHttpClient`` (build it with ``offline_client(source_id)``) serves
+  recorded fixtures by URL and raises ``FixtureNotFoundError`` for a URL that
+  was never recorded. It backs ``seminars run --offline`` and adapter tests;
+  see ``seminars.fixtures`` and tests/fixtures/README.md.
+* ``PoliteClient`` is the live client and follows SPEC section 2:
 
 * only ``http`` and ``https`` URLs; a fixed User-Agent from the settings;
 * robots.txt is fetched once per origin and honoured for ``Disallow`` and
@@ -44,6 +50,7 @@ from urllib.parse import urljoin
 import httpx
 
 from seminars.config import HttpSettings
+from seminars.fixtures import FixtureNotFoundError, OfflineHttpClient, offline_client
 from seminars.httpbase import (
     BINARY_MEDIA_PREFIXES,
     BINARY_MEDIA_TYPES,
@@ -80,11 +87,13 @@ __all__ = [
     "RETRY_STATUSES",
     "Clock",
     "CrawlDelayTooLongError",
+    "FixtureNotFoundError",
     "HostBudgetExceededError",
     "HttpClient",
     "HttpError",
     "HttpRequestError",
     "HttpStatusError",
+    "OfflineHttpClient",
     "PoliteClient",
     "RobotsDisallowedError",
     "RobotsUnavailableError",
@@ -95,6 +104,7 @@ __all__ = [
     "ascii_safe",
     "is_binary_media_type",
     "media_type",
+    "offline_client",
     "split_url",
 ]
 
