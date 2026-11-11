@@ -228,6 +228,7 @@ def session(browser: Any, base_url: str) -> Iterator[Callable[..., Session]]:
         viewport: dict[str, int] = DESKTOP,
         color_scheme: str = "light",
         permissions: tuple[str, ...] = (),
+        now: str = NOW,
     ) -> Session:
         context = browser.new_context(
             viewport=viewport,
@@ -238,7 +239,7 @@ def session(browser: Any, base_url: str) -> Iterator[Callable[..., Session]]:
         )
         contexts.append(context)
         page = context.new_page()
-        page.clock.set_fixed_time(NOW)
+        page.clock.set_fixed_time(now)
         page.add_init_script(RECORD_VIOLATIONS)
         result = Session(context=context, page=page, base_url=base_url)
 
@@ -349,6 +350,62 @@ class TestUntrustedText:
             assert parts.scheme in WEB_PROTOCOLS | {"webcal"}, href
             if parts.scheme in WEB_PROTOCOLS and not href.startswith(current.base_url):
                 assert set(rel.split()) >= {"noopener", "noreferrer"}, href
+        current.assert_clean()
+
+    def test_records_that_cannot_be_shown_are_left_out(
+        self, session: Callable[..., Session]
+    ) -> None:
+        payload = sample("events.json")
+        arc = next(event for event in payload["events"] if event["uid"] == "sample-arc")
+        days = {**arc, "uid": "days", "all_day": True, "start": "2026-11-11T00:00:00-08:00"}
+        days["end"] = "2026-11-14T00:00:00-08:00"
+        night = {**arc, "uid": "night", "start": "2026-11-11T22:00:00-08:00"}
+        night["end"] = "2026-11-12T01:00:00-08:00"
+        odd = {
+            **arc,
+            "uid": "odd",
+            "start": "2026-11-11T09:00:00-08:00",
+            "end": "2026-11-11T08:00:00-08:00",
+            "fields": ["ai-ml", "astrology"],
+            "institution": "atlantis",
+            "event_type": "party",
+            "status": "rumoured",
+            "speakers": [None, {"name": ""}, {"name": "Real Person", "affiliation": 7}],
+            "picks_reasons": [1, "kept"],
+        }
+        payload["events"] = [
+            None,
+            5,
+            "text",
+            {"uid": "untitled", "start": arc["start"]},
+            {**arc, "uid": "undated", "start": "yesterday"},
+            night,
+            odd,
+            days,
+        ]
+        payload["feeds"] = [
+            {"id": "math", "path": "https://example.org/math.ics"},
+            {"id": "unknown", "path": "feeds/unknown.ics"},
+            None,
+            {"id": "cs", "path": "feeds/cs.ics"},
+        ]
+        current = session()
+        serve_json(current, "events.json", payload)
+        current.open("index.html")
+        page = current.page
+        assert current.shown() == ["days", "odd", "night"]
+        whole = page.locator('article[data-uid="days"]')
+        assert whole.locator(".event-when").text_content() == "All day"
+        assert whole.locator(".event-until").text_content() == "Until Friday, November 13"
+        overnight = page.locator('article[data-uid="night"] .event-when').text_content()
+        assert overnight == "10:00 PM - Nov 12, 2026, 1:00 AM PST"
+        strange = page.locator('article[data-uid="odd"]')
+        assert strange.locator(".event-when").text_content() == "9:00 AM"
+        assert strange.locator(".badges li").all_text_contents() == ["Pick", "AI / ML"]
+        assert strange.locator(".speakers li").all_text_contents() == ["Real Person"]
+        assert strange.locator(".reasons li").all_text_contents() == ["kept"]
+        feeds = page.eval_on_selector_all("#feeds li", "es => es.map((e) => e.dataset.feed)")
+        assert feeds == ["cs"]
         current.assert_clean()
 
     def test_the_policy_blocks_inline_script_and_remote_loads(
@@ -544,6 +601,17 @@ class TestFilters:
         assert current.shown() == []
         assert current.page.locator("#count").text_content() == "0 upcoming talks"
         current.assert_clean()
+
+    def test_a_talk_in_progress_is_listed_today_and_an_ended_one_is_not(
+        self, session: Callable[..., Session]
+    ) -> None:
+        during = session(now="2026-11-12T20:30:00Z").open("index.html?range=today")
+        assert during.shown() == ["sample-xss"]
+        assert during.page.locator("#events section").get_attribute("data-day") == "2026-11-12"
+        after = session(now="2026-11-12T21:00:00Z").open("index.html?range=today")
+        assert after.shown() == []
+        during.assert_clean()
+        after.assert_clean()
 
 
 # --- subscription and status ----------------------------------------------------------------
