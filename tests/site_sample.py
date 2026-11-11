@@ -6,7 +6,7 @@ The web site is developed and tested against these two files:
 * tests/fixtures/_site/status.json   a PublicStatusPayload
 
 They are generated from the models, so they always follow the schema.
-tests/test_site_sample.py fails when the files and this module disagree;
+tests/test_public_sample.py fails when the files and this module disagree;
 regenerate them with ``uv run python tests/site_sample.py``.
 
 The events cover what the site has to cope with: HTML and script injection
