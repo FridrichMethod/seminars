@@ -173,6 +173,12 @@ def normalize_for_grounding(text: str) -> str:
     return _normalized(text).text
 
 
+def _joined(text: str, one: re.Match[str], other: re.Match[str]) -> bool:
+    """Whether only spaces and full stops stand between two tokens of ``text``."""
+    left, right = sorted((one, other), key=lambda match: match.start())
+    return _GAP.fullmatch(text, left.end(), right.start()) is not None
+
+
 def _day_number(token: str) -> int | None:
     match = _DAY_TOKEN.fullmatch(token)
     return int(match.group(1)) if match else None
@@ -187,8 +193,7 @@ def _days_next_to(text: str, month: re.Match[str], away: Sequence[re.Match[str]]
     """
     chain = [month]
     for token in away[:3]:
-        left, right = sorted((chain[-1], token), key=lambda match: match.start())
-        if _GAP.fullmatch(text, left.end(), right.start()) is None:
+        if not _joined(text, chain[-1], token):
             break
         chain.append(token)
     words = [token.group() for token in chain[1:]]
@@ -213,7 +218,7 @@ def _named_days(text: str) -> frozenset[tuple[int, int]]:
             continue
         anchor = token
         before = tokens[max(0, index - 4) : index][::-1]
-        if before and before[0].group() == "of":
+        if before and before[0].group() == "of" and _joined(text, before[0], token):
             anchor, before = before[0], before[1:]
         after = tokens[index + 1 : index + 4]
         numbers = _days_next_to(text, token, after) + _days_next_to(text, anchor, before)

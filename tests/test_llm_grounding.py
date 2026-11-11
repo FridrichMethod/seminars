@@ -190,6 +190,9 @@ class TestDates:
         grounding = self.grounding(page)
         assert all(grounding.day(month, day) for month, day in days)
 
+    def test_of_must_stand_right_before_the_month_as_well(self) -> None:
+        assert not self.grounding("17th of; November").day(11, 17)
+
     def test_the_end_of_a_range_needs_a_range_word(self) -> None:
         grounding = self.grounding("Dec 1, room 3")
         assert grounding.day(12, 1)
