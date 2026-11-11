@@ -213,6 +213,15 @@ class TestImplementationTable:
         assert callable(load_implementation(key))
 
 
+class TestGoldenFileRule:
+    def test_the_feed_writer_contract_says_how_golden_files_are_kept(self) -> None:
+        """The gate rejects CRLF and non-ASCII text in tests/golden/ (tests/test_check_ascii.py)."""
+        rule = " ".join((IcsFeedWriter.__call__.__doc__ or "").split())
+        assert "golden ``.ics`` files are stored with LF line endings" in rule
+        assert "replaces CRLF with LF in the produced output before" in rule
+        assert "never stored in a golden file" in rule
+
+
 class TestLoadImplementation:
     def test_unknown_key(self) -> None:
         with pytest.raises(KeyError, match="unknown contract 'nope'"):

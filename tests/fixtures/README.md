@@ -186,6 +186,13 @@ only ways to send a request to a source site by hand.
 - Never record pages that need a login, and nothing that contains personal
   data beyond what the public page shows.
 
+Expected output is not a fixture. Golden files (`tests/golden/`) fall under
+the strict charset rule: printable ASCII and LF only. Golden `.ics` files
+are therefore stored with LF, a test replaces CRLF with LF in the produced
+feed before comparing, and cases with non-ASCII text are built in the test
+code with escapes instead of being stored. The docstring of `IcsFeedWriter`
+in `seminars.contracts` has the details.
+
 ## Using fixtures in tests
 
 ```python

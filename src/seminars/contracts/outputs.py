@@ -29,6 +29,20 @@ class IcsFeedWriter(Protocol):
 
         Output is a pure function of the arguments: the same events give the
         same bytes.
+
+        Golden files of this writer. A feed has CRLF line endings (RFC 5545)
+        and can contain non-ASCII text, and a file below tests/golden/ can
+        hold neither: the charset gate (scripts/check_ascii.py) accepts only
+        printable ASCII with LF line endings there, and .gitattributes turns
+        CRLF into LF on commit anyway. So:
+
+        * golden ``.ics`` files are stored with LF line endings;
+        * a test replaces CRLF with LF in the produced output before it
+          compares the output with a golden file, and asserts the CRLF line
+          endings of the real output on their own;
+        * cases with non-ASCII text (accented names, CJK, symbols) are built
+          in the test code, written with escapes, and are never stored in a
+          golden file.
         """
         ...
 

@@ -57,6 +57,7 @@ class TestClassify:
             ("tests/fixtures/sites-chemistry/events.json", "free"),
             ("tests/fixtures/_site/events.json", "free"),
             ("tests/data/sample.json", "strict"),
+            ("tests/golden/all.ics", "strict"),
             ("mydata/events.json", "strict"),
         ],
     )
@@ -157,6 +158,29 @@ class TestFreeFiles:
         assert check("tests/fixtures/x/a.ics", "BEGIN\r\nEND\r\n") == [
             "tests/fixtures/x/a.ics:1: CRLF line ending (2 line(s) in total)"
         ]
+
+
+class TestGoldenFiles:
+    """Expected output is held to the strict rule.
+
+    The docstring of ``seminars.contracts.IcsFeedWriter`` tells the writer
+    of the feeds how its tests live with that.
+    """
+
+    FEED = "BEGIN:VCALENDAR\r\nSUMMARY:Seminar\r\nEND:VCALENDAR\r\n"
+
+    def test_a_feed_with_its_real_line_endings_cannot_be_a_golden_file(self) -> None:
+        assert check("tests/golden/all.ics", self.FEED) == [
+            "tests/golden/all.ics:1: CRLF line ending (3 line(s) in total)"
+        ]
+
+    def test_the_same_feed_with_lf_is_accepted(self) -> None:
+        assert check("tests/golden/all.ics", self.FEED.replace("\r\n", "\n")) == []
+
+    def test_non_ascii_text_cannot_be_stored_in_a_golden_file(self) -> None:
+        line = "SUMMARY:Poincar" + E_ACUTE + " seminar\n"
+        (message,) = check("tests/golden/all.ics", line)
+        assert message.startswith("tests/golden/all.ics:1:16 U+00E9")
 
 
 class TestFileLevelRules:
