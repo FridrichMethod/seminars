@@ -7,7 +7,9 @@ exception: callers such as the fixture recorder only catch ``HttpError``.
 
 from __future__ import annotations
 
+import errno
 import logging
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -340,6 +342,32 @@ class TestCacheDirectoryTrouble:
         warnings = [record.getMessage() for record in caplog.records]
         assert len(warnings) == 1
         assert "HTTP cache" in warnings[0]
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="there is no lock on Windows")
+    def test_a_file_system_that_cannot_lock_is_like_no_lock(
+        self,
+        http_settings: HttpSettings,
+        fake_clock: FakeClock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        def no_locks(descriptor: int, operation: int) -> None:
+            raise OSError(errno.ENOLCK, "No locks available")
+
+        monkeypatch.setattr("fcntl.flock", no_locks)
+        client, network = build(http_settings, fake_clock, page_with([]), tmp_path)
+        with caplog.at_level(logging.WARNING, logger="seminars.httpcache"):
+            for _ in range(2):
+                assert client.get(PAGE).text == "hi\n"
+            with HttpCache(tmp_path).host_lock("dept.example.edu"):
+                pass
+        assert network.paths == ["/robots.txt", "/events", "/events"]
+        assert [record.getMessage().count("No locks available") for record in caplog.records] == [
+            1,
+            1,
+        ]
+        assert HttpCache(tmp_path).host("dept.example.edu").last_request_at == fake_clock()
 
     def test_a_long_host_gets_a_short_file_name(self, tmp_path: Path) -> None:
         cache = HttpCache(tmp_path)

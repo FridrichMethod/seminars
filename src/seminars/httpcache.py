@@ -233,17 +233,28 @@ class HttpCache:
             yield
             return
         try:
-            while wait is not None:
-                try:
-                    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    break
-                except BlockingIOError:
-                    wait()
-            else:
-                fcntl.flock(descriptor, fcntl.LOCK_EX)
+            locked = self._acquire(descriptor, wait)
             try:
                 yield
             finally:
-                fcntl.flock(descriptor, fcntl.LOCK_UN)
+                if locked:
+                    fcntl.flock(descriptor, fcntl.LOCK_UN)
         finally:
             os.close(descriptor)
+
+    def _acquire(self, descriptor: int, wait: Callable[[], None] | None) -> bool:
+        """Take the lock on ``descriptor``; False when this file system cannot lock at all."""
+        try:
+            if wait is None:
+                fcntl.flock(descriptor, fcntl.LOCK_EX)
+                return True
+            while True:
+                try:
+                    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    return True
+                except BlockingIOError:
+                    pass
+                wait()
+        except OSError as error:
+            self._complain("locking", error)
+            return False
