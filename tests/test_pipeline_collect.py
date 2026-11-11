@@ -48,6 +48,7 @@ from seminars.sources.base import (
     ParseError,
     UnknownAdapterError,
     fetch_urls,
+    make_payload,
 )
 
 URL = "https://example.edu/events"
@@ -261,6 +262,41 @@ class PagingAdapter:
         return []
 
 
+class SkippingAdapter:
+    """Fetches every URL of its source and skips the ones that fail, as adapters may."""
+
+    def fetch(self, http: HttpClient, source: SourceConfig, *, window: TimeWindow) -> RawPayload:
+        documents = []
+        for url in source.all_urls:
+            try:
+                documents.append(http.get(url))
+            except HttpError:
+                continue
+        return make_payload(source, documents, window=window)
+
+    def parse(self, payload: RawPayload, source: SourceConfig) -> list[EventDraft]:
+        return [draft(source.id, str(number)) for number in range(len(payload.documents))]
+
+
+class BudgetHttp(FakeHttpClient):
+    """Serves its pages until ``budget`` requests were made, then refuses like the live client."""
+
+    def __init__(self, budget: int) -> None:
+        super().__init__()
+        self._budget = budget
+
+    def get(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str] | None = None,
+        allow_statuses: Collection[int] = (),
+    ) -> FetchedDocument:
+        if len(self.requests) >= self._budget:
+            raise HostBudgetExceededError(url, "request budget of the host used up")
+        return super().get(url, headers=headers, allow_statuses=allow_statuses)
+
+
 class TestTimeLimit:
     def test_requests_are_counted_and_refused_once_the_time_is_used_up(self) -> None:
         clock = FakeClock()
@@ -307,6 +343,77 @@ class TestTimeLimit:
         assert "SourceTimeLimitError" in (slow_result.error or "")
         assert slow_result.duration_seconds == pytest.approx(1200.0)
         assert outcomes["sites-fast"].result.status == "ok"
+
+    def test_a_refusal_the_adapter_skipped_still_fails_the_source(
+        self, fake_registry: AdapterRegistry, context: NormalizeContext
+    ) -> None:
+        fake_registry.register("skipping")(SkippingAdapter)
+        clock = FakeClock()
+        slow = SlowHttp(clock, 400.0)
+        urls = [f"{URL}/slow/{number}" for number in range(5)]
+        for url in urls:
+            slow.add(url)
+        sources = [make_source(id="sites-slow", adapter="skipping", url=None, urls=urls)]
+
+        outcomes = collect(sources, context, http_for=lambda _: slow, timer=clock)
+
+        result = outcomes["sites-slow"].result
+        assert (result.status, result.error_kind, result.requests, result.events) == (
+            "failed",
+            "http",
+            3,
+            0,
+        )
+        assert "SourceTimeLimitError" in (result.error or "")
+        assert result.duration_seconds == pytest.approx(1200.0)
+        assert outcomes["sites-slow"].candidates == ()
+
+    def test_a_used_up_budget_the_adapter_skipped_fails_the_source(
+        self, fake_registry: AdapterRegistry, context: NormalizeContext
+    ) -> None:
+        fake_registry.register("skipping")(SkippingAdapter)
+        limited = BudgetHttp(budget=2)
+        urls = [f"{URL}/page/{number}" for number in range(4)]
+        for url in urls:
+            limited.add(url, "<html></html>")
+        sources = [make_source(id="sites-big", adapter="skipping", url=None, urls=urls)]
+
+        result = collect(sources, context, http_for=lambda _: limited)["sites-big"].result
+
+        assert (result.status, result.error_kind, result.requests) == ("failed", "budget", 4)
+        assert "HostBudgetExceededError" in (result.error or "")
+
+    def test_the_refusal_is_reported_rather_than_what_followed_it(
+        self, fake_registry: AdapterRegistry, context: NormalizeContext
+    ) -> None:
+        class GivingUpAdapter(SkippingAdapter):
+            def fetch(
+                self, http: HttpClient, source: SourceConfig, *, window: TimeWindow
+            ) -> RawPayload:
+                super().fetch(http, source, window=window)
+                raise ParseError("nothing usable came back")
+
+        fake_registry.register("giving_up")(GivingUpAdapter)
+        limited = BudgetHttp(budget=0)
+        limited.add(f"{URL}/page", "<html></html>")
+        sources = [make_source(id="sites-big", adapter="giving_up", url=f"{URL}/page")]
+
+        result = collect(sources, context, http_for=lambda _: limited)["sites-big"].result
+
+        assert (result.status, result.error_kind) == ("failed", "budget")
+
+    def test_the_client_keeps_the_first_refusal(self) -> None:
+        clock = FakeClock()
+        inner = SlowHttp(clock, 1000.0)
+        inner.add(f"{URL}/0")
+        client = BoundedHttpClient(inner, limit=900.0, timer=clock)
+        assert client.refusal is None
+        client.get(f"{URL}/0")
+        for number in (1, 2):
+            with pytest.raises(SourceTimeLimitError):
+                client.get(f"{URL}/{number}")
+        assert isinstance(client.refusal, SourceTimeLimitError)
+        assert client.refusal.url == f"{URL}/1"
 
 
 class TestFallback:

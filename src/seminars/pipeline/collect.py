@@ -20,6 +20,13 @@ all: the limit is checked before every request, and a source that is over
 it fails with ``SourceTimeLimitError``. One slow site can thus delay a run
 by that much plus one last request, never stall it.
 
+A refused request of that kind, or one refused because the request budget
+of a host is used up, means that the source was not fetched in full. The
+source then fails with that error even when its adapter caught it and
+returned what it had (an adapter may skip a detail page that cannot be
+fetched). A source that counted as healthy with half its listing would
+make every event it did not deliver count as missing.
+
 Error messages go into the run report, health issues and the status page.
 They are one line of printable ASCII (``seminars.textrules.ascii_printable``),
 credential-shaped parts are replaced, and they are cut to
@@ -90,7 +97,11 @@ class SourceTimeLimitError(HttpError):
 
 
 class BoundedHttpClient:
-    """``HttpClient`` of one source: counts its requests and enforces its time limit."""
+    """``HttpClient`` of one source: counts its requests and enforces its time limit.
+
+    ``refusal`` keeps the first error that means the source cannot be
+    fetched in full: its time limit or the request budget of a host.
+    """
 
     def __init__(self, inner: HttpClient, *, limit: float, timer: Timer) -> None:
         self._inner = inner
@@ -98,6 +109,7 @@ class BoundedHttpClient:
         self._timer = timer
         self._started = timer()
         self.requests = 0
+        self.refusal: HttpError | None = None
 
     def get(
         self,
@@ -107,9 +119,19 @@ class BoundedHttpClient:
         allow_statuses: Collection[int] = (),
     ) -> FetchedDocument:
         if self._timer() - self._started > self._limit:
-            raise SourceTimeLimitError(url, self._limit)
+            error = SourceTimeLimitError(url, self._limit)
+            self._remember(error)
+            raise error
         self.requests += 1
-        return self._inner.get(url, headers=headers, allow_statuses=allow_statuses)
+        try:
+            return self._inner.get(url, headers=headers, allow_statuses=allow_statuses)
+        except HostBudgetExceededError as error:
+            self._remember(error)
+            raise
+
+    def _remember(self, error: HttpError) -> None:
+        if self.refusal is None:
+            self.refusal = error
 
 
 @dataclass(frozen=True)
@@ -168,10 +190,13 @@ def _fetch(
         payload = adapter.fetch(client, source, window=window)
         if not isinstance(payload, RawPayload) or payload.source_id != source.id:
             raise TypeError("the adapter did not return a payload of its source")
-        return Fetched(source, payload, None, client.requests, timer() - started)
     except Exception as error:  # one source must never stop the others
         requests = client.requests if client is not None else 0
-        return Fetched(source, None, error, requests, timer() - started)
+        refusal = client.refusal if client is not None else None
+        return Fetched(source, None, refusal or error, requests, timer() - started)
+    if client.refusal is not None:  # the adapter went on with less than the source has
+        return Fetched(source, None, client.refusal, client.requests, timer() - started)
+    return Fetched(source, payload, None, client.requests, timer() - started)
 
 
 def fetch_sources(
