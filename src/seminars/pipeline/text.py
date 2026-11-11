@@ -1,0 +1,221 @@
+"""Text handling of normalization: markup, whitespace and the phrases it recognises.
+
+Adapters copy what a source says. Everything in here turns that into the
+text an ``Event`` holds: plain text without markup, cleaned by
+``seminars.textrules.clean_text``, with tidy whitespace and a bounded
+length. The functions are pure and never raise on odd input.
+"""
+
+from __future__ import annotations
+
+import html
+import re
+import unicodedata
+from typing import Final
+
+from selectolax.lexbor import LexborHTMLParser
+
+from seminars.models import TBA_TITLE, EventStatus, url_has_credential
+from seminars.textrules import clean_text
+
+ELLIPSIS: Final = "..."
+LINK_REMOVED: Final = "[link removed]"
+VALUE_REMOVED: Final = "[removed]"
+
+_BLOCK_TAGS: Final = (
+    "address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|footer|h[1-6]|header"
+    "|hr|li|main|nav|ol|p|pre|section|table|tbody|td|tfoot|th|thead|tr|ul"
+)
+_INLINE_TAGS: Final = (
+    "a|abbr|b|bdi|bdo|big|center|cite|code|del|dfn|em|font|i|img|ins|kbd|label|mark|q|s|samp"
+    "|small|span|strike|strong|sub|sup|time|tt|u|var|wbr"
+)
+_BLOCK_TAG: Final = re.compile(rf"</?(?:{_BLOCK_TAGS})(?:\s[^<>]*)?/?>", re.IGNORECASE)
+_KNOWN_TAG: Final = re.compile(
+    rf"</?(?:{_BLOCK_TAGS}|{_INLINE_TAGS})(?:\s[^<>]*)?/?>", re.IGNORECASE
+)
+_HIDDEN_BLOCK: Final = re.compile(
+    r"<(script|style)\b[^>]*>.*?</\1\s*>|<!--.*?-->", re.IGNORECASE | re.DOTALL
+)
+_HIDDEN_TAGS: Final = ["script", "style", "noscript", "template", "head"]
+
+_URL: Final = re.compile(r"https?://[^\s<>\"')\]]+", re.IGNORECASE)
+_PASSCODE: Final = re.compile(
+    r"\b((?:pass\s?code|password|passwd|pwd)(?:\s*[:=]\s*|\s+is\s*:?\s*))"
+    r"[A-Za-z0-9!@#$%^&*._+-]{3,}",
+    re.IGNORECASE,
+)
+
+_DASHES: Final = r"[\-\u2013\u2014]"
+_AFTER_PREFIX: Final = rf"(?:\s*[:!|]+|\s+{_DASHES}+(?=\s))\s*"
+_BEFORE_SUFFIX: Final = rf"(?:\s*[:|]+\s*|\s+{_DASHES}+\s+)"
+_TBA_WORDS: Final = (
+    "tba|tbd|tbc|to be announced|to be determined|to be confirmed|to come|forthcoming"
+    "|coming soon|pending|untitled|no title|no title yet"
+)
+_TBA: Final = re.compile(
+    rf"(?:(?:talk|seminar|lecture|colloquium) )?(?:title (?:is |and abstract )?)?(?:{_TBA_WORDS})"
+    r"|title"
+)
+_HONORIFIC: Final = re.compile(
+    r"^(?:(?:dr|prof|professor|mr|mrs|ms|mx|sir|dame)\b\.?\s*)+", re.IGNORECASE
+)
+_DEGREE: Final = re.compile(
+    r"^(?:ph\.?\s?d|d\.?\s?phil|sc\.?\s?d|m\.?\s?d|m\.?\s?sc?|b\.?\s?sc?|m\.?\s?eng|mph|mba"
+    r"|jr|sr|ii|iii|iv)\.?$",
+    re.IGNORECASE,
+)
+
+
+def _status_patterns(words: str) -> tuple[re.Pattern[str], ...]:
+    """Ways a title carries a status word: as a prefix, as a suffix, in brackets, alone."""
+    word = rf"(?:this\s+)?(?:event\s+|talk\s+|seminar\s+)?(?:has\s+been\s+|is\s+)?(?:{words})"
+    return (
+        re.compile(rf"^\s*[\[(]\s*{word}\s*[\])](?:{_AFTER_PREFIX}|\s*)", re.IGNORECASE),
+        re.compile(rf"^\s*{word}{_AFTER_PREFIX}", re.IGNORECASE),
+        re.compile(rf"\s*[\[(]\s*{word}\s*[\])]\s*$", re.IGNORECASE),
+        re.compile(rf"{_BEFORE_SUFFIX}{word}\s*!*\s*$", re.IGNORECASE),
+        re.compile(rf"^\s*{word}\s*!*\s*$", re.IGNORECASE),
+    )
+
+
+_STATUS_MARKERS: Final[tuple[tuple[EventStatus, tuple[re.Pattern[str], ...]], ...]] = (
+    ("cancelled", _status_patterns("cancell?ed|postponed")),
+    ("tentative", _status_patterns("tentative")),
+)
+
+
+def word_set(text: str) -> frozenset[str]:
+    """The words of ``text`` as a set; how the word lists of normalization are written."""
+    return frozenset(text.split())
+
+
+def html_to_text(markup: str) -> str:
+    """The text of an HTML fragment; block elements and ``<br>`` end a line.
+
+    Scripts, styles and comments are dropped and entities are decoded. The
+    result still needs ``paragraphs`` or ``one_line``.
+    """
+    marked = _BLOCK_TAG.sub(lambda match: "\n" + match.group(0), markup)
+    tree = LexborHTMLParser(marked)
+    tree.strip_tags(_HIDDEN_TAGS)
+    body = tree.body
+    return body.text(deep=True, separator="") if body is not None else ""
+
+
+def strip_markup(text: str) -> str:
+    """Plain text that may hold stray tags and entities, without them.
+
+    Only tags with a known HTML name are removed, so ``a < b`` and
+    ``<x, y>`` in a title about mathematics stay as they are. A block tag
+    leaves a line break behind.
+    """
+    without_hidden = _HIDDEN_BLOCK.sub(" ", text)
+    with_breaks = _BLOCK_TAG.sub("\n", without_hidden)
+    return html.unescape(_KNOWN_TAG.sub("", with_breaks))
+
+
+def truncate(text: str, limit: int) -> str:
+    """``text`` cut to at most ``limit`` characters; a cut ends in ``...``."""
+    if len(text) <= limit:
+        return text
+    if limit <= len(ELLIPSIS):
+        return text[:limit]
+    return text[: limit - len(ELLIPSIS)].rstrip() + ELLIPSIS
+
+
+def one_line(text: str | None, *, limit: int) -> str | None:
+    """A single-line text field: markup removed, cleaned, whitespace collapsed, bounded.
+
+    ``None`` and text without content give ``None``.
+    """
+    if text is None:
+        return None
+    collapsed = " ".join(clean_text(strip_markup(text)).split())
+    return truncate(collapsed, limit) or None
+
+
+def paragraphs(text: str | None, *, limit: int, is_html: bool = False) -> str | None:
+    """A multi-line text field: one paragraph per line, no empty lines, bounded.
+
+    With ``is_html`` the text is an HTML fragment; otherwise stray markup is
+    removed. ``None`` and text without content give ``None``.
+    """
+    if text is None:
+        return None
+    plain = clean_text(html_to_text(text) if is_html else strip_markup(text))
+    lines = (" ".join(line.split()) for line in plain.split("\n"))
+    return truncate("\n".join(line for line in lines if line), limit) or None
+
+
+def scrub_private_links(text: str) -> str:
+    """``text`` without what lets a stranger into a meeting.
+
+    A URL that carries a credential (``seminars.models.url_has_credential``:
+    a ``pwd``, ``passcode``, ``tk`` or ``token`` parameter and the like)
+    becomes ``[link removed]``, and the value after "Passcode:" or
+    "Password:" becomes ``[removed]``. data/ is public, so this happens
+    during normalization and not when output is written.
+    """
+
+    def replace_url(match: re.Match[str]) -> str:
+        url = match.group(0).rstrip(".,;")
+        return LINK_REMOVED + match.group(0)[len(url) :] if url_has_credential(url) else match[0]
+
+    return _PASSCODE.sub(rf"\g<1>{VALUE_REMOVED}", _URL.sub(replace_url, text))
+
+
+def is_tba(title: str | None) -> bool:
+    """Whether ``title`` says that the title is not announced yet (or says nothing)."""
+    if title is None:
+        return True
+    words = re.sub(r"[^a-z0-9]+", " ", title.casefold().replace(".", "")).strip()
+    return not words or _TBA.fullmatch(words) is not None
+
+
+def split_status(title: str) -> tuple[str, EventStatus | None]:
+    """Take a status word off a title: ``"CANCELLED: Knots"`` -> ``("Knots", "cancelled")``.
+
+    Recognised are "cancelled", "canceled" and "postponed" (both mean the
+    talk does not take place at this time) and "tentative", as a prefix or
+    a suffix set off by punctuation or brackets, or as the whole title.
+    The word inside a sentence ("Cancelled flights and how to avoid them")
+    is left alone. A title that was nothing but the marker becomes "TBA".
+    """
+    for status, patterns in _STATUS_MARKERS:
+        for pattern in patterns:
+            stripped, count = pattern.subn("", title, count=1)
+            if count:
+                return stripped.strip() or TBA_TITLE, status
+    return title, None
+
+
+def tidy_name(name: str) -> str:
+    """A person's name without honorifics ("Prof. Dr.") and degrees (", PhD")."""
+    parts = [part.strip() for part in _HONORIFIC.sub("", name.strip()).split(",")]
+    kept = [part for part in parts if part and _DEGREE.fullmatch(part) is None]
+    words = " ".join(kept).split()
+    while len(words) > 1 and _DEGREE.fullmatch(words[-1]) is not None:
+        words = words[:-1]
+    return " ".join(words)
+
+
+def is_degree(text: str) -> bool:
+    """Whether ``text`` is an academic degree or a name suffix such as "PhD" or "Jr."."""
+    return _DEGREE.fullmatch(text.strip()) is not None
+
+
+def fold(text: str) -> str:
+    """``text`` for comparisons: no accents, no case, no punctuation, single spaces.
+
+    Used to compare names and titles from different sources. It is never
+    stored: names keep their accents in every output.
+    """
+    decomposed = unicodedata.normalize("NFKD", text)
+    letters = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return " ".join(re.sub(r"[^\w\s]|_", " ", letters.casefold()).split())
+
+
+def canonical_name(name: str) -> str:
+    """The form in which two spellings of one person's name are equal."""
+    return fold(tidy_name(name))
