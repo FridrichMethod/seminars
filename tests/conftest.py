@@ -183,6 +183,11 @@ def fake_llm() -> FakeLLMClient:
 
 @pytest.fixture
 def fake_llm_cache() -> FakeLLMCache:
+    """An empty in-memory LLM cache opened on factories.REFERENCE_NOW (ttl 180 days).
+
+    It follows the age rules of ``LLMCache``; move ``fake_llm_cache.today``
+    to play a later run.
+    """
     return FakeLLMCache()
 
 

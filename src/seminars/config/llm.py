@@ -67,7 +67,9 @@ class LLMConfig(Model):
     * ``max_input_chars``: longest user prompt that is sent; longer inputs are
       skipped and reported.
     * ``timeout_seconds``: per request.
-    * ``cache_ttl_days``: cache entries not hit for this long are pruned.
+    * ``cache_ttl_days``: lifetime of a cache entry. Entries whose recorded
+      day of use is older are pruned; an entry in regular use is renewed
+      long before that (the rules are in ``seminars.contracts.LLMCache``).
     * ``grounding_min_similarity``: fuzzy ratio (0-100) an extracted text
       field needs against the page text when it is not a plain substring.
 

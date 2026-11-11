@@ -9,8 +9,9 @@ package can be tested on its own.
 
 Import everything from ``seminars.contracts``. The definitions live in:
 
-* llm.py       LLMClient, LLMChainClient, the LLMError hierarchy, LLMCache,
-               LLMFieldTagger, PageExtractor and their factories
+* llm.py       LLMClient, LLMChainClient, the LLMError hierarchy, LLMCache
+               (with the rules for the age of its entries), LLMFieldTagger,
+               PageExtractor and their factories
 * classify.py  FieldTagger, EventFilter, PicksScorer and their factories
 * outputs.py   the ICS, site data, digest and health functions, IssueClient
 * tools.py     SecretScanner, SourceProber
@@ -63,6 +64,13 @@ How one run uses the contracts, in order::
     ... output checks, before anything is committed or deployed:
         seminars.textrules.data_tree_problems(paths.data_dir)   # charset rule of data/
         SecretScanner over data/ and public/
+
+The time of the run is one timezone-aware moment, fixed when the run starts:
+the real time of a live run, ``seminars.fixtures.reference_time`` of an
+offline one. Whatever needs "now" gets it handed in and never reads the
+clock itself. That includes the LLM cache, which the pipeline opens as
+``open_llm_cache(paths.llm_cache_dir, ttl_days=llm.cache_ttl_days, now=...)``
+and whose entries age by the UTC date of that moment (see ``LLMCache``).
 
 Who keeps data/ within the charset rule. Every file below data/ is committed
 and checked by scripts/check_ascii.py (no emoji, no decorative or invisible
@@ -127,6 +135,7 @@ from seminars.contracts.classify import (
     PicksScorerFactory,
 )
 from seminars.contracts.llm import (
+    LLM_CACHE_REFRESH_CAP_DAYS,
     LLMAuthError,
     LLMBudgetExceededError,
     LLMCache,
@@ -147,7 +156,9 @@ from seminars.contracts.llm import (
     LLMUnavailableError,
     PageExtractor,
     PageExtractorFactory,
+    llm_cache_day,
     llm_cache_key,
+    llm_cache_refresh_days,
 )
 from seminars.contracts.outputs import (
     ISSUE_LABELS,
@@ -175,6 +186,7 @@ __all__ = [
     "LABEL_DIGEST",
     "LABEL_LLM_AUTH",
     "LABEL_SOURCE_BROKEN",
+    "LLM_CACHE_REFRESH_CAP_DAYS",
     "ContractNotImplementedError",
     "DigestPublisher",
     "DigestRenderer",
@@ -214,7 +226,9 @@ __all__ = [
     "SecretScannerFactory",
     "SiteDataWriter",
     "SourceProber",
+    "llm_cache_day",
     "llm_cache_key",
+    "llm_cache_refresh_days",
     "load_implementation",
 ]
 

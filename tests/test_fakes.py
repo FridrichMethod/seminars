@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -273,6 +273,29 @@ class TestClassificationFakes:
         assert (fake_llm_cache.hits, fake_llm_cache.misses, fake_llm_cache.writes) == (1, 1, 1)
         assert fake_llm_cache.stats() == LLMCacheStats(hits=1, misses=1, writes=1)
         assert fake_llm_cache.prune() == 0
+
+    def test_cache_entries_age_by_the_day_of_the_run(self) -> None:
+        cache = FakeLLMCache({"seeded": {"fields": []}}, ttl_days=60)
+        assert cache.today == REFERENCE_NOW.date()
+        assert cache.dates == {"seeded": cache.today}
+        cache.put("used", {"fields": ["bio"]})
+        cache.today += timedelta(days=29)
+        assert cache.get("used") == {"fields": ["bio"]}
+        assert (cache.refreshes, cache.dates["used"]) == (0, REFERENCE_NOW.date())
+        cache.today += timedelta(days=1)
+        assert cache.get("used") == {"fields": ["bio"]}
+        assert cache.get("used") == {"fields": ["bio"]}
+        assert (cache.refreshes, cache.dates["used"]) == (1, cache.today)
+        cache.today += timedelta(days=31)
+        assert cache.prune() == 1
+        assert (sorted(cache.entries), cache.prunes) == (["used"], 1)
+        assert cache.stats() == LLMCacheStats(hits=3, misses=0, writes=1)
+
+    def test_cache_takes_the_time_of_the_run(self) -> None:
+        late = datetime(2026, 11, 10, 23, 30, tzinfo=timezone(timedelta(hours=-8)))
+        assert FakeLLMCache(now=late).today == date(2026, 11, 11)
+        with pytest.raises(ValueError, match="timezone-aware"):
+            FakeLLMCache(now=datetime(2026, 11, 10, 12, 0))
 
     def test_field_tagger_uses_hints_and_overrides(self) -> None:
         with_hints = make_candidate()

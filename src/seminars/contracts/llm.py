@@ -5,8 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Collection, Mapping, Sequence
+from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any, ClassVar, Protocol, runtime_checkable
+from typing import Any, ClassVar, Final, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -154,6 +155,33 @@ class LLMProber(Protocol):
         ...
 
 
+LLM_CACHE_REFRESH_CAP_DAYS: Final = 30
+"""Upper limit of ``llm_cache_refresh_days``."""
+
+
+def llm_cache_refresh_days(ttl_days: int) -> int:
+    """How old the recorded date of a cache entry must be before a hit renews it.
+
+    ``min(30, ttl_days // 2)`` days, called R in ``LLMCache``. The value is
+    a trade: the larger it is, the fewer cache files a run rewrites (with 30
+    an entry in daily use changes about once a month); it never exceeds half
+    of the lifetime, so that an entry in use is renewed long before it could
+    be pruned.
+    """
+    return min(LLM_CACHE_REFRESH_CAP_DAYS, ttl_days // 2)
+
+
+def llm_cache_day(now: datetime) -> date:
+    """The day a run counts as for the LLM cache: the UTC calendar date of ``now``.
+
+    ``now`` is the time of the run and must be timezone-aware; a naive
+    datetime raises ``ValueError``.
+    """
+    if now.utcoffset() is None:
+        raise ValueError("the time of the run must be a timezone-aware datetime")
+    return now.astimezone(UTC).date()
+
+
 @runtime_checkable
 class LLMCache(Protocol):
     """Result cache under data/llm_cache/. Keys come from ``llm_cache_key``.
@@ -164,25 +192,60 @@ class LLMCache(Protocol):
     An implementation must therefore write every file as ASCII-only JSON
     (``seminars.models.dump_ascii_json``, or ``json.dumps`` with
     ``ensure_ascii=True``) and must not clean the values: ``get`` returns
-    exactly what ``put`` received. tests/test_contracts.py checks both
-    against the real implementation.
+    exactly what ``put`` received. tests/test_llm_cache_contract.py checks
+    this and the age rules below against the real implementation.
+
+    The age of an entry
+    -------------------
+
+    Every entry records the day it last counted as used: a UTC calendar
+    date, stored INSIDE the entry file. The time stamps of the file system
+    are never used. git does not keep them: after a checkout in CI every
+    file looks new, and a cache that looked at them would never prune
+    anything there. "Today" is ``llm_cache_day(now)`` for the ``now`` the
+    cache was opened with (``LLMCacheFactory``); nothing reads the wall
+    clock.
+
+    * ``put`` records today.
+    * ``get``: a hit rewrites the entry only when its recorded date is at
+      least R days before today, R = ``llm_cache_refresh_days(ttl_days)`` =
+      ``min(30, ttl_days // 2)``; the entry then records today. Every other
+      hit leaves the file as it is, byte for byte, and so does any hit on
+      the recorded day itself (there is nothing to renew, also when R is
+      0). The daily run commits data/, and without this rule each run would
+      change every cache file it uses.
+    * ``prune`` removes the entries whose recorded date is more than
+      ``ttl_days`` days before today.
+    * An entry dated after today (a run with an earlier ``now``, such as an
+      offline run) is neither rewritten nor pruned.
+
+    Guarantee: an entry that is hit at least once in every window of
+    ``ttl_days - R`` days is never pruned. (The first hit that comes R or
+    more days after the recorded date renews it, and with such use that hit
+    comes at most ``ttl_days - 1`` days after that date.) With the defaults,
+    ``ttl_days`` 180 and R 30, that is one hit in every 150 days.
     """
 
     def get(self, key: str) -> dict[str, Any] | None:
-        """The cached JSON object, or ``None``. A hit refreshes the entry's age."""
+        """The cached JSON object, or ``None``.
+
+        A hit renews the recorded date of the entry when that date is at
+        least R days old and changes nothing otherwise; see the class.
+        """
         ...
 
     def put(self, key: str, value: Mapping[str, Any]) -> None:
-        """Store ``value`` (plain JSON data) under ``key`` in an ASCII-only file."""
+        """Store ``value`` (plain JSON data) under ``key`` in an ASCII-only file, dated today."""
         ...
 
     def prune(self) -> int:
-        """Drop entries that were not hit for the configured number of days; return the count."""
+        """Remove the entries recorded more than ``ttl_days`` days ago; return how many."""
         ...
 
     def stats(self) -> LLMCacheStats:
         """Hits, misses and writes since the cache was opened.
 
+        ``writes`` counts ``put`` calls; a hit that renews a date is a hit.
         The pipeline copies ``hits`` into ``LLMUsage.cache_hits`` of the run report.
         """
         ...
@@ -191,8 +254,17 @@ class LLMCache(Protocol):
 class LLMCacheFactory(Protocol):
     """``seminars.llm.cache:open_llm_cache``."""
 
-    def __call__(self, directory: Path, *, ttl_days: int) -> LLMCache:
+    def __call__(self, directory: Path, *, ttl_days: int, now: datetime) -> LLMCache:
         """Open the cache in ``directory`` (``paths.llm_cache_dir``), creating it when needed.
+
+        ``ttl_days`` is ``LLMConfig.cache_ttl_days``. ``now`` is the time of
+        the run as a timezone-aware datetime (``ValueError`` for a naive
+        one) and the only source of time the cache has: its UTC date is
+        "today" for everything ``LLMCache`` says about age. The pipeline
+        passes the same moment it uses for the rest of the run, which in an
+        offline run is ``seminars.fixtures.reference_time``; tests pass
+        whatever day they need. The implementation must not read the wall
+        clock or file times.
 
         Everything the cache writes below ``directory`` is an ASCII-only text
         file with LF line endings and a final newline; see ``LLMCache``.

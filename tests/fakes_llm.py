@@ -6,11 +6,19 @@ import copy
 from collections import deque
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Any, Self
 
 from pydantic import BaseModel, ValidationError
 
-from seminars.contracts import LLMError, LLMInvalidOutputError, LLMUnavailableError
+from factories import REFERENCE_NOW
+from seminars.contracts import (
+    LLMError,
+    LLMInvalidOutputError,
+    LLMUnavailableError,
+    llm_cache_day,
+    llm_cache_refresh_days,
+)
 from seminars.models import (
     Candidate,
     EventDraft,
@@ -146,14 +154,36 @@ class FakeLLMClient:
 
 
 class FakeLLMCache:
-    """Dictionary-backed ``LLMCache`` that counts hits, misses and writes."""
+    """Dictionary-backed ``LLMCache`` that counts hits, misses and writes.
 
-    def __init__(self, entries: Mapping[str, Mapping[str, Any]] | None = None) -> None:
+    It follows the age rules of the contract without any file: ``dates``
+    holds the recorded day of every entry and ``today`` is the day of the
+    run, taken from ``now`` (default: ``factories.REFERENCE_NOW``). To play
+    a later run, set ``today`` or build another fake over the same
+    ``entries`` and ``dates``. ``refreshes`` counts the hits that renewed a
+    date (the ones for which a real cache rewrites a file), ``prunes`` the
+    calls of ``prune``, which really removes what is too old.
+    """
+
+    def __init__(
+        self,
+        entries: Mapping[str, Mapping[str, Any]] | None = None,
+        *,
+        ttl_days: int = 180,
+        now: datetime = REFERENCE_NOW,
+    ) -> None:
         self.entries: dict[str, dict[str, Any]] = {k: dict(v) for k, v in (entries or {}).items()}
+        self.ttl_days = ttl_days
+        self.today: date = llm_cache_day(now)
+        self.dates: dict[str, date] = dict.fromkeys(self.entries, self.today)
         self.hits = 0
         self.misses = 0
         self.writes = 0
+        self.refreshes = 0
         self.prunes = 0
+
+    def _age(self, key: str) -> int:
+        return (self.today - self.dates[key]).days
 
     def get(self, key: str) -> dict[str, Any] | None:
         value = self.entries.get(key)
@@ -161,15 +191,23 @@ class FakeLLMCache:
             self.misses += 1
             return None
         self.hits += 1
+        if self._age(key) >= max(1, llm_cache_refresh_days(self.ttl_days)):
+            self.dates[key] = self.today
+            self.refreshes += 1
         return dict(value)
 
     def put(self, key: str, value: Mapping[str, Any]) -> None:
         self.writes += 1
         self.entries[key] = dict(value)
+        self.dates[key] = self.today
 
     def prune(self) -> int:
         self.prunes += 1
-        return 0
+        expired = [key for key in self.entries if self._age(key) > self.ttl_days]
+        for key in expired:
+            del self.entries[key]
+            del self.dates[key]
+        return len(expired)
 
     def stats(self) -> LLMCacheStats:
         return LLMCacheStats(hits=self.hits, misses=self.misses, writes=self.writes)
