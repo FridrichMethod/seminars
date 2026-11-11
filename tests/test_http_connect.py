@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import functools
 import http.server
+import shutil
 import socket
 import socketserver
 import ssl
+import subprocess
 import threading
 from collections.abc import Iterable, Iterator
+from pathlib import Path
 from typing import Any
 
 import httpcore
@@ -598,3 +601,119 @@ class TestRealSockets:
             pytest.raises(httpx.ConnectError),
         ):
             plain.get(f"http://{NAME}:{closed_port}/")
+
+
+@pytest.fixture(scope="module")
+def certificate(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
+    """Key and self-signed certificate for NAME, made with the openssl command."""
+    openssl = shutil.which("openssl")
+    if openssl is None:  # pragma: no cover - depends on the machine
+        pytest.skip("the openssl command is not installed")
+    directory = tmp_path_factory.mktemp("tls")
+    key, made_certificate = directory / "key.pem", directory / "certificate.pem"
+    command = [openssl, "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2"]
+    command += ["-keyout", str(key), "-out", str(made_certificate), "-subj", f"/CN={NAME}"]
+    command += ["-addext", f"subjectAltName=DNS:{NAME}"]
+    made = subprocess.run(command, capture_output=True, text=True, check=False)
+    if made.returncode != 0:  # pragma: no cover - depends on the openssl version
+        pytest.skip(f"openssl cannot make a certificate: {made.stderr[-200:]}")
+    return key, made_certificate
+
+
+class TestRealTls:
+    """TLS over the loopback interface: the connection goes to an address, the certificate
+    is still checked against the name."""
+
+    @pytest.fixture
+    def server(
+        self, certificate: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+    ) -> Iterator[tuple[int, list[str], list[str | None]]]:
+        served: list[str] = []
+        names: list[str | None] = []
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def do_GET(self) -> None:
+                served.append(f"{self.headers['Host']}{self.path}")
+                self.send_response(200)
+                self.send_header("Content-Length", "6")
+                self.end_headers()
+                self.wfile.write(b"secure")
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        class Server(socketserver.ThreadingTCPServer):
+            daemon_threads = True
+
+            def handle_error(self, request: object, client_address: object) -> None:
+                pass  # a client that rejects the certificate hangs up during the handshake
+
+        def remember(sock: ssl.SSLObject, name: str | None, context: ssl.SSLContext) -> None:
+            names.append(name)
+
+        key, own_certificate = certificate
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(own_certificate, key)
+        context.sni_callback = remember
+        try:
+            listening = Server(("127.0.0.1", 0), Handler)
+        except OSError as error:  # pragma: no cover - a sandbox without loopback sockets
+            pytest.skip(f"cannot listen on the loopback interface: {error}")
+        listening.socket = context.wrap_socket(
+            listening.socket, server_side=True, do_handshake_on_connect=False
+        )
+
+        def literal_only(host: str, to: int, *args: object) -> list[tuple[Any, ...]]:
+            assert host == "127.0.0.1", "only the address may reach the socket layer, not a name"
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (host, to))]
+
+        monkeypatch.setattr(socket, "getaddrinfo", literal_only)
+        serve = functools.partial(listening.serve_forever, poll_interval=0.01)
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        try:
+            yield listening.server_address[1], served, names
+        finally:
+            listening.shutdown()
+            listening.server_close()
+            thread.join(timeout=5)
+
+    @staticmethod
+    def guard(*names: str) -> Guard:
+        resolver = StubResolver({name: ["127.0.0.1"] for name in names})
+        return _Loopback(resolver=resolver, own_address=lambda address: False, forbidden=())
+
+    def test_the_certificate_is_checked_against_the_name_the_connection_is_for(
+        self,
+        server: tuple[int, list[str], list[str | None]],
+        certificate: tuple[Path, Path],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        port, served, names = server
+        trusting = ssl.create_default_context(cafile=str(certificate[1]))
+        monkeypatch.setattr(httpx, "create_ssl_context", lambda **options: trusting)
+        other = "www.example.edu"
+        with httpx.Client(transport=PinnedTransport(self.guard(NAME, other))) as plain:
+            response = plain.get(f"https://{NAME}:{port}/x")
+            assert (response.status_code, response.text) == (200, "secure")
+            peer = response.extensions["network_stream"].get_extra_info("server_addr")
+            assert peer == ("127.0.0.1", port)
+            with pytest.raises(httpx.ConnectError, match=r"(?i)certificate|hostname"):
+                plain.get(f"https://{other}:{port}/x")  # the same address, another name
+        assert served == [f"{NAME}:{port}/x"]
+        assert names == [NAME, other]
+
+    def test_a_certificate_nobody_vouches_for_is_refused(
+        self, server: tuple[int, list[str], list[str | None]]
+    ) -> None:
+        """Connecting by address does not switch the checks of TLS off."""
+        port, served, names = server
+        with (
+            httpx.Client(transport=PinnedTransport(self.guard(NAME))) as plain,
+            pytest.raises(httpx.ConnectError, match=r"(?i)certificate"),
+        ):
+            plain.get(f"https://{NAME}:{port}/x")
+        assert served == []
+        assert names == [NAME]

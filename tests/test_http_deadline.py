@@ -336,6 +336,7 @@ class TestWaitingForOthers:
         ):
             client.get(PAGE)
         assert requests == []
+        clock.step = 0.0
         assert client.get(PAGE).text == "ok\n"  # the lock is free again
 
     def test_a_host_another_thread_is_using_is_given_up_at_the_deadline(
