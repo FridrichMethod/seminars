@@ -113,7 +113,14 @@ def fake_registry(monkeypatch: pytest.MonkeyPatch) -> AdapterRegistry:
     only know what the test registers (``fake_registry.register(name)`` or
     ``FakeAdapter.register``). Code under test must go through those
     functions of ``seminars.sources.base``, not through a copy of ``REGISTRY``.
+
+    The real registry discovers its adapters first. An adapter module that is
+    imported for the first time during the test (``llm_page`` through
+    ``load_implementation("page_extractor")``, for example) would otherwise
+    register in this registry, and which adapters the test sees would depend
+    on which tests ran before it.
     """
+    base.REGISTRY.discover(strict=False)
     registry = AdapterRegistry(())
     monkeypatch.setattr(base, "REGISTRY", registry)
     return registry

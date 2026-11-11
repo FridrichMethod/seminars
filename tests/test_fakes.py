@@ -153,6 +153,24 @@ class TestFakeAdapter:
         with pytest.raises(UnknownAdapterError, match=r"registered: none"):
             base.get_adapter("rss")
 
+    def test_fake_registry_lets_the_real_registry_discover_first(
+        self, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+    ) -> None:
+        """An adapter module first imported during the test must not land in the fake one."""
+        real = AdapterRegistry(())  # stands in for the process-wide registry
+        discoveries: list[bool] = []
+
+        def discover(*, strict: bool = True) -> dict[str, str]:
+            discoveries.append(strict)
+            return {}
+
+        monkeypatch.setattr(real, "discover", discover)
+        monkeypatch.setattr(base, "REGISTRY", real)
+        fake = request.getfixturevalue("fake_registry")
+        assert discoveries == [False]
+        assert base.REGISTRY is fake
+        assert fake is not real
+
     def test_fake_adapter_fixture_is_registered_as_fake(
         self, fake_adapter: FakeAdapter, fake_registry: AdapterRegistry, fake_http: FakeHttpClient
     ) -> None:

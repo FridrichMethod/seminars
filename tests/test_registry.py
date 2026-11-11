@@ -349,6 +349,65 @@ class TestConcurrentDiscovery:
         assert registry.names() == ["beta"]
 
 
+class TestModulesImportedUnderAnotherRegistry:
+    """A module body runs once, whichever registry is installed at that moment."""
+
+    def test_discovery_adopts_adapters_that_registered_in_a_replaced_registry(
+        self, install: Installer, make_package: PackageBuilder
+    ) -> None:
+        package = make_package({"alpha.py": ADAPTER_MODULE.format(name="alpha")})
+        temporary = install()  # what the fake_registry fixture of some test does
+        importlib.import_module(f"{package}.alpha")
+        assert temporary.names() == ["alpha"]
+        owner = install(package)  # the registry that discovers the package, as REGISTRY does
+        assert owner.names() == []
+        assert base.discover_adapters(strict=False) == {}
+        assert base.adapter_names() == ["alpha"]
+        adapter = base.get_adapter("alpha")
+        assert isinstance(adapter, Adapter)
+        assert type(adapter).__module__ == f"{package}.alpha"
+
+    def test_adopted_adapters_do_not_leak_into_registries_of_other_packages(
+        self, install: Installer, make_package: PackageBuilder
+    ) -> None:
+        package = make_package({"alpha.py": ADAPTER_MODULE.format(name="alpha")})
+        install()
+        importlib.import_module(f"{package}.alpha")
+        other = install(make_package({"beta.py": ADAPTER_MODULE.format(name="beta")}))
+        assert other.discover() == {}
+        assert other.names() == ["beta"]
+
+    def test_a_name_clash_found_while_adopting_is_reported_for_the_module(
+        self, install: Installer, make_package: PackageBuilder
+    ) -> None:
+        package = make_package(
+            {
+                "one.py": ADAPTER_MODULE.format(name="same"),
+                "two.py": ADAPTER_MODULE.format(name="same"),
+            }
+        )
+        for module in ("one", "two"):  # each under its own short-lived registry
+            install()
+            importlib.import_module(f"{package}.{module}")
+        owner = install(package)
+        failures = owner.discover(strict=False)
+        assert list(failures) == [f"{package}.two"]
+        assert "DuplicateAdapterError" in failures[f"{package}.two"]
+        assert type(owner.create("same")).__module__ == f"{package}.one"
+
+    def test_registering_by_hand_in_a_registry_is_not_remembered(
+        self, install: Installer, make_package: PackageBuilder
+    ) -> None:
+        """Only ``register_adapter`` is replayed; ``registry.register`` stays local."""
+        package = make_package({"helpers.py": "class Local:\n    pass\n"})
+        temporary = install()
+        module = importlib.import_module(f"{package}.helpers")
+        temporary.register("local")(module.Local)
+        owner = install(package)
+        assert owner.discover() == {}
+        assert owner.names() == []
+
+
 class TestRealAdapterPackages:
     def test_default_packages(self) -> None:
         assert ADAPTER_PACKAGES == ("seminars.sources.generic", "seminars.sources.custom")

@@ -48,6 +48,9 @@ Rules for adapters:
   built; that is a malformed item too.
 * Adapter classes take no constructor arguments and keep no state between
   calls.
+* Decorate the class in the module that defines it. Discovery relies on
+  that to find the adapters of a module that was imported earlier, at a time
+  when a test had replaced the registry.
 
 Thread safety: ``get_adapter``, ``adapter_names`` and ``discover_adapters``
 may be called from several threads at once, for example from one worker
@@ -152,6 +155,17 @@ AdapterFactory = Callable[[], Adapter]
 """A zero-argument callable returning an adapter; adapter classes qualify."""
 
 
+_DECLARED: Final[dict[str, dict[str, AdapterFactory]]] = {}
+"""Everything ``register_adapter`` ever registered: defining module -> {adapter name: factory}.
+
+A module body runs only once per process, so its decorators register in
+whichever registry is current at that moment. When that is a registry a
+test installed, the process-wide one would never hear of the adapter. This
+table is not replaced with the registry; discovery reads it for every module
+it imports and registers what is missing.
+"""
+
+
 class AdapterRegistry:
     """Maps adapter names to factories and imports the adapter packages on demand.
 
@@ -226,7 +240,8 @@ class AdapterRegistry:
                 self._collecting = collected
                 try:
                     for package_name in self._packages:
-                        _import_tree(package_name, collected)
+                        for module_name in _import_tree(package_name, collected):
+                            self._adopt(module_name, collected)
                     self._failures = collected
                 finally:
                     self._collecting = None
@@ -235,6 +250,18 @@ class AdapterRegistry:
         if failures and strict:
             raise AdapterDiscoveryError(failures)
         return failures
+
+    def _adopt(self, module_name: str, failures: dict[str, str]) -> None:
+        """Register what ``module_name`` declared while another registry was current.
+
+        A no-op for a module that was imported by this discovery, because
+        registering the same factory again changes nothing.
+        """
+        for name, factory in _DECLARED.get(module_name, {}).items():
+            try:
+                self.register(name)(factory)
+            except DuplicateAdapterError as error:
+                failures[module_name] = f"{type(error).__name__}: {error}"
 
 
 def _describe(factory: AdapterFactory) -> str:
@@ -251,30 +278,52 @@ def _import(name: str, failures: dict[str, str]) -> ModuleType | None:
         return None
 
 
-def _import_tree(package_name: str, failures: dict[str, str]) -> None:
+def _import_tree(package_name: str, failures: dict[str, str]) -> list[str]:
+    """Import ``package_name`` and everything below it; return the modules that imported."""
     package = _import(package_name, failures)
-    if package is None or not hasattr(package, "__path__"):
-        return
+    if package is None:
+        return []
+    imported = [package_name]
+    if not hasattr(package, "__path__"):
+        return imported
     children = sorted(pkgutil.iter_modules(package.__path__), key=lambda info: info.name)
     for info in children:
         child = f"{package_name}.{info.name}"
         if info.ispkg:
-            _import_tree(child, failures)
-        else:
-            _import(child, failures)
+            imported.extend(_import_tree(child, failures))
+        elif _import(child, failures) is not None:
+            imported.append(child)
+    return imported
 
 
 REGISTRY = AdapterRegistry()
 """The process-wide registry behind the functions below.
 
 They look the name up when they are called, so a test can replace it with an
-empty ``AdapterRegistry`` (``monkeypatch.setattr(base, "REGISTRY", ...)``).
+empty ``AdapterRegistry`` (``monkeypatch.setattr(base, "REGISTRY", ...)``;
+the ``fake_registry`` fixture does it). An adapter module that is imported
+for the first time while a replacement is installed registers there; this
+registry adopts its adapters the next time it discovers.
 """
 
 
 def register_adapter[F: AdapterFactory](name: str) -> Callable[[F], F]:
-    """Class decorator: register an adapter in the process-wide registry."""
-    return REGISTRY.register(name)
+    """Class decorator: register an adapter in the process-wide registry.
+
+    The registration is also remembered for the module that defines the
+    class, so that a registry which discovers that module later still gets
+    the adapter (see ``_DECLARED``).
+    """
+    register = REGISTRY.register(name)
+
+    def decorate(factory: F) -> F:
+        registered = register(factory)
+        module_name = getattr(factory, "__module__", None)
+        if isinstance(module_name, str):
+            _DECLARED.setdefault(module_name, {})[name] = factory
+        return registered
+
+    return decorate
 
 
 def discover_adapters(*, strict: bool = True) -> dict[str, str]:
