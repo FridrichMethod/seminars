@@ -31,6 +31,7 @@ from seminars.models import (
     EventDraft,
     LastRun,
     LLMCacheStats,
+    LLMProviderResult,
     LLMUsage,
     RunReport,
     SourceConfig,
@@ -43,6 +44,8 @@ from seminars.pipeline.run import (
     EXIT_FAILED,
     EXIT_OK,
     EXIT_OUTPUT_CHECK,
+    NOT_PUBLISHABLE,
+    REPORT_WITHHELD,
     RunError,
     RunOptions,
     SourceSelectionError,
@@ -414,8 +417,52 @@ class TestOutputChecks:
         assert not config.paths.events_file.exists()
         assert not config.paths.public_feeds_dir.exists()
         assert read_model(config.paths.run_report_file, RunReport) == report
-        assert "the data files were not written" in report.warnings[-1]
+        assert "the data files were not written" in report.warnings[-2]
+        assert report.warnings[-1] == NOT_PUBLISHABLE
         assert [issue.title for issue in fake_issues.issues] == [CHECK_ISSUE_TITLE]
+
+    def test_a_secret_only_in_the_report_is_found_before_it_is_written(
+        self, config: AppConfig, fake_adapter: FakeAdapter, fake_issues: FakeIssueClient
+    ) -> None:
+        fake_adapter.drafts = [draft("sites-a", "1")]
+        forged = "gh" + "p_" + "Q" * 36
+        bundle = services(FakeEmitters(), warnings=(f"model note {forged}",), issues=fake_issues)
+        report = run(config, bundle)
+        assert exit_status(report) == EXIT_OUTPUT_CHECK
+        assert not report.ok
+        assert [(f.origin, f.rule) for f in report.secret_findings] == [
+            ("data/run_report.json", "github-token")
+        ]
+        assert report.warnings == [REPORT_WITHHELD, NOT_PUBLISHABLE]
+        for path in (config.paths.run_report_file, config.paths.last_run_file):
+            assert forged not in path.read_text(encoding="utf-8")
+        assert read_model(config.paths.run_report_file, RunReport) == report
+        last_run = read_model(config.paths.last_run_file, LastRun)
+        assert last_run is not None
+        assert not last_run.ok
+        assert [issue.title for issue in fake_issues.issues] == [CHECK_ISSUE_TITLE]
+
+    def test_free_text_of_every_kind_is_left_out_of_a_leaking_report(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        fake_adapter.drafts = [draft("sites-a", "1", title="The leaky-value talk")]
+        bundle = services(
+            FakeEmitters(),
+            event_filter=FakeEventFilter(exclude={"sites-a.1": "course"}),
+            secret_scanner=FakeSecretScanner(["leaky-value"]),
+            llm=NotingLLM(),
+            warnings=("plain warning",),
+        )
+        report = run(config, bundle)
+        assert exit_status(report) == EXIT_OUTPUT_CHECK
+        assert {f.origin for f in report.secret_findings} == {"data/run_report.json"}
+        assert (report.excluded, report.counts.excluded) == ([], 1)
+        assert report.llm.provider is None
+        assert [(p.model, p.error, p.warnings) for p in report.llm.providers] == [(None, None, [])]
+        assert all(result.error is None and not result.warnings for result in report.sources)
+        text = config.paths.run_report_file.read_text(encoding="utf-8")
+        assert "leaky-value" not in text
+        assert "plain warning" not in text
 
     def test_a_secret_in_a_feed_is_found_on_disk(
         self, config: AppConfig, fake_adapter: FakeAdapter
@@ -457,6 +504,16 @@ class TestOutputChecks:
         assert exit_status(report) == EXIT_FAILED
         assert report.warnings == ["writing the feeds and the site data failed (RuntimeError)"]
         assert config.paths.events_file.is_file()
+
+
+class NotingLLM(FakeLLMClient):
+    """An LLM chain whose provider reports a model and a warning."""
+
+    def usage(self) -> LLMUsage:
+        provider = LLMProviderResult(
+            provider="claude-cli", model="model-x", status="ok", warnings=["a note"]
+        )
+        return LLMUsage(enabled=True, provider="claude-cli", providers=[provider])
 
 
 class BuggyLLM(FakeLLMClient):

@@ -29,8 +29,14 @@ What a run guarantees:
   two records of the run, which say what happened. Whatever else was
   written below data/ and public/ is checked on disk afterwards. After a
   finding nothing of the run may be committed or deployed: the report
-  says ``ok: false`` and lists the findings, and the command line prints
-  them and exits with status 3.
+  says ``ok: false``, lists the findings and says so in a warning, and
+  the command line prints them and exits with status 3.
+* The two records of the run (data/run_report.json, data/last_run.json)
+  are checked too, before they are written. When they hold something the
+  check finds (a warning, an error or an excluded title can quote a
+  site or an LLM), that becomes a finding as well, and the records are
+  written without any of that text: errors, warnings, excluded events and
+  the details of the LLM providers are left out.
 * A dry run does all of this in a scratch directory that is thrown away:
   nothing below the project changes, no issue is touched, and the LLM
   works on a copy of its cache. Its report is returned, not stored.
@@ -51,7 +57,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from seminars.config import AppConfig, ProjectPaths
-from seminars.contracts import IssueClient, LLMCache, PicksScorer
+from seminars.contracts import IssueClient, LLMCache, PicksScorer, SecretScanner
 from seminars.models import (
     Candidate,
     Event,
@@ -85,6 +91,12 @@ logger = logging.getLogger(__name__)
 
 EXIT_OK = 0
 EXIT_FAILED = 1
+
+NOT_PUBLISHABLE = "output check failed: nothing of this run may be committed or deployed"
+REPORT_WITHHELD = (
+    "the run report held text that the output check found; errors, warnings, excluded "
+    "events and LLM details were left out of it"
+)
 
 
 class RunError(Exception):
@@ -425,16 +437,56 @@ def _first_report(
     )
 
 
-def _final_report(report: RunReport, published: _Published, finished_at: datetime) -> RunReport:
-    """The report of a run after its outputs were written and checked."""
-    checks = published.checks
+def _with_checks(report: RunReport, checks: CheckResult) -> RunReport:
+    """``report`` with the findings of ``checks``; a finding makes it not publishable."""
+    if checks.ok:
+        return report
     return report.evolve(
-        finished_at=finished_at,
-        ok=report.ok and checks.ok and not published.problems,
+        ok=False,
         secret_findings=list(checks.secret_findings),
         charset_findings=list(checks.charset_findings),
+        warnings=[*report.warnings, NOT_PUBLISHABLE],
+    )
+
+
+def _final_report(report: RunReport, published: _Published, finished_at: datetime) -> RunReport:
+    """The report of a run after its outputs were written and checked."""
+    written = report.evolve(
+        finished_at=finished_at,
+        ok=report.ok and not published.problems,
         warnings=[*report.warnings, *published.warnings, *published.problems],
     )
+    return _with_checks(written, published.checks)
+
+
+def _findings(report: RunReport) -> CheckResult:
+    return CheckResult(tuple(report.secret_findings), tuple(report.charset_findings))
+
+
+def _without_free_text(report: RunReport) -> RunReport:
+    """``report`` without any text that may quote a site or an LLM (see the module docstring)."""
+    providers = [
+        provider.evolve(model=None, error=None, warnings=[]) for provider in report.llm.providers
+    ]
+    return report.evolve(
+        sources=[result.evolve(error=None, warnings=[]) for result in report.sources],
+        excluded=[],
+        llm=report.llm.evolve(provider=None, providers=providers),
+        warnings=[REPORT_WITHHELD],
+    )
+
+
+def _store_report(report: RunReport, target: ProjectPaths, scanner: SecretScanner) -> RunReport:
+    """Check and write the two records of the run; returns the report that was written."""
+    files = report_files(target, report)
+    found = check_texts(files, scanner, root=target.root)
+    if found.ok:
+        write_files(files)
+        return report
+    logger.error("the run report failed the output check; its free text is left out")
+    reduced = _with_checks(_without_free_text(report), _findings(report).plus(found))
+    write_files(report_files(target, reduced))
+    return reduced
 
 
 def run_pipeline(
@@ -482,9 +534,10 @@ def run_pipeline(
     published = _publish(
         config, services, destination, reconciled, processed, state, health, report
     )
-    final = _final_report(report, published, elapsed())
-    write_files(report_files(destination, final))
-    sync_check_issue(issues, published.checks)
+    final = _store_report(
+        _final_report(report, published, elapsed()), destination, services.secret_scanner
+    )
+    sync_check_issue(issues, _findings(final))
     return final
 
 
