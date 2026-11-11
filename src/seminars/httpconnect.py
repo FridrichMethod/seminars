@@ -19,6 +19,12 @@ leave the connection to the library:
   plain connection pool of httpcore with that backend; proxies and unix
   sockets do not exist in it.
 
+Every connection also carries the time limit of the request that uses it
+(``Guard.until``): connecting, the TLS handshake and each read and write
+get no more time than is left of it. This is what bounds the time until
+the headers of an answer have arrived, which httpx gives no chance to
+check from outside.
+
 Whoever replaces the transport (the mock transports of the tests) replaces
 all of this; the lookup before a request and the peer check of ``Wire``
 still apply to it.
@@ -28,14 +34,16 @@ from __future__ import annotations
 
 import contextlib
 import ipaddress
+import ssl
 import threading
+import time
 from collections.abc import Iterable, Iterator, Sequence
-from typing import Final
+from typing import Any, Final
 
 import httpcore
 import httpx
 
-from seminars.httpbase import OwnAddressCheck, Resolver
+from seminars.httpbase import Clock, OwnAddressCheck, Resolver
 from seminars.httpurl import Network, is_public_address
 
 _MAX_CONNECTIONS: Final = 100
@@ -82,10 +90,10 @@ class Refused(Exception):
 
 
 class Guard:
-    """Where the live client may connect to; shared by ``Wire`` and ``PinnedBackend``.
+    """Where the live client may connect to, and until when; shared by ``Wire`` and its transport.
 
     Safe to use from several threads: what one request hands from its
-    lookup to its connection is kept per thread.
+    lookup to its connection, and the time it has, are kept per thread.
     """
 
     def __init__(
@@ -94,11 +102,41 @@ class Guard:
         resolver: Resolver,
         own_address: OwnAddressCheck,
         forbidden: Sequence[Network],
+        clock: Clock = time.time,
     ) -> None:
         self._resolver = resolver
         self._own_address = own_address
         self._forbidden = tuple(forbidden)
+        self._clock = clock
         self._request = threading.local()
+
+    @contextlib.contextmanager
+    def until(self, give_up_at: float) -> Iterator[None]:
+        """Within this block, the request of this thread has time until ``give_up_at``."""
+        self._request.give_up_at = give_up_at
+        try:
+            yield
+        finally:
+            self._request.give_up_at = None
+
+    def expired(self) -> bool:
+        """Whether the time of the request this thread is making is over."""
+        give_up_at = getattr(self._request, "give_up_at", None)
+        return give_up_at is not None and self._clock() >= give_up_at
+
+    def time_left(self, timeout: float | None, late: type[Exception]) -> float | None:
+        """The timeout for one socket operation: ``timeout``, but no more than what is left.
+
+        Raises ``late`` when nothing is left. Outside ``until`` the
+        timeout is passed through.
+        """
+        give_up_at = getattr(self._request, "give_up_at", None)
+        if give_up_at is None:
+            return timeout
+        left = give_up_at - self._clock()
+        if left <= 0:
+            raise late("the time allowed for one request and its answer is over")
+        return left if timeout is None else min(timeout, left)
 
     def lookup(self, host: str) -> list[str]:
         """The addresses of ``host``, every one of them cleared; empty when it has none.
@@ -165,6 +203,35 @@ def _an(place: str) -> str:
     return "an address of this machine" if place == THIS_MACHINE else place
 
 
+class _TimedStream(httpcore.NetworkStream):
+    """A connection whose every operation ends when the time of its request does."""
+
+    def __init__(self, stream: httpcore.NetworkStream, guard: Guard) -> None:
+        self._stream = stream
+        self._guard = guard
+
+    def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+        return self._stream.read(max_bytes, self._guard.time_left(timeout, httpcore.ReadTimeout))
+
+    def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        self._stream.write(buffer, self._guard.time_left(timeout, httpcore.WriteTimeout))
+
+    def close(self) -> None:
+        self._stream.close()
+
+    def start_tls(
+        self,
+        ssl_context: ssl.SSLContext,
+        server_hostname: str | None = None,
+        timeout: float | None = None,
+    ) -> httpcore.NetworkStream:
+        left = self._guard.time_left(timeout, httpcore.ConnectTimeout)
+        return _TimedStream(self._stream.start_tls(ssl_context, server_hostname, left), self._guard)
+
+    def get_extra_info(self, info: str) -> Any:
+        return self._stream.get_extra_info(info)
+
+
 class PinnedBackend(httpcore.NetworkBackend):
     """Opens the connections of the pool: to cleared addresses, and never to this machine.
 
@@ -197,7 +264,7 @@ class PinnedBackend(httpcore.NetworkBackend):
                 stream = self._inner.connect_tcp(
                     address,
                     port,
-                    timeout=timeout,
+                    timeout=self._guard.time_left(timeout, httpcore.ConnectTimeout),
                     local_address=local_address,
                     socket_options=socket_options,
                 )
@@ -213,7 +280,7 @@ class PinnedBackend(httpcore.NetworkBackend):
             if place is not None:
                 stream.close()
                 raise Refused(f"refusing a connection to {place}")
-            return stream
+            return _TimedStream(stream, self._guard)
         raise failure
 
     def connect_unix_socket(

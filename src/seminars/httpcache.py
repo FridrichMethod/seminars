@@ -36,7 +36,7 @@ import logging
 import os
 import re
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Final, Self
 
@@ -207,7 +207,7 @@ class HttpCache:
         self._write(self._host_path(host), record)
 
     @contextlib.contextmanager
-    def host_lock(self, host: str) -> Iterator[None]:
+    def host_lock(self, host: str, wait: Callable[[], None] | None = None) -> Iterator[None]:
         """Hold the lock of ``host`` among all processes that share this directory.
 
         Blocks until the lock is free. Whoever holds it is the only one
@@ -216,6 +216,10 @@ class HttpCache:
         is released when the block ends and also when the process dies.
         Without a directory, with one that cannot be written to, and on
         Windows, this is a no-op.
+
+        With ``wait``, the lock is tried instead of waited for: as long as
+        somebody else holds it, ``wait`` is called before the next try. It
+        should pause for a moment, and it ends the waiting by raising.
         """
         path = self._host_path(host, ".lock")
         if path is None or sys.platform == "win32":
@@ -229,7 +233,14 @@ class HttpCache:
             yield
             return
         try:
-            fcntl.flock(descriptor, fcntl.LOCK_EX)
+            while wait is not None:
+                try:
+                    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    wait()
+            else:
+                fcntl.flock(descriptor, fcntl.LOCK_EX)
             try:
                 yield
             finally:

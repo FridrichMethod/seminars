@@ -382,7 +382,7 @@ class TestBackend:
         sockets = FakeSockets()
         backend = PinnedBackend(self.guard(resolver), sockets)
         stream = backend.connect_tcp(NAME, 443)
-        assert isinstance(stream, FakeStream)
+        assert stream.get_extra_info("server_addr") == (PUBLIC_ADDRESS, 443)
         assert sockets.connects == [(PUBLIC_ADDRESS, 443)]
         with pytest.raises(Refused, match="resolves to a local or private network address"):
             backend.connect_tcp("intranet.example.edu", 443)

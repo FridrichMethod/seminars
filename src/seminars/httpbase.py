@@ -112,7 +112,20 @@ class HttpStatusError(HttpError):
 
 
 class HttpRequestError(HttpError):
-    """Timeout or network failure that persisted through all retries."""
+    """No usable answer: a timeout or network failure that persisted through all retries.
+
+    Also raised, without retries, for an answer that was not complete
+    within ``max_exchange_seconds``.
+    """
+
+
+class DeadlineExceededError(HttpRequestError):
+    """One ``get`` used up ``max_get_seconds`` and was given up.
+
+    The time went into waiting for the host (crawl delay, backoff, other
+    processes) or into slow answers along the way. Nothing is held against
+    the host: the next ``get`` starts with its full time.
+    """
 
 
 class TooManyRedirectsError(HttpError):

@@ -12,6 +12,7 @@ read. The module docstring of ``seminars.http`` describes them.
 from __future__ import annotations
 
 import socket
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from http.cookiejar import CookieJar, DefaultCookiePolicy
@@ -20,6 +21,7 @@ import httpx
 
 from seminars.config import HttpSettings
 from seminars.httpbase import (
+    Clock,
     ForbiddenHostError,
     OwnAddressCheck,
     Resolver,
@@ -76,6 +78,10 @@ class AttemptFailed(Exception):
         super().__init__(reason)
 
 
+class TookTooLong(Exception):
+    """The answer was not complete when the time for it was over; reading it was given up."""
+
+
 @dataclass(frozen=True)
 class Exchange:
     """One HTTP response as received."""
@@ -102,6 +108,7 @@ class Wire:
         self,
         settings: HttpSettings,
         *,
+        clock: Clock = time.time,
         transport: httpx.BaseTransport | None = None,
         resolver: Resolver | None = None,
         own_address: OwnAddressCheck | None = None,
@@ -111,6 +118,7 @@ class Wire:
             resolver=system_resolver if resolver is None else resolver,
             own_address=system_own_address if own_address is None else own_address,
             forbidden=parse_networks(settings.forbidden_networks),
+            clock=clock,
         )
         self._client = httpx.Client(
             headers={"User-Agent": settings.user_agent},
@@ -120,6 +128,7 @@ class Wire:
             trust_env=False,  # no proxies: the peer of a connection has to be the site
             cookies=CookieJar(DefaultCookiePolicy(allowed_domains=[])),  # accepts nothing
         )
+        self._clock = clock
 
     def close(self) -> None:
         """Release the underlying connections."""
@@ -149,15 +158,26 @@ class Wire:
         except Refused as error:
             raise ForbiddenHostError(url, error.reason) from error
 
-    def exchange(self, url: str, headers: Mapping[str, str]) -> Exchange:
+    def exchange(self, url: str, headers: Mapping[str, str], *, give_up_at: float) -> Exchange:
         """One request and its answer; ``resolves`` has made sure that httpx accepts ``url``.
 
         Raises ``AttemptFailed`` when no answer came for a reason that is
-        worth another try (a network error), and an ``HttpError`` when the
-        answer must not or cannot be read.
+        worth another try (a network error), ``TookTooLong`` when the
+        answer was not complete at ``give_up_at`` (a time of the injected
+        clock), and an ``HttpError`` when the answer must not or cannot be
+        read.
+
+        The client's own transport gives no socket operation more time than
+        is left until ``give_up_at``, so the limit holds from the connection
+        to the last byte. With any other transport it is checked when the
+        headers are there and after every piece of the body.
         """
         try:
-            with self._client.stream("GET", url, headers=dict(headers)) as response:
+            with (
+                self._guard.until(give_up_at),
+                self._client.stream("GET", url, headers=dict(headers)) as response,
+            ):
+                self._check_time()
                 self._check_peer(url, response)
                 content_type = media_type(response.headers.get("content-type"))
                 if is_binary_media_type(content_type):
@@ -166,11 +186,17 @@ class Wire:
                 text = decode_body(body, response.headers.get("content-type"))
                 return Exchange(response.status_code, response.headers, text)
         except httpx.RequestError as error:
+            if self._clock() >= give_up_at:  # the error is how running out of time showed
+                raise TookTooLong from error
             raise AttemptFailed(type(error).__name__) from error
         except Refused as error:  # the connection was turned down before anything was sent
             raise ForbiddenHostError(url, error.reason) from error
         finally:
             self._guard.forget()
+
+    def _check_time(self) -> None:
+        if self._guard.expired():
+            raise TookTooLong
 
     def _check_peer(self, url: str, response: httpx.Response) -> None:
         """Refuse an answer that did not come from a public address; the body is still unread.
@@ -197,7 +223,10 @@ class Wire:
             raise ForbiddenHostError(url, f"refusing an answer from {place}")
 
     def _read_body(self, url: str, response: httpx.Response) -> bytes:
-        """Read the body in pieces and stop as soon as it is larger than ``max_body_bytes``."""
+        """Read the body in pieces; stop when it is too large or its time is over.
+
+        Too large is more than ``max_body_bytes``.
+        """
         limit = self._settings.max_body_bytes
         declared = response.headers.get("content-length", "")
         if declared.isdigit() and int(declared) > limit:
@@ -208,5 +237,6 @@ class Wire:
             size += len(chunk)
             if size > limit:
                 raise ResponseTooLargeError(url, limit)
+            self._check_time()
             chunks.append(chunk)
         return b"".join(chunks)

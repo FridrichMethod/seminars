@@ -41,7 +41,8 @@ Rules of the live client:
   share one ``cache_dir``: every request is made while holding the lock of
   its host in that directory, and the time of the last request is read from
   there after the lock was taken. Parallel runs wait for each other instead
-  of overlapping. Clients without a cache directory, or with different
+  of overlapping (until the ``get`` that waits runs out of time, see
+  below). Clients without a cache directory, or with different
   ones, do not see each other. Always build the live client with
   ``cache_dir=paths.http_cache_dir()``: that directory is the same for
   every git worktree of one repository, and ``SEMINARS_HTTP_CACHE_DIR``
@@ -58,6 +59,19 @@ Rules of the live client:
   fetched or not; only its first 512000 characters are used;
 * network errors and 408/425/429/5xx answers are retried with exponential
   backoff (``Retry-After`` is respected);
+* time is bounded twice, whatever a site does. One request with its whole
+  answer has ``max_exchange_seconds`` (``timeout_seconds`` only limits each
+  connect, read and write, which a slow drip of bytes never exceeds); an
+  answer that is not complete by then is given up and not asked for again
+  (``HttpRequestError``). One ``get`` has ``max_get_seconds`` for all it
+  does: robots.txt, redirects, retries, the pauses between them and the
+  wait for others who use the same host. No request and no pause is begun
+  that could not end in time, and when the time is over the call raises
+  ``DeadlineExceededError``, which is not held against the host. Two
+  things are outside these limits: the lookup of a name takes as long as
+  the system resolver lets it, and a transport that is passed in is only
+  checked when the headers of an answer are there and after every piece
+  of its body;
 * redirects are followed hop by hop so that each hop obeys the rules of its
   own host;
 * the headers a caller passes to ``get`` go to the origin of the URL it
@@ -183,6 +197,7 @@ from seminars.httpbase import (
     RETRY_STATUSES,
     Clock,
     CrawlDelayTooLongError,
+    DeadlineExceededError,
     ForbiddenHostError,
     HostBudgetExceededError,
     HttpClient,
@@ -202,7 +217,7 @@ from seminars.httpbase import (
     media_type,
 )
 from seminars.httpcache import CachedPage, CachedRobots, HttpCache, header_safe
-from seminars.httppace import HostState, Pacer
+from seminars.httppace import Deadline, HostState, Pacer
 from seminars.httptext import decode_body
 from seminars.httpurl import (
     canonical_host,
@@ -225,6 +240,7 @@ __all__ = [
     "RETRY_STATUSES",
     "Clock",
     "CrawlDelayTooLongError",
+    "DeadlineExceededError",
     "FixtureNotFoundError",
     "ForbiddenHostError",
     "HostBudgetExceededError",
@@ -330,7 +346,13 @@ class PoliteClient:
         self._settings = settings
         self._clock = clock
         self._cache = HttpCache(cache_dir)
-        self._wire = Wire(settings, transport=transport, resolver=resolver, own_address=own_address)
+        self._wire = Wire(
+            settings,
+            clock=clock,
+            transport=transport,
+            resolver=resolver,
+            own_address=own_address,
+        )
         self._pacer = Pacer(settings, cache=self._cache, wire=self._wire, clock=clock, sleep=sleep)
 
     def __enter__(self) -> Self:
@@ -375,8 +397,11 @@ class PoliteClient:
     ) -> FetchedDocument:
         current = url
         home = parse_url(url).origin
+        limit = self._settings.max_get_seconds
+        deadline = Deadline(url, self._clock() + limit, limit, self._clock)
         for _ in range(self._settings.max_redirects + 1):
-            hop = self._fetch_hop(current, headers, home)
+            deadline.check()
+            hop = self._fetch_hop(current, headers, home, deadline)
             if hop.location is None:
                 break
             current = hop.location
@@ -396,7 +421,9 @@ class PoliteClient:
 
     # --- one hop ---------------------------------------------------------------------------
 
-    def _fetch_hop(self, url: str, extra_headers: Mapping[str, str] | None, home: str) -> _Hop:
+    def _fetch_hop(
+        self, url: str, extra_headers: Mapping[str, str] | None, home: str, deadline: Deadline
+    ) -> _Hop:
         """One request of a ``get``: ``url`` as written, sent and cached in its canonical form.
 
         ``home`` is the origin the caller asked for. A redirect that leaves
@@ -410,15 +437,20 @@ class PoliteClient:
                 if name.lower() in _HEADERS_FOR_ANY_ORIGIN
             }
         state = self._pacer.state(target.host)
-        policy = self._policy(state, target.host, target.origin)
+        policy = self._policy(state, target.host, target.origin, deadline)
         if not policy.allows(target.path):
             raise RobotsDisallowedError(url, "disallowed by robots.txt")
         interval = self._interval(url, policy)
-        with self._pacer.turn(state, target.host):
+        with self._pacer.turn(state, target.host, deadline):
             cached = self._cache.page(target.url)
             request_headers = self._request_headers(extra_headers, cached)
             exchange = self._pacer.send(
-                state, target.host, target.url, request_headers, interval=interval
+                state,
+                target.host,
+                target.url,
+                request_headers,
+                interval=interval,
+                deadline=deadline,
             )
             return self._to_hop(target.url, exchange, cached)
 
@@ -477,23 +509,26 @@ class PoliteClient:
 
     # --- robots.txt ------------------------------------------------------------------------
 
-    def _policy(self, state: HostState, host: str, origin: str) -> RobotsPolicy:
+    def _policy(self, state: HostState, host: str, origin: str, deadline: Deadline) -> RobotsPolicy:
         """The robots policy of ``origin``, worked out once per client."""
-        with state.robots_lock:
+        deadline.take(state.robots_lock)
+        try:
             policy = state.policies.get(origin)
             if policy is None:
                 failure = state.robots_failures.get(origin)
                 if failure is not None:
                     raise RobotsUnavailableError(origin + ROBOTS_PATH, failure)
-                robots = self._robots(state, host, origin)
+                robots = self._robots(state, host, origin, deadline)
                 if robots.text is None:
                     policy = ALLOW_ALL
                 else:
                     policy = parse_robots(robots.text, self._settings.robots_token)
                 state.policies[origin] = policy
             return policy
+        finally:
+            state.robots_lock.release()
 
-    def _robots(self, state: HostState, host: str, origin: str) -> CachedRobots:
+    def _robots(self, state: HostState, host: str, origin: str, deadline: Deadline) -> CachedRobots:
         """The robots.txt of ``origin``: a recent copy from the cache directory, or fetched now.
 
         Redirects are followed hop by hop. Each hop takes the turn of the
@@ -504,11 +539,12 @@ class PoliteClient:
         """
         url, hop_state, hop_host = origin + ROBOTS_PATH, state, host
         for hop in range(self._settings.max_redirects + 1):
-            with self._pacer.turn(hop_state, hop_host):
+            deadline.check()
+            with self._pacer.turn(hop_state, hop_host, deadline):
                 known = self._recent_robots(state, origin) if hop == 0 else None
                 if known is not None:
                     return known
-                exchange = self._robots_exchange(state, origin, hop_state, hop_host, url)
+                exchange = self._robots_exchange(state, origin, hop_state, hop_host, url, deadline)
                 try:
                     target = self._redirect_target(url, exchange)
                     next_hop = None if target is None else parse_url(target)
@@ -520,7 +556,7 @@ class PoliteClient:
                 if next_hop is None and hop_state is state:
                     return self._store_robots(state, host, origin, exchange)
             if next_hop is None:
-                with self._pacer.turn(state, host):
+                with self._pacer.turn(state, host, deadline):
                     return self._store_robots(state, host, origin, exchange)
             url, hop_host = next_hop.url, next_hop.host
             hop_state = self._pacer.state(hop_host)
@@ -537,15 +573,26 @@ class PoliteClient:
         return robots if 0 <= age <= self._settings.robots_cache_seconds else None
 
     def _robots_exchange(
-        self, state: HostState, origin: str, hop_state: HostState, hop_host: str, url: str
+        self,
+        state: HostState,
+        origin: str,
+        hop_state: HostState,
+        hop_host: str,
+        url: str,
+        deadline: Deadline,
     ) -> Exchange:
         """One request for the robots.txt of ``origin``; a failure blocks that origin.
 
-        The caller holds the turn of ``hop_host``.
+        The caller holds the turn of ``hop_host``. Running out of the time
+        of the ``get`` is not a failure of the origin and blocks nothing.
         """
         interval = max(self._settings.min_interval_seconds, self._known_crawl_delay(hop_state))
         try:
-            return self._pacer.send(hop_state, hop_host, url, {}, interval=interval, robots=True)
+            return self._pacer.send(
+                hop_state, hop_host, url, {}, interval=interval, deadline=deadline, robots=True
+            )
+        except DeadlineExceededError:
+            raise
         except ForbiddenHostError as error:
             if hop_state is state:
                 raise  # the host of the origin itself: there is nothing to fetch from it

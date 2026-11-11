@@ -53,6 +53,13 @@ class HttpSettings(Model):
     The effective interval between two requests to one host is
     ``max(min_interval_seconds, Crawl-delay of that host's robots.txt)``.
 
+    Two limits bound how long fetching can take, whatever a site does.
+    ``max_exchange_seconds`` is the time one request and its answer may
+    take from the connection to the last byte of the body (``timeout_seconds``
+    only limits each single read, which a slow drip of bytes never
+    exceeds). ``max_get_seconds`` is the time one ``get`` may take in all:
+    robots.txt, redirects, retries and every pause between them.
+
     ``forbidden_networks`` lists networks whose addresses are never
     contacted although they are globally routable: nothing is fetched from
     a URL, a redirect or a name that leads into one of them. Private,
@@ -63,7 +70,9 @@ class HttpSettings(Model):
 
     user_agent: NonEmptyStr
     min_interval_seconds: NonNegativeFloat = 1.0
-    timeout_seconds: PositiveFloat = 20.0
+    timeout_seconds: PositiveFloat = 20.0  # each connect, read and write
+    max_exchange_seconds: PositiveFloat = 60.0  # one request and its whole answer
+    max_get_seconds: PositiveFloat = 600.0  # one get(): all requests and all waits
     retries: NonNegativeInt = 3  # retries after the first attempt
     max_requests_per_host: PositiveInt = 20  # per run, retries included
     backoff_base_seconds: NonNegativeFloat = 1.0  # retry n waits base * 2**(n-1)

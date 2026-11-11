@@ -20,6 +20,10 @@ http:
   user_agent: seminars-bot/1.0 (+https://fridrichmethod.github.io/seminars/)
   min_interval_seconds: 1.0
   timeout_seconds: 20
+  # One request with its whole answer, and one fetch with all its requests
+  # and waits (robots.txt, redirects, retries), are given up after this long.
+  max_exchange_seconds: 60
+  max_get_seconds: 600
   retries: 3
   max_requests_per_host: 20
   backoff_base_seconds: 1.0

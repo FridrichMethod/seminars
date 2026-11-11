@@ -4,7 +4,8 @@
 that a host gets one request at a time (among threads, clients and
 processes), waits out the pause the host is owed, keeps the two request
 budgets of every host, retries what is worth retrying and remembers a host
-that must not be contacted again. The module docstring of ``seminars.http``
+that must not be contacted again. Everything it does for one ``get`` ends
+at the ``Deadline`` of that call. The module docstring of ``seminars.http``
 states the rules; ``seminars.httpwire`` sends the single requests.
 """
 
@@ -14,6 +15,7 @@ import contextlib
 import logging
 import math
 import threading
+import time
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from email.utils import parsedate_to_datetime
@@ -25,13 +27,14 @@ from seminars.config import HttpSettings
 from seminars.httpbase import (
     RETRY_STATUSES,
     Clock,
+    DeadlineExceededError,
     ForbiddenHostError,
     HostBudgetExceededError,
     HttpRequestError,
     Sleeper,
 )
 from seminars.httpcache import HostRecord, HttpCache
-from seminars.httpwire import AttemptFailed, Exchange, Wire
+from seminars.httpwire import AttemptFailed, Exchange, TookTooLong, Wire
 from seminars.robots import RobotsPolicy
 from seminars.textrules import ascii_safe
 
@@ -43,6 +46,44 @@ _REFUSED_EARLIER: Final = (
 
 _ROBOTS_COPIES_KEPT: Final = 4
 """How many robots.txt copies of one host are kept in the cache directory (the newest ones)."""
+
+LOCK_POLL_SECONDS: Final = 0.05
+"""How often a lock that somebody else holds is tried again (real seconds)."""
+
+
+@dataclass(frozen=True)
+class Deadline:
+    """When one ``get`` gives up: ``max_get_seconds`` after it began, on the client's clock."""
+
+    url: str  # what the caller asked for
+    at: float  # epoch seconds
+    seconds: float  # the limit, for the message
+    clock: Clock
+
+    def error(self) -> DeadlineExceededError:
+        return DeadlineExceededError(
+            self.url, f"gave up after {self.seconds:g} s (http.max_get_seconds)"
+        )
+
+    def check(self) -> None:
+        """Raise ``DeadlineExceededError`` when the time is over."""
+        if self.clock() >= self.at:
+            raise self.error()
+
+    def take(self, lock: threading.Lock) -> None:
+        """Acquire ``lock``; give up with ``DeadlineExceededError`` when the time is over first.
+
+        Waiting for a lock is real waiting, for another thread that is at
+        work. It is not one of the pauses the client decides on, so it does
+        not go through the injected ``sleep``.
+        """
+        while not lock.acquire(timeout=LOCK_POLL_SECONDS):
+            self.check()
+
+    def wait_for_lock(self) -> None:
+        """One pause between two tries for a lock another process holds; raises like ``check``."""
+        self.check()
+        time.sleep(LOCK_POLL_SECONDS)
 
 
 @dataclass
@@ -102,21 +143,26 @@ class Pacer:
             return state
 
     @contextlib.contextmanager
-    def turn(self, state: HostState, host: str) -> Iterator[None]:
+    def turn(self, state: HostState, host: str, deadline: Deadline) -> Iterator[None]:
         """Be the only one who talks to ``host``: among threads, clients and processes.
 
         Requests are only sent inside this block. Nothing else is locked
-        while it is held, so it cannot be part of a deadlock.
+        while it is held, so it cannot be part of a deadlock. Waiting for
+        the turn ends with ``DeadlineExceededError`` at the deadline.
         """
-        with state.lock, self._cache.host_lock(host):
-            # Other clients and processes may have used the host in the meantime.
-            now = self._clock()
-            state.record = state.record.merge(self._cache.host(host)).trimmed(
-                oldest=now - self._settings.robots_cache_seconds,
-                newest=now,
-                keep=_ROBOTS_COPIES_KEPT,
-            )
-            yield
+        deadline.take(state.lock)
+        try:
+            with self._cache.host_lock(host, deadline.wait_for_lock):
+                # Other clients and processes may have used the host in the meantime.
+                now = self._clock()
+                state.record = state.record.merge(self._cache.host(host)).trimmed(
+                    oldest=now - self._settings.robots_cache_seconds,
+                    newest=now,
+                    keep=_ROBOTS_COPIES_KEPT,
+                )
+                yield
+        finally:
+            state.lock.release()
 
     def send(
         self,
@@ -126,20 +172,23 @@ class Pacer:
         headers: Mapping[str, str],
         *,
         interval: float,
+        deadline: Deadline,
         robots: bool = False,
     ) -> Exchange:
         """Send one request with retries; the caller holds the turn of ``host``.
 
         ``robots`` says which of the two budgets of the host pays for it.
+        No attempt and no pause is begun that could not end before the
+        deadline, and an answer gets no more time than is left until then.
         """
         if state.refused is not None:
             raise ForbiddenHostError(url, state.refused)
         attempts = self._settings.retries + 1
         for attempt in range(1, attempts + 1):
             self._check_budget(state, host, url, robots=robots)
-            self._wait_turn(state, interval)
+            self._wait_turn(state, interval, deadline)
             try:
-                exchange = self._attempt(state, host, url, headers, robots=robots)
+                exchange = self._attempt(state, host, url, headers, deadline, robots=robots)
             except AttemptFailed as error:
                 logger.debug("request failed (%s): %s", error.reason, ascii_safe(url))
                 if attempt == attempts:
@@ -157,7 +206,14 @@ class Pacer:
         raise AssertionError("unreachable: the retry loop always returns or raises")
 
     def _attempt(
-        self, state: HostState, host: str, url: str, headers: Mapping[str, str], *, robots: bool
+        self,
+        state: HostState,
+        host: str,
+        url: str,
+        headers: Mapping[str, str],
+        deadline: Deadline,
+        *,
+        robots: bool,
     ) -> Exchange:
         """Look the host up, then send the request once.
 
@@ -169,6 +225,10 @@ class Pacer:
         the request has left already. The host then gets nothing more from
         this client: the lookup said "public" and the connection went
         somewhere else, and whoever arranged that would arrange it again.
+
+        The answer has ``max_exchange_seconds``, or what is left until the
+        deadline when that is less. An answer that is not complete by then
+        is not waited for and not asked for again.
         """
         resolves = self._wire.resolves(url)
         if robots:
@@ -177,11 +237,19 @@ class Pacer:
             state.requests += 1
         if not resolves:
             raise AttemptFailed("host name does not resolve")
+        limit = self._settings.max_exchange_seconds
+        give_up_at = min(self._clock() + limit, deadline.at)
         try:
-            return self._wire.exchange(url, headers)
+            return self._wire.exchange(url, headers, give_up_at=give_up_at)
         except ForbiddenHostError:
             state.refused = _REFUSED_EARLIER
             raise
+        except TookTooLong as error:
+            if give_up_at == deadline.at:
+                raise deadline.error() from error
+            raise HttpRequestError(
+                url, f"no complete answer within {limit:g} s (http.max_exchange_seconds)"
+            ) from error
         finally:
             self._touch(state, host)
 
@@ -207,12 +275,19 @@ class Pacer:
                 url, f"{what} budget for host {host} is exhausted ({limit} requests per run)"
             )
 
-    def _wait_turn(self, state: HostState, interval: float) -> None:
+    def _wait_turn(self, state: HostState, interval: float, deadline: Deadline) -> None:
+        """Wait until the host may be asked again; never past the deadline.
+
+        When the pause the host is owed would end after the deadline, the
+        call is over now: waiting first and giving up then helps nobody.
+        """
         now = self._clock()
         ready = state.blocked_until
         last = state.record.last_request_at
         if last is not None:
             ready = max(ready, min(last, now) + interval)
+        if now >= deadline.at or ready > deadline.at:
+            raise deadline.error()
         if ready > now:
             self._sleep(ready - now)
 
