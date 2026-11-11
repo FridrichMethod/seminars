@@ -557,11 +557,21 @@ class TestListPages:
         assert there.url == "https://other.org/t"
         assert gone.abstract_html is None  # its detail page failed; the event stays
 
-    def test_native_cards_on_other_hosts_only_raise(self) -> None:
+    def test_native_cards_on_other_hosts_keep_their_draft(self) -> None:
         source = list_source(detail_page={"fetch": "native_only"})
         page = listing(card("A talk", "2026-11-16T16:30:00-08:00", href="https://other.org/a"))
-        with pytest.raises(ForeignHostError):
-            run(source, serve(**{FEED_URL: rss(item()), LIST_URL: page}))
+        http = serve(**{FEED_URL: rss(item()), LIST_URL: page})
+        [draft] = run(source, http)
+        assert http.requests == [FEED_URL, LIST_URL]
+        assert draft.url == "https://other.org/a"
+
+    def test_a_list_page_redirected_to_another_host_raises(self) -> None:
+        source = list_source(detail_page={"fetch": "native_only"})
+        http = serve(**{FEED_URL: rss(item())})
+        page = listing(card("A talk", "2026-11-16T16:30:00-08:00"))
+        http.add(LIST_URL, page, final_url="https://www.dept.example.edu/events")
+        with pytest.raises(ForeignHostError, match=r"www\.dept\.example\.edu"):
+            run(source, http)
 
     def test_detail_pages_outside_the_window_are_not_fetched(self) -> None:
         source = list_source(detail_page={"fetch": "native_only", "max_pages": 1})

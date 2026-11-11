@@ -36,7 +36,9 @@ Keys of ``params`` (an unknown key is an error that names it;
   ``subheadline``, ``dek``, ``join_on``, ``primary``, ``pager``.
 * ``detail_page``: ``fetch`` (``never``, default, or ``native_only``: the
   pages of cards whose link stays on the source's hosts and that overlap the
-  run window, at most ``max_pages``, default 6). Inside ``root`` (default:
+  run window, at most ``max_pages``, default 6; a link to another host is
+  not fetched, and a list page redirected to a host the source does not
+  name raises ``ForeignHostError``). Inside ``root`` (default:
   the body), matches inside ``exclude`` are ignored: ``end_attribute`` (an
   attribute of the root, Unix seconds: the end when the card has none),
   ``type``, ``title``, ``subheadline``, ``dek``, ``location`` (fallbacks for
@@ -311,6 +313,7 @@ def read_feed(
 
 @dataclass(frozen=True)
 class Card:
+    page: str  # final URL of the list page
     title: str | None
     href: str | None
     external: bool
@@ -338,6 +341,7 @@ def read_cards(params: ListPageParams, document: FetchedDocument) -> list[Card]:
         ]
         cards.append(
             Card(
+                page=document.final_url,
                 title=node_text(first(params.title)),
                 href=absolute_url(document.final_url, link.attributes.get("href"))
                 if link
@@ -377,10 +381,6 @@ class Entry:
             return self.card.start
         start = self.item.start if self.item else None
         return start if isinstance(start, date) else None
-
-    @property
-    def native_card(self) -> bool:
-        return self.card is not None and self.card.href is not None and not self.card.external
 
 
 def same_start(card: Moment | None, item: Moment | str | None) -> bool:
@@ -529,20 +529,24 @@ def read_sessions(
 def detail_targets(
     params: RssParams, source: SourceConfig, entries: Sequence[Entry], window: TimeWindow
 ) -> list[str]:
-    """Detail pages of native cards in the window, on the source's hosts."""
+    """Detail pages of native cards in the window, on the source's hosts.
+
+    A native card that links to another host keeps its draft without a
+    detail page; a list page redirected off the source's hosts is
+    ``ForeignHostError``.
+    """
     zone = ZoneInfo(source.timezone)
     wanted: list[str] = []
-    foreign: list[str] = []
     for entry in entries:
-        if not entry.native_card or entry.card is None or entry.card.href is None:
+        card = entry.card
+        if card is None or card.href is None or card.external:
             continue
-        if outside_window(entry.start, entry.card.end, window, zone):
+        if outside_window(entry.start, card.end, window, zone):
             continue
-        target = wanted if on_source_host(source, entry.card.href) else foreign
-        if entry.card.href not in target:
-            target.append(entry.card.href)
-    if foreign and not wanted:
-        raise ForeignHostError(source.id, foreign[0])
+        if not on_source_host(source, card.page):
+            raise ForeignHostError(source.id, card.page)
+        if on_source_host(source, card.href) and card.href not in wanted:
+            wanted.append(card.href)
     return wanted[: params.detail_page.max_pages]
 
 

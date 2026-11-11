@@ -53,7 +53,9 @@ Keys of ``params`` (an unknown key is an error that names it;
   ``native_id`` with ``native_id_attribute`` and ``native_id_pattern``
   (group ``native_id``); ``tag``: the texts of all matches become
   categories. A row whose detail page is missing (not fetched, or failed)
-  is dropped: its detail page holds what the list lacks.
+  is dropped: its detail page holds what the list lacks. Links to other
+  hosts are never fetched; a list page that was redirected to a host the
+  source does not name raises ``ForeignHostError``.
 * ``keep_tags``: with ``detail_page.tag``, keep only rows with one of these tags.
 
 Times are naive local wall times (the pipeline applies the source's
@@ -671,10 +673,15 @@ def detail_targets(
     documents: Sequence[FetchedDocument],
     window: TimeWindow,
 ) -> list[str]:
-    """Detail pages to fetch: kept rows in the window with a link on the source's hosts."""
+    """Detail pages to fetch: kept rows in the window with a link on the source's hosts.
+
+    A link to another host is a third party's page: it is not fetched (the
+    row is then dropped). When the list page itself was redirected to a host
+    the source does not name, every link on it is foreign, and that is
+    ``ForeignHostError``.
+    """
     zone = payload_zone(source)
     wanted: list[str] = []
-    foreign: list[str] = []
     for document in documents:
         reference = local_day(document.fetched_at, zone)
         for row in read_rows(params, document):
@@ -683,11 +690,10 @@ def detail_targets(
                 continue
             if outside_window(*row_times(params, row, reference), window, zone):
                 continue
-            target = wanted if on_source_host(source, url) else foreign
-            if url not in target:
-                target.append(url)
-    if foreign and not wanted:
-        raise ForeignHostError(source.id, foreign[0])
+            if not on_source_host(source, document.final_url):
+                raise ForeignHostError(source.id, document.final_url)
+            if on_source_host(source, url) and url not in wanted:
+                wanted.append(url)
     return wanted[: detail.max_pages]
 
 

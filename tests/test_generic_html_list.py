@@ -395,11 +395,19 @@ class TestDetailPages:
         assert http.requests == [LIST_URL, here]
         assert [draft.title for draft in drafts] == ["Here"]
 
-    def test_only_foreign_detail_links_raise(self) -> None:
+    def test_only_foreign_detail_links_fetch_nothing(self) -> None:
         text = page(row(title="Elsewhere"))
         text = text.replace(f"/talks/{slug('Elsewhere')}", "https://other.org/x")
-        with pytest.raises(ForeignHostError):
-            run(self.source(), serve(text))
+        http = serve(text)
+        assert run(self.source(), http) == []
+        assert http.requests == [LIST_URL]
+
+    def test_a_list_page_redirected_to_another_host_raises(self) -> None:
+        http = FakeHttpClient()
+        http.add(LIST_URL, page(row()), final_url="https://www.talks.example.edu/seminar/")
+        with pytest.raises(ForeignHostError, match=r"www\.talks\.example\.edu"):
+            run(self.source(), http)
+        assert http.requests == [LIST_URL]
 
     def test_rows_outside_the_window_and_beyond_the_cap_are_not_fetched(self) -> None:
         detail = {"times": "time", "max_pages": 1}
