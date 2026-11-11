@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-import pytest
+import re
+import time
 
-from seminars.robots import ALLOW_ALL, DISALLOW_ALL, parse_robots
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
+
+from seminars.robots import ALLOW_ALL, DISALLOW_ALL, RobotsRule, parse_robots
 
 BOT = "seminars-bot"
 BOM = chr(0xFEFF)
@@ -68,6 +73,94 @@ class TestMatching:
 
     def test_empty_path_means_root(self) -> None:
         assert not allows("User-agent: *\nDisallow: /\n", "")
+
+
+def reference_match(pattern: str, path: str) -> bool:
+    """The textbook reading of a robots.txt pattern, as a regular expression.
+
+    Only for short inputs: with several ``*`` it backtracks without bound,
+    which is why the matcher under test does not work this way.
+    """
+    anchored = pattern.endswith("$")
+    body = pattern[:-1] if anchored else pattern
+    regex = ".*".join(re.escape(part) for part in body.split("*"))
+    return re.compile(regex + (r"\Z" if anchored else ""), re.DOTALL).match(path) is not None
+
+
+class TestPatterns:
+    @pytest.mark.parametrize(
+        ("pattern", "path", "expected"),
+        [
+            ("/", "/", True),
+            ("/a", "/abc", True),
+            ("/a", "/b", False),
+            ("/a$", "/a", True),
+            ("/a$", "/ab", False),
+            ("$", "", True),
+            ("$", "/", False),
+            ("*", "", True),
+            ("*", "/anything", True),
+            ("*$", "/anything", True),
+            ("/*", "/", True),
+            ("/a*", "/a", True),
+            ("/a*b", "/ab", True),
+            ("/a*b", "/axxb", True),
+            ("/a*b", "/axxbyy", True),
+            ("/a*b$", "/axxbyy", False),
+            ("/a*b$", "/abxb", True),
+            ("/a*b$", "/ab", True),
+            ("/ab*b$", "/ab", False),  # the last part may not overlap the first
+            ("/a*a$", "/a", False),
+            ("/a*a$", "/aa", True),
+            ("/*a*b*c", "/xaxbxc", True),
+            ("/*a*b*c", "/xbxaxc", False),
+            ("/a**b", "/ab", True),
+            ("/a**b", "/a/x/b", True),
+            ("/*.pdf$", "/x.pdf", True),
+            ("/*.pdf$", "/x.pdf?download", False),
+            ("/a$b", "/a$b", True),  # "$" is an anchor only at the end
+            ("/a$b", "/a", False),
+            ("/a.c", "/abc", False),  # nothing but "*" and a final "$" is special
+            ("/a?c", "/a?c", True),
+            ("/a[b]", "/a[b]", True),
+            ("/a$", "/a\n", False),
+            ("/a*", "/a\nb", True),
+        ],
+    )
+    def test_wildcard_and_anchor(self, pattern: str, path: str, expected: bool) -> None:
+        assert RobotsRule(allow=False, pattern=pattern).matches(path) is expected
+        assert reference_match(pattern, path) is expected
+
+    @given(
+        pattern=st.text(alphabet="ab/*$.\n", min_size=1, max_size=8).filter(
+            lambda text: text.count("*") <= 3
+        ),
+        path=st.text(alphabet="ab/$.\n", max_size=10),
+    )
+    def test_agrees_with_the_regular_expression_reading(self, pattern: str, path: str) -> None:
+        assert RobotsRule(allow=False, pattern=pattern).matches(path) is reference_match(
+            pattern, path
+        )
+
+    @pytest.mark.parametrize("stars", [4, 40, 2000])
+    def test_many_wildcards_do_not_make_matching_slow(self, stars: int) -> None:
+        """A pattern like /*a*a*a*a*b froze the process for minutes on a path of a few hundred a."""
+        pattern = "/" + "*a" * stars + "*b"
+        path = "/" + "a" * 100_000
+        rule = RobotsRule(allow=False, pattern=pattern)
+        started = time.perf_counter()
+        assert rule.matches(path) is False
+        assert rule.matches(path + "b") is True
+        assert RobotsRule(allow=False, pattern=pattern + "$").matches(path + "ba") is False
+        assert time.perf_counter() - started < 1.0
+
+    def test_a_hostile_robots_file_is_answered_at_once(self) -> None:
+        text = "User-agent: *\nDisallow: /" + "*a" * 30 + "*b\n"
+        policy = parse_robots(text, BOT)
+        started = time.perf_counter()
+        assert policy.allows("/" + "a" * 5000)
+        assert not policy.allows("/" + "a" * 5000 + "b")
+        assert time.perf_counter() - started < 1.0
 
 
 class TestGroups:

@@ -5,14 +5,17 @@ matching rule wins (not the first one), ``*`` and ``$`` are understood in
 path patterns, and ``Crawl-delay`` accepts fractional seconds. A byte order
 mark at the start of the file is ignored, so that it cannot hide the first
 group (which would silently drop its ``Disallow`` and ``Crawl-delay`` lines).
+
+The file and the paths it is matched against come from the site, so matching
+must not be able to stall the process: a pattern is matched in time
+proportional to the length of the path, however many ``*`` it has. It is
+never turned into a regular expression, which can backtrack without bound.
 """
 
 from __future__ import annotations
 
 import math
-import re
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import Final
 from urllib.parse import unquote
 
@@ -29,7 +32,29 @@ class RobotsRule:
     pattern: str  # percent-decoded path pattern, never empty
 
     def matches(self, path: str) -> bool:
-        return _compile(self.pattern).match(path) is not None
+        """Whether the pattern matches ``path`` from its start.
+
+        ``*`` stands for any run of characters, a ``$`` at the very end of
+        the pattern for the end of the path; everything else is literal.
+        Without the ``$`` the pattern only has to match a prefix.
+        """
+        anchored = self.pattern.endswith("$")
+        first, *rest = (self.pattern[:-1] if anchored else self.pattern).split("*")
+        if not path.startswith(first):
+            return False
+        position = len(first)
+        if not rest:
+            return not anchored or position == len(path)
+        # Taking the leftmost place for every middle part leaves the most room for the rest.
+        for part in rest[:-1]:
+            found = path.find(part, position)
+            if found < 0:
+                return False
+            position = found + len(part)
+        last = rest[-1]
+        if anchored:
+            return len(path) - len(last) >= position and path.endswith(last)
+        return path.find(last, position) >= 0
 
 
 @dataclass(frozen=True)
@@ -56,14 +81,6 @@ class RobotsPolicy:
 
 ALLOW_ALL: Final = RobotsPolicy()
 DISALLOW_ALL: Final = RobotsPolicy(rules=(RobotsRule(allow=False, pattern="/"),))
-
-
-@lru_cache(maxsize=1024)
-def _compile(pattern: str) -> re.Pattern[str]:
-    anchored = pattern.endswith("$")
-    body = pattern[:-1] if anchored else pattern
-    regex = ".*".join(re.escape(part) for part in body.split("*"))
-    return re.compile(regex + ("$" if anchored else ""), re.DOTALL)
 
 
 @dataclass
