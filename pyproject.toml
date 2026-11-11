@@ -97,7 +97,15 @@ norecursedirs = [
     "tests/fixtures",
     "tests/fixtures/*",
 ]
-addopts = ["-ra", "--strict-markers", "--strict-config", "-m", "not live and not browser"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "-p",
+    "no:doctest",
+    "-m",
+    "not live and not browser",
+]
 markers = [
     "live: talks to the real network (deselected by default; run with -m live)",
     "browser: needs Playwright and a browser (deselected by default; run with -m browser)",

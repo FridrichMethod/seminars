@@ -98,9 +98,11 @@ FIXTURE_EXTENSIONS: Final = tuple(sorted({*_EXTENSIONS.values(), ".md"}))
 
 A body is whatever a site sent, so it must never become a file that is
 executed. pytest imports every ``conftest.py`` and ``test_*.py`` it comes
-across; with these extensions only, nothing in a fixture directory is a
-program. ``FixtureStore.add`` writes no other file and ``check`` reports
-any other.
+across, and its doctest plugin would run the ``>>>`` lines of a
+``test*.txt`` file it is pointed at. With these extensions only, and with
+that plugin switched off in ``pyproject.toml``, nothing in a fixture
+directory is a program. ``FixtureStore.add`` writes no other file and
+``check`` reports any other.
 """
 
 _FILE_NAME: Final = re.compile(

@@ -212,7 +212,9 @@ only ways to send a request to a source site by hand.
   never be a file that gets executed: pytest would import a `conftest.py`
   or a `test_*.py`. `record` refuses any other name, `check` reports any
   other file, and pytest does not look for tests below `tests/fixtures`
-  (`norecursedirs` in `pyproject.toml`). Never put a Python file there.
+  (`norecursedirs` in `pyproject.toml`). Its doctest plugin, which would
+  run the `>>>` lines of a `test*.txt` file named on the command line, is
+  switched off there as well. Never put a Python file there.
 - Bodies are stored in canonical form: no byte order mark, LF line endings
   (CRLF and CR are converted) and a final newline. Every HTTP client hands out
   document text in this same form, live as well as offline, so an adapter sees

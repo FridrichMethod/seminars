@@ -179,6 +179,53 @@ class TestCommandLine:
         assert capsys.readouterr().out == "recorded sites-a/calendar.html (HTTP 200, 9 bytes)\n"
 
 
+DOCTEST_BODY = """A page that a site sent as text/plain.
+
+>>> from pathlib import Path
+>>> Path({marker!r}).write_text("x")
+1
+"""
+
+
+class TestPytestRunsNoRecordedText:
+    """A body named ``test*.txt`` is no doctest, however pytest is pointed at it."""
+
+    def test_the_doctest_plugin_is_switched_off(self) -> None:
+        options = tomllib.loads(pytest_options())["tool"]["pytest"]["ini_options"]
+        addopts = options["addopts"]
+        assert addopts[addopts.index("no:doctest") - 1] == "-p"
+
+    @pytest.mark.parametrize(
+        "argument",
+        [
+            "tests/fixtures/some-source",
+            "tests/fixtures/some-source/tests-data-1a2b3c4d.txt",
+            "tests/fixtures/some-source/test_notes.txt",
+        ],
+    )
+    def test_a_recorded_text_file_is_not_run_as_a_doctest(
+        self, tmp_path: Path, argument: str
+    ) -> None:
+        (tmp_path / "pyproject.toml").write_text(pytest_options(), encoding="utf-8")
+        directory = tmp_path / "tests" / "fixtures" / "some-source"
+        directory.mkdir(parents=True)
+        marker = tmp_path / "doctest.ran"
+        body = DOCTEST_BODY.format(marker=str(marker))
+        for name in ("tests-data-1a2b3c4d.txt", "test_notes.txt"):
+            assert is_fixture_file_name(name)
+            (directory / name).write_text(body, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, "-B", "-m", "pytest", "-q", "-p", "no:cacheprovider", argument],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = result.stdout + result.stderr
+        assert not marker.exists(), output
+        assert " passed" not in output, output
+
+
 def pytest_options() -> str:
     """The ``[tool.pytest.ini_options]`` table of this repository, as it is written."""
     text = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
