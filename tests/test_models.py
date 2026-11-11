@@ -45,10 +45,11 @@ from seminars.models import (
     canonical_fields,
     feed_path,
     source_key,
+    split_source_key,
     url_has_credential,
 )
 
-SPEC_EVENT_FIELDS = [
+EXPECTED_EVENT_FIELDS = [
     "uid",
     "title",
     "speakers",
@@ -80,7 +81,7 @@ SPEC_EVENT_FIELDS = [
 
 
 class TestVocabularies:
-    def test_field_ids_match_the_spec(self) -> None:
+    def test_field_ids(self) -> None:
         assert FIELD_IDS == ("math", "cs", "ai-ml", "chem", "bio", "physics", "med")
         assert get_args(FieldId) == FIELD_IDS
 
@@ -97,18 +98,21 @@ class TestVocabularies:
             canonical_fields(["history"])
 
     def test_source_key(self) -> None:
-        assert source_key("localist-stanford", "44475127680618") == (
-            "localist-stanford:44475127680618"
-        )
+        key = source_key("localist-stanford", "44475127680618")
+        assert key == "localist-stanford:44475127680618"
+        assert split_source_key(key) == ("localist-stanford", "44475127680618")
+        assert split_source_key("rsorg-x:uid:with:colons") == ("rsorg-x", "uid:with:colons")
+        with pytest.raises(ValueError, match="not a source key"):
+            split_source_key("no-separator")
 
 
 class TestEventSchema:
-    def test_fields_are_exactly_those_of_the_spec(self) -> None:
-        assert list(Event.model_fields) == SPEC_EVENT_FIELDS
+    def test_fields_are_exactly_the_agreed_ones(self) -> None:
+        assert list(Event.model_fields) == EXPECTED_EVENT_FIELDS
         assert "last_seen" not in Event.model_fields
         assert list(Speaker.model_fields) == ["name", "affiliation", "url"]
 
-    def test_defaults_match_the_spec(self) -> None:
+    def test_defaults(self) -> None:
         defaults = {
             name: field.default
             for name, field in Event.model_fields.items()

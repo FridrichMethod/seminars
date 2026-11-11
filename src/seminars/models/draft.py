@@ -121,7 +121,7 @@ class EventDraft(Model):
       such URLs.
     * ``source_text`` is the text the draft was extracted from. It is
       mandatory for ``extraction == "llm"`` because every LLM-extracted field
-      must be grounded in it (SPEC section 7.7).
+      must be grounded in it.
     """
 
     source_id: SourceId

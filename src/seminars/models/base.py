@@ -22,7 +22,7 @@ FieldTagMethod = Literal["source", "rules", "llm"]
 ExtractionMethod = Literal["api", "feed", "jsonld", "html", "llm"]
 
 FIELD_IDS: Final[tuple[str, ...]] = ("math", "cs", "ai-ml", "chem", "bio", "physics", "med")
-"""Canonical field ids in canonical order (SPEC section 5.6)."""
+"""Canonical field ids in canonical order."""
 
 FEED_IDS: Final[tuple[str, ...]] = ("all", "picks", *FIELD_IDS)
 """Ids of the nine ICS feeds; feed ``<id>`` is published as ``feeds/<id>.ics``."""
@@ -45,7 +45,7 @@ CREDENTIAL_QUERY_PARAMS: Final[frozenset[str]] = frozenset(
         "token",
     }
 )
-"""Query parameter names that mark a URL as carrying a credential (SPEC section 5.2)."""
+"""Query parameter names that mark a URL as carrying a credential."""
 
 
 # --- base class ----------------------------------------------------------------------------
@@ -132,6 +132,17 @@ def url_has_credential(url: object) -> bool:
 def source_key(source_id: str, native_id: str) -> str:
     """Build an ``Event.source_ids`` entry: ``<source id>:<source-native id>``."""
     return f"{source_id}:{native_id}"
+
+
+def split_source_key(key: str) -> tuple[str, str]:
+    """Inverse of ``source_key``: ``(source id, native id)``.
+
+    Source ids never contain a colon, so the first colon is the separator.
+    """
+    source_id, separator, native_id = key.partition(":")
+    if not separator or not source_id:
+        raise ValueError(f"not a source key: {key!r}")
+    return source_id, native_id
 
 
 Timestamp = Annotated[AwareDatetime, AfterValidator(_drop_microseconds)]

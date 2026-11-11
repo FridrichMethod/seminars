@@ -53,7 +53,7 @@ def _all_fields(value: dict[str, FieldRules]) -> dict[str, FieldRules]:
 
 
 class Taxonomy(Model):
-    """Content of config/taxonomy.yaml (SPEC sections 5.5 and 5.6)::
+    """Content of config/taxonomy.yaml: field rules and filter phrases::
 
         fields:
           chem:
@@ -99,7 +99,7 @@ class PicksMultipliers(Model):
 
 
 class Interests(Model):
-    """Content of config/interests.yaml: the rule-based picks (SPEC section 5.7).
+    """Content of config/interests.yaml: the rule-based picks.
 
     score = sum over matched keywords of ``weight * multiplier`` (the
     multiplier of the best place the keyword appears in)

@@ -56,7 +56,7 @@ class ResearchInfo(Model):
     has_ics: bool | None = None
     has_jsonld: bool | None = None
     has_jsonapi: bool | None = None
-    extraction: ExtractionMethod | None = None  # chosen method, by the SPEC section 2 priority
+    extraction: ExtractionMethod | None = None  # chosen method: structured data first
     crawl_delay: Annotated[float, Field(ge=0)] | None = None  # robots.txt Crawl-delay, seconds
     notes: Annotated[list[str], BeforeValidator(_as_list)] = []
 

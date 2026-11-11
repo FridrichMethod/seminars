@@ -1,4 +1,4 @@
-"""Tests for scripts/check_ascii.py (the charset gate of SPEC section 13)."""
+"""Tests for scripts/check_ascii.py, the charset gate of the repository."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ class TestClassify:
             ("src/seminars/models.py", "strict"),
             ("README.md", "strict"),
             ("locales/en.json", "strict"),
-            ("docs/handoff.zh-CN.txt", "strict"),
+            ("docs/notes.zh-CN.txt", "strict"),
             ("README.zh-CN.md", "zh"),
             ("docs/ARCHITECTURE.zh-CN.md", "zh"),
             ("locales/zh-CN.json", "zh"),

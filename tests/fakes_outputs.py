@@ -125,6 +125,7 @@ class FakeEmitters:
         config: AppConfig,
         week_start: date,
         previous_issue_at: datetime | None,
+        owner: str | None = None,
     ) -> DigestDocument:
         self.calls.append(
             ("render_digest", {"events": len(events), "previous_issue_at": previous_issue_at})
@@ -135,6 +136,8 @@ class FakeEmitters:
             if previous_issue_at is not None and event.first_seen > previous_issue_at
         ]
         body = f"events: {len(events)}\nnew: {len(new) if previous_issue_at else 'first issue'}\n"
+        if owner:
+            body += f"cc @{owner}\n"
         return DigestDocument(
             week_start=week_start, title=f"Seminars - week of {week_start.isoformat()}", body=body
         )
@@ -161,9 +164,8 @@ class FakeEmitters:
             config=config,
             week_start=week_start,
             previous_issue_at=previous[0].created_at if previous else None,
+            owner=owner,
         )
-        if owner:
-            document = document.evolve(body=f"{document.body}cc @{owner}\n")
         if dry_run or issues is None:
             return DigestOutcome(action="dry_run", document=document)
         existing = issues.find_by_title(document.title)

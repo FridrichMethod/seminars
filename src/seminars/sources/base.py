@@ -2,7 +2,7 @@
 
 An adapter turns one configured source into event drafts in two steps::
 
-    payload = adapter.fetch(http, source, window=window)   # I/O, no parsing decisions
+    payload = adapter.fetch(http, source, window=window)   # all I/O, pagination included
     drafts = adapter.parse(payload, source)                # pure, no I/O
 
 Writing an adapter means adding ONE module below ``seminars.sources.generic``
@@ -26,9 +26,12 @@ so no shared file has to be edited. A source selects its adapter by name
 Rules for adapters:
 
 * ``fetch`` uses nothing but the given ``HttpClient`` for I/O and returns
-  every document it received; it must issue the same URLs offline as live,
-  because offline mode looks fixtures up by URL. ``window`` tells it which
-  period to ask the source for.
+  every document it received. It may read a response as far as needed to
+  find the next request (pagination, detail links) but leaves the
+  interpretation of events to ``parse``. It must issue the same URLs offline
+  as live, because offline mode looks fixtures up by URL. ``window`` tells it
+  which period to ask the source for; query parameters derived from it must
+  be recorded as volatile (see tests/fixtures/README.md).
 * ``parse`` is a pure function of the payload and the source entry. Use
   ``payload.fetched_at`` as "now" (for example to infer a missing year).
   Copy what the source says into ``EventDraft``; cleaning is not its job.

@@ -37,7 +37,7 @@ class SiteSettings(Model):
 
 
 class HttpSettings(Model):
-    """Politeness rules of the HTTP client (SPEC section 2).
+    """Politeness rules of the HTTP client.
 
     The effective interval between two requests to one host is
     ``max(min_interval_seconds, Crawl-delay of that host's robots.txt)``.
@@ -65,20 +65,20 @@ class EventSettings(Model):
     """Event handling knobs of normalization and persistence."""
 
     default_duration_minutes: PositiveInt = 60  # used when a timed event has no end
-    delete_after_missing_runs: PositiveInt = 3  # SPEC section 5.8
+    delete_after_missing_runs: PositiveInt = 3  # healthy runs a future event may be absent
     abstract_max_chars: PositiveInt = 4000
     include_defenses: bool = True  # keep PhD defenses (event_type "defense")
 
 
 class DedupSettings(Model):
-    """Thresholds of duplicate detection (SPEC section 5.4)."""
+    """Thresholds of duplicate detection."""
 
     max_start_difference_minutes: NonNegativeInt = 15
     title_similarity: Annotated[int, Field(ge=0, le=100)] = 85  # rapidfuzz token_set_ratio
 
 
 class HealthSettings(Model):
-    """After how many consecutive bad runs an issue is opened (SPEC sections 6.4, 7.4)."""
+    """After how many consecutive bad runs an issue is opened."""
 
     source_failure_threshold: PositiveInt = 3
     source_empty_threshold: PositiveInt = 3

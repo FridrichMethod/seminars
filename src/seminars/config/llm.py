@@ -14,7 +14,7 @@ ProviderId = Literal["claude-cli", "codex-cli", "anthropic", "openai", "openai-c
 CliProviderId = Literal["claude-cli", "codex-cli"]
 
 PROVIDER_IDS: Final[tuple[ProviderId, ...]] = get_args(ProviderId)
-"""All providers in the default chain order (SPEC section 7.4)."""
+"""All providers in the default chain order: subscription CLIs first, then API keys."""
 
 NO_PROVIDER: Final = "none"
 """Pseudo provider: rules only. Ends the chain when it appears in LLM_PROVIDERS."""
@@ -32,13 +32,13 @@ OPT_IN_PROVIDERS: Final[frozenset[ProviderId]] = frozenset({"codex-cli"})
 """Providers that join the chain only when LLM_PROVIDERS (or --llm) names them."""
 
 LOCAL_ONLY_PROVIDERS: Final[frozenset[ProviderId]] = frozenset({"codex-cli"})
-"""Providers that are never used inside GitHub Actions (DECISIONS D5)."""
+"""Providers that are never used inside GitHub Actions."""
 
 TAG_ONLY_PROVIDERS: Final[frozenset[ProviderId]] = frozenset({"codex-cli"})
 """Providers that may tag fields (closed vocabulary) but never extract free text.
 
 The codex CLI cannot run without tools, so its output is only trusted when it
-is an enumeration value (SPEC section 7.3, DECISIONS D18).
+is an enumeration value.
 """
 
 ENV_LLM_PROVIDERS: Final = "LLM_PROVIDERS"

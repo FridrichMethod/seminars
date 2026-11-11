@@ -32,6 +32,7 @@ from seminars.models.base import (
     check_http_url,
     check_timezone,
     source_key,
+    split_source_key,
     url_has_credential,
 )
 from seminars.models.classify import (
@@ -209,6 +210,7 @@ __all__ = [
     "read_events",
     "read_model",
     "source_key",
+    "split_source_key",
     "url_has_credential",
     "write_events",
     "write_model",

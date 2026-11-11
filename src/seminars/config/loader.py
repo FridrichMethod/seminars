@@ -165,8 +165,10 @@ def read_env(root: Path | None = None) -> dict[str, str]:
 def load_config(root: Path | None = None, env: Mapping[str, str] | None = None) -> AppConfig:
     """Load the whole configuration of the project rooted at ``root``.
 
-    ``root`` defaults to the repository that contains the current directory;
-    ``env`` defaults to ``os.environ`` and only feeds the LLM overrides.
+    ``root`` defaults to the repository that contains the current directory.
+    ``env`` only feeds the LLM overrides (LLM_PROVIDERS, LLM_MODEL_<PROVIDER>,
+    LLM_BASE_URL, GITHUB_ACTIONS) and defaults to ``os.environ``; pass
+    ``read_env(root)`` to honour a local ``.env`` file as well.
     """
     paths = ProjectPaths(root or find_project_root())
     try:

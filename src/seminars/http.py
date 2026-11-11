@@ -1,4 +1,4 @@
-"""HTTP access for adapters: the polite live client and its error types.
+"""HTTP access for adapters: the polite live client and the offline client.
 
 Adapters only ever see the ``HttpClient`` protocol: ``get(url)`` returns a
 ``FetchedDocument`` or raises a subclass of ``HttpError``. There are two
@@ -8,7 +8,9 @@ implementations:
   recorded fixtures by URL and raises ``FixtureNotFoundError`` for a URL that
   was never recorded. It backs ``seminars run --offline`` and adapter tests;
   see ``seminars.fixtures`` and tests/fixtures/README.md.
-* ``PoliteClient`` is the live client and follows SPEC section 2:
+* ``PoliteClient`` is the live client.
+
+Rules of the live client:
 
 * only ``http`` and ``https`` URLs; a fixed User-Agent from the settings;
 * robots.txt is fetched once per origin and honoured for ``Disallow`` and

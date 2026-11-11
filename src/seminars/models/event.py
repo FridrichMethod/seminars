@@ -1,4 +1,4 @@
-"""The canonical event record stored in data/events.json (SPEC section 4)."""
+"""The canonical event record stored in data/events.json."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ class Speaker(Model):
 
 
 class Event(Model):
-    """One talk, exactly as specified in SPEC section 4.
+    """One talk: the record every stage after normalization works with.
 
     Conventions that every producer must follow (they keep git diffs small and
     make merging order-independent):
@@ -56,7 +56,7 @@ class Event(Model):
     * ``missing_runs`` is internal state and never leaves data/events.json.
     """
 
-    uid: Uid  # stable ID, see section 5.3
+    uid: Uid  # stable ID, never changes once assigned
     title: NonEmptyStr  # "TBA" allowed
     speakers: list[Speaker] = []
     series: str | None  # e.g. "Physical Chemistry Seminar"
@@ -68,7 +68,7 @@ class Event(Model):
     all_day: bool = False
     location: str | None
     is_online: bool = False
-    stream_url: HttpUrl | None  # only if it carries no credential, see section 5.2
+    stream_url: HttpUrl | None  # only if it carries no credential
     abstract: str | None  # plain text, cleaned
     url: HttpUrl  # preferred detail page
     source_urls: SortedUrlList  # all sources after merge

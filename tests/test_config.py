@@ -348,7 +348,7 @@ class TestLLMEnvironment:
         assert config.llm.providers == ["openai"]
         assert config.llm.model_for("openai") == "m"
 
-    def test_schema_defaults_match_the_spec(self) -> None:
+    def test_schema_defaults(self) -> None:
         config = LLMConfig()
         assert (config.batch_size, config.max_calls_per_run) == (20, 60)
         assert (config.max_input_chars, config.timeout_seconds) == (12000, 120)

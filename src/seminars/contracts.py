@@ -50,7 +50,7 @@ How one run uses the contracts, in order::
     ... persist, then: write_ics_feeds, write_site_data, update_health
     ... SecretScanner over data/ and public/ before anything is committed or deployed
 
-Command line surface that workflows may rely on (SPEC sections 7.3, 8, 9)::
+Command line surface that workflows may rely on::
 
     seminars run [--offline] [--source ID ...] [--no-llm] [--llm PROVIDER]
                  [--dry-run] [--skip-if-done-today]
@@ -110,7 +110,7 @@ from seminars.models import (
     TagDecision,
 )
 
-# --- LLM layer (SPEC section 7) ------------------------------------------------------------
+# --- LLM layer -----------------------------------------------------------------------------
 
 
 class LLMError(Exception):
@@ -176,7 +176,7 @@ class LLMUnavailableError(LLMError):
 
 @runtime_checkable
 class LLMClient(Protocol):
-    """One LLM backend (SPEC section 7.1)."""
+    """One LLM backend."""
 
     @property
     def name(self) -> str:
@@ -192,7 +192,7 @@ class LLMClient(Protocol):
 
 @runtime_checkable
 class LLMChainClient(LLMClient, Protocol):
-    """The provider chain seen as a single client (SPEC section 7.4).
+    """The provider chain seen as a single client.
 
     ``complete_json`` tries the providers in order, skips to the next one on
     ``LLMProviderError`` and marks the failed provider unavailable for the
@@ -230,7 +230,7 @@ class LLMProber(Protocol):
 
 @runtime_checkable
 class LLMCache(Protocol):
-    """Result cache under data/llm_cache/ (SPEC section 7.6). Keys come from ``llm_cache_key``."""
+    """Result cache under data/llm_cache/. Keys come from ``llm_cache_key``."""
 
     def get(self, key: str) -> dict[str, Any] | None:
         """The cached JSON object, or ``None``. A hit refreshes the entry's age."""
@@ -259,7 +259,7 @@ def llm_cache_key(prompt_version: str, task: str, payload: str) -> str:
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 
-# --- classification (SPEC sections 5.5 to 5.7) ---------------------------------------------
+# --- classification ------------------------------------------------------------------------
 
 
 @runtime_checkable
@@ -304,7 +304,7 @@ class EventFilter(Protocol):
     """Removes what is not an academic talk, and later what is out of scope."""
 
     def filter(self, candidates: Sequence[Candidate]) -> FilterResult:
-        """Apply the exclusion rules of SPEC section 5.5 before de-duplication."""
+        """Apply the exclusion rules (courses, office hours, ...) before de-duplication."""
         ...
 
     def drop_out_of_scope(self, events: Sequence[Event]) -> ScopeResult:
@@ -345,7 +345,7 @@ class PicksReranker(Protocol):
         ...
 
 
-# --- LLM page extraction fallback (SPEC sections 2 and 7.7) --------------------------------
+# --- LLM page extraction fallback ----------------------------------------------------------
 
 
 @runtime_checkable
@@ -378,7 +378,7 @@ class PageExtractorFactory(Protocol):
     ) -> PageExtractor: ...
 
 
-# --- outputs (SPEC section 6) --------------------------------------------------------------
+# --- outputs -------------------------------------------------------------------------------
 
 
 class IcsFeedWriter(Protocol):
@@ -430,11 +430,13 @@ class DigestRenderer(Protocol):
         config: AppConfig,
         week_start: date,
         previous_issue_at: datetime | None,
+        owner: str | None = None,
     ) -> DigestDocument:
         """Render the digest for the week starting on ``week_start`` (a Monday).
 
         Events first seen after ``previous_issue_at`` form the "new" section;
-        ``None`` means this is the first issue.
+        ``None`` means this is the first issue. ``owner`` (a GitHub login) is
+        mentioned in the body so that GitHub sends a notification.
         """
         ...
 
@@ -456,8 +458,10 @@ class DigestPublisher(Protocol):
         """Open this week's digest issue and close the previous one.
 
         Idempotent per week: if an issue with this week's title exists,
-        nothing is changed. ``owner`` is mentioned in the body. With
-        ``dry_run`` (or without an issue client) nothing is written.
+        nothing is changed. The creation time of the previous digest issue
+        becomes ``previous_issue_at`` of the renderer and ``owner`` is passed
+        on to it. With ``dry_run`` (or without an issue client) nothing is
+        written.
         """
         ...
 

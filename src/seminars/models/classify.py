@@ -18,7 +18,7 @@ RuleExclusionReason = Literal[
     "administrative",  # committee and staff meetings
     "academic_calendar",  # deadlines, billing dates, holidays
 ]
-"""Exclusion reasons the rule-based filter can assign (SPEC section 5.5)."""
+"""Exclusion reasons the rule-based filter can assign."""
 
 ExclusionReason = Literal[
     RuleExclusionReason,
@@ -114,7 +114,7 @@ class ExcludedEvent(Model):
 
 
 class FilterResult(Model):
-    """Outcome of the rule-based filter (SPEC section 5.5).
+    """Outcome of the rule-based filter.
 
     ``uncertain`` lists uids of kept candidates the rules could not decide.
     They stay in unless the LLM tagger answers ``is_talk=False`` for them.
