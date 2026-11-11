@@ -52,7 +52,7 @@ import time
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -411,6 +411,12 @@ def _publish(
     return _Published(checks, tuple(problems), tuple(warnings))
 
 
+def _excluded_order(item: ExcludedEvent) -> tuple[str, str, tuple[str, ...], str, str, str]:
+    """Sort key of the excluded list: the same events give the same list in any order."""
+    start = item.start.astimezone(UTC).isoformat() if item.start else ""
+    return item.reason, start, tuple(item.source_ids), item.title, str(item.url), item.detail or ""
+
+
 def _first_report(
     services: Services,
     options: RunOptions,
@@ -430,7 +436,7 @@ def _first_report(
         dry_run=options.dry_run,
         ok=any(result.status != "failed" for result in gathered.results),
         sources=list(gathered.results),
-        excluded=list(processed.excluded),
+        excluded=sorted(processed.excluded, key=_excluded_order),
         counts=_counts(gathered, processed, reconciled, services.picks_scorer.threshold),
         llm=usage,
         warnings=[*services.warnings, *processed.warnings, *llm_warnings],

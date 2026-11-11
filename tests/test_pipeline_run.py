@@ -208,6 +208,23 @@ class TestWholeRun:
         assert set(by_key(config)) == {"sites-a:1"}
         assert report.counts.removed == 1
 
+    def test_the_excluded_list_does_not_depend_on_the_order_of_a_listing(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        drafts = [draft("sites-a", "1"), draft("sites-a", "2"), draft("sites-b", "3")]
+        exclude = {"sites-a.1": "course", "sites-a.2": "course", "sites-b.3": "social"}
+        lists = []
+        for order in (drafts, drafts[::-1]):
+            fake_adapter.drafts = list(order)
+            bundle = services(FakeEmitters(), event_filter=FakeEventFilter(exclude))
+            lists.append(run(config, bundle).excluded)
+        assert lists[0] == lists[1]
+        assert [(item.reason, item.source_ids) for item in lists[0]] == [
+            ("course", ["sites-a:1"]),
+            ("course", ["sites-a:2"]),
+            ("social", ["sites-b:3"]),
+        ]
+
     def test_events_without_fields_are_out_of_scope(
         self, config: AppConfig, fake_adapter: FakeAdapter
     ) -> None:
