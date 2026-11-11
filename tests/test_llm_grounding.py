@@ -145,3 +145,65 @@ class TestTheTextOfThePage:
         grounding = Grounding("Stra\u00dfe 12, Gro\u00dfer Saal", min_similarity=90)
         assert grounding.text("STRASSE 12") == "Stra\u00dfe 12"
         assert grounding.text("strasse") == "Stra\u00dfe"
+
+
+class TestDates:
+    def grounding(self, page: str) -> Grounding:
+        return Grounding(page, min_similarity=90)
+
+    def test_may_as_a_verb_and_a_number_somewhere_make_no_date(self) -> None:
+        grounding = self.grounding("Talk by Jane Doe. You may attend in room 17 or 5.")
+        assert not grounding.day(5, 17)
+        assert not grounding.day(5, 5)
+
+    def test_a_month_name_inside_a_word_does_not_count(self) -> None:
+        grounding = self.grounding("A decision 17, the market 3, a doctor 21, Junebug 5")
+        assert not grounding.day(12, 17)
+        assert not grounding.day(3, 3)
+        assert not grounding.day(10, 21)
+        assert not grounding.day(6, 5)
+
+    def test_the_day_must_stand_right_next_to_the_month(self) -> None:
+        grounding = self.grounding("November, room 17; Mar 3; Oct. 21st")
+        assert not grounding.day(11, 17)
+        assert not grounding.day(10, 3)
+        assert grounding.day(3, 3)
+        assert grounding.day(10, 21)
+
+    @pytest.mark.parametrize(
+        ("page", "days"),
+        [
+            ("Tuesday, November 17, 2026, 4:00 PM", [(11, 17)]),
+            ("17th of November", [(11, 17)]),
+            ("17. November 2026", [(11, 17)]),
+            ("Workshop, Dec 1 - 3", [(12, 1), (12, 3)]),
+            ("1-3 December", [(12, 1), (12, 3)]),
+            ("Nov. 4 and 5", [(11, 4), (11, 5)]),
+            ("Winter school, Dec 30 - Jan 2", [(12, 30), (1, 2)]),
+            ("Sept 9 through 11", [(9, 9), (9, 11)]),
+            ("Talk on 11/17 at 16:00", [(11, 17)]),
+            ("Vortrag am 17.11.2026", [(11, 17)]),
+            ("2026-11-17", [(11, 17)]),
+        ],
+    )
+    def test_the_usual_ways_of_writing_a_day(self, page: str, days: list[tuple[int, int]]) -> None:
+        grounding = self.grounding(page)
+        assert all(grounding.day(month, day) for month, day in days)
+
+    def test_the_end_of_a_range_needs_a_range_word(self) -> None:
+        grounding = self.grounding("Dec 1, room 3")
+        assert grounding.day(12, 1)
+        assert not grounding.day(12, 3)
+
+    def test_a_time_or_a_link_marker_is_not_a_date(self) -> None:
+        grounding = self.grounding("Talk, 4:30-5:45 PM [[3]]")
+        assert not grounding.day(5, 30)
+        assert not grounding.day(4, 30)
+        assert not grounding.day(3, 3)
+
+    def test_a_year_in_four_digits_or_in_two_after_an_apostrophe_or_in_a_date(self) -> None:
+        assert self.grounding("Nov 17, 2026").year(2026)
+        assert self.grounding("Fall '26").year(2026)
+        assert self.grounding("11/17/26").year(2026)
+        assert not self.grounding("Room 26, Nov 17").year(2026)
+        assert not self.grounding("Room 12026").year(2026)

@@ -30,10 +30,12 @@ model behaving:
   never the words of the model, so the model cannot add a character.
 * The answer has no free-text URL. A link is the number of a marker and is
   looked up in the links of the page; any other number is dropped.
-* Dates and times are numbers, and they must show up in the text as well:
-  the day and the month, and the hour and the minutes when a time is
-  given. A talk is only taken as cancelled when the text says that
-  something is cancelled or postponed.
+* Dates and times are numbers that must show up in the text as well. A
+  day needs the name of its month as a word right next to it, or both
+  written as a date in numbers; a stated year needs four digits (or two
+  after an apostrophe or in a date). Hours and minutes only need to occur
+  as numbers: a plausibility check, not proof. A talk is only taken as
+  cancelled when the text says that something is cancelled or postponed.
 * Link markers are written after the page text is collected, and every
   ``[[`` of the page is broken up first, so a page cannot fake a marker.
 * Requests never go to a provider that is limited to closed vocabularies

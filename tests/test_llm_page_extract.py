@@ -271,6 +271,11 @@ class TestGroundingOfTheAnswer:
         ]
         assert extract(FakeLLMClient(answer(*items))) == []
 
+    def test_numbers_that_are_not_a_date_give_no_date(self) -> None:
+        page = "<html><body><p>Talk by Jane Doe. You may attend in room 17 or 5.</p></body></html>"
+        item = {"month": 5, "day": 17, "speakers": [{"name": "Jane Doe"}]}
+        assert extract(FakeLLMClient(answer(item)), page) == []
+
     def test_an_impossible_day_is_dropped(self) -> None:
         page = "<html><body><p>Talk, Feb 30 and Feb 29; workshop Feb 1 - Feb 31</p></body></html>"
         items = [

@@ -318,7 +318,9 @@ Whatever the provider, a page cannot steer the result:
   abstract) must occur in the page text after normalization, or differ from it by a few
   characters at most (`grounding_min_similarity`, 90). What is kept is the text of the page
   itself, never the words of the model, so the model cannot add a single character of its
-  own. Dates and times must show up in the text as well. Anything else is dropped.
+  own. A day must show up in the text right next to the name of its month, or as a date
+  in numbers; hours and minutes only need to occur in the text as numbers, which makes them
+  plausible rather than proven. Anything else is dropped.
 * The model never writes a URL. Links are numbered markers in the page text, and an answer
   names a marker; only links that are really on the page can come out.
 * Before anything is written to `data/` or `public/`, a secret scan looks for API keys,

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from typing import Final
 
@@ -34,20 +34,46 @@ MAX_FUZZY_EDITS: Final = 10
 MAX_EXACT_PLACES: Final = 50
 """Places of the page compared when a value occurs there more than once."""
 
-_MONTHS: Final = (
-    "jan",
-    "feb",
-    "mar",
-    "apr",
-    "may",
-    "jun",
-    "jul",
-    "aug",
-    "sep",
-    "oct",
-    "nov",
-    "dec",
-)
+_MONTH_NAMES: Final = {
+    "january": 1,
+    "jan": 1,
+    "february": 2,
+    "feb": 2,
+    "march": 3,
+    "mar": 3,
+    "april": 4,
+    "apr": 4,
+    "may": 5,
+    "june": 6,
+    "jun": 6,
+    "july": 7,
+    "jul": 7,
+    "august": 8,
+    "aug": 8,
+    "september": 9,
+    "sept": 9,
+    "sep": 9,
+    "october": 10,
+    "oct": 10,
+    "november": 11,
+    "nov": 11,
+    "december": 12,
+    "dec": 12,
+}
+"""Names of months as whole words, in the case-folded text."""
+
+_RANGE_WORDS: Final = frozenset({"-", "to", "through", "thru", "until", "till", "and", "&"})
+"""Words between the first and the last day of a range ("Dec 1 - 3", "17th and 18th")."""
+
+_TOKEN: Final = re.compile(r"[0-9]+(?:[:.][0-9]+)*(?:st|nd|rd|th)?|[^\W\d_]+|[-&]")
+_GAP: Final = re.compile(r"[\s.]*")
+_DAY_TOKEN: Final = re.compile(r"([0-9]{1,2})(?:st|nd|rd|th)?")
+_NUMERIC_DATE: Final = re.compile(r"(?<![0-9:./-])([0-9]{1,2})[/.]([0-9]{1,2})(?![0-9:])")
+"""A date in numbers, month and day in either order: 11/17, 17.11.2026."""
+_ISO_DATE: Final = re.compile(r"(?<![0-9])[0-9]{4}-([0-9]{1,2})-([0-9]{1,2})(?![0-9])")
+_FULL_YEAR: Final = re.compile(r"(?<![0-9])([0-9]{4})(?![0-9])")
+_SHORT_YEAR: Final = re.compile(r"(?:'|(?<![0-9])[0-9]{1,2}[/.][0-9]{1,2}[/.])([0-9]{2})(?![0-9])")
+"""A year in two digits: '26, or the last part of 11/17/26."""
 _LINK_MARKER: Final = re.compile(r"\[\[[0-9]+\]\]")
 """A link marker in page text; a page cannot write one itself."""
 
@@ -147,6 +173,65 @@ def normalize_for_grounding(text: str) -> str:
     return _normalized(text).text
 
 
+def _day_number(token: str) -> int | None:
+    match = _DAY_TOKEN.fullmatch(token)
+    return int(match.group(1)) if match else None
+
+
+def _days_next_to(text: str, month: re.Match[str], away: Sequence[re.Match[str]]) -> list[int]:
+    """The day numbers right next to ``month``: one day, or the two ends of a range.
+
+    ``away`` are the tokens on one side of the month name, nearest first.
+    Only spaces and full stops may stand between two of them, so a day
+    never comes from another clause ("Mar 3; Oct").
+    """
+    chain = [month]
+    for token in away[:3]:
+        left, right = sorted((chain[-1], token), key=lambda match: match.start())
+        if _GAP.fullmatch(text, left.end(), right.start()) is None:
+            break
+        chain.append(token)
+    words = [token.group() for token in chain[1:]]
+    first = _day_number(words[0]) if words else None
+    if first is None:
+        return []
+    last = _day_number(words[2]) if len(words) > 2 and words[1] in _RANGE_WORDS else None
+    return [first] if last is None else [first, last]
+
+
+def _named_days(text: str) -> frozenset[tuple[int, int]]:
+    """(month, day) for every month name of ``text`` with a day number right next to it.
+
+    The day stands right after the name ("November 17", "Dec 1 - 3") or
+    right before it ("17 November", "17th of November", "1-3 December").
+    """
+    tokens = list(_TOKEN.finditer(text))
+    days: set[tuple[int, int]] = set()
+    for index, token in enumerate(tokens):
+        month = _MONTH_NAMES.get(token.group())
+        if month is None:
+            continue
+        anchor = token
+        before = tokens[max(0, index - 4) : index][::-1]
+        if before and before[0].group() == "of":
+            anchor, before = before[0], before[1:]
+        after = tokens[index + 1 : index + 4]
+        numbers = _days_next_to(text, token, after) + _days_next_to(text, anchor, before)
+        days.update((month, number) for number in numbers)
+    return frozenset(days)
+
+
+def _numeric_days(text: str) -> frozenset[tuple[int, int]]:
+    """(month, day) for every date of ``text`` written in numbers, in both readings."""
+    days: set[tuple[int, int]] = set()
+    for match in _NUMERIC_DATE.finditer(text):
+        first, second = int(match.group(1)), int(match.group(2))
+        days.update({(first, second), (second, first)})
+    for match in _ISO_DATE.finditer(text):
+        days.add((int(match.group(1)), int(match.group(2))))
+    return frozenset(days)
+
+
 def _cuts_word(text: str, index: int) -> bool:
     """Whether a span that starts or ends at ``index`` cuts a word of ``text`` in two."""
     return 0 < index < len(text) and text[index - 1].isalnum() and text[index].isalnum()
@@ -161,6 +246,10 @@ class Grounding:
         self._text = self._page.text
         self._min_similarity = min_similarity
         self._numbers = frozenset(int(number) for number in re.findall(r"\d{1,4}", self._text))
+        self._days = _named_days(self._text) | _numeric_days(self._text)
+        self._years = frozenset(int(year) for year in _FULL_YEAR.findall(self._text)) | {
+            2000 + int(year) for year in _SHORT_YEAR.findall(self._text)
+        }
 
     def text(self, value: str | None) -> str | None:
         """The text of the page that ``value`` stands for; ``None`` when the page lacks it.
@@ -245,13 +334,17 @@ class Grounding:
         return value in self._numbers
 
     def day(self, month: int, day: int) -> bool:
-        """Whether the page shows this day: the day number, and the month by name or number."""
-        if not self.number(day):
-            return False
-        return _MONTHS[month - 1] in self._text or self.number(month)
+        """Whether the page shows this day of the year.
+
+        Either the name of the month as a whole word with the day number
+        right next to it (November 17, Dec 1 - 3, 17th of November), or
+        both written as a date in numbers (11/17, 17.11.2026, 2026-11-17).
+        """
+        return (month, day) in self._days
 
     def year(self, year: int) -> bool:
-        return self.number(year) or self.number(year % 100)
+        """Whether the page states this year: in four digits, or in two after ' or in a date."""
+        return year in self._years
 
     def hour(self, hour: int) -> bool:
         """Whether the page shows this hour, on the 12-hour or the 24-hour clock or as a word."""
