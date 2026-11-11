@@ -129,12 +129,13 @@ the providers are tried in this order, and only those with a credential take par
 (API keys). The credentials are repository secrets (`CLAUDE_CODE_OAUTH_TOKEN`,
 `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `LLM_API_KEY`), and the order and the models
 are repository variables (`LLM_PROVIDERS`, `LLM_MODEL_<PROVIDER>`, `LLM_BASE_URL`).
-Changing a credential or a plan needs no code change: see
+An API provider takes part only when it also has a model, from its variable or from
+`config/llm.yaml`. Changing a credential or a plan needs no code change: see
 [docs/LLM_CREDENTIALS.md](docs/LLM_CREDENTIALS.md). A manual run of the update
 workflow with the mode `llm-smoke` checks every configured provider and changes
 nothing.
 
-Only the step that runs the pipeline receives the LLM credentials. The workflows
+Only the step that runs the pipeline and the smoke step receive the LLM credentials. The workflows
 that see a credential never run for pull requests, so code from a fork cannot reach
 them.
 

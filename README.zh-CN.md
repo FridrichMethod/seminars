@@ -109,10 +109,11 @@ LLM 只做两件事：规则读不懂的页面由它兜底抽取事件，以及�
 `anthropic`、`openai`、`openai-compat`（API key）。凭证是 repository secret
 （`CLAUDE_CODE_OAUTH_TOKEN`、`ANTHROPIC_API_KEY`、`OPENAI_API_KEY`、`LLM_API_KEY`），
 顺序和模型是 repository variable（`LLM_PROVIDERS`、`LLM_MODEL_<PROVIDER>`、`LLM_BASE_URL`）。
+API provider 还要配了模型（来自它的 variable 或 `config/llm.yaml`）才会参与。
 换凭证或换 plan 不需要改代码，见 [docs/LLM_CREDENTIALS.zh-CN.md](docs/LLM_CREDENTIALS.zh-CN.md)。
 手动运行 update workflow 并选 `llm-smoke` 模式，会检查每个已配置的 provider，不做任何改动。
 
-只有运行 pipeline 的那一步能拿到 LLM 凭证。能看到凭证的 workflow 从不为 pull request 运行，
+只有运行 pipeline 的那一步和探活的那一步能拿到 LLM 凭证。能看到凭证的 workflow 从不为 pull request 运行，
 所以 fork 里的代码碰不到它们。
 
 ### 如果 GitHub 停用了定时任务
