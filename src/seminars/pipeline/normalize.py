@@ -1,0 +1,385 @@
+"""Normalization: from the drafts of one source to candidates.
+
+A draft says what a page says. An ``Event`` is what the project stores and
+publishes, so this is where the rules for stored data are applied:
+
+* times follow ``seminars.pipeline.times``; an event that starts outside
+  the window of the run is dropped and counted;
+* every text field is plain text: markup removed, cleaned by
+  ``seminars.textrules.clean_text``, whitespace tidied, length bounded;
+* nothing that lets a stranger in is kept. A stream address that carries a
+  credential is dropped (the event only stays marked as online), and
+  links with a meeting password and passcodes are taken out of every text;
+* nothing credential-shaped is kept either: the secret scanner's
+  ``redact`` runs over every text, and an address that looks like it holds
+  a token is not used. data/ is public, so all of this happens here and
+  not when output is written;
+* the title "TBA" stands for every way of saying that there is none yet,
+  and "Cancelled:" or "(postponed)" in a title sets the status instead;
+* a speaker line is split into people (``seminars.pipeline.speakers``);
+* the event gets its source key and uid (``seminars.pipeline.ids``).
+
+A draft that cannot become an event (no usable start, no usable address,
+values that the model refuses) is reported as excluded with the reason
+``invalid``; it never stops the other drafts of its source.
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import Final
+
+from pydantic import HttpUrl, TypeAdapter, ValidationError
+
+from seminars.config import Settings
+from seminars.models import (
+    TBA_TITLE,
+    Candidate,
+    Event,
+    EventDraft,
+    EventHints,
+    EventStatus,
+    ExcludedEvent,
+    SourceConfig,
+    Speaker,
+    TimeWindow,
+    UidMap,
+    ascii_url,
+    check_http_url,
+    url_has_credential,
+)
+from seminars.pipeline.ids import draft_key, resolve_uid, shared_urls
+from seminars.pipeline.speakers import ParsedSpeaker, split_speakers
+from seminars.pipeline.text import (
+    canonical_name,
+    fold,
+    is_tba,
+    one_line,
+    paragraphs,
+    scrub_private_links,
+    split_status,
+    tidy_name,
+    truncate,
+    word_set,
+)
+from seminars.pipeline.times import EventTimes, TimeError, resolve_times
+
+MAX_TITLE: Final = 300
+MAX_SERIES: Final = 200
+MAX_HOST: Final = 200
+MAX_LOCATION: Final = 300
+MAX_NAME: Final = 120
+MAX_AFFILIATION: Final = 300
+MAX_CATEGORY: Final = 100
+MAX_SPEAKER_LINE: Final = 2000
+MAX_URL: Final = 2000
+MAX_SPEAKERS: Final = 20
+MAX_CATEGORIES: Final = 50
+UNTITLED: Final = "(no title)"
+
+_HTTP_URL: Final = TypeAdapter(HttpUrl)
+_LINK: Final = re.compile(r"https?://\S+", re.IGNORECASE)
+_ONLINE_CORE: Final = word_set(
+    "online virtual virtually remote remotely zoom webinar livestream webex teams youtube"
+)
+_ONLINE_FILLER: Final = word_set(
+    "a and be by event google held link live meet meeting microsoft on only or stream streamed "
+    "the via will"
+)
+_HYBRID_WORDS: Final = word_set("zoom online livestream webinar hybrid webex")
+_NO_LOCATION: Final = frozenset(
+    {"tba", "tbd", "tbc", "location tba", "location tbd", "to be announced", "to be determined"}
+)
+
+
+def _same(text: str) -> str:
+    return text
+
+
+def _never(text: str) -> bool:
+    return False
+
+
+@dataclass(frozen=True)
+class NormalizeContext:
+    """What normalization needs besides the drafts of a source.
+
+    ``redact`` and ``is_secret`` come from the secret scanner; the defaults
+    change nothing, which is enough for tests of other rules.
+    """
+
+    settings: Settings
+    now: datetime
+    window: TimeWindow
+    uid_map: UidMap = field(default_factory=UidMap)
+    redact: Callable[[str], str] = _same
+    is_secret: Callable[[str], bool] = _never
+
+
+@dataclass(frozen=True)
+class Normalized:
+    """The drafts of one source after normalization."""
+
+    candidates: tuple[Candidate, ...] = ()
+    invalid: tuple[ExcludedEvent, ...] = ()
+    outside_window: int = 0
+    redactions: int = 0  # texts and addresses in which something was withheld
+
+
+class _Invalid(Exception):
+    """A draft cannot become an event; the message is an ASCII reason."""
+
+
+@dataclass
+class _Cleaner:
+    """Text and address cleaning with the context's redaction; counts what it withholds."""
+
+    context: NormalizeContext
+    redactions: int = field(default=0)
+
+    def _finish(self, text: str | None, limit: int) -> str | None:
+        if text is None:
+            return None
+        safe = self.context.redact(scrub_private_links(text))
+        if safe != text:
+            self.redactions += 1
+        return truncate(safe, limit).strip() or None
+
+    def line(self, text: str | None, limit: int) -> str | None:
+        return self._finish(one_line(text, limit=4 * limit), limit)
+
+    def block(self, text: str | None, limit: int, *, is_html: bool = False) -> str | None:
+        return self._finish(paragraphs(text, limit=4 * limit, is_html=is_html), limit)
+
+    def url(self, url: str | None) -> HttpUrl | None:
+        """``url`` when it may be published: http(s), no credential, nothing token-shaped."""
+        if not url or len(url) > MAX_URL:
+            return None
+        try:
+            candidate = check_http_url(ascii_url(url.strip()))
+            public = _HTTP_URL.validate_python(candidate)
+        except (ValueError, ValidationError):
+            return None
+        if url_has_credential(candidate) or self.context.is_secret(candidate):
+            self.redactions += 1
+            return None
+        return public
+
+
+def _title_and_status(draft: EventDraft, cleaner: _Cleaner) -> tuple[str, EventStatus]:
+    text = cleaner.line(draft.title, MAX_TITLE)
+    title, marked = split_status(text) if text else (TBA_TITLE, None)
+    if "cancelled" in (draft.status_hint, marked):
+        status: EventStatus = "cancelled"
+    else:
+        status = draft.status_hint or marked or "confirmed"
+    return (TBA_TITLE if is_tba(title) else title), status
+
+
+def _structured_speakers(draft: EventDraft, cleaner: _Cleaner) -> list[Speaker]:
+    speakers = []
+    for item in draft.speakers:
+        name = tidy_name(cleaner.line(item.name, MAX_NAME) or "")
+        if name:
+            affiliation = cleaner.line(item.affiliation, MAX_AFFILIATION)
+            speakers.append(Speaker(name=name, affiliation=affiliation, url=cleaner.url(item.url)))
+    return speakers
+
+
+def _line_speakers(draft: EventDraft, cleaner: _Cleaner) -> list[Speaker]:
+    line = cleaner.block(draft.speaker_text, MAX_SPEAKER_LINE)
+    people: list[ParsedSpeaker] = split_speakers(line) if line else []
+    return [
+        Speaker(
+            name=truncate(person.name, MAX_NAME),
+            affiliation=truncate(person.affiliation, MAX_AFFILIATION)
+            if person.affiliation
+            else None,
+        )
+        for person in people
+    ]
+
+
+def merge_speakers(speakers: Sequence[Speaker]) -> list[Speaker]:
+    """``speakers`` without repeats: one entry per person, in order of first appearance.
+
+    Two entries are one person when their names are equal apart from case,
+    accents, honorifics and degrees. The first spelling of the name is
+    kept; a missing affiliation or address is filled in from a later entry.
+    """
+    merged: dict[str, Speaker] = {}
+    for speaker in speakers:
+        key = canonical_name(speaker.name)
+        if not key or is_tba(speaker.name):
+            continue
+        known = merged.get(key)
+        if known is None:
+            merged[key] = speaker
+        elif (known.affiliation is None and speaker.affiliation) or (
+            known.url is None and speaker.url
+        ):
+            merged[key] = known.evolve(
+                affiliation=known.affiliation or speaker.affiliation, url=known.url or speaker.url
+            )
+    return list(merged.values())[:MAX_SPEAKERS]
+
+
+def _place(draft: EventDraft, cleaner: _Cleaner) -> tuple[str | None, bool, HttpUrl | None]:
+    """Location, the online flag and the stream address of a draft."""
+    stream = cleaner.url(draft.stream_url)
+    online = draft.is_online is True or draft.stream_url is not None
+    link = (draft.location or "").strip()
+    if draft.is_online is not False and _LINK.fullmatch(link):
+        return None, True, stream or cleaner.url(link)
+    location = cleaner.line(draft.location, MAX_LOCATION)
+    if location is None or draft.is_online is False:
+        return location, online, stream
+    words = fold(location).split()
+    if " ".join(words) in _NO_LOCATION:
+        return None, online, stream
+    if _ONLINE_CORE.intersection(words) and all(
+        word in _ONLINE_CORE or word in _ONLINE_FILLER for word in words
+    ):
+        return None, True, stream
+    return location, online or bool(_HYBRID_WORDS.intersection(words)), stream
+
+
+def _times(draft: EventDraft, source: SourceConfig, context: NormalizeContext) -> EventTimes:
+    try:
+        return resolve_times(
+            draft.start,
+            draft.end,
+            all_day=draft.all_day,
+            source_zone=draft.timezone or source.timezone,
+            project_zone=context.settings.timezone,
+            reference=context.now,
+        )
+    except TimeError as error:
+        raise _Invalid(f"start: {error}") from error
+
+
+def _categories(draft: EventDraft, cleaner: _Cleaner) -> list[str]:
+    cleaned = (cleaner.line(category, MAX_CATEGORY) for category in draft.categories)
+    return [category for category in cleaned if category][:MAX_CATEGORIES]
+
+
+def _event(
+    draft: EventDraft,
+    source: SourceConfig,
+    times: EventTimes,
+    shared: frozenset[str],
+    cleaner: _Cleaner,
+) -> Event:
+    context = cleaner.context
+    title, status = _title_and_status(draft, cleaner)
+    speakers = merge_speakers(
+        [*_structured_speakers(draft, cleaner), *_line_speakers(draft, cleaner)]
+    )
+    location, is_online, stream = _place(draft, cleaner)
+    own_page = cleaner.url(draft.url)
+    url = own_page or cleaner.url(source.homepage) or cleaner.url(source.all_urls[0])
+    if url is None:
+        raise _Invalid("url: neither the draft nor its source has an address that can be shown")
+    key = draft_key(
+        draft if own_page is not None else draft.evolve(url=None),
+        start=times.start,
+        speaker=speakers[0].name if speakers else None,
+        title=None if title == TBA_TITLE else title,
+        shared=shared,
+        is_secret=context.is_secret,
+    )
+    limit = context.settings.events.abstract_max_chars
+    abstract = cleaner.block(draft.abstract, limit) or cleaner.block(
+        draft.abstract_html, limit, is_html=True
+    )
+    seen = context.now.astimezone(UTC)
+    return Event(
+        uid=resolve_uid(key, context.uid_map),
+        title=title,
+        speakers=speakers,
+        series=cleaner.line(draft.series, MAX_SERIES) or cleaner.line(source.series, MAX_SERIES),
+        host_org=cleaner.line(draft.host_org, MAX_HOST) or source.host_org,
+        institution=source.institution,
+        event_type=draft.event_type_hint or source.default_event_type,
+        start=times.start,
+        end=times.end,
+        all_day=times.all_day,
+        location=location,
+        is_online=is_online,
+        stream_url=stream,
+        abstract=abstract,
+        url=url,
+        source_urls=[url],
+        source_ids=[key],
+        fields=[],
+        field_tag_method="source",
+        status=status,
+        extraction=draft.extraction,
+        first_seen=seen,
+        last_changed=seen,
+    )
+
+
+def _describe(error: ValidationError) -> str:
+    places = sorted({".".join(str(part) for part in item["loc"]) for item in error.errors()})
+    return "not a valid event: " + ", ".join(places or ["(event)"])
+
+
+def _invalid(
+    draft: EventDraft, source: SourceConfig, reason: str, cleaner: _Cleaner
+) -> ExcludedEvent:
+    shown = cleaner.url(draft.url)
+    return ExcludedEvent(
+        source_ids=[source.id],
+        title=cleaner.line(draft.title, MAX_TITLE) or UNTITLED,
+        url=str(shown) if shown is not None else None,
+        reason="invalid",
+        detail=reason,
+    )
+
+
+def normalize_drafts(
+    drafts: Sequence[EventDraft], source: SourceConfig, context: NormalizeContext
+) -> Normalized:
+    """Turn the drafts of ``source`` into candidates (see the module docstring).
+
+    The candidates come back in the order of their drafts. Their events
+    have no fields yet and carry the time of the run as ``first_seen`` and
+    ``last_changed``; later stages replace both with what is stored.
+    """
+    cleaner = _Cleaner(context)
+    shared = shared_urls(drafts, source)
+    candidates: list[Candidate] = []
+    invalid: list[ExcludedEvent] = []
+    outside = 0
+    for draft in drafts:
+        try:
+            if draft.source_id != source.id:
+                raise _Invalid("source_id: the draft belongs to another source")
+            times = _times(draft, source, context)
+            if not context.window.contains(times.start):
+                outside += 1
+                continue
+            event = _event(draft, source, times, shared, cleaner)
+        except _Invalid as error:
+            invalid.append(_invalid(draft, source, str(error), cleaner))
+            continue
+        except ValidationError as error:
+            invalid.append(_invalid(draft, source, _describe(error), cleaner))
+            continue
+        hints = EventHints(
+            source_ids=[source.id],
+            default_fields=source.default_fields,
+            field_hints=draft.field_hints,
+            categories=_categories(draft, cleaner),
+        )
+        candidates.append(Candidate(event=event, hints=hints))
+    return Normalized(
+        candidates=tuple(candidates),
+        invalid=tuple(invalid),
+        outside_window=outside,
+        redactions=cleaner.redactions,
+    )
