@@ -1,0 +1,426 @@
+"""One run of the pipeline: from the sources to the files below data/ and public/.
+
+The stages, in order (``seminars.contracts`` has the same list from the
+point of view of the contracts)::
+
+    sources   fetch, parse, LLM fallback, normalize     seminars.pipeline.collect
+    filter    EventFilter.filter                        rules of another package
+    merge     adopt stored uids, de-duplicate           seminars.pipeline.dedup
+    classify  FieldTagger, LLMFieldTagger               seminars.pipeline.tagging
+    scope     EventFilter.drop_out_of_scope
+    picks     PicksScorer.score
+    persist   compare with the stored events            seminars.pipeline.diff
+    health    update_health (history and issues)
+    write     data files, then ICS feeds and site data  seminars.pipeline.store
+    check     secret scan and charset rule              seminars.pipeline.checks
+
+What a run guarantees:
+
+* One source cannot fail or stall the run. A run fails only when every
+  source failed (exit status 1) or an output check found something (exit
+  status 3).
+* The time of the run is the ``now`` it is given, for every stage.
+  ``timer`` only measures how long things take.
+* The files the pipeline writes itself are checked before they are
+  written. A finding means that none of them is written, apart from the
+  two records of the run, which say what happened. Whatever else was
+  written below data/ and public/ is checked on disk afterwards. After a
+  finding nothing of the run may be committed or deployed: the report
+  says ``ok: false`` and lists the findings, and the command line prints
+  them and exits with status 3.
+* A dry run does all of this in a scratch directory that is thrown away:
+  nothing below the project changes, no issue is touched, and the LLM
+  works on a copy of its cache. Its report is returned, not stored.
+"""
+
+from __future__ import annotations
+
+import logging
+import math
+import shutil
+import tempfile
+import time
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+from seminars.config import AppConfig, ProjectPaths
+from seminars.contracts import IssueClient, PicksScorer
+from seminars.models import (
+    Candidate,
+    Event,
+    ExcludedEvent,
+    HealthFile,
+    LastRun,
+    LLMUsage,
+    RunCounts,
+    RunMode,
+    RunReport,
+    SourceConfig,
+    SourceRunResult,
+)
+from seminars.pipeline.checks import (
+    EXIT_OUTPUT_CHECK,
+    CheckResult,
+    check_texts,
+    check_tree,
+    sync_check_issue,
+)
+from seminars.pipeline.collect import Timer, collect_sources
+from seminars.pipeline.dedup import adopt_stored_uids, dedupe
+from seminars.pipeline.diff import Reconciled, reconcile
+from seminars.pipeline.ids import canonical_url
+from seminars.pipeline.normalize import NormalizeContext
+from seminars.pipeline.services import Services, redaction
+from seminars.pipeline.store import State, data_files, load_state, report_files, write_files
+from seminars.pipeline.tagging import tag_candidates
+
+logger = logging.getLogger(__name__)
+
+EXIT_OK = 0
+EXIT_FAILED = 1
+
+
+class RunError(Exception):
+    """A run cannot start: the message says why in plain ASCII."""
+
+
+class SourceSelectionError(RunError):
+    """``--source`` names a source that does not exist or is disabled."""
+
+
+@dataclass(frozen=True)
+class RunOptions:
+    """How a run was asked for on the command line."""
+
+    offline: bool = False
+    dry_run: bool = False
+    source_ids: tuple[str, ...] = ()
+
+    @property
+    def mode(self) -> RunMode:
+        return "offline" if self.offline else "live"
+
+
+@dataclass(frozen=True)
+class _Gathered:
+    results: tuple[SourceRunResult, ...]
+    candidates: tuple[Candidate, ...]
+    invalid: tuple[ExcludedEvent, ...]
+
+
+@dataclass(frozen=True)
+class _Processed:
+    events: tuple[Event, ...]
+    excluded: tuple[ExcludedEvent, ...]
+    excluded_uids: frozenset[str]
+    absorbed: Mapping[str, str]
+    aliases: Mapping[str, str]
+    merged: int
+    warnings: tuple[str, ...]
+
+
+def select_sources(config: AppConfig, source_ids: Sequence[str] = ()) -> tuple[SourceConfig, ...]:
+    """The sources of a run: every enabled one, or the enabled ones named in ``source_ids``."""
+    enabled = {source.id: source for source in config.enabled_sources}
+    if not source_ids:
+        if not enabled:
+            raise RunError("no source is configured and enabled (config/sources.d/*.yaml)")
+        return tuple(enabled.values())
+    known = {source.id for source in config.sources}
+    unknown = sorted(set(source_ids) - known)
+    if unknown:
+        raise SourceSelectionError(f"unknown source id(s): {', '.join(unknown)}")
+    disabled = sorted(set(source_ids) - set(enabled))
+    if disabled:
+        raise SourceSelectionError(f"disabled source(s): {', '.join(disabled)}")
+    wanted = set(source_ids)
+    return tuple(source for source in enabled.values() if source.id in wanted)
+
+
+def already_done_today(
+    last_run: LastRun | None, *, now: datetime, timezone: str, mode: RunMode
+) -> bool:
+    """Whether a run of the same mode already succeeded on the local day of ``now``."""
+    if last_run is None or not last_run.ok or last_run.mode != mode:
+        return False
+    zone = ZoneInfo(timezone)
+    return last_run.started_at.astimezone(zone).date() == now.astimezone(zone).date()
+
+
+@contextmanager
+def output_target(paths: ProjectPaths, *, dry_run: bool) -> Iterator[ProjectPaths]:
+    """Where a run writes: the project itself, or a scratch tree for a dry run.
+
+    The scratch tree starts with a copy of data/llm_cache, so a dry run
+    uses the cached answers without changing the cache, and is removed
+    when the block ends.
+    """
+    if not dry_run:
+        yield paths
+        return
+    with tempfile.TemporaryDirectory(prefix="seminars-dry-run-") as directory:
+        scratch = ProjectPaths(Path(directory))
+        if paths.llm_cache_dir.is_dir():
+            shutil.copytree(paths.llm_cache_dir, scratch.llm_cache_dir)
+        yield scratch
+
+
+def listing_urls(sources: Sequence[SourceConfig]) -> frozenset[str]:
+    """The addresses the sources are fetched from; never the detail page of one talk."""
+    addresses = [url for source in sources for url in source.all_urls]
+    addresses += [source.homepage for source in sources if source.homepage]
+    return frozenset(canonical_url(address) for address in addresses)
+
+
+def _gather(
+    config: AppConfig,
+    services: Services,
+    sources: Sequence[SourceConfig],
+    state: State,
+    now: datetime,
+    timer: Timer,
+) -> _Gathered:
+    redact, is_secret = redaction(services.secret_scanner)
+    context = NormalizeContext(
+        settings=config.settings,
+        now=now,
+        window=config.settings.window_at(now),
+        uid_map=state.uid_map,
+        redact=redact,
+        is_secret=is_secret,
+    )
+    outcomes = collect_sources(
+        sources, services.http_for, context=context, extractor=services.page_extractor, timer=timer
+    )
+    return _Gathered(
+        results=tuple(outcome.result for outcome in outcomes),
+        candidates=tuple(c for outcome in outcomes for c in outcome.candidates),
+        invalid=tuple(item for outcome in outcomes for item in outcome.invalid),
+    )
+
+
+def _scored(event: Event, scorer: PicksScorer) -> Event:
+    result = scorer.score(event)
+    score = result.score if math.isfinite(result.score) else 0.0
+    return event.evolve(picks_score=score, picks_reasons=result.reasons)
+
+
+def _process(
+    config: AppConfig, services: Services, gathered: _Gathered, state: State
+) -> _Processed:
+    """Filter, merge, classify, scope and score the candidates of all sources."""
+    stored = {event.uid: event for event in state.events}
+    filtered = services.event_filter.filter(gathered.candidates)
+    listing = listing_urls(config.sources)
+    adopted = adopt_stored_uids(
+        filtered.kept, state.events, settings=config.settings.dedup, listing_urls=listing
+    )
+    seeded = [
+        candidate.evolve(
+            event=candidate.event.evolve(first_seen=stored[candidate.event.uid].first_seen)
+        )
+        if candidate.event.uid in stored
+        else candidate
+        for candidate in adopted
+    ]
+    deduped = dedupe(
+        seeded,
+        settings=config.settings.dedup,
+        aggregators={source.id for source in config.sources if source.aggregator},
+        listing_urls=listing,
+    )
+    renamed = {
+        before.event.uid: after.event.uid
+        for before, after in zip(filtered.kept, adopted, strict=True)
+    }
+    uid_of = {key: c.event.uid for c in gathered.candidates for key in c.event.source_ids}
+    uid_of.update(deduped.aliases)
+
+    def final(uid: str) -> str:
+        current = renamed.get(uid, uid)
+        return deduped.absorbed.get(current, current)
+
+    tagged = tag_candidates(
+        deduped.candidates,
+        tagger=services.field_tagger,
+        llm_tagger=services.llm_tagger,
+        uncertain={final(uid) for uid in filtered.uncertain},
+        previous=stored,
+    )
+    scoped = services.event_filter.drop_out_of_scope(tagged.events)
+    left_out = [*filtered.excluded, *tagged.excluded, *scoped.excluded]
+    return _Processed(
+        events=tuple(_scored(event, services.picks_scorer) for event in scoped.kept),
+        excluded=(*gathered.invalid, *left_out),
+        excluded_uids=frozenset(
+            uid_of[key] for item in left_out for key in item.source_ids if key in uid_of
+        ),
+        absorbed={**{uid: final(uid) for uid in renamed if final(uid) != uid}, **deduped.absorbed},
+        aliases=deduped.aliases,
+        merged=len(filtered.kept) - len(deduped.candidates),
+        warnings=tagged.warnings,
+    )
+
+
+def _counts(
+    gathered: _Gathered, processed: _Processed, reconciled: Reconciled, threshold: float
+) -> RunCounts:
+    statuses = [result.status for result in gathered.results]
+    events = reconciled.events
+    return RunCounts(
+        sources=len(statuses),
+        sources_ok=statuses.count("ok"),
+        sources_empty=statuses.count("empty"),
+        sources_failed=statuses.count("failed"),
+        drafts=sum(result.drafts for result in gathered.results),
+        excluded=len(processed.excluded),
+        merged=processed.merged,
+        events=len(events),
+        added=reconciled.added,
+        changed=reconciled.changed,
+        missing=reconciled.missing,
+        removed=reconciled.removed,
+        cancelled=sum(event.status == "cancelled" for event in events),
+        archived=len(reconciled.archived),
+        picks=sum(event.is_pick(threshold) for event in events),
+    )
+
+
+def _llm_usage(services: Services) -> LLMUsage:
+    if services.llm is None:
+        return LLMUsage(enabled=False)
+    hits = services.llm_cache.stats().hits if services.llm_cache is not None else 0
+    return services.llm.usage().evolve(cache_hits=hits)
+
+
+def _retarget(files: Mapping[Path, str], source: Path, target: Path) -> dict[Path, str]:
+    return {target / path.relative_to(source): text for path, text in files.items()}
+
+
+def _write_outputs(
+    config: AppConfig,
+    services: Services,
+    target: ProjectPaths,
+    events: Sequence[Event],
+    health: HealthFile,
+    report: RunReport,
+) -> list[str]:
+    """Write the ICS feeds and the site data; a failure becomes a warning, not a crash."""
+    try:
+        services.write_ics_feeds(events, target.public_feeds_dir, config=config)
+        services.write_site_data(
+            events,
+            health,
+            report.to_last_run(),
+            target.public_dir,
+            config=config,
+            generated_at=report.started_at,
+        )
+    except Exception as error:  # reported in the run report; the run counts as failed
+        logger.error("writing the feeds and the site data failed (%s)", type(error).__name__)
+        return [f"writing the feeds and the site data failed ({type(error).__name__})"]
+    return []
+
+
+def _publish(
+    config: AppConfig,
+    services: Services,
+    target: ProjectPaths,
+    reconciled: Reconciled,
+    processed: _Processed,
+    state: State,
+    health: HealthFile,
+    report: RunReport,
+) -> tuple[CheckResult, list[str]]:
+    """Check and write the data files, write the outputs, check what is on disk."""
+    uid_map = state.uid_map.with_aliases(processed.aliases)
+    planned = data_files(
+        config.paths,
+        events=reconciled.events,
+        uid_map=uid_map,
+        health=health,
+        archived=reconciled.archived,
+    )
+    files = _retarget(planned, config.paths.root, target.root)
+    before = check_texts(files, services.secret_scanner, root=target.root)
+    if not before.ok:
+        return before, ["the data files were not written: the output check found something"]
+    write_files(files)
+    if services.llm_cache is not None:
+        services.llm_cache.prune()
+    problems = _write_outputs(config, services, target, reconciled.events, health, report)
+    return before.plus(check_tree(target, services.secret_scanner)), problems
+
+
+def run_pipeline(
+    config: AppConfig,
+    services: Services,
+    *,
+    now: datetime,
+    options: RunOptions | None = None,
+    target: ProjectPaths | None = None,
+    timer: Timer = time.monotonic,
+) -> RunReport:
+    """Run the pipeline once and return its report (see the module docstring).
+
+    ``target`` is where the run writes (``output_target``); it defaults to
+    the project, which is only right for a run that is not a dry run.
+    Raises ``RunError`` when the run cannot start and ``StoreError`` when
+    the stored state is damaged.
+    """
+    options = options or RunOptions()
+    started = timer()
+    sources = select_sources(config, options.source_ids)
+    destination = target or config.paths
+    state = load_state(config.paths)
+    gathered = _gather(config, services, sources, state, now, timer)
+    processed = _process(config, services, gathered, state)
+    reconciled = reconcile(
+        state.events,
+        processed.events,
+        now=now,
+        window=config.settings.window_at(now),
+        healthy_sources={result.source_id for result in gathered.results if result.status == "ok"},
+        delete_after_missing_runs=config.settings.events.delete_after_missing_runs,
+        excluded_uids=processed.excluded_uids,
+        absorbed=processed.absorbed,
+    )
+    issues: IssueClient | None = None if options.dry_run else services.issues
+    report = RunReport(
+        started_at=now,
+        finished_at=now + timedelta(seconds=max(timer() - started, 0.0)),
+        mode=options.mode,
+        dry_run=options.dry_run,
+        ok=any(result.status != "failed" for result in gathered.results),
+        sources=list(gathered.results),
+        excluded=list(processed.excluded),
+        counts=_counts(gathered, processed, reconciled, services.picks_scorer.threshold),
+        llm=_llm_usage(services),
+        warnings=[*services.warnings, *processed.warnings],
+    )
+    health = services.update_health(state.health, report, issues, config=config)
+    checks, problems = _publish(
+        config, services, destination, reconciled, processed, state, health, report
+    )
+    final = report.evolve(
+        finished_at=now + timedelta(seconds=max(timer() - started, 0.0)),
+        ok=report.ok and checks.ok and not problems,
+        llm=_llm_usage(services),
+        secret_findings=list(checks.secret_findings),
+        charset_findings=list(checks.charset_findings),
+        warnings=[*report.warnings, *problems],
+    )
+    write_files(report_files(destination, final))
+    sync_check_issue(issues, checks)
+    return final
+
+
+def exit_status(report: RunReport) -> int:
+    """The exit status of ``seminars run`` for ``report``: 0, 1, or 3 for a failed output check."""
+    if report.secret_findings or report.charset_findings:
+        return EXIT_OUTPUT_CHECK
+    return EXIT_OK if report.ok else EXIT_FAILED
