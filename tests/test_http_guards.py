@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import gzip
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from pathlib import Path
 
 import httpx
 import pytest
@@ -12,6 +13,7 @@ import respx
 from fakes import FakeClock
 from seminars.config import HttpSettings
 from seminars.http import (
+    CrawlDelayTooLongError,
     ForbiddenHostError,
     HttpError,
     PoliteClient,
@@ -22,6 +24,7 @@ from seminars.http import (
     is_public_host,
     split_url,
 )
+from seminars.httpcache import CachedRobots, HostRecord, HttpCache
 
 HOST = "https://dept.example.edu"
 ROBOTS = f"{HOST}/robots.txt"
@@ -210,6 +213,147 @@ class TestRobotsRedirects:
         assert str(caught.value).endswith(ROBOTS)
         assert target.call_count == 4
         assert page.call_count == 0
+
+
+PLAIN = "http://dept.example.edu"
+"""The same host as HOST over http: another origin, with a robots.txt of its own."""
+
+
+class TestRobotsOfAnotherOriginOnAKnownHost:
+    """What one origin of a host asked for also slows down the first visit to the next one."""
+
+    def test_the_request_waits_for_the_crawl_delay_another_origin_asked_for(
+        self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
+    ) -> None:
+        times: dict[str, float] = {}
+
+        def at(name: str, response: httpx.Response) -> Callable[[httpx.Request], httpx.Response]:
+            def respond(request: httpx.Request) -> httpx.Response:
+                times[name] = fake_clock()
+                return response
+
+            return respond
+
+        respx_router.get(ROBOTS).mock(
+            side_effect=at(
+                "https robots", httpx.Response(200, text="User-agent: *\nCrawl-delay: 30\n")
+            )
+        )
+        respx_router.get(PAGE).mock(side_effect=at("https page", httpx.Response(200, text="ok")))
+        respx_router.get(f"{PLAIN}/robots.txt").mock(
+            side_effect=at("http robots", httpx.Response(404))
+        )
+        respx_router.get(f"{PLAIN}/events").mock(
+            side_effect=at("http page", httpx.Response(200, text="ok"))
+        )
+        client.get(PAGE)
+        fake_clock.advance(1.0)
+        client.get(f"{PLAIN}/events")
+        start = times["https robots"]
+        assert {name: moment - start for name, moment in times.items()} == {
+            "https robots": 0.0,
+            "https page": 30.0,
+            "http robots": 60.0,
+            "http page": 61.0,
+        }
+
+    def test_the_wait_is_capped_like_any_crawl_delay(
+        self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
+    ) -> None:
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nCrawl-delay: 3600\n")
+        respx_router.get(f"{PLAIN}/robots.txt").respond(404)
+        respx_router.get(f"{PLAIN}/events").respond(200, text="ok")
+        with pytest.raises(CrawlDelayTooLongError):
+            client.get(PAGE)
+        assert fake_clock.sleeps == []
+        client.get(f"{PLAIN}/events")
+        assert fake_clock.sleeps == [120.0, 1.0]
+
+    def test_the_longest_known_delay_of_the_host_counts(
+        self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
+    ) -> None:
+        other_port = "https://dept.example.edu:8443"
+        respx_router.get(f"{other_port}/robots.txt").respond(404)  # first: ROBOTS fits any port
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nCrawl-delay: 10\n")
+        respx_router.get(f"{PLAIN}/robots.txt").respond(
+            200, text="User-agent: *\nCrawl-delay: 45\n"
+        )
+        respx_router.get(url__regex=r".*/events$").respond(200, text="ok")
+        client.get(PAGE)
+        client.get(f"{PLAIN}/events")
+        assert fake_clock.sleeps == [10.0, 10.0, 45.0]
+        client.get(f"{other_port}/events")
+        assert fake_clock.sleeps == [10.0, 10.0, 45.0, 45.0, 1.0]
+
+    def test_a_delay_another_client_recorded_in_the_cache_directory_counts(
+        self,
+        http_settings: HttpSettings,
+        respx_router: respx.MockRouter,
+        fake_clock: FakeClock,
+        tmp_path: Path,
+    ) -> None:
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nCrawl-delay: 30\n")
+        respx_router.get(PAGE).respond(200, text="ok")
+        respx_router.get(f"{PLAIN}/robots.txt").respond(404)
+        respx_router.get(f"{PLAIN}/events").respond(200, text="ok")
+
+        def new_client() -> PoliteClient:
+            return PoliteClient(
+                http_settings, cache_dir=tmp_path, clock=fake_clock, sleep=fake_clock.sleep
+            )
+
+        new_client().get(PAGE)
+        assert fake_clock.sleeps == [30.0]
+        fake_clock.advance(5.0)
+        new_client().get(f"{PLAIN}/events")
+        assert fake_clock.sleeps == [30.0, 25.0, 1.0]
+
+    def test_an_outdated_copy_in_the_cache_directory_does_not_count(
+        self,
+        http_settings: HttpSettings,
+        respx_router: respx.MockRouter,
+        fake_clock: FakeClock,
+        tmp_path: Path,
+    ) -> None:
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nCrawl-delay: 30\n")
+        respx_router.get(PAGE).respond(200, text="ok")
+        respx_router.get(f"{PLAIN}/robots.txt").respond(404)
+        respx_router.get(f"{PLAIN}/events").respond(200, text="ok")
+        fake_clock.advance(http_settings.robots_cache_seconds + 1.0)
+        old_copy = CachedRobots(
+            fetched_at=fake_clock() - http_settings.robots_cache_seconds - 1.0,
+            text="User-agent: *\nCrawl-delay: 30\n",
+        )
+        HttpCache(tmp_path).store_host(
+            "dept.example.edu", HostRecord(last_request_at=fake_clock(), robots={HOST: old_copy})
+        )
+        client = PoliteClient(
+            http_settings, cache_dir=tmp_path, clock=fake_clock, sleep=fake_clock.sleep
+        )
+        client.get(f"{PLAIN}/events")
+        assert fake_clock.sleeps == [1.0, 1.0]
+
+    def test_a_missing_robots_file_of_another_origin_asks_for_nothing(
+        self,
+        http_settings: HttpSettings,
+        respx_router: respx.MockRouter,
+        fake_clock: FakeClock,
+        tmp_path: Path,
+    ) -> None:
+        respx_router.get(f"{PLAIN}/robots.txt").respond(404)
+        respx_router.get(f"{PLAIN}/events").respond(200, text="ok")
+        HttpCache(tmp_path).store_host(
+            "dept.example.edu",
+            HostRecord(
+                last_request_at=fake_clock(),
+                robots={HOST: CachedRobots(fetched_at=fake_clock(), text=None)},
+            ),
+        )
+        client = PoliteClient(
+            http_settings, cache_dir=tmp_path, clock=fake_clock, sleep=fake_clock.sleep
+        )
+        client.get(f"{PLAIN}/events")
+        assert fake_clock.sleeps == [1.0, 1.0]
 
 
 class TestBodyLimit:

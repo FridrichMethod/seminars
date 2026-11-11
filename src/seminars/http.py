@@ -29,7 +29,10 @@ Rules of the live client:
   http(s) address and waits for its turn on the host it goes to;
 * the pause between two requests to one host is
   ``max(min_interval_seconds, Crawl-delay)``, measured from the end of the
-  previous request;
+  previous request. The Crawl-delay is the one of the origin the request
+  goes to. A request for a robots.txt cannot know that one yet: it waits
+  for the longest Crawl-delay known for any origin of its host (http and
+  https, other ports), at most ``max_crawl_delay_seconds``;
 * requests to one host are strictly serial, different hosts may be used
   concurrently from several threads;
 * both rules also hold between clients and between processes, provided they
@@ -403,13 +406,11 @@ class PoliteClient:
     def _robots_exchange(
         self, state: _HostState, origin: str, hop_state: _HostState, hop_host: str, url: str
     ) -> _Exchange:
-        """One request for the robots.txt of ``origin``; a failure blocks that origin."""
-        known = hop_state.policies.get(split_url(url)[0])
-        delay = min(
-            (known.crawl_delay or 0.0) if known is not None else 0.0,
-            self._settings.max_crawl_delay_seconds,
-        )
-        interval = max(self._settings.min_interval_seconds, delay)
+        """One request for the robots.txt of ``origin``; a failure blocks that origin.
+
+        The caller holds the turn of ``hop_host``.
+        """
+        interval = max(self._settings.min_interval_seconds, self._known_crawl_delay(hop_state))
         try:
             return self._send(hop_state, hop_host, url, {}, interval=interval, budgeted=False)
         except HttpRequestError as error:
@@ -422,6 +423,23 @@ class PoliteClient:
             limit = self._settings.max_body_bytes
             reason = f"robots.txt is larger than {limit} bytes; host skipped"
             raise self._block_origin(state, origin, reason) from error
+
+    def _known_crawl_delay(self, state: _HostState) -> float:
+        """The longest crawl delay any origin of the host is known to ask for, capped.
+
+        A robots.txt request cannot follow the policy of its own origin,
+        which is what it is about to find out. It respects what the other
+        origins of the same host (http and https, other ports) asked for:
+        the policies this client worked out and the recent robots.txt copies
+        that other clients left in the cache directory.
+        """
+        delays = [policy.crawl_delay or 0.0 for policy in tuple(state.policies.values())]
+        for origin in tuple(state.record.robots):
+            robots = self._recent_robots(state, origin)
+            if robots is not None and robots.text is not None:
+                policy = parse_robots(robots.text, self._settings.robots_token)
+                delays.append(policy.crawl_delay or 0.0)
+        return min(max(delays, default=0.0), self._settings.max_crawl_delay_seconds)
 
     def _store_robots(
         self, state: _HostState, host: str, origin: str, exchange: _Exchange
