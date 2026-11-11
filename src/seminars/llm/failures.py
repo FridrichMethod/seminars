@@ -11,6 +11,14 @@ writes itself, such as ``exit status 1`` or ``HTTP 429``.
 The kinds are the subclasses of ``seminars.contracts.LLMProviderError``. All
 of them make the provider chain move on to the next provider; the kind is
 what health and the ``llm-auth`` issues report.
+
+A status number in a text only counts after a word that says it is one
+(``HTTP 429``, ``status 401``, ``API Error: 401``, ``Error code: 429``), so
+a line number in a stack trace (``cli.js:2:401``) is not taken for a
+status. The words for throttling that only a rate limit uses ("Rate limit
+reached for ...", ``rate_limit_exceeded``, "tokens per min") are read
+before the words for a used-up allowance, because the same message of the
+OpenAI API also points to the billing page.
 """
 
 from __future__ import annotations
@@ -27,11 +35,16 @@ from seminars.contracts import (
     LLMTimeoutError,
 )
 
+_STATUS_WORD: Final = (
+    r"(?<![a-z])(?:http(?:/[0-9.]+)?|status(?:[ _]code)?|error(?:[ _]code)?|code)\W{0,3}"
+)
+"""What must stand right before a status number in a text for it to count as one."""
+
 
 def _markers(*words: str, statuses: tuple[int, ...] = ()) -> re.Pattern[str]:
-    """A pattern for any of ``words`` (plain text) or ``statuses`` (numbers standing alone)."""
+    """A pattern for any of ``words`` (plain text) or ``statuses`` (after a status word)."""
     parts = [re.escape(word) for word in words]
-    parts += [rf"(?<!\d){status}(?!\d)" for status in statuses]
+    parts += [rf"{_STATUS_WORD}{status}(?!\d)" for status in statuses]
     return re.compile("|".join(parts), re.IGNORECASE)
 
 
@@ -62,9 +75,9 @@ _QUOTA: Final = _markers(
     "hit your daily limit",
     "hit your monthly limit",
     "hit your session limit",
+    "daily limit",
     "weekly limit",
     "monthly limit",
-    "limit reached",
     "quota",
     "credit balance",
     "out of credits",
@@ -73,6 +86,12 @@ _QUOTA: Final = _markers(
     "payment required",
     statuses=(402,),
 )
+_THROTTLE: Final = _markers(
+    "rate limit reached for",
+    "rate_limit_exceeded",
+    "per min",
+)
+"""Words only a rate limit uses; they win over the words for a used-up allowance."""
 _RATE_LIMIT: Final = _markers(
     "rate limit",
     "rate_limit",
@@ -103,6 +122,7 @@ _NETWORK: Final = _markers(
 
 _ORDER: Final[tuple[tuple[re.Pattern[str], type[LLMProviderError]], ...]] = (
     (_AUTH, LLMAuthError),
+    (_THROTTLE, LLMRateLimitError),
     (_QUOTA, LLMQuotaError),
     (_RATE_LIMIT, LLMRateLimitError),
     (_TIMEOUT, LLMTimeoutError),
@@ -157,13 +177,18 @@ def failure_for_status(status: int, text: str = "") -> type[LLMProviderError]:
     """The failure kind of an HTTP ``status``, refined by the message that came with it.
 
     A status that is about the credential decides on its own. Otherwise a
-    message that names a quota, the billing or the credit balance makes it a
-    quota failure: that is how a used-up account answers, with 429 or 400
-    depending on the service. A status without a kind of its own gives the
-    generic ``LLMProviderError``.
+    message in the words of a rate limit ("Rate limit reached for ...")
+    makes it a rate limit, and a message that names a quota, the billing or
+    the credit balance makes it a quota failure: that is how a used-up
+    account answers, with 429 or 400 depending on the service. A status
+    without a kind of its own gives the generic ``LLMProviderError``.
     """
     kind = _STATUS_KINDS.get(status, LLMProviderError)
-    if kind is not LLMAuthError and _QUOTA.search(text) is not None:
+    if kind is LLMAuthError:
+        return kind
+    if _THROTTLE.search(text) is not None:
+        return LLMRateLimitError
+    if _QUOTA.search(text) is not None:
         return LLMQuotaError
     return kind
 
