@@ -42,12 +42,21 @@ The field tagger (``build_field_tagger``) decides the fields of a candidate:
    heaviest counts, then the longest, then the first. A match of
    ``exclude_keywords`` vetoes the rule evidence of that field (never a
    source field).
-3. The fields are the union of both. The method is ``"source"`` when there
-   are source fields and the rules add nothing to them, else ``"rules"``.
-   ``needs_llm`` is set when there is no field at all, and when an event
-   without source fields lost a field to a veto (evidence for and against
-   it): the LLM tagger, when there is one, decides those, otherwise the
-   rule decision stands.
+3. The abstract alone never decides for an event without source fields:
+   there, the series name or the keywords of title and series must reach
+   ``min_score`` without it. Abstracts on calendar-wide sources (humanities,
+   policy and wellness talks) mention "AI", "a physicist" or "vaccines" in
+   passing, in a speaker's biography or a list of words, and a decision of
+   the rules is final when no LLM is configured, so such a field is only
+   reported. For an event that has source fields, and so is known to be a
+   talk of the seven fields, the abstract counts in full and can add fields.
+4. The fields are the union of source and rule fields. The method is
+   ``"source"`` when there are source fields and the rules add nothing to
+   them, else ``"rules"``. ``needs_llm`` is set when there is no field at
+   all (an abstract-only match included), and when an event without source
+   fields lost a field to a veto (evidence for and against it): the LLM
+   tagger, when there is one, decides those, otherwise the rule decision
+   stands and an event without a field is dropped as ``out_of_scope``.
 """
 
 from __future__ import annotations
@@ -69,6 +78,8 @@ SCORE_TOLERANCE: Final = 1e-9
 """Sums of weights are compared with this tolerance (0.1 + 0.2 is not exactly 0.3)."""
 
 NO_FIELD_REASON: Final = "no field matched"
+ABSTRACT_ONLY_NOTE: Final = "not enough in title and series (no source field)"
+"""Ends the reason of a field that only the abstract supports, on an event without source fields."""
 
 _SEGMENT_BREAK: Final = re.compile(r"(?<![.,;:!?])[.,;:!?]+(?=\s|$)|[\n()\[\]{}<>\"|]")
 """Segment ends. A run of punctuation is only tried from its first character, so that a
@@ -295,19 +306,28 @@ class _FieldRule:
             found.update(hit.term for hit in taken)
         return tuple(term for term in self.keywords.terms if term in found)
 
-    def evaluate(self, texts: EventTexts) -> _Evidence:
+    def _reaches(self, keywords: Iterable[str]) -> bool:
+        score = sum(self.weights[term] for term in keywords)
+        return score >= self.min_score - SCORE_TOLERANCE
+
+    def evaluate(self, texts: EventTexts, *, abstract_decides: bool) -> _Evidence:
+        """The evidence for this field; the abstract decides only if ``abstract_decides``."""
         series = self.series.first(texts.series, texts.title)
         keywords = self.counted(texts.title, texts.series, texts.abstract)
-        score = sum(self.weights[term] for term in keywords)
-        if series is None and score < self.min_score - SCORE_TOLERANCE:
+        if series is None and not self._reaches(keywords):
             return _Evidence(self.field)
         veto = self.vetoes.first(texts.title, texts.series, texts.abstract)
         if veto is not None:
             return _Evidence(self.field, vetoed=True, reason=f'{self.field}: vetoed by "{veto}"')
+        score = sum(self.weights[term] for term in keywords)
         parts = [f'series "{series}"'] if series is not None else []
         if keywords:
             parts.append(f"keywords {quoted(keywords)} ({score:g})")
-        return _Evidence(self.field, assigned=True, reason=f"{self.field}: {'; '.join(parts)}")
+        found = f"{self.field}: {'; '.join(parts)}"
+        headline_only = series is None and not abstract_decides
+        if headline_only and not self._reaches(self.counted(texts.title, texts.series)):
+            return _Evidence(self.field, reason=f"{found}, {ABSTRACT_ONLY_NOTE}")
+        return _Evidence(self.field, assigned=True, reason=found)
 
 
 class RuleFieldTagger:
@@ -347,7 +367,8 @@ class RuleFieldTagger:
         """Decide the fields of ``candidate``; ``needs_llm`` marks what the rules cannot."""
         source_fields, reasons = self._source_fields(candidate.hints)
         texts = EventTexts.of(candidate.event)
-        evidence = [rule.evaluate(texts) for rule in self._rules]
+        abstract_decides = bool(source_fields)
+        evidence = [rule.evaluate(texts, abstract_decides=abstract_decides) for rule in self._rules]
         rule_fields = [item.field for item in evidence if item.assigned]
         reasons.extend(item.reason for item in evidence if item.reason is not None)
         fields = canonical_fields([*source_fields, *rule_fields])
@@ -372,6 +393,8 @@ def build_field_tagger(taxonomy: Taxonomy) -> FieldTagger:
 
 
 __all__ = [
+    "ABSTRACT_ONLY_NOTE",
+    "NO_FIELD_REASON",
     "EventTexts",
     "Hit",
     "RuleFieldTagger",

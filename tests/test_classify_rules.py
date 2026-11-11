@@ -382,8 +382,8 @@ class TestSourceFields:
 
 
 class TestRuleFields:
-    def test_keywords_in_title_series_and_abstract_count(self, tagger: RuleFieldTagger) -> None:
-        for place in ("title", "series", "abstract"):
+    def test_keywords_in_title_and_series_count(self, tagger: RuleFieldTagger) -> None:
+        for place in ("title", "series"):
             text = {"title": "TBA", place: "Advances in number theory"}
             decision = tagger.tag(candidate(**text))
             assert decision.fields == ["math"], place
@@ -419,9 +419,73 @@ class TestRuleFields:
 
     def test_several_fields_at_once(self, tagger: RuleFieldTagger) -> None:
         decision = tagger.tag(
-            candidate("AI and number theory", abstract="Physics of protein cell walls.")
+            candidate(
+                "AI and number theory",
+                abstract="Physics of protein cell walls.",
+                default_fields=["chem"],
+            )
         )
-        assert decision.fields == ["math", "ai-ml", "bio", "physics"]
+        assert decision.fields == ["math", "ai-ml", "chem", "bio", "physics"]
+
+
+ABSTRACT_ONLY = "not enough in title and series (no source field)"
+
+
+class TestAbstract:
+    """The abstract decides only for events with source fields."""
+
+    def test_with_source_fields_the_abstract_adds_fields(self, tagger: RuleFieldTagger) -> None:
+        decision = tagger.tag(candidate("TBA", abstract="Number theory.", default_fields=["bio"]))
+        assert decision.fields == ["math", "bio"]
+        assert decision.method == "rules"
+        assert decision.reasons == ["source default: bio", 'math: keywords "number theory" (1)']
+        assert not decision.needs_llm
+
+    def test_without_source_fields_the_abstract_alone_is_left_to_the_llm(
+        self, tagger: RuleFieldTagger
+    ) -> None:
+        decision = tagger.tag(candidate("A book talk", abstract="A speaker trained in physics."))
+        assert decision == TagDecision(
+            fields=[],
+            method="rules",
+            needs_llm=True,
+            reasons=[f'physics: keywords "physics" (1), {ABSTRACT_ONLY}', "no field matched"],
+        )
+
+    def test_weak_title_evidence_is_not_completed_by_the_abstract(
+        self, tagger: RuleFieldTagger
+    ) -> None:
+        decision = tagger.tag(candidate("Probability", abstract="And statistics."))
+        assert decision.fields == []
+        assert decision.needs_llm
+        assert decision.reasons[0] == (
+            f'math: keywords "probability", "statistics" (1), {ABSTRACT_ONLY}'
+        )
+
+    def test_a_title_field_stands_and_the_abstract_only_field_is_reported(
+        self, tagger: RuleFieldTagger
+    ) -> None:
+        decision = tagger.tag(candidate("Number theory", abstract="Uses of catalysis."))
+        assert decision.fields == ["math"]
+        assert not decision.needs_llm
+        assert decision.reasons == [
+            'math: keywords "number theory" (1)',
+            f'chem: keywords "catalysis" (1), {ABSTRACT_ONLY}',
+        ]
+
+    def test_a_series_name_decides_without_the_abstract(self, tagger: RuleFieldTagger) -> None:
+        decision = tagger.tag(candidate("TBA", series="Chemistry Colloquium", abstract="AI"))
+        assert decision.fields == ["chem"]
+        assert decision.reasons == [
+            f'ai-ml: keywords "AI" (1), {ABSTRACT_ONLY}',
+            'chem: series "Chemistry Colloquium"',
+        ]
+
+    def test_a_veto_in_the_abstract_still_counts(self, tagger: RuleFieldTagger) -> None:
+        decision = tagger.tag(candidate("Physics today", abstract="On physics education."))
+        assert decision.fields == []
+        assert decision.needs_llm
+        assert decision.reasons == ['physics: vetoed by "physics education"', "no field matched"]
 
 
 OVERLAPS = Taxonomy.model_validate(

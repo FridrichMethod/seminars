@@ -21,8 +21,17 @@
 #    one keyword of a field only: where keywords overlap ("drug" in "drug
 #    discovery"), the heaviest counts, then the longest. A match of
 #    exclude_keywords vetoes the rules of that field (never a source field);
+#    an event without source fields (the campus-wide calendar) needs the series
+#    name or enough weight in title and series: there the abstract alone never
+#    decides, because abstracts of humanities, policy and wellness talks name
+#    "AI", "a physicist" or "vaccines" in passing;
 # 3. an event with no field at all is handed to the LLM tagger when there is one,
 #    and is otherwise dropped as out_of_scope.
+#
+# A keyword decides on its own in a title, so a word that is also a name, a
+# metaphor or a passing mention ("Ai Weiwei", "the DNA of great companies", "a
+# catalyst for change") gets 0.5, and the phrases of research get 1.0 ("AI
+# safety", "DNA repair", "single-atom catalyst").
 
 fields:
   math:
@@ -289,7 +298,17 @@ fields:
       - Robot Learning Seminar
     keywords:
       artificial intelligence: 1.0
-      AI: 1.0
+      # "AI" alone also names people ("Ai Weiwei") and the AI policy and
+      # how-to talks of a campus calendar; phrases of AI research count in full.
+      AI: 0.5
+      generative AI: 1.0
+      AI model: 1.0
+      AI system: 1.0
+      AI agent: 1.0
+      AI safety: 1.0
+      AI alignment: 1.0
+      AI for science: 1.0
+      explainable AI: 1.0
       machine learning: 1.0
       machine-learned: 1.0
       deep learning: 1.0
@@ -394,7 +413,10 @@ fields:
       chemical biology: 1.0
       ChEM-H: 1.0
       catalysis: 1.0
-      catalyst: 1.0
+      catalyst: 0.5
+      catalyst design: 1.0
+      heterogeneous catalyst: 1.0
+      single-atom catalyst: 1.0
       catalytic: 1.0
       "electrocataly*": 1.0
       "photocataly*": 1.0
@@ -529,7 +551,12 @@ fields:
       genome editing: 1.0
       RNA: 1.0
       mRNA: 1.0
-      DNA: 1.0
+      DNA: 0.5
+      DNA repair: 1.0
+      DNA replication: 1.0
+      DNA damage: 1.0
+      DNA methylation: 1.0
+      DNA origami: 1.0
       sequencing: 0.5
       mutation: 0.5
       protein: 1.0
@@ -570,7 +597,10 @@ fields:
       "synap*": 1.0
       brain: 0.5
       evolution: 0.5
-      ecology: 1.0
+      ecology: 0.5
+      evolutionary ecology: 1.0
+      community ecology: 1.0
+      disease ecology: 1.0
       ecological: 0.5
       "microbi*": 1.0
       "bacteri*": 1.0
@@ -628,7 +658,7 @@ fields:
       - Materials Science and Engineering Colloquium
     keywords:
       physics: 1.0
-      physicist: 1.0
+      physicist: 0.5
       applied physics: 1.0
       "astrophysic*": 1.0
       astronomy: 1.0
@@ -754,12 +784,12 @@ fields:
       medical: 1.0
       clinical: 1.0
       clinical trial: 1.0
-      clinician: 1.0
-      physician: 1.0
+      clinician: 0.5
+      physician: 0.5
       patient: 1.0
       hospital: 1.0
-      healthcare: 1.0
-      health care: 1.0
+      healthcare: 0.5
+      health care: 0.5
       disease: 1.0
       infectious disease: 1.0
       infection: 1.0
@@ -791,7 +821,9 @@ fields:
       gene therapy: 1.0
       cell therapy: 1.0
       "immunotherap*": 1.0
-      vaccine: 1.0
+      vaccine: 0.5
+      vaccine design: 1.0
+      vaccine development: 1.0
       antibiotic: 1.0
       antimicrobial resistance: 1.0
       drug: 0.5
@@ -799,7 +831,9 @@ fields:
       "pharmacolog*": 1.0
       "epidemiolog*": 1.0
       public health: 1.0
-      global health: 1.0
+      global health: 0.5
+      maternal health: 1.0
+      mortality: 0.5
       mental health: 1.0
       digital health: 1.0
       health: 0.5
@@ -816,8 +850,9 @@ fields:
       liver: 0.5
       lung: 0.5
       sepsis: 1.0
-      COVID-19: 1.0
-      COVID: 1.0
+      COVID-19: 0.5
+      COVID: 0.5
+      long COVID: 1.0
       SARS-CoV-2: 1.0
       HIV: 1.0
       malaria: 1.0

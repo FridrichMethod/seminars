@@ -162,7 +162,7 @@ FIELD_CASES: list[tuple[str, str, str | None]] = [
     ("math", "Random matrix universality and the local semicircle law", None),
     ("math", "Conformal prediction under distribution shift", None),
     ("math", "Ricci curvature, optimal transport and concentration inequalities", None),
-    ("math", "TBA", "We prove a conjecture of Erdos on sumsets using additive combinatorics."),
+    ("math", "Sumsets and a conjecture of Erdos in additive combinatorics", None),
     # cs
     ("cs", "Verified compilers for smart contracts", None),
     ("cs", "Differential privacy at scale", None),
@@ -175,6 +175,7 @@ FIELD_CASES: list[tuple[str, str, str | None]] = [
     ("ai-ml", "Scaling laws for large language models", None),
     ("ai-ml", "Reinforcement learning from human feedback", None),
     ("ai-ml", "AI for science: promises and pitfalls", None),
+    ("ai-ml", "AI safety via debate", None),
     ("ai-ml", "Graph neural networks for materials discovery", None),
     ("ai-ml", "Flow matching on Riemannian manifolds", None),
     ("ai-ml", "Self-supervised representation learning for medical images", None),
@@ -187,6 +188,7 @@ FIELD_CASES: list[tuple[str, str, str | None]] = [
     ("chem", "Alchemical free energy calculations for drug design", None),
     ("chem", "Polymer mechanochemistry", None),
     ("chem", "Molecular dynamics of ion transport", None),
+    ("chem", "Single-atom catalysts for ammonia synthesis", None),
     # bio
     ("bio", "De novo design of protein binders", None),
     ("bio", "A single-cell atlas of the developing human heart", None),
@@ -200,6 +202,7 @@ FIELD_CASES: list[tuple[str, str, str | None]] = [
     ("bio", "Quorum sensing: how E. coli counts its neighbors", None),
     ("bio", "Genetic variation in human populations", None),
     ("bio", "Genomic medicine for rare diseases", None),
+    ("bio", "Mechanisms of DNA repair", None),
     # physics
     ("physics", "Superconductivity in twisted bilayer graphene", None),
     ("physics", "Searching for dark matter with quantum sensors", None),
@@ -217,6 +220,8 @@ FIELD_CASES: list[tuple[str, str, str | None]] = [
     ("med", "Neurodegeneration and the aging brain", None),
     ("med", "Physical therapy after knee surgery", None),
     ("med", "Pediatric oncology in the era of precision medicine", None),
+    ("med", "Long COVID: mechanisms and treatments", None),
+    ("med", "mRNA vaccine design", None),
 ]
 
 
@@ -247,6 +252,7 @@ NEAR_MISSES: list[tuple[str, str, str | None]] = [
     ("ai-ml", "The electrical transformer and the grid", None),
     ("ai-ml", "Said and unsaid: silence in literature", None),
     ("ai-ml", "Maintaining trust in public institutions", None),
+    ("ai-ml", "A Conversation with Ai Weiwei", None),
     # chem
     ("chem", "Team chemistry in professional sports", None),
     ("chem", "The alchemy of medieval Europe", None),
@@ -258,6 +264,7 @@ NEAR_MISSES: list[tuple[str, str, str | None]] = [
     ("bio", "Power plant emissions and air quality", None),
     ("bio", "The evolution of democratic institutions", None),
     ("bio", "Symbolic logic and the bioethics of naming", None),
+    ("bio", "The DNA of Great Companies", None),
     # physics
     ("physics", "Physical therapy after knee surgery", None),
     ("physics", "Metaphysics and modal logic", None),
@@ -272,6 +279,7 @@ NEAR_MISSES: list[tuple[str, str, str | None]] = [
     ("med", "A therapeutic approach to conflict", None),
     ("med", "Drug discovery with small molecules", None),
     ("med", "Biomedical engineering design", None),
+    ("med", "New Beginnings: Jumpstarting the Rest of Your Life for Clinician Educators", None),
 ]
 
 
@@ -339,6 +347,118 @@ def test_humanities_talks_are_out_of_scope(
     result = event_filter.drop_out_of_scope([tagged])
     assert result.kept == []
     assert [excluded.reason for excluded in result.excluded] == ["out_of_scope"]
+
+
+# Talks of a campus-wide calendar whose abstract names a field in passing: a word in a
+# speaker's biography, a list of words, a sponsor, a wellness class. Written after the
+# records of the Stanford Events calendar (2026-11).
+PASSING_MENTIONS: list[tuple[str, str, str]] = [
+    (
+        "Book Talk: The Successor and the Decline of Modern Russia",
+        "The book follows Boris Nemtsov, a talented young physicist who became a reformist "
+        "politician and the most prominent opponent of the regime.",
+        "physics",
+    ),
+    (
+        "Reimagining Democracy: America at 250",
+        "Co-sponsored by the Stanford Law AI Initiative. Panelists discuss the founding "
+        "documents, civic trust and the future of self-government.",
+        "ai-ml",
+    ),
+    (
+        "Book Talk: Words and Power in French Politics",
+        "The author studies the words that politicians avoid or repeat: immigration, "
+        "identity, vaccine, security, nation.",
+        "med",
+    ),
+    (
+        "War, Sanctions and the Intimacy of Everyday Life",
+        "Sanctions became a catalyst for change, and the online ecology of protest moved "
+        "from public squares to private chats.",
+        "chem",
+    ),
+    (
+        "War, Sanctions and the Intimacy of Everyday Life",
+        "Sanctions became a catalyst for change, and the online ecology of protest moved "
+        "from public squares to private chats.",
+        "bio",
+    ),
+    (
+        "Careers in International Law",
+        "Alumni who work on trade, human rights and global health law talk about their "
+        "paths after law school.",
+        "med",
+    ),
+    (
+        "Financial Planning Workshop (Webinar)",
+        "Learn how to plan for retirement, budget for healthcare costs and save for "
+        "long-term care.",
+        "med",
+    ),
+    (
+        "Hospice 101",
+        "What hospice care means for patients and families, and how the hospital and the "
+        "medical team support them at home.",
+        "med",
+    ),
+    (
+        "Make a Gutsy Move for Better Health",
+        "Your gut microbiome shapes immune health and the risk of disease, cancer, "
+        "diabetes and obesity. Bring your questions about food.",
+        "med",
+    ),
+    (
+        "Pattern Magic: 3D Rendering of Archival Sewing Patterns",
+        "Computer science students and librarians built a database of historical patterns "
+        "with computational tools and an algorithmic renderer.",
+        "cs",
+    ),
+    (
+        "Using AI to Find Sources",
+        "A library workshop on AI tools and LLM chatbots for finding sources, and on "
+        "checking what they return.",
+        "ai-ml",
+    ),
+    (
+        "Religiosity and Risk-Taking in Full-Population Danish Data",
+        "Using registry data from before and during the COVID-19 pandemic, the paper "
+        "measures how religious people take risks.",
+        "med",
+    ),
+]
+
+
+@pytest.mark.parametrize(("title", "abstract", "field"), PASSING_MENTIONS)
+def test_a_passing_mention_in_the_abstract_does_not_tag(
+    tagger: FieldTagger, event_filter: EventFilter, title: str, abstract: str, field: str
+) -> None:
+    item = campus(title, abstract)
+    decision = tagger.tag(item)
+    assert field not in decision.fields, decision.reasons
+    assert decision.fields == []
+    assert decision.needs_llm
+    tagged = item.event.evolve(fields=decision.fields, field_tag_method=decision.method)
+    result = event_filter.drop_out_of_scope([tagged])
+    assert [excluded.reason for excluded in result.excluded] == ["out_of_scope"]
+
+
+@pytest.mark.parametrize(
+    ("abstract", "field"),
+    [
+        ("We prove a conjecture of Erdos on sumsets using additive combinatorics.", "math"),
+        ("Microbial communities, their transcriptomes and nitrogen cycling bacteria.", "bio"),
+        ("We train large language models with reinforcement learning.", "ai-ml"),
+    ],
+)
+def test_a_research_abstract_alone_is_left_to_the_llm_or_counts_with_a_source_field(
+    tagger: FieldTagger, abstract: str, field: str
+) -> None:
+    without = tagger.tag(campus("Seminar: Jane Doe", abstract))
+    assert without.fields == []
+    assert without.needs_llm
+    with_source = tagger.tag(campus("Seminar: Jane Doe", abstract, default_fields=["physics"]))
+    assert field in with_source.fields
+    assert not with_source.needs_llm
 
 
 def test_a_vetoed_field_is_left_to_the_llm(tagger: FieldTagger) -> None:
