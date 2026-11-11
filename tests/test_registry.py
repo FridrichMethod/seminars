@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import sys
 import threading
 import uuid
@@ -378,6 +379,27 @@ class TestRealAdapterPackages:
             module = type(base.get_adapter(name)).__module__
             if name in GENERIC_ADAPTERS:
                 assert module == f"seminars.sources.generic.{name}"
+
+    @pytest.mark.parametrize("name", GENERIC_ADAPTERS)
+    def test_a_generic_module_registers_the_adapter_named_after_it(self, name: str) -> None:
+        module = f"seminars.sources.generic.{name}"
+        if importlib.util.find_spec(module) is None:
+            pytest.skip(f"{module} is not implemented yet")
+        assert name in base.adapter_names()
+        assert type(base.get_adapter(name)).__module__ == module
+
+    def test_llm_page_adapter_only_fetches(self) -> None:
+        """The events of an llm_page source come from the pipeline's LLM fallback."""
+        if importlib.util.find_spec(f"seminars.sources.generic.{LLM_PAGE_ADAPTER}") is None:
+            pytest.skip("seminars.sources.generic.llm_page is not implemented yet")
+        source = make_source(adapter=LLM_PAGE_ADAPTER)
+        assert source.wants_llm_fallback
+        adapter = base.get_adapter(source.adapter)
+        http = FakeHttpClient(dict.fromkeys(source.all_urls, "<html>talks</html>"))
+        payload = adapter.fetch(http, source, window=make_window())
+        assert http.requests == source.all_urls
+        assert [document.url for document in payload.documents] == source.all_urls
+        assert adapter.parse(payload, source) == []
 
 
 class TestFetchHelpers:

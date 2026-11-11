@@ -74,7 +74,7 @@ GENERIC_ADAPTERS: Final = (
     "rss",  # RSS / Atom feeds, optionally with detail pages
     "jsonld",  # schema.org/Event JSON-LD embedded in pages
     "html_list",  # HTML lists driven by selectors in ``params``
-    "llm_page",  # pages without structure, read by the LLM page extractor
+    "llm_page",  # pages without structure: fetched only, read by the LLM page extractor
 )
 """Names reserved for the generic adapters.
 
@@ -82,6 +82,14 @@ Each one is registered by the module of the same name in
 ``seminars.sources.generic``. Any other adapter is named after its own
 module (``seminars.sources.custom.<name>``), or ``<module name>_<variant>``
 when a module holds several, which keeps names unique without coordination.
+
+``llm_page`` is an ordinary adapter for the registry and for the pipeline.
+``seminars.sources.generic.llm_page`` registers it (next to
+``build_page_extractor``): its ``fetch`` is ``fetch_urls`` and its ``parse``
+always returns an empty list. The events come from the LLM fallback that the
+pipeline applies to every source with ``wants_llm_fallback`` whose adapter
+produced no drafts (see ``seminars.contracts.PageExtractor``), so nothing
+ever special-cases the adapter name.
 """
 
 

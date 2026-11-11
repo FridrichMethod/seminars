@@ -47,8 +47,11 @@ application).
 
 How one run uses the contracts, in order::
 
+    adapter    = get_adapter(source.adapter)           # every source, llm_page included
     payload    = adapter.fetch(http, source, window=window)
-    drafts     = adapter.parse(payload, source)        # PageExtractor.extract as fallback
+    drafts     = adapter.parse(payload, source)
+    fallback   = PageExtractor.extract(payload, source)
+                 # only when source.wants_llm_fallback and parse gave nothing or ParseError
     candidates = normalization of the drafts           # pipeline: Candidate(event, hints)
     filtered   = EventFilter.filter(candidates)        # exclusions by rule, defense switch
     merged     = de-duplication of filtered.kept       # pipeline: events and hints merge

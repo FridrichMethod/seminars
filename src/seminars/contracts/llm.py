@@ -201,8 +201,16 @@ class LLMTaggerFactory(Protocol):
 class PageExtractor(Protocol):
     """Extracts events from fetched pages with the LLM when rule-based parsing fails.
 
-    The pipeline calls it only for sources with ``wants_llm_fallback`` whose
-    adapter returned no drafts or raised ``ParseError``.
+    The pipeline runs every source the same way, through the adapter
+    registry: ``payload = adapter.fetch(...)``, then ``adapter.parse(payload,
+    source)``. When the source has ``wants_llm_fallback`` and ``parse``
+    returned no drafts or raised ``ParseError``, the pipeline calls
+    ``extract`` with that same payload. Without an LLM client there is no
+    extractor, and such a source simply yields no events.
+
+    The pipeline never looks at the adapter name. Sources with
+    ``adapter: llm_page`` take this path because the ``llm_page`` adapter
+    parses nothing (see ``seminars.sources.base.GENERIC_ADAPTERS``).
     """
 
     def extract(self, payload: RawPayload, source: SourceConfig) -> list[EventDraft]:
@@ -217,6 +225,11 @@ class PageExtractor(Protocol):
 
 class PageExtractorFactory(Protocol):
     """``seminars.sources.generic.llm_page:build_page_extractor``.
+
+    The same module must also register the adapter ``llm_page`` (``fetch``
+    is ``seminars.sources.base.fetch_urls``, ``parse`` returns ``[]``), so
+    that sources with ``adapter: llm_page`` resolve through the registry like
+    any other source.
 
     Extraction requests must never be served by a provider listed in
     ``seminars.config.TAG_ONLY_PROVIDERS``.

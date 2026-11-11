@@ -29,7 +29,11 @@ SOURCE_GROUP_PREFIXES: Final[dict[str, str]] = {
 """Mandatory id prefix for each of the five built-in source groups."""
 
 LLM_PAGE_ADAPTER: Final = "llm_page"
-"""Adapter name of sources that are extracted by the LLM page extractor only."""
+"""Adapter name of sources that are extracted by the LLM page extractor only.
+
+It is a registered adapter like any other: it fetches the source's URLs and
+parses nothing, and the pipeline's LLM fallback does the rest.
+"""
 
 DEFAULT_TIMEZONE: Final = "America/Los_Angeles"
 
@@ -100,7 +104,8 @@ class SourceConfig(Model):
       (Localist, researchseminars.org); merging prefers detail pages of
       non-aggregator sources.
     * ``llm_fallback``: allow the LLM page extractor when rule-based parsing
-      yields nothing. Always on for ``adapter: llm_page``.
+      yields nothing or fails. Always on for ``adapter: llm_page``, whose
+      adapter never yields anything itself.
     * ``params``: free-form mapping read only by the adapter.
     * ``research``: see ResearchInfo.
     """
