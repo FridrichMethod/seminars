@@ -242,6 +242,33 @@ class TestRunOffline:
         assert not (project / "data").exists()
         assert not (project / "public").exists()
 
+    def test_an_offline_run_leaves_the_data_of_a_live_run_alone(
+        self, project: Path, fakes: Fakes
+    ) -> None:
+        record = LastRun(started_at=REFERENCE_NOW, finished_at=REFERENCE_NOW, ok=True, mode="live")
+        (project / "data").mkdir()
+        last_run = project / "data" / "last_run.json"
+        last_run.write_text(record.model_dump_json() + "\n", encoding="utf-8")
+        before = last_run.read_bytes()
+        result = invoke("run", "--offline")
+        assert result.exit_code == 0, result.output
+        lines = result.output.splitlines()
+        assert lines[0] == cli.OFFLINE_OVER_LIVE
+        assert lines[1].startswith("run: offline, dry run at ")
+        assert lines[-1] == "result: ok"
+        assert sorted(path.name for path in (project / "data").iterdir()) == ["last_run.json"]
+        assert last_run.read_bytes() == before
+        assert not (project / "public").exists()
+
+    def test_an_offline_run_over_offline_data_writes_into_the_project(
+        self, project: Path, fakes: Fakes
+    ) -> None:
+        assert invoke("run", "--offline").exit_code == 0
+        result = invoke("run", "--offline")
+        assert result.exit_code == 0, result.output
+        assert cli.OFFLINE_OVER_LIVE not in result.output
+        assert result.output.splitlines()[0].startswith("run: offline at ")
+
     def test_skip_when_a_run_of_the_mode_succeeded_today(self, project: Path, fakes: Fakes) -> None:
         assert invoke("run", "--offline").exit_code == 0
         result = invoke("run", "--offline", "--skip-if-done-today")

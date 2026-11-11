@@ -30,6 +30,11 @@ headings are bilingual), without control characters.
 ``--offline`` serves every source from its recordings in tests/fixtures/
 and takes the time of the run from them. It sends nothing over the
 network: no GitHub issue, and no LLM unless ``--llm`` names a provider.
+It writes into the project only while data/ holds no live run: once
+data/last_run.json records a live run, an offline run works in a scratch
+directory as ``--dry-run`` does and says so, because fixture events and a
+time stamp from the recordings would replace the live state (the stored
+events would count as missing, and the last change would move back).
 """
 
 from __future__ import annotations
@@ -40,7 +45,7 @@ import sys
 import time
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Annotated, Final, NoReturn
 
@@ -87,6 +92,11 @@ from seminars.pipeline.store import StoreError, load_state
 from seminars.textrules import ascii_printable
 
 logger = logging.getLogger(__name__)
+
+OFFLINE_OVER_LIVE: Final = (
+    "note: data/ holds a live run; this offline run works in a scratch directory"
+    " and changes nothing"
+)
 
 EXIT_OK: Final = 0
 EXIT_FAILED: Final = 1
@@ -270,11 +280,23 @@ def run(
         if skip_if_done_today and _done_today(config, options, now):
             say(f"skipped: a {options.mode} run already succeeded today")
             return
+        options = _protect_live_state(config, options)
         report = _run(project, options, now, use_llm=not no_llm and (not offline or bool(llm)))
     for line in report_lines(report):
         say(line)
     if exit_status(report) != EXIT_OK:
         raise typer.Exit(exit_status(report))
+
+
+def _protect_live_state(config: AppConfig, options: RunOptions) -> RunOptions:
+    """``options``, made a dry run when an offline run would replace the state of a live one."""
+    if not options.offline or options.dry_run:
+        return options
+    last_run = load_state(config.paths).last_run
+    if last_run is None or last_run.mode != "live":
+        return options
+    say(OFFLINE_OVER_LIVE)
+    return replace(options, dry_run=True)
 
 
 def _done_today(config: AppConfig, options: RunOptions, now: datetime) -> bool:
