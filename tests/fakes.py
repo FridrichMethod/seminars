@@ -10,13 +10,14 @@ import threading
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 from factories import REFERENCE_NOW
-from seminars.http import FixtureNotFoundError, HttpStatusError
+from seminars.http import FixtureNotFoundError, HttpClient, HttpStatusError
 from seminars.models import (
     Candidate,
     Event,
+    EventDraft,
     ExcludedEvent,
     ExclusionReason,
     FetchedDocument,
@@ -26,10 +27,14 @@ from seminars.models import (
     IssueState,
     IssueStateFilter,
     PicksResult,
+    RawPayload,
     ScopeResult,
     SecretFinding,
+    SourceConfig,
     TagDecision,
+    TimeWindow,
 )
+from seminars.sources.base import AdapterRegistry
 
 
 class FakeClock:
@@ -112,6 +117,66 @@ class FakeHttpClient:
         if not 200 <= document.status < 300 and document.status not in allow_statuses:
             raise HttpStatusError(url, document.status)
         return document.evolve(fetched_at=self._clock.now())
+
+
+class FakeAdapter:
+    """Scripted source ``Adapter`` for pipeline tests; it performs no I/O.
+
+    ``fetch`` never touches the HTTP client: it returns a payload with one
+    empty document for the first URL of the source, stamped with the fake
+    clock. ``parse`` returns those of ``drafts`` whose ``source_id`` is the
+    id of the source, so one instance can serve several sources.
+    ``fetch_error`` / ``parse_error`` make the respective step raise (for
+    example an ``HttpError`` or a ``ParseError``). ``calls`` lists every call
+    as ``(method name, source id)`` and ``windows`` the window of every fetch.
+
+    The registry builds adapters through zero-argument factories; ``register``
+    makes a registry hand out this very instance::
+
+        adapter = FakeAdapter([make_draft(source_id="sites-x")])
+        adapter.register(fake_registry, "fake")
+        source = make_source(id="sites-x", adapter="fake")
+
+    The ``fake_adapter`` fixture does exactly that with the name ``fake``.
+    """
+
+    def __init__(
+        self,
+        drafts: Sequence[EventDraft] = (),
+        *,
+        fetch_error: Exception | None = None,
+        parse_error: Exception | None = None,
+        clock: FakeClock | None = None,
+    ) -> None:
+        self.drafts = list(drafts)
+        self.fetch_error = fetch_error
+        self.parse_error = parse_error
+        self._clock = clock or FakeClock()
+        self.calls: list[tuple[str, str]] = []
+        self.windows: list[TimeWindow] = []
+
+    def register(self, registry: AdapterRegistry, name: str = "fake") -> Self:
+        """Register this instance in ``registry`` under ``name`` and return it."""
+        registry.register(name)(lambda: self)
+        return self
+
+    def fetch(self, http: HttpClient, source: SourceConfig, *, window: TimeWindow) -> RawPayload:
+        self.calls.append(("fetch", source.id))
+        self.windows.append(window)
+        if self.fetch_error is not None:
+            raise self.fetch_error
+        now = self._clock.now()
+        url = source.all_urls[0]
+        document = FetchedDocument(
+            url=url, final_url=url, status=200, content_type="text/plain", text="", fetched_at=now
+        )
+        return RawPayload(source_id=source.id, fetched_at=now, window=window, documents=[document])
+
+    def parse(self, payload: RawPayload, source: SourceConfig) -> list[EventDraft]:
+        self.calls.append(("parse", source.id))
+        if self.parse_error is not None:
+            raise self.parse_error
+        return [draft for draft in self.drafts if draft.source_id == source.id]
 
 
 class FakeFieldTagger:

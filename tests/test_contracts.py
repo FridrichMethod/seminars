@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from fakes import (
+    FakeAdapter,
     FakeEventFilter,
     FakeFieldTagger,
     FakeHttpClient,
@@ -56,9 +57,11 @@ from seminars.contracts import (
     load_implementation,
 )
 from seminars.http import HttpClient
+from seminars.sources.base import Adapter
 
 PROTOCOL_FAKES: list[tuple[type, object]] = [
     (HttpClient, FakeHttpClient()),
+    (Adapter, FakeAdapter()),
     (LLMClient, FakeLLMClient()),
     (LLMChainClient, FakeLLMClient()),
     (LLMCache, FakeLLMCache()),
@@ -76,6 +79,7 @@ def test_fakes_satisfy_the_protocols_statically() -> None:
     """Checked by pyright: each assignment only type-checks if the fake conforms."""
     emitters = FakeEmitters()
     http: HttpClient = FakeHttpClient()
+    adapter: Adapter = FakeAdapter()
     llm: LLMClient = FakeLLMClient()
     chain: LLMChainClient = FakeLLMClient()
     cache: LLMCache = FakeLLMCache()
@@ -95,6 +99,7 @@ def test_fakes_satisfy_the_protocols_statically() -> None:
     probe: SourceProber = emitters.probe_source
     everything = [http, llm, chain, cache, tagger, llm_tagger, event_filter, scorer, extractor]
     everything += [issues, scanner, write_feeds, validate, write_site, render, publish, update]
+    everything += [adapter]
     assert all(item is not None for item in [*everything, probe])
 
 
@@ -125,7 +130,8 @@ def test_every_protocol_has_a_fake() -> None:
         "SourceProber",
     }
     with_object_fake = {protocol.__name__ for protocol, _ in PROTOCOL_FAKES}
-    assert protocols - factories_and_reserved - callables == with_object_fake - {"HttpClient"}
+    defined_elsewhere = {"HttpClient", "Adapter"}  # seminars.http and seminars.sources.base
+    assert protocols - factories_and_reserved - callables == with_object_fake - defined_elsewhere
 
 
 class TestImplementationTable:

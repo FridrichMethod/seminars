@@ -4,12 +4,14 @@ The classes behind the fixtures live in importable modules next to this file
 (tests/ is on ``sys.path``), so a test can also build its own instances:
 
 * factories.py      make_event, make_draft, make_source, ... and hypothesis strategies
-* fakes.py          FakeClock, FakeHttpClient, FakeFieldTagger, FakeEventFilter,
-                    FakePicksScorer, FakeIssueClient, FakeSecretScanner
+* fakes.py          FakeClock, FakeHttpClient, FakeAdapter, FakeFieldTagger,
+                    FakeEventFilter, FakePicksScorer, FakeIssueClient, FakeSecretScanner
 * fakes_llm.py      FakeLLMClient, FakeLLMCache, FakeLLMFieldTagger, FakePageExtractor
 * fakes_outputs.py  FakeEmitters (ICS, site data, digest, health, source probe)
 
-Contract -> fixture: HttpClient -> fake_http / offline_http; LLMClient and
+Contract -> fixture: HttpClient -> fake_http / offline_http; Adapter ->
+fake_adapter (registered as "fake" in fake_registry, the empty stand-in for
+the process-wide adapter registry); LLMClient and
 LLMChainClient -> fake_llm; LLMCache -> fake_llm_cache; FieldTagger ->
 fake_field_tagger; LLMFieldTagger -> fake_llm_tagger; EventFilter ->
 fake_event_filter; PicksScorer -> fake_picks_scorer; PageExtractor ->
@@ -29,6 +31,7 @@ import respx
 
 import factories
 from fakes import (
+    FakeAdapter,
     FakeClock,
     FakeEventFilter,
     FakeFieldTagger,
@@ -42,6 +45,8 @@ from fakes_outputs import FakeEmitters
 from seminars.config import AppConfig, HttpSettings, load_config
 from seminars.http import OfflineHttpClient, offline_client
 from seminars.models import Candidate, Event, EventDraft, SourceConfig
+from seminars.sources import base
+from seminars.sources.base import AdapterRegistry
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
@@ -87,6 +92,33 @@ def offline_http() -> Callable[..., OfflineHttpClient]:
         return offline_client(*source_ids, fixtures_dir=fixtures_dir)
 
     return build
+
+
+# --- source adapters -----------------------------------------------------------------------
+
+
+@pytest.fixture
+def fake_registry(monkeypatch: pytest.MonkeyPatch) -> AdapterRegistry:
+    """An empty adapter registry installed as the process-wide one for this test.
+
+    It has no packages to discover, so ``get_adapter`` and ``adapter_names``
+    only know what the test registers (``fake_registry.register(name)`` or
+    ``FakeAdapter.register``). Code under test must go through those
+    functions of ``seminars.sources.base``, not through a copy of ``REGISTRY``.
+    """
+    registry = AdapterRegistry(())
+    monkeypatch.setattr(base, "REGISTRY", registry)
+    return registry
+
+
+@pytest.fixture
+def fake_adapter(fake_registry: AdapterRegistry, fake_clock: FakeClock) -> FakeAdapter:
+    """A ``FakeAdapter`` registered as ``fake`` in ``fake_registry``.
+
+    Sources select it with ``adapter="fake"``; fill ``fake_adapter.drafts``
+    and set ``fetch_error`` / ``parse_error`` as the test needs.
+    """
+    return FakeAdapter(clock=fake_clock).register(fake_registry, "fake")
 
 
 # --- LLM and classification ----------------------------------------------------------------

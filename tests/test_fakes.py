@@ -16,8 +16,10 @@ from factories import (
     make_event,
     make_payload,
     make_source,
+    make_window,
 )
 from fakes import (
+    FakeAdapter,
     FakeClock,
     FakeEventFilter,
     FakeFieldTagger,
@@ -35,7 +37,7 @@ from seminars.contracts import (
     LLMInvalidOutputError,
     LLMRateLimitError,
 )
-from seminars.http import FixtureNotFoundError, HttpStatusError
+from seminars.http import FixtureNotFoundError, HttpRequestError, HttpStatusError
 from seminars.models import (
     FEED_IDS,
     Event,
@@ -48,6 +50,8 @@ from seminars.models import (
     TagDecision,
     read_model,
 )
+from seminars.sources import base
+from seminars.sources.base import Adapter, AdapterRegistry, ParseError, UnknownAdapterError
 
 
 class Fields(BaseModel):
@@ -82,6 +86,73 @@ class TestFakeHttpClient:
         with pytest.raises(HttpStatusError):
             fake_http.get("https://a.example.edu/gone")
         assert fake_http.get("https://a.example.edu/gone", allow_statuses=[410]).status == 410
+
+
+class TestFakeAdapter:
+    def test_fetch_does_no_io_and_parse_returns_the_drafts_of_the_source(
+        self, fake_http: FakeHttpClient, fake_clock: FakeClock
+    ) -> None:
+        mine = make_draft(source_id="sites-a", native_id="1")
+        other = make_draft(source_id="sites-b", native_id="2")
+        adapter = FakeAdapter([mine, other], clock=fake_clock)
+        source = make_source(id="sites-a", adapter="fake")
+        window = make_window()
+        fake_clock.advance(60.0)
+        payload = adapter.fetch(fake_http, source, window=window)
+        assert fake_http.requests == []
+        assert (payload.source_id, payload.window) == ("sites-a", window)
+        assert payload.fetched_at == fake_clock.now()
+        assert [document.url for document in payload.documents] == [source.all_urls[0]]
+        assert adapter.parse(payload, source) == [mine]
+        assert adapter.parse(payload, make_source(id="sites-b", adapter="fake")) == [other]
+        assert adapter.parse(payload, make_source(id="sites-c", adapter="fake")) == []
+        assert adapter.calls == [
+            ("fetch", "sites-a"),
+            ("parse", "sites-a"),
+            ("parse", "sites-b"),
+            ("parse", "sites-c"),
+        ]
+        assert adapter.windows == [window]
+
+    def test_fetch_and_parse_failures(self) -> None:
+        source = make_source(adapter="fake")
+        broken_fetch = FakeAdapter(fetch_error=HttpRequestError(source.all_urls[0], "down"))
+        with pytest.raises(HttpRequestError, match="down"):
+            broken_fetch.fetch(FakeHttpClient(), source, window=make_window())
+        assert broken_fetch.calls == [("fetch", source.id)]
+        broken_parse = FakeAdapter([make_draft()], parse_error=ParseError("layout changed"))
+        payload = broken_parse.fetch(FakeHttpClient(), source, window=make_window())
+        with pytest.raises(ParseError, match="layout changed"):
+            broken_parse.parse(payload, source)
+
+    def test_register_makes_the_registry_hand_out_this_instance(self) -> None:
+        registry = AdapterRegistry(())
+        adapter = FakeAdapter().register(registry, "fake_one")
+        assert registry.names() == ["fake_one"]
+        assert registry.create("fake_one") is adapter
+        assert registry.create("fake_one") is adapter
+        assert isinstance(adapter, Adapter)
+
+    def test_fake_registry_replaces_the_process_wide_registry(
+        self, fake_registry: AdapterRegistry
+    ) -> None:
+        assert base.REGISTRY is fake_registry
+        assert base.adapter_names() == []
+        assert base.discover_adapters() == {}
+        with pytest.raises(UnknownAdapterError, match=r"registered: none"):
+            base.get_adapter("rss")
+
+    def test_fake_adapter_fixture_is_registered_as_fake(
+        self, fake_adapter: FakeAdapter, fake_registry: AdapterRegistry, fake_http: FakeHttpClient
+    ) -> None:
+        fake_adapter.drafts.append(make_draft())
+        source = make_source(adapter="fake")
+        assert base.adapter_names() == ["fake"]
+        adapter = base.get_adapter(source.adapter)
+        assert adapter is fake_adapter
+        drafts = adapter.parse(adapter.fetch(fake_http, source, window=make_window()), source)
+        assert [draft.native_id for draft in drafts] == ["1234"]
+        assert fake_registry.create("fake") is fake_adapter
 
 
 class TestFakeLLMClient:
