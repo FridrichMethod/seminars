@@ -107,13 +107,16 @@ passes three checks:
    the peer the connection really goes to is checked (the ``network_stream``
    extension of httpx). An answer from a non-global address raises
    ``ForbiddenHostError``: its body is not read, nothing is cached and
-   nothing is retried. A transport without a network connection (the mock
+   nothing is retried. The host is then refused for the rest of the run
+   without another lookup or request, whichever URL or origin of it is
+   asked for. A transport without a network connection (the mock
    transports of the tests) has no peer and skips this check.
 
 What remains. Check 2 and the connection are two separate lookups, so a
 hostile DNS server can give a public address to the first and a private one
 to the second (DNS rebinding). Check 3 notices, but only after the request
-left. In that race one blind GET can reach a non-public address. It carries
+left. In that race one blind GET per host name and run can reach a
+non-public address (the name is refused from then on). It carries
 the fixed User-Agent and, when the host is the one the caller asked for,
 the headers the caller passed; it never carries a cookie, and this project
 holds no credentials for any site. Its answer is never read and nothing
@@ -238,6 +241,10 @@ Not ``Exception``: a failed assertion or a programming error must stay
 visible.
 """
 
+_REFUSED_EARLIER: Final = (
+    "refusing a host whose answer came from a local or private network address earlier in this run"
+)
+
 _HEADERS_FOR_ANY_ORIGIN: Final = frozenset({"accept", "accept-language"})
 """Headers of the caller that also go to an origin a redirect leads to; all others stay home."""
 
@@ -288,6 +295,7 @@ class _HostState:
     robots_lock: threading.Lock = field(default_factory=threading.Lock)
     policies: dict[str, RobotsPolicy] = field(default_factory=dict)  # by origin
     robots_failures: dict[str, str] = field(default_factory=dict)  # origin -> why it is blocked
+    refused: str | None = None  # why nothing more is sent to the host in this run
     blocked_until: float = 0.0  # end of the current retry backoff
     requests: int = 0  # page requests issued by this client
     robots_requests: int = 0  # robots.txt requests issued by this client, hops to this host too
@@ -650,6 +658,8 @@ class PoliteClient:
 
         ``robots`` says which of the two budgets of the host pays for it.
         """
+        if state.refused is not None:
+            raise ForbiddenHostError(url, state.refused)
         attempts = self._settings.retries + 1
         for attempt in range(1, attempts + 1):
             self._check_budget(state, host, url, robots=robots)
@@ -680,6 +690,11 @@ class PoliteClient:
         ``ForbiddenHostError`` (the name resolves to a non-public address)
         leaves before anything is counted or sent. Everything after that is
         an attempt that uses up budget; ``AttemptFailed`` asks for another.
+
+        When the answer itself is refused because of where it came from,
+        the request has left already. The host then gets nothing more from
+        this client: the lookup said "public" and the connection went
+        somewhere else, and whoever arranged that would arrange it again.
         """
         resolves = self._wire.resolves(url)
         if robots:
@@ -690,6 +705,9 @@ class PoliteClient:
             raise AttemptFailed("host name does not resolve")
         try:
             return self._wire.exchange(url, headers)
+        except ForbiddenHostError:
+            state.refused = _REFUSED_EARLIER
+            raise
         finally:
             self._touch(state, host)
 

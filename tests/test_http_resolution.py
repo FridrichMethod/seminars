@@ -492,7 +492,7 @@ class TestPeerAddress:
         assert not (tmp_path / "pages").exists()
         assert resolver.calls == [NAME, NAME]
 
-    def test_a_robots_answer_from_a_private_peer_is_refused_and_not_remembered(
+    def test_a_robots_answer_from_a_private_peer_is_refused_and_the_host_is_remembered(
         self,
         http_settings: HttpSettings,
         fake_clock: FakeClock,
@@ -508,12 +508,71 @@ class TestPeerAddress:
             return httpx.Response(200, stream=body, extensions={"network_stream": connection})
 
         client = self.build(http_settings, fake_clock, resolver, handler, tmp_path)
-        for _ in range(2):
+        for path in ("/events", "/events", "/other", "/robots.txt"):
             with pytest.raises(ForbiddenHostError):
-                client.get(PAGE)
-        assert paths == ["/robots.txt", "/robots.txt"]
+                client.get(f"{HOST}{path}")
+        with pytest.raises(ForbiddenHostError):
+            client.get(f"http://{NAME}/events")  # another origin of the same host
+        assert paths == ["/robots.txt"]  # the one blind request of this run
         assert body.reads == 0
         assert HttpCache(tmp_path).host(NAME).robots == {}
+        assert resolver.calls == [NAME]
+        assert fake_clock.sleeps == []
+        assert client.request_counts() == {NAME: 0}
+
+    def test_one_refused_answer_blocks_the_host_for_the_rest_of_the_run(
+        self,
+        http_settings: HttpSettings,
+        fake_clock: FakeClock,
+        resolver: StubResolver,
+        tmp_path: Path,
+    ) -> None:
+        """The lookup keeps saying "public" while the connection goes to a private address."""
+        peers = [(PUBLIC_ADDRESS, 443), (PUBLIC_ADDRESS, 443), ("10.0.0.5", 443)]
+        paths: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            paths.append(request.url.path)
+            peer = peers.pop(0) if peers else (PUBLIC_ADDRESS, 443)
+            status = 404 if request.url.path == "/robots.txt" else 200
+            return httpx.Response(
+                status, text="page", extensions={"network_stream": Connection(peer)}
+            )
+
+        client = self.build(http_settings, fake_clock, resolver, handler, tmp_path)
+        assert client.get(f"{PAGE}?page=1").text == "page\n"
+        with pytest.raises(ForbiddenHostError, match="answer from a local or private"):
+            client.get(f"{PAGE}?page=2")
+        for number in range(3, 7):
+            with pytest.raises(ForbiddenHostError, match="earlier in this run"):
+                client.get(f"{PAGE}?page={number}")
+        assert paths == ["/robots.txt", "/events", "/events"]
+        assert resolver.calls == [NAME] * 3
+        assert client.request_counts() == {NAME: 2}
+        again = self.build(http_settings, fake_clock, resolver, handler, tmp_path)
+        assert again.get(f"{PAGE}?page=7").text == "page\n"  # a new run starts afresh
+
+    def test_a_robots_redirect_to_a_host_that_answers_from_a_private_peer(
+        self, http_settings: HttpSettings, fake_clock: FakeClock, resolver: StubResolver
+    ) -> None:
+        paths: list[tuple[str, str]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            paths.append((request.url.host, request.url.path))
+            if request.url.host == NAME and request.url.path == "/robots.txt":
+                return httpx.Response(302, headers={"Location": f"https://{INTRANET}/robots.txt"})
+            if request.url.host == INTRANET:
+                connection = Connection(("169.254.169.254", 80))
+                return httpx.Response(200, text="x", extensions={"network_stream": connection})
+            return httpx.Response(200, text="ok")
+
+        client = self.build(http_settings, fake_clock, resolver, handler)
+        for _ in range(2):
+            with pytest.raises(RobotsUnavailableError, match="must not be fetched"):
+                client.get(PAGE)
+        with pytest.raises(ForbiddenHostError, match="earlier in this run"):
+            client.get(f"https://{INTRANET}/")
+        assert paths == [(NAME, "/robots.txt"), (INTRANET, "/robots.txt")]
 
     def test_a_redirect_from_a_private_peer_is_not_followed(
         self, http_settings: HttpSettings, fake_clock: FakeClock, resolver: StubResolver
