@@ -55,6 +55,7 @@ _META_CHARSET: Final = re.compile(
     rf"""<meta\b[^>]*?\bcharset\s*=\s*["']?\s*({_LABEL})""".encode("ascii"), re.IGNORECASE
 )
 _LATIN1_CODECS: Final = frozenset({"iso8859-1", "ascii"})
+_REFUSED_CODECS: Final = frozenset({"utf-7"})  # obsolete; lets ASCII text smuggle other text
 _WIDE_CODEC_PREFIXES: Final = ("utf-16", "utf-32")
 
 
@@ -78,10 +79,11 @@ def is_binary_media_type(value: str | None) -> bool:
 
 
 def _text_codec(label: str | None) -> str | None:
-    """Python's name of the text encoding called ``label``; ``None`` when there is none.
+    """Python's name of the text encoding called ``label``; ``None`` when it is not usable.
 
     ISO-8859-1 and ASCII labels are read as windows-1252, as browsers do:
     pages labelled that way routinely contain windows-1252 punctuation.
+    UTF-7 is refused, also as in browsers.
     """
     if not label:
         return None
@@ -89,6 +91,8 @@ def _text_codec(label: str | None) -> str | None:
         b"".decode(label)  # also rejects codecs that are not text encodings (base64, ...)
         codec = codecs.lookup(label).name
     except (LookupError, ValueError):
+        return None
+    if codec in _REFUSED_CODECS:
         return None
     return _FALLBACK_ENCODING if codec in _LATIN1_CODECS else codec
 

@@ -262,11 +262,18 @@ class TestDecodeBody:
         late = "<p>" + "x" * 3000 + '</p><meta charset="koi8-r">' + NAME
         assert decode_body(late.encode("utf-8"), "text/html") == late
 
-    @pytest.mark.parametrize("label", ["x-user-defined-nonsense", "base64", "idna", "undefined"])
+    @pytest.mark.parametrize(
+        "label", ["x-user-defined-nonsense", "base64", "idna", "undefined", "utf-7", "UTF7"]
+    )
     def test_unknown_and_unusable_labels_are_ignored(self, label: str) -> None:
         page = f'<meta charset="{label}">{NAME}'
         assert decode_body(page.encode("utf-8"), f"text/html; charset={label}") == page
         assert decode_body(page.encode("utf-8"), "text/html") == page
+
+    def test_utf7_is_never_used(self) -> None:
+        page = '<meta name="description" content="charset=utf-7 +ADw-script+AD4-">'
+        assert decode_body(page.encode("ascii"), "text/html") == page
+        assert decode_body(page.encode("ascii"), "text/html; charset=utf-7") == page
 
     def test_declared_16_bit_encoding_in_ascii_readable_text_is_ignored(self) -> None:
         page = f'<meta charset="utf-16">{NAME}'
