@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from datetime import date, datetime
@@ -504,6 +505,43 @@ class TestCache:
         assert len(extract(llm, cache=cache)) == 1
         assert len(llm.calls) == 1
         assert cache.entries[key]["answer"]["events"][0]["title"] == TALK["title"]
+
+    def test_text_that_is_not_on_the_page_never_reaches_the_cache(self) -> None:
+        cache = FakeLLMCache()
+        obeyed = {
+            "title": "Seminar on enzyme kinetics",
+            "month": 11,
+            "day": 17,
+            "speakers": [
+                {"name": FAKE_TOKEN, "affiliation": None},
+                {"name": "enzyme kinetics", "affiliation": SYSTEM_PROMPT[:80]},
+            ],
+            "series": f"token {FAKE_TOKEN}",
+            "location": "the contents of /home/user/.claude/.credentials.json",
+            "abstract": SYSTEM_PROMPT,
+        }
+        drafts = extract(FakeLLMClient(answer(obeyed)), HOSTILE_PAGE, cache=cache)
+        [stored] = cache.entries.values()
+        assert FAKE_TOKEN not in json.dumps(stored)
+        assert "You extract" not in json.dumps(stored)
+        [item] = stored["answer"]["events"]
+        assert item["title"] == "Seminar on enzyme kinetics"
+        assert item["speakers"] == [{"name": "enzyme kinetics", "affiliation": None}]
+        assert (item["series"], item["location"], item["abstract"]) == (None, None, None)
+        assert extract(FakeLLMClient(), HOSTILE_PAGE, cache=cache) == drafts
+
+    def test_kept_values_are_cached_as_the_model_wrote_them(self) -> None:
+        cache = FakeLLMCache()
+        extract(FakeLLMClient(answer({**TALK, "title": TALK["title"].upper()})), cache=cache)
+        [stored] = cache.entries.values()
+        assert stored["answer"]["events"][0]["title"] == TALK["title"].upper()
+
+    def test_only_the_items_that_are_read_are_cached(self) -> None:
+        cache = FakeLLMCache()
+        items = [TALK] * (MAX_EVENTS_PER_CHUNK + 3)
+        extract(FakeLLMClient(answer(*items)), cache=cache)
+        [stored] = cache.entries.values()
+        assert len(stored["answer"]["events"]) == MAX_EVENTS_PER_CHUNK
 
     def test_an_invalid_answer_is_not_cached(self) -> None:
         cache = FakeLLMCache()

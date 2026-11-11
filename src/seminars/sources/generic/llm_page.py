@@ -12,7 +12,8 @@ gets a number, written after the link text as ``[[n]]``. The text goes to
 the model in pieces of at most ``max_input_chars``, each between two marker
 lines that are derived from the piece itself, so no page can spell them.
 The model answers with one item per talk. The answers are cached by the
-text of the piece, never by model or provider.
+text of the piece, never by model or provider, and only with the text
+values that the piece has (``grounded_answer``).
 
 What a hostile page cannot do. A page can say "ignore previous
 instructions", imitate a system message or ask for secrets. Whatever the
@@ -550,6 +551,42 @@ def _draft(
         return None
 
 
+def _grounded_item(item: ExtractedEvent, grounding: Grounding) -> ExtractedEvent:
+    """``item`` with every text value that the page does not have set to null.
+
+    A speaker whose name the page does not have is left out. The values
+    that stay are kept as the model wrote them.
+    """
+
+    def kept(value: str | None) -> str | None:
+        return value if grounding.text(value) is not None else None
+
+    speakers = [
+        speaker.evolve(affiliation=kept(speaker.affiliation))
+        for speaker in item.speakers
+        if kept(speaker.name) is not None
+    ]
+    return item.evolve(
+        title=kept(item.title),
+        speakers=speakers,
+        series=kept(item.series),
+        location=kept(item.location),
+        abstract=kept(item.abstract),
+    )
+
+
+def grounded_answer(answer: ExtractionAnswer, grounding: Grounding) -> ExtractionAnswer:
+    """``answer`` as it is cached: the items that are read, with only the text the page has.
+
+    Whatever a hostile page made the model write beyond the page text is
+    dropped before it is stored, so it never reaches the committed cache.
+    Nothing is lost by that: grounding depends on the piece of text alone,
+    which is the cache key, so it would drop the same values on every read.
+    """
+    events = answer.events[:MAX_EVENTS_PER_CHUNK]
+    return answer.evolve(events=[_grounded_item(item, grounding) for item in events])
+
+
 def _speaker_names(draft: EventDraft) -> frozenset[str]:
     return frozenset(normalize_for_grounding(speaker.name) for speaker in draft.speakers)
 
@@ -622,8 +659,11 @@ class LLMPageExtractor:
         except ValidationError:
             return None
 
-    def _answer(self, chunk: str, url: str, today: date) -> CachedExtraction:
-        """The answer for one piece of text, from the cache or the model (``LLMError``)."""
+    def _answer(self, chunk: str, url: str, today: date, grounding: Grounding) -> CachedExtraction:
+        """The answer for one piece of text, from the cache or the model (``LLMError``).
+
+        A new answer is stored grounded (``grounded_answer``).
+        """
         key = llm_cache_key(PROMPT_VERSION, TASK, chunk)
         cached = self._cached(key)
         if cached is not None:
@@ -631,7 +671,7 @@ class LLMPageExtractor:
         answer = self._client.complete_json(
             SYSTEM_PROMPT, build_user_prompt(chunk, url), ExtractionAnswer, max_tokens=MAX_TOKENS
         )
-        fresh = CachedExtraction(reference=today, answer=answer)
+        fresh = CachedExtraction(reference=today, answer=grounded_answer(answer, grounding))
         if self._cache is not None:
             self._cache.put(key, fresh.model_dump(mode="json"))
         return fresh
@@ -654,15 +694,15 @@ class LLMPageExtractor:
             if count >= MAX_CHUNKS_PER_SOURCE:
                 logger.info("source %s: the rest of the page text is not read", source.id)
                 break
+            grounding = Grounding(chunk, min_similarity=self._min_similarity)
             try:
-                found = self._answer(chunk, document.final_url, today)
+                found = self._answer(chunk, document.final_url, today, grounding)
             except LLMInvalidOutputError:
                 logger.info("source %s: an extraction answer was discarded", source.id)
                 continue
             except LLMError as error:
                 logger.info("source %s: extraction stopped (%s)", source.id, type(error).__name__)
                 break
-            grounding = Grounding(chunk, min_similarity=self._min_similarity)
             for item in found.answer.events[:MAX_EVENTS_PER_CHUNK]:
                 draft = _draft(item, page, chunk, grounding, found.reference, source)
                 if draft is not None:

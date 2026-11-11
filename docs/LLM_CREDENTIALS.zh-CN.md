@@ -133,7 +133,7 @@ scripts/set-llm-credential.sh openai-compat --from-file ~/.secrets/llm-key \
 * `batch_size`（20）：每个打标签请求里的事件数，用一个 JSON 列表回答。
 * `max_calls_per_run`（60）：一次运行里的请求数上限；超出的跳过并写进 report。
 * `max_input_chars`（12000）：发送的 prompt 的最大长度；长页面按这个大小分段读。
-* `data/llm_cache/` 里的缓存：key 是 prompt 版本、任务和规范化输入的 SHA-256。模型和 provider 不在 key 里，所以换 key、换计划、换模型都不会重复请求。`cache_ttl_days`（180）天没用过的条目会被删除。
+* `data/llm_cache/` 里的缓存：key 是 prompt 版本、任务和规范化输入的 SHA-256。模型和 provider 不在 key 里，所以换 key、换计划、换模型都不会重复请求。`cache_ttl_days`（180）天没用过的条目会被删除。读页面的回答只保存页面上有的文本值，所以页面让模型写出的其他内容永远进不了提交到 repo 的缓存。
 
 run report 列出请求数、token、费用以及每个 provider 的结果。
 

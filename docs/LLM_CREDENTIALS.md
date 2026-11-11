@@ -187,7 +187,8 @@ What keeps the cost down, all set in `config/llm.yaml`:
 * The cache in `data/llm_cache/`: the key is the SHA-256 of the prompt version, the task and
   the normalized input. Model and provider are not part of it, so a new key, plan or model
   never repeats a request. An entry that has not been used for `cache_ttl_days` (180) is
-  removed.
+  removed. A page reading is stored with only the text values that are on the page, so
+  whatever else a page makes the model write never reaches the committed cache.
 
 The run report lists the requests, tokens, cost and the result of every provider.
 
