@@ -26,6 +26,7 @@ http:
   backoff_max_seconds: 60
   max_crawl_delay_seconds: 120
   max_redirects: 5
+  max_body_bytes: 5000000
   robots_cache_seconds: 86400
 
 events:

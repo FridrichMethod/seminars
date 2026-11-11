@@ -51,7 +51,8 @@ class HttpSettings(Model):
     backoff_base_seconds: NonNegativeFloat = 1.0  # retry n waits base * 2**(n-1)
     backoff_max_seconds: NonNegativeFloat = 60.0
     max_crawl_delay_seconds: NonNegativeFloat = 120.0  # refuse hosts that demand more
-    max_redirects: NonNegativeInt = 5
+    max_redirects: NonNegativeInt = 5  # per request, and per robots.txt
+    max_body_bytes: PositiveInt = 5_000_000  # larger responses are given up, not read
     robots_cache_seconds: NonNegativeFloat = 86400.0  # reuse a cached robots.txt this long
 
     @property

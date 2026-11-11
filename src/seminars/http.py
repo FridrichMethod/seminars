@@ -15,13 +15,18 @@ exactly the same text. There are two implementations:
 Rules of the live client:
 
 * only ``http`` and ``https`` URLs of public hosts (no localhost, no private
-  addresses); a fixed User-Agent from the settings;
+  addresses, whichever way the address is written; see ``is_public_host``);
+  a fixed User-Agent from the settings;
 * robots.txt is fetched once per origin and honoured for ``Disallow`` and
   ``Crawl-delay``; a missing one (4xx other than 429) allows everything
-  (RFC 9309). An unreachable one (network error, 5xx, 429, or not a text
-  file) blocks the origin for the rest of the run: the failure is
-  remembered, so every later request to that origin raises
-  ``RobotsUnavailableError`` at once, without contacting the host again;
+  (RFC 9309). An unreachable one (network error, 5xx, 429, not a text
+  file, too large, or a redirect that cannot be followed) blocks the origin
+  for the rest of the run: the failure is remembered, so every later
+  request to that origin raises ``RobotsUnavailableError`` at once, without
+  contacting the host again;
+* a redirect of robots.txt is followed like any other, one hop at a time
+  and at most ``max_redirects`` times: every hop must point at a public
+  http(s) address and waits for its turn on the host it goes to;
 * the pause between two requests to one host is
   ``max(min_interval_seconds, Crawl-delay)``, measured from the end of the
   previous request;
@@ -40,7 +45,7 @@ Rules of the live client:
 * every host has a request budget per client (``max_requests_per_host``,
   retries included); exceeding it raises ``HostBudgetExceededError``.
   robots.txt does not count: it costs at most ``retries + 1`` requests per
-  origin and run, whether it can be fetched or not;
+  hop, origin and run, whether it can be fetched or not;
 * network errors and 408/425/429/5xx answers are retried with exponential
   backoff (``Retry-After`` is respected);
 * redirects are followed hop by hop so that each hop obeys the rules of its
@@ -48,6 +53,9 @@ Rules of the live client:
 * responses with an ETag or Last-Modified are cached under ``cache_dir`` and
   revalidated with a conditional request;
 * images and other binary media types are refused before the body is read;
+* a body is read in pieces and given up as soon as it exceeds
+  ``max_body_bytes`` (counted after decompression), which raises
+  ``ResponseTooLargeError``;
 * bodies are decoded by ``decode_body``: a byte order mark decides first,
   then the charset of the Content-Type header, then the encoding the
   document itself declares (XML declaration, HTML ``<meta>``); undeclared
@@ -58,10 +66,11 @@ Time and sleeping are injected (``clock`` and ``sleep``), so tests never wait.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 import time
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -87,6 +96,7 @@ from seminars.httpbase import (
     HttpError,
     HttpRequestError,
     HttpStatusError,
+    ResponseTooLargeError,
     RobotsDisallowedError,
     RobotsUnavailableError,
     Sleeper,
@@ -94,6 +104,7 @@ from seminars.httpbase import (
     UnsupportedContentTypeError,
     UnsupportedSchemeError,
     ascii_safe,
+    canonical_host,
     decode_body,
     is_binary_media_type,
     is_public_host,
@@ -122,6 +133,7 @@ __all__ = [
     "HttpStatusError",
     "OfflineHttpClient",
     "PoliteClient",
+    "ResponseTooLargeError",
     "RobotsDisallowedError",
     "RobotsUnavailableError",
     "Sleeper",
@@ -129,6 +141,7 @@ __all__ = [
     "UnsupportedContentTypeError",
     "UnsupportedSchemeError",
     "ascii_safe",
+    "canonical_host",
     "decode_body",
     "is_binary_media_type",
     "is_public_host",
@@ -160,14 +173,19 @@ class _Hop:
 
 @dataclass
 class _HostState:
-    """Mutable per-host bookkeeping; guarded by ``lock`` for the whole request.
+    """Mutable per-host bookkeeping of one client.
 
-    ``record`` is brought up to date from the cache directory at the start of
-    every hop, under the host lock of that directory.
+    ``lock`` guards one request to the host from start to end, together with
+    the host lock of the cache directory (``PoliteClient._turn``); ``record``
+    is brought up to date from that directory whenever the lock is taken.
+    ``robots_lock`` makes sure that only one thread works out the robots
+    policy of the host at a time. It is taken before ``lock``, never while
+    holding it, and a thread never holds two ``robots_lock`` at once.
     """
 
     record: HostRecord
     lock: threading.Lock = field(default_factory=threading.Lock)
+    robots_lock: threading.Lock = field(default_factory=threading.Lock)
     policies: dict[str, RobotsPolicy] = field(default_factory=dict)  # by origin
     robots_failures: dict[str, str] = field(default_factory=dict)  # origin -> why it is blocked
     blocked_until: float = 0.0  # end of the current retry backoff
@@ -256,23 +274,41 @@ class PoliteClient:
     def _fetch_hop(self, url: str, extra_headers: Mapping[str, str] | None) -> _Hop:
         origin, host, path = split_url(url)
         state = self._state(host)
-        with state.lock, self._cache.host_lock(host):
-            # Other clients and processes may have used the host since the last hop.
-            state.record = state.record.merge(self._cache.host(host))
-            policy = self._policy(state, host, origin)
-            if not policy.allows(path):
-                raise RobotsDisallowedError(url, "disallowed by robots.txt")
-            interval = self._interval(url, policy)
+        policy = self._policy(state, host, origin)
+        if not policy.allows(path):
+            raise RobotsDisallowedError(url, "disallowed by robots.txt")
+        interval = self._interval(url, policy)
+        with self._turn(state, host):
             cached = self._cache.page(url)
             request_headers = self._request_headers(extra_headers, cached)
             exchange = self._send(state, host, url, request_headers, interval=interval)
             return self._to_hop(url, exchange, cached)
 
+    @contextlib.contextmanager
+    def _turn(self, state: _HostState, host: str) -> Iterator[None]:
+        """Be the only one who talks to ``host``: among threads, clients and processes.
+
+        Requests are only sent inside this block. Nothing else is locked
+        while it is held, so it cannot be part of a deadlock.
+        """
+        with state.lock, self._cache.host_lock(host):
+            # Other clients and processes may have used the host in the meantime.
+            state.record = state.record.merge(self._cache.host(host))
+            yield
+
+    @staticmethod
+    def _redirect_target(url: str, exchange: _Exchange) -> str | None:
+        """The absolute URL a redirect response points to; ``None`` for any other response."""
+        location = exchange.headers.get("location")
+        if exchange.status not in REDIRECT_STATUSES or not location:
+            return None
+        return urljoin(url, location)
+
     def _to_hop(self, url: str, exchange: _Exchange, cached: CachedPage | None) -> _Hop:
         status = exchange.status
-        location = exchange.headers.get("location")
-        if status in REDIRECT_STATUSES and location:
-            return _Hop(status, None, "", location=urljoin(url, location))
+        target = self._redirect_target(url, exchange)
+        if target is not None:
+            return _Hop(status, None, "", location=target)
         if status == 304 and cached is not None:
             return _Hop(200, cached.content_type, cached.text, from_cache=True)
         content_type = media_type(exchange.headers.get("content-type"))
@@ -308,40 +344,92 @@ class PoliteClient:
     # --- robots.txt ------------------------------------------------------------------------
 
     def _policy(self, state: _HostState, host: str, origin: str) -> RobotsPolicy:
-        policy = state.policies.get(origin)
-        if policy is None:
-            failure = state.robots_failures.get(origin)
-            if failure is not None:
-                raise RobotsUnavailableError(origin + ROBOTS_PATH, failure)
-            robots = state.record.robots.get(origin)
-            age = None if robots is None else self._clock() - robots.fetched_at
-            if robots is None or age is None or not 0 <= age <= self._settings.robots_cache_seconds:
-                robots = self._fetch_robots(state, host, origin)
-            if robots.text is None:
-                policy = ALLOW_ALL
-            else:
-                policy = parse_robots(robots.text, self._settings.robots_token)
-            state.policies[origin] = policy
-        return policy
+        """The robots policy of ``origin``, worked out once per client."""
+        with state.robots_lock:
+            policy = state.policies.get(origin)
+            if policy is None:
+                failure = state.robots_failures.get(origin)
+                if failure is not None:
+                    raise RobotsUnavailableError(origin + ROBOTS_PATH, failure)
+                robots = self._robots(state, host, origin)
+                if robots.text is None:
+                    policy = ALLOW_ALL
+                else:
+                    policy = parse_robots(robots.text, self._settings.robots_token)
+                state.policies[origin] = policy
+            return policy
 
-    def _fetch_robots(self, state: _HostState, host: str, origin: str) -> CachedRobots:
-        url = origin + ROBOTS_PATH
+    def _robots(self, state: _HostState, host: str, origin: str) -> CachedRobots:
+        """The robots.txt of ``origin``: a recent copy from the cache directory, or fetched now.
+
+        Redirects are followed hop by hop. Each hop takes the turn of the
+        host it goes to, so the rules of that host hold for it as well. The
+        answer is stored during the turn of the origin's own host; when it
+        arrived there, that is the same turn, and no other client can fetch
+        the file a second time in between.
+        """
+        url, hop_state, hop_host = origin + ROBOTS_PATH, state, host
+        for hop in range(self._settings.max_redirects + 1):
+            with self._turn(hop_state, hop_host):
+                known = self._recent_robots(state, origin) if hop == 0 else None
+                if known is not None:
+                    return known
+                exchange = self._robots_exchange(state, origin, hop_state, hop_host, url)
+                target = self._redirect_target(url, exchange)
+                if target is None and hop_state is state:
+                    return self._store_robots(state, host, origin, exchange)
+            if target is None:
+                with self._turn(state, host):
+                    return self._store_robots(state, host, origin, exchange)
+            url = target
+            try:
+                _, hop_host, _ = split_url(url)
+            except HttpError as error:
+                reason = "robots.txt redirects to an address that must not be fetched; host skipped"
+                raise self._block_origin(state, origin, reason) from error
+            hop_state = self._state(hop_host)
+        limit = self._settings.max_redirects
+        reason = f"robots.txt redirects more than {limit} times; host skipped"
+        raise self._block_origin(state, origin, reason)
+
+    def _recent_robots(self, state: _HostState, origin: str) -> CachedRobots | None:
+        """The stored robots.txt of ``origin`` if it is young enough to be used."""
+        robots = state.record.robots.get(origin)
+        if robots is None:
+            return None
+        age = self._clock() - robots.fetched_at
+        return robots if 0 <= age <= self._settings.robots_cache_seconds else None
+
+    def _robots_exchange(
+        self, state: _HostState, origin: str, hop_state: _HostState, hop_host: str, url: str
+    ) -> _Exchange:
+        """One request for the robots.txt of ``origin``; a failure blocks that origin."""
+        known = hop_state.policies.get(split_url(url)[0])
+        delay = min(
+            (known.crawl_delay or 0.0) if known is not None else 0.0,
+            self._settings.max_crawl_delay_seconds,
+        )
+        interval = max(self._settings.min_interval_seconds, delay)
         try:
-            exchange = self._send(
-                state,
-                host,
-                url,
-                {},
-                interval=self._settings.min_interval_seconds,
-                budgeted=False,
-                follow_redirects=True,
-            )
+            return self._send(hop_state, hop_host, url, {}, interval=interval, budgeted=False)
         except HttpRequestError as error:
             reason = "robots.txt is unreachable; host skipped"
             raise self._block_origin(state, origin, reason) from error
         except UnsupportedContentTypeError as error:
             reason = "robots.txt is not a text file; host skipped"
             raise self._block_origin(state, origin, reason) from error
+        except ResponseTooLargeError as error:
+            limit = self._settings.max_body_bytes
+            reason = f"robots.txt is larger than {limit} bytes; host skipped"
+            raise self._block_origin(state, origin, reason) from error
+
+    def _store_robots(
+        self, state: _HostState, host: str, origin: str, exchange: _Exchange
+    ) -> CachedRobots:
+        """Turn the final answer into the robots.txt copy of ``origin`` and remember it.
+
+        The caller holds the turn of ``host``.
+        """
         if 200 <= exchange.status < 300:
             text: str | None = exchange.text
         elif 400 <= exchange.status < 500 and exchange.status != 429:
@@ -388,15 +476,15 @@ class PoliteClient:
         *,
         interval: float,
         budgeted: bool = True,
-        follow_redirects: bool = False,
     ) -> _Exchange:
+        """Send one request with retries; the caller holds the turn of ``host``."""
         attempts = self._settings.retries + 1
         for attempt in range(1, attempts + 1):
             if budgeted:
                 self._spend(state, host, url)
             self._wait_turn(state, interval)
             try:
-                exchange = self._exchange(url, headers, follow_redirects)
+                exchange = self._exchange(url, headers)
             except httpx.RequestError as error:
                 reason = type(error).__name__
                 logger.debug("request failed (%s): %s", reason, ascii_safe(url))
@@ -416,18 +504,32 @@ class PoliteClient:
             return exchange
         raise AssertionError("unreachable: the retry loop always returns or raises")
 
-    def _exchange(self, url: str, headers: Mapping[str, str], follow_redirects: bool) -> _Exchange:
+    def _exchange(self, url: str, headers: Mapping[str, str]) -> _Exchange:
         try:
-            with self._client.stream(
-                "GET", url, headers=dict(headers), follow_redirects=follow_redirects
-            ) as response:
+            with self._client.stream("GET", url, headers=dict(headers)) as response:
                 content_type = media_type(response.headers.get("content-type"))
                 if is_binary_media_type(content_type):
                     raise UnsupportedContentTypeError(url, content_type)
-                text = decode_body(response.read(), response.headers.get("content-type"))
+                body = self._read_body(url, response)
+                text = decode_body(body, response.headers.get("content-type"))
                 return _Exchange(response.status_code, response.headers, text)
         except httpx.InvalidURL as error:
             raise UnsupportedSchemeError(url, "invalid URL") from error
+
+    def _read_body(self, url: str, response: httpx.Response) -> bytes:
+        """Read the body in pieces and stop as soon as it is larger than ``max_body_bytes``."""
+        limit = self._settings.max_body_bytes
+        declared = response.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > limit:
+            raise ResponseTooLargeError(url, limit)
+        chunks: list[bytes] = []
+        size = 0
+        for chunk in response.iter_bytes():
+            size += len(chunk)
+            if size > limit:
+                raise ResponseTooLargeError(url, limit)
+            chunks.append(chunk)
+        return b"".join(chunks)
 
     def _spend(self, state: _HostState, host: str, url: str) -> None:
         limit = self._settings.max_requests_per_host

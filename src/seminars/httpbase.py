@@ -10,6 +10,8 @@ from __future__ import annotations
 import codecs
 import ipaddress
 import re
+import socket
+import unicodedata
 from collections.abc import Callable, Collection, Mapping
 from typing import Final, Protocol, runtime_checkable
 from urllib.parse import urlsplit
@@ -27,6 +29,8 @@ REDIRECT_STATUSES: Final = frozenset({301, 302, 303, 307, 308})
 RETRY_STATUSES: Final = frozenset({408, 425, 429, 500, 502, 503, 504})
 BINARY_MEDIA_PREFIXES: Final = ("image/", "audio/", "video/", "font/")
 _INTERNAL_SUFFIXES: Final = (".localhost", ".local", ".internal", ".lan", ".home.arpa")
+_NUMERIC_LABEL: Final = re.compile(r"[0-9]+|0x[0-9a-f]*")  # what makes a host an IPv4 address
+_IDEOGRAPHIC_FULL_STOP: Final = chr(0x3002)  # a label separator to IDNA, like "."
 BINARY_MEDIA_TYPES: Final = frozenset(
     {
         "application/gzip",
@@ -190,6 +194,14 @@ class UnsupportedContentTypeError(HttpError):
         super().__init__(url, f"refusing binary content type {content_type}")
 
 
+class ResponseTooLargeError(HttpError):
+    """The body is larger than ``max_body_bytes``; reading it was given up."""
+
+    def __init__(self, url: str, limit: int) -> None:
+        self.limit = limit
+        super().__init__(url, f"response body is larger than {limit} bytes")
+
+
 @runtime_checkable
 class HttpClient(Protocol):
     """What adapters use to fetch. Implemented by PoliteClient and OfflineHttpClient."""
@@ -210,26 +222,64 @@ class HttpClient(Protocol):
         ...
 
 
+def _is_global(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """True for a globally routable address; an IPv4-mapped IPv6 address counts as its IPv4."""
+    mapped = address.ipv4_mapped if isinstance(address, ipaddress.IPv6Address) else None
+    return (mapped or address).is_global
+
+
+def canonical_host(host: str) -> str:
+    """One spelling per host: lower case, ASCII dots and digits, no trailing dot.
+
+    HTTP clients accept full-width characters and the ideographic full stop
+    in a host and map them to ASCII, so ``127`` + U+3002 + ``0.0.1`` and
+    ``Example.EDU.`` are other ways to write ``127.0.0.1`` and
+    ``example.edu``. Hosts are compared, checked and rate limited in this
+    form.
+    """
+    return (
+        unicodedata.normalize("NFKC", host).replace(_IDEOGRAPHIC_FULL_STOP, ".").lower().rstrip(".")
+    )
+
+
 def is_public_host(host: str) -> bool:
-    """False for localhost, internal names and non-global IP address literals.
+    """False for localhost, internal names and non-global IP addresses, however they are written.
 
     Sources are public web sites. URLs can also come from scraped pages and
     redirects, so anything that addresses this machine or a private network
     is refused instead of fetched.
+
+    A host whose last label is a number is an IPv4 address to the resolver,
+    in decimal, octal or hexadecimal and with one to four parts:
+    ``2130706433``, ``127.1``, ``0x7f.1`` and ``0177.0.0.1`` all mean
+    127.0.0.1. Such a host is read the way the resolver reads it; when that
+    fails it is not a name either, and it is refused. An IPv4-mapped IPv6
+    address is judged by its IPv4 address. Names are not looked up, so a
+    public name that resolves to a private address is not caught here.
     """
-    name = host.lower().rstrip(".")
-    if name == "localhost" or name.endswith(_INTERNAL_SUFFIXES):
+    name = canonical_host(host)
+    if not name or name == "localhost" or name.endswith(_INTERNAL_SUFFIXES):
         return False
     try:
-        return ipaddress.ip_address(name).is_global
+        return _is_global(ipaddress.ip_address(name))
     except ValueError:
+        pass
+    if _NUMERIC_LABEL.fullmatch(name.rsplit(".", 1)[-1]) is None:
         return True
+    try:
+        return _is_global(ipaddress.IPv4Address(socket.inet_aton(name)))
+    except (OSError, ValueError):
+        return False
 
 
 def split_url(url: str) -> tuple[str, str, str]:
-    """Split a URL into ``(origin, host, path-with-query)``; public http(s) only."""
+    """Split a URL into ``(origin, host, path-with-query)``; public http(s) only.
+
+    ``host`` is in canonical form (see ``canonical_host``), so every spelling
+    of a host shares one request queue and one budget.
+    """
     parts = urlsplit(url)
-    host = (parts.hostname or "").lower()
+    host = canonical_host(parts.hostname or "")
     if parts.scheme not in ("http", "https") or not host:
         raise UnsupportedSchemeError(url, "only absolute http(s) URLs can be fetched")
     if not is_public_host(host):

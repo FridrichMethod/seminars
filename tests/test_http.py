@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import gzip
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import httpx
@@ -20,10 +21,12 @@ from seminars.http import (
     HttpRequestError,
     HttpStatusError,
     PoliteClient,
+    ResponseTooLargeError,
     RobotsDisallowedError,
     RobotsUnavailableError,
     UnsupportedContentTypeError,
     UnsupportedSchemeError,
+    canonical_host,
     decode_body,
     is_binary_media_type,
     is_public_host,
@@ -36,6 +39,10 @@ ROBOTS = f"{HOST}/robots.txt"
 PAGE = f"{HOST}/events"
 
 Responder = Callable[[httpx.Request], httpx.Response]
+
+LOOPBACK_SPELLINGS = ["2130706433", "127.1", "0x7f.1", "0177.0.0.1", "0x7f000001", "017700000001"]
+LOOPBACK_SPELLINGS += ["127.0.0.1.", "0X7F.1"]
+"""Decimal, short, hexadecimal and octal ways to write 127.0.0.1."""
 
 
 def timed(clock: FakeClock, times: list[float], response: httpx.Response) -> Responder:
@@ -122,6 +129,13 @@ class TestBasics:
             "http://169.254.169.254/latest/meta-data/",
             "https://printer.local/",
             "https://build.internal/secrets",
+            "http://2130706433/",
+            "http://127.1/admin",
+            "http://0x7f.1/",
+            "http://0177.0.0.1/",
+            "http://0xa9fea9fe/latest/meta-data/",
+            "http://[::ffff:127.0.0.1]/",
+            "http://[::ffff:10.0.0.5]/",
         ],
     )
     def test_local_and_private_addresses_are_refused(
@@ -145,6 +159,60 @@ class TestBasics:
         assert is_public_host("localhost.example.edu")
         assert not is_public_host("LOCALHOST.")
         assert not is_public_host("fe80::1")
+        assert not is_public_host("")
+
+    @pytest.mark.parametrize("host", [*LOOPBACK_SPELLINGS, "10.1", "3232235777", "0", "0x0"])
+    def test_other_spellings_of_private_ipv4_addresses_are_not_public(self, host: str) -> None:
+        """The resolver reads these as 127.0.0.1, 10.0.0.1, 192.168.1.1 and 0.0.0.0."""
+        assert not is_public_host(host)
+
+    @pytest.mark.parametrize("host", ["1.2.3.4.5", "999.1.1.1", "example.123", "a.b.0x1f", "0x"])
+    def test_a_host_that_ends_in_a_number_but_is_no_address_is_refused(self, host: str) -> None:
+        assert not is_public_host(host)
+
+    @pytest.mark.parametrize("host", ["134744072", "0x08080808", "8.8.2056", "010.010.010.010"])
+    def test_other_spellings_of_public_ipv4_addresses_stay_public(self, host: str) -> None:
+        assert is_public_host(host)
+
+    @pytest.mark.parametrize("host", ["123.example.edu", "1e3.example.edu", "x1", "a.b.0x1g"])
+    def test_names_with_digits_are_names(self, host: str) -> None:
+        assert is_public_host(host)
+
+    def test_full_width_characters_and_ideographic_dots_do_not_hide_an_address(self) -> None:
+        """HTTP clients map these to ASCII, so they are judged in that form."""
+        wide_digits = "".join(chr(0xFF10 + int(digit)) for digit in "127") + ".0.0.1"
+        ideographic_dots = "127.0.0.1".replace(".", chr(0x3002))
+        full_width_dots = "localhost" + chr(0xFF0E)
+        for host in (wide_digits, ideographic_dots, full_width_dots):
+            assert not is_public_host(host), ascii(host)
+        assert canonical_host(ideographic_dots) == "127.0.0.1"
+        assert canonical_host("WWW.Example.EDU.") == "www.example.edu"
+        assert is_public_host("www" + chr(0x3002) + "example" + chr(0x3002) + "edu")
+
+    def test_every_spelling_of_a_host_shares_one_queue(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        with pytest.raises(ForbiddenHostError):
+            client.get("http://127" + chr(0x3002) + "0.0.1/")
+        origin, host, path = split_url("https://Dept.Example.EDU./events?page=1")
+        assert (origin, host, path) == (
+            "https://dept.example.edu.",
+            "dept.example.edu",
+            "/events?page=1",
+        )
+        no_robots(respx_router)
+        respx_router.get(url__startswith=f"{HOST}").respond(200, text="ok")
+        respx_router.get(url__startswith="https://dept.example.edu.").respond(200, text="ok")
+        respx_router.get("https://dept.example.edu./robots.txt").respond(404)
+        client.get(PAGE)
+        client.get("https://DEPT.example.edu./events")
+        assert client.request_counts() == {"dept.example.edu": 2}
+
+    def test_ipv4_mapped_ipv6_addresses_are_judged_by_their_ipv4_address(self) -> None:
+        assert not is_public_host("::ffff:127.0.0.1")
+        assert not is_public_host("::ffff:192.168.1.10")
+        assert is_public_host("::ffff:8.8.8.8")
+        assert is_public_host("2606:4700:4700::1111")
 
     def test_error_status_raises(
         self, client: PoliteClient, respx_router: respx.MockRouter
@@ -473,6 +541,199 @@ class TestRobots:
         for _ in range(3):
             with pytest.raises(RobotsUnavailableError, match="not a text file"):
                 client.get(PAGE)
+        assert robots.call_count == 1
+        assert page.call_count == 0
+
+
+OTHER = "https://www.example.edu"
+
+
+class TestRobotsRedirects:
+    def test_redirect_on_the_same_host_is_followed(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        respx_router.get(ROBOTS).respond(301, headers={"Location": "/static/robots.txt"})
+        moved = respx_router.get(f"{HOST}/static/robots.txt").respond(
+            200, text="User-agent: *\nDisallow: /private/\n"
+        )
+        respx_router.get(PAGE).respond(200, text="ok")
+        with pytest.raises(RobotsDisallowedError):
+            client.get(f"{HOST}/private/x")
+        assert client.get(PAGE).text == "ok\n"
+        assert moved.call_count == 1
+
+    def test_redirect_to_another_host_is_followed_and_applies_to_the_first_host(
+        self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
+    ) -> None:
+        respx_router.get(ROBOTS).respond(302, headers={"Location": f"{OTHER}/robots.txt"})
+        target = respx_router.get(f"{OTHER}/robots.txt").respond(
+            200, text="User-agent: *\nCrawl-delay: 30\nDisallow: /private/\n"
+        )
+        private = respx_router.get(f"{HOST}/private/x").respond(200, text="secret")
+        respx_router.get(PAGE).respond(200, text="ok")
+        with pytest.raises(RobotsDisallowedError):
+            client.get(f"{HOST}/private/x")
+        assert private.call_count == 0
+        assert client.get(PAGE).text == "ok\n"
+        assert target.call_count == 1
+        assert fake_clock.sleeps == [30.0]
+        assert client.request_counts() == {"dept.example.edu": 1, "www.example.edu": 0}
+
+    def test_a_hop_waits_for_its_turn_on_the_host_it_goes_to(
+        self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
+    ) -> None:
+        times: list[float] = []
+        robots_text = "User-agent: *\nCrawl-delay: 30\n"
+        respx_router.get(f"{OTHER}/robots.txt").mock(
+            side_effect=timed(fake_clock, times, httpx.Response(200, text=robots_text))
+        )
+        respx_router.get(f"{OTHER}/events").respond(200, text="ok")
+        respx_router.get(ROBOTS).respond(302, headers={"Location": f"{OTHER}/robots.txt"})
+        respx_router.get(PAGE).respond(200, text="ok")
+        client.get(f"{OTHER}/events")
+        used_other_at = fake_clock()
+        client.get(PAGE)
+        assert times[1] - used_other_at == 30.0
+
+    @pytest.mark.parametrize(
+        "location",
+        [
+            "http://169.254.169.254/latest/meta-data/",
+            "http://localhost/robots.txt",
+            "http://2130706433/robots.txt",
+            "ftp://dept.example.edu/robots.txt",
+        ],
+    )
+    def test_redirect_to_an_address_that_must_not_be_fetched_blocks_the_host(
+        self, client: PoliteClient, respx_router: respx.MockRouter, location: str
+    ) -> None:
+        robots = respx_router.get(ROBOTS).respond(302, headers={"Location": location})
+        page = respx_router.get(PAGE).respond(200, text="ok")
+        for _ in range(2):
+            with pytest.raises(RobotsUnavailableError, match="must not be fetched") as caught:
+                client.get(PAGE)
+            assert str(caught.value).endswith(ROBOTS)
+        assert respx_router.calls.call_count == 1
+        assert robots.call_count == 1
+        assert page.call_count == 0
+
+    def test_redirect_loop_blocks_the_host(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        robots = respx_router.get(ROBOTS).respond(302, headers={"Location": "/robots.txt"})
+        page = respx_router.get(PAGE).respond(200, text="ok")
+        with pytest.raises(RobotsUnavailableError, match="redirects more than 5 times"):
+            client.get(PAGE)
+        assert robots.call_count == 6
+        assert page.call_count == 0
+        assert client.request_counts() == {"dept.example.edu": 0}
+
+    def test_a_chain_within_the_limit_is_followed(
+        self, http_settings: HttpSettings, respx_router: respx.MockRouter, fake_clock: FakeClock
+    ) -> None:
+        client = PoliteClient(
+            http_settings.evolve(max_redirects=2), clock=fake_clock, sleep=fake_clock.sleep
+        )
+        respx_router.get(ROBOTS).respond(301, headers={"Location": "/r1"})
+        respx_router.get(f"{HOST}/r1").respond(307, headers={"Location": f"{HOST}/r2"})
+        respx_router.get(f"{HOST}/r2").respond(200, text="User-agent: *\nDisallow: /events\n")
+        with pytest.raises(RobotsDisallowedError):
+            client.get(PAGE)
+
+    def test_redirect_without_a_location_is_an_unusable_answer(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        respx_router.get(ROBOTS).respond(302)
+        with pytest.raises(RobotsUnavailableError, match="HTTP 302"):
+            client.get(PAGE)
+
+    def test_failure_behind_a_redirect_blocks_the_first_host(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        respx_router.get(ROBOTS).respond(302, headers={"Location": f"{OTHER}/robots.txt"})
+        target = respx_router.get(f"{OTHER}/robots.txt").respond(503)
+        page = respx_router.get(PAGE).respond(200, text="ok")
+        with pytest.raises(RobotsUnavailableError, match="HTTP 503") as caught:
+            client.get(PAGE)
+        assert str(caught.value).endswith(ROBOTS)
+        assert target.call_count == 4
+        assert page.call_count == 0
+
+
+class TestBodyLimit:
+    @pytest.fixture
+    def small(self, http_settings: HttpSettings, fake_clock: FakeClock) -> PoliteClient:
+        settings = http_settings.evolve(max_body_bytes=1000)
+        return PoliteClient(settings, clock=fake_clock, sleep=fake_clock.sleep)
+
+    def test_default_limit(self, http_settings: HttpSettings) -> None:
+        assert http_settings.max_body_bytes == 5_000_000
+
+    def test_a_body_up_to_the_limit_is_read(
+        self, small: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        no_robots(respx_router)
+        respx_router.get(PAGE).respond(200, content=b"x" * 1000)
+        assert len(small.get(PAGE).text) == 1001
+
+    def test_a_declared_length_over_the_limit_is_refused_without_retries(
+        self, small: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        no_robots(respx_router)
+        page = respx_router.get(PAGE).respond(200, content=b"x" * 1001)
+        with pytest.raises(ResponseTooLargeError, match="larger than 1000 bytes") as caught:
+            small.get(PAGE)
+        assert caught.value.limit == 1000
+        assert isinstance(caught.value, HttpError)
+        assert page.call_count == 1
+
+    def test_reading_stops_when_an_undeclared_body_grows_over_the_limit(
+        self, http_settings: HttpSettings
+    ) -> None:
+        produced = 0
+
+        def endless() -> Iterator[bytes]:
+            nonlocal produced
+            while True:
+                produced += 1
+                yield b"x" * 400
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/robots.txt":
+                return httpx.Response(404)
+            return httpx.Response(200, content=endless())
+
+        clock = FakeClock()
+        settings = http_settings.evolve(max_body_bytes=1000)
+        with (
+            PoliteClient(
+                settings, clock=clock, sleep=clock.sleep, transport=httpx.MockTransport(handler)
+            ) as client,
+            pytest.raises(ResponseTooLargeError),
+        ):
+            client.get(PAGE)
+        assert produced == 3
+
+    def test_the_limit_counts_the_decompressed_body(
+        self, small: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        packed = gzip.compress(b"0" * 100_000)
+        assert len(packed) < 1000
+        no_robots(respx_router)
+        respx_router.get(PAGE).respond(
+            200, content=packed, headers={"Content-Encoding": "gzip", "Content-Type": "text/html"}
+        )
+        with pytest.raises(ResponseTooLargeError):
+            small.get(PAGE)
+
+    def test_an_oversized_robots_file_blocks_the_host(
+        self, small: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        robots = respx_router.get(ROBOTS).respond(200, content=b"# padding\n" * 200)
+        page = respx_router.get(PAGE).respond(200, text="ok")
+        for _ in range(2):
+            with pytest.raises(RobotsUnavailableError, match="larger than 1000 bytes"):
+                small.get(PAGE)
         assert robots.call_count == 1
         assert page.call_count == 0
 
