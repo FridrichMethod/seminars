@@ -16,9 +16,15 @@ differ; change both together.
 
 "Decorative" means code points that carry no content of their own: ligatures,
 no-break and other typographic spaces, soft hyphens, zero width characters,
-variation selectors, line separators and direction marks. Accented letters,
-CJK text, Greek and mathematical symbols (including arrows, superscripts and
-double-struck letters) are ordinary text and are neither emoji nor decorative.
+variation selectors, line separators and direction marks. Characters that
+cannot be shown count as well: the blank Hangul fillers, the interlinear
+annotation marks, the object replacement character and the private use area
+U+E000-F8FF, whose characters mean something only in the font of the page
+they came from (the bullet of the Symbol font that Word pastes as U+F0B7,
+icon fonts) and are boxes everywhere else. Accented letters, CJK text, Greek
+and mathematical symbols (including arrows, superscripts and double-struck
+letters) are ordinary text and are neither emoji nor decorative; so is the
+replacement character U+FFFD, which marks a byte that could not be decoded.
 
 "Emoji" covers the pictograph blocks and the whole Miscellaneous Symbols and
 Dingbats blocks (U+2600-27BF: stars, check marks, hearts, warning signs,
@@ -112,14 +118,19 @@ DECORATIVE_RANGES: Final[tuple[CodePointRange, ...]] = (
     (0x00A0, 0x00A0),  # no-break space
     (0x00AD, 0x00AD),  # soft hyphen
     (0x061C, 0x061C),  # Arabic letter mark
+    (0x115F, 0x1160),  # Hangul initial and medial filler
     (0x180E, 0x180E),  # Mongolian vowel separator
     (0x2000, 0x200F),  # typographic spaces, zero width characters and direction marks
     (0x2028, 0x202F),  # line and paragraph separator, bidi controls, narrow no-break space
     (0x205F, 0x2064),  # medium mathematical space, word joiner and invisible operators
     (0x2066, 0x2069),  # bidi isolates
+    (0x3164, 0x3164),  # Hangul filler
+    (0xE000, 0xF8FF),  # private use area (Symbol font bullets pasted from Word, icon fonts)
     (0xFB00, 0xFB06),  # Latin ligatures
     (0xFE0E, 0xFE0E),  # text variation selector
     (0xFEFF, 0xFEFF),  # zero width no-break space
+    (0xFFA0, 0xFFA0),  # halfwidth Hangul filler
+    (0xFFF9, 0xFFFC),  # interlinear annotation marks, object replacement character
 )
 """Code points that are not emoji but are still decorative or invisible."""
 
@@ -171,7 +182,7 @@ def is_emoji(char: str) -> bool:
 
 
 def is_decorative(char: str) -> bool:
-    """True for ligatures, invisible characters and no-break spaces."""
+    """True for ligatures, invisible and unprintable characters and no-break spaces."""
     return _in_ranges(ord(char), DECORATIVE_RANGES)
 
 
@@ -198,8 +209,9 @@ def clean_text(text: str) -> str:
       U+205F and the tab become an ordinary space;
     * every kind of line break (CR LF, CR, vertical tab, form feed, NEL,
       U+2028, U+2029) becomes a newline;
-    * emoji, the other decorative and invisible characters and the remaining
-      control characters are removed;
+    * emoji, the other decorative and invisible characters (private use
+      characters and blank fillers among them) and the remaining control
+      characters are removed;
     * lone surrogates (U+D800 to U+DFFF) are removed, so the result can
       always be encoded as UTF-8 and written to a file.
 

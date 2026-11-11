@@ -12,10 +12,10 @@ Scans every git-tracked file and enforces the charset rules of the project:
 * ``*.zh-CN.md``, ``locales/zh-CN.json`` and ``data/**`` may hold non-ASCII
   text (Chinese, accented names, mathematical and scientific symbols) but
   no emoji, no decorative or invisible code points (ligatures, no-break and
-  typographic spaces, zero width characters, line separators, ...) and no
-  control characters. ``data/**`` is published output: the pipeline cleans
-  scraped text before it is stored, and this check catches whatever slips
-  through;
+  typographic spaces, zero width characters, line separators, blank fillers,
+  private use characters, ...) and no control characters. ``data/**`` is
+  published output: the pipeline cleans scraped text before it is stored,
+  and this check catches whatever slips through;
 * ``tests/fixtures/**`` holds verbatim snapshots of real pages. They are test
   input and are never published, and the cleaning code has to be tested
   against exactly what the sites serve, so anything that is valid UTF-8 is
@@ -93,14 +93,19 @@ DECORATIVE_RANGES: tuple[tuple[int, int], ...] = (
     (0x00A0, 0x00A0),  # no-break space
     (0x00AD, 0x00AD),  # soft hyphen
     (0x061C, 0x061C),  # Arabic letter mark
+    (0x115F, 0x1160),  # Hangul initial and medial filler
     (0x180E, 0x180E),  # Mongolian vowel separator
     (0x2000, 0x200F),  # typographic spaces, zero width characters and direction marks
     (0x2028, 0x202F),  # line and paragraph separator, bidi controls, narrow no-break space
     (0x205F, 0x2064),  # medium mathematical space, word joiner and invisible operators
     (0x2066, 0x2069),  # bidi isolates
+    (0x3164, 0x3164),  # Hangul filler
+    (0xE000, 0xF8FF),  # private use area (Symbol font bullets pasted from Word, icon fonts)
     (0xFB00, 0xFB06),  # Latin ligatures
     (0xFE0E, 0xFE0E),  # text variation selector
     (0xFEFF, 0xFEFF),  # zero width no-break space
+    (0xFFA0, 0xFFA0),  # halfwidth Hangul filler
+    (0xFFF9, 0xFFFC),  # interlinear annotation marks, object replacement character
 )
 
 
@@ -114,7 +119,7 @@ def is_emoji(char: str) -> bool:
 
 
 def is_decorative(char: str) -> bool:
-    """Return True for ligatures, invisible characters and no-break spaces."""
+    """Return True for ligatures, invisible and unprintable characters and no-break spaces."""
     return _in_ranges(ord(char), DECORATIVE_RANGES)
 
 

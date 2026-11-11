@@ -48,6 +48,15 @@ SYMBOL_BLOCK_EMOJI = [chr(code) for code in (*_STILL_EMOJI, 0x26A0, 0x2705, 0x27
 TYPOGRAPHIC_SPACES = ["\u2000", "\u2002", "\u2003", "\u2009", "\u200a", "\u205f"]
 FORMAT_MARKS = ["\u061c", "\u180e", "\u2060", "\ufe0e"]
 INVISIBLE = [*FORMAT_MARKS, "\u2028", "\u2029"]
+FILLERS = ["\u115f", "\u1160", "\u3164", "\uffa0"]
+"""Hangul fillers: letters by category, blank on screen."""
+ANNOTATION_MARKS = ["\ufff9", "\ufffa", "\ufffb", "\ufffc"]
+"""Interlinear annotation controls and the object replacement character."""
+WORD_BULLET = "\uf0b7"  # the bullet of the Symbol font, pasted from Word
+PRIVATE_USE = ["\ue000", WORD_BULLET, "\uf8ff"]
+"""Private use characters: they have no agreed meaning and show up as boxes."""
+UNPRINTABLE = [*FILLERS, *ANNOTATION_MARKS, *PRIVATE_USE]
+REPLACEMENT_CHARACTER = "\ufffd"
 
 
 def _load_gate() -> ModuleType:
@@ -81,7 +90,14 @@ class TestTablesMatchTheGate:
                 assert is_decorative(char) == gate.is_decorative(char), hex(code_point)
 
     def test_what_the_gate_rejects_in_data_is_what_the_predicates_flag(self) -> None:
-        for char in (ROCKET, CHECK_MARK_BUTTON, VARIATION_SELECTOR, NBSP, LIGATURE_FI):
+        for char in (
+            ROCKET,
+            CHECK_MARK_BUTTON,
+            VARIATION_SELECTOR,
+            NBSP,
+            LIGATURE_FI,
+            *UNPRINTABLE,
+        ):
             line = '{"title": "x' + char + '"}\n'
             assert gate.check_bytes("data/events.json", line.encode("utf-8")) != []
             assert decorative_characters(line) == [char]
@@ -132,6 +148,31 @@ class TestPredicates:
     def test_neighbours_of_the_decorative_ranges_are_ordinary_text(self, char: str) -> None:
         assert not is_decorative(char)
 
+    @pytest.mark.parametrize("char", UNPRINTABLE)
+    def test_fillers_annotation_marks_and_private_use_are_decorative(self, char: str) -> None:
+        assert is_decorative(char)
+        assert not is_emoji(char)
+
+    def test_the_whole_private_use_area_is_decorative(self) -> None:
+        assert all(is_decorative(chr(code)) for code in range(0xE000, 0xF900))
+        assert all(unicodedata.category(chr(code)) == "Co" for code in range(0xE000, 0xF900))
+
+    @pytest.mark.parametrize(
+        "char",
+        [
+            "\u115e",  # a Hangul initial consonant
+            "\u1161",  # the Hangul vowel a
+            "\u3163",  # a Hangul compatibility letter
+            "\u3165",
+            "\uf900",  # a CJK compatibility ideograph, right after the private use area
+            "\uffa1",  # a halfwidth Hangul letter
+            REPLACEMENT_CHARACTER,  # what decoding puts in place of an invalid byte
+        ],
+    )
+    def test_neighbours_of_the_new_ranges_are_ordinary_text(self, char: str) -> None:
+        assert not is_decorative(char)
+        assert not is_emoji(char)
+
     def test_tables_do_not_overlap(self) -> None:
         for low, high in DECORATIVE_RANGES:
             assert not is_emoji(chr(low))
@@ -168,6 +209,7 @@ any_text = st.text(alphabet=st.one_of(every_character, st.sampled_from(LONE_SURR
 
 _CLEANING_TARGETS = [NBSP, SOFT_HYPHEN, ZERO_WIDTH_SPACE, ZWJ, LIGATURE_FI, ROCKET, FEMALE, MALE]
 _CLEANING_TARGETS += [VARIATION_SELECTOR, COMBINING_ACUTE, E_ACUTE, "e", " ", "\n", "\r", "\t"]
+_CLEANING_TARGETS += [*UNPRINTABLE, "\u1112", "\u1161"]
 hostile_text = st.text(
     alphabet=st.one_of(
         st.sampled_from([*_CLEANING_TARGETS, "\u2028", "\x85", *LONE_SURROGATES]),
@@ -240,10 +282,25 @@ class TestCleanText:
             "\x9f",
             *FORMAT_MARKS,
             *LONE_SURROGATES,
+            *UNPRINTABLE,
         ],
     )
     def test_invisible_and_control_characters_are_removed(self, char: str) -> None:
         assert clean_text("semi" + char + "nar") == "seminar"
+
+    def test_a_bullet_pasted_from_word_is_removed(self) -> None:
+        assert clean_text(WORD_BULLET + " first point\n" + WORD_BULLET + " second") == (
+            " first point\n second"
+        )
+
+    def test_hangul_text_survives_and_composes_after_a_filler_is_removed(self) -> None:
+        syllable, initial, vowel = "\ud55c", "\u1112", "\u1161"
+        assert clean_text(syllable) == syllable
+        assert clean_text(initial + "\u1160") == initial
+        assert clean_text(initial + "\u115f" + vowel) == "\ud558"  # the two letters compose
+
+    def test_the_replacement_character_is_kept(self) -> None:
+        assert clean_text("caf" + REPLACEMENT_CHARACTER) == "caf" + REPLACEMENT_CHARACTER
 
     def test_emoji_are_removed_with_their_modifiers(self) -> None:
         assert clean_text("Launch " + ROCKET + " day") == "Launch  day"

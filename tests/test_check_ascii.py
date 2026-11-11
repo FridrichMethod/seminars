@@ -98,6 +98,9 @@ class TestStrictFiles:
 CLEAN_PATHS = ["README.zh-CN.md", "locales/zh-CN.json", "data/events.json"]
 INVISIBLE = ["\u202f", "\u2009", "\u2028", "\u205f", "\u061c", "\u180e", "\ufe0e"]
 """Narrow no-break, thin and mathematical space, line separator, marks and selectors."""
+UNPRINTABLE = ["\u115f", "\u1160", "\u3164", "\uffa0", "\ufff9", "\ufffb", "\ufffc"]
+UNPRINTABLE += ["\ue000", "\uf0b7", "\uf8ff"]
+"""Hangul fillers, annotation marks, the object replacement character and private use."""
 
 
 class TestCleanFiles:
@@ -126,11 +129,18 @@ class TestCleanFiles:
         assert check("data/events.json", line) == []
 
     @pytest.mark.parametrize("path", CLEAN_PATHS)
-    @pytest.mark.parametrize("char", [NBSP, LIGATURE_FI, ZERO_WIDTH_SPACE, "\t", *INVISIBLE])
+    @pytest.mark.parametrize(
+        "char", [NBSP, LIGATURE_FI, ZERO_WIDTH_SPACE, "\t", *INVISIBLE, *UNPRINTABLE]
+    )
     def test_decorative_and_invisible_characters_are_rejected(self, path: str, char: str) -> None:
         messages = check(path, '{"a": "' + char + '"}\n')
         assert len(messages) == 1
         assert f"U+{ord(char):04X}" in messages[0]
+
+    @pytest.mark.parametrize("char", ["\ud55c", "\u1112\u1161", "\uf900", "\ufffd"])
+    def test_text_next_to_the_unprintable_ranges_passes(self, char: str) -> None:
+        """Hangul, a CJK compatibility ideograph and the replacement character are text."""
+        assert check("data/events.json", '{"a": "' + char + '"}\n') == []
 
 
 class TestFreeFiles:
