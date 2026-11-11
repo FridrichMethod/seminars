@@ -32,6 +32,7 @@ _LABEL: Final = re.compile(r"[a-z0-9_-]{1,63}")
 _MAX_NAME_LENGTH: Final = 253
 _UNICODE_NAME: Final = re.compile("[a-z0-9._\\-\u0080-\U0010ffff]+")
 _CONTROL_CHARACTER: Final = re.compile(r"[\x00-\x1f\x7f]")
+_ENCODED_DOT: Final = re.compile("%2e", re.IGNORECASE)
 _IDEOGRAPHIC_FULL_STOP: Final = chr(0x3002)  # a label separator to IDNA, like "."
 _IPV4_IN_IPV6: Final = tuple(
     ipaddress.IPv6Network(network)
@@ -207,6 +208,28 @@ def is_public_host(host: str) -> bool:
         return False
 
 
+def _without_dot_segments(path: str) -> str:
+    """``path`` without its ``.`` and ``..`` segments (RFC 3986, section 5.2.4).
+
+    ``%2e`` counts as a dot, as it does to browsers and to most servers.
+    A server resolves these segments before it looks a path up, so the
+    path with the segments still in it is not the one that robots.txt has
+    to be asked about.
+    """
+    segments = path.split("/")[1:]  # the path of an http(s) URL starts with "/"
+    kept: list[str] = []
+    for position, segment in enumerate(segments, start=1):
+        plain = _ENCODED_DOT.sub(".", segment)
+        if plain not in (".", ".."):
+            kept.append(segment)
+            continue
+        if plain == ".." and kept:
+            kept.pop()
+        if position == len(segments):
+            kept.append("")  # "/a/b/.." is the directory "/a/"
+    return "/" + "/".join(kept)
+
+
 @dataclass(frozen=True)
 class UrlParts:
     """A URL as the live client uses it; made by ``parse_url``."""
@@ -236,7 +259,10 @@ def parse_url(url: str) -> UrlParts:
 
     The canonical URL has a lower-case scheme, the host in canonical form,
     the port only when it is not the default of the scheme, and no fragment.
-    Path and query stay as written (an empty path is ``/``).
+    Dot segments are removed from the path (``/a/../b`` is ``/b``, also when
+    a dot is written ``%2e``): robots.txt is matched against the path that
+    the server will look up. An empty path is ``/``. Everything else in
+    path and query stays as written.
     """
     if strip_surrogates(url) != url:
         raise UnsupportedSchemeError(url, "a URL with a lone surrogate cannot be fetched")
@@ -267,7 +293,7 @@ def parse_url(url: str) -> UrlParts:
     origin = f"{scheme}://[{host}]" if ":" in host else f"{scheme}://{host}"
     if port is not None and port != _DEFAULT_PORTS[scheme]:
         origin = f"{origin}:{port}"
-    path = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
+    path = _without_dot_segments(parts.path or "/") + (f"?{parts.query}" if parts.query else "")
     return UrlParts(url=origin + path, origin=origin, host=host, path=path)
 
 

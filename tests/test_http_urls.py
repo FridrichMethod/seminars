@@ -13,6 +13,7 @@ from seminars.http import (
     ForbiddenHostError,
     HttpError,
     PoliteClient,
+    RobotsDisallowedError,
     UnsupportedSchemeError,
     canonical_host,
     is_public_host,
@@ -253,6 +254,44 @@ class TestParseUrl:
         assert len(str(caught.value)) < 400
 
     @pytest.mark.parametrize(
+        ("written", "sent"),
+        [
+            ("/public/../private/x", "/private/x"),
+            ("/./private/x", "/private/x"),
+            ("/a/b/../../c", "/c"),
+            ("/a/b/../c/./d", "/a/c/d"),
+            ("/a/..", "/"),
+            ("/a/b/..", "/a/"),
+            ("/a/.", "/a/"),
+            ("/..", "/"),
+            ("/../../x", "/x"),
+            ("/.", "/"),
+            ("/a/%2e%2e/b", "/b"),
+            ("/a/%2E%2e/b", "/b"),
+            ("/a/.%2e/b", "/b"),
+            ("/a/%2E./b", "/b"),
+            ("/a/%2e/b", "/a/b"),
+            ("/a/b/%2e%2e", "/a/"),
+            ("/a//b", "/a//b"),
+            ("/a/.../b", "/a/.../b"),
+            ("/a/..b/c", "/a/..b/c"),
+            ("/a/b../c", "/a/b../c"),
+            ("/a%2f../b", "/a%2f../b"),
+            ("/a/b/..?x=../y&z=/./w", "/a/?x=../y&z=/./w"),
+            ("/a/b/", "/a/b/"),
+            ("", "/"),
+        ],
+    )
+    def test_dot_segments_are_removed_before_anything_looks_at_the_path(
+        self, written: str, sent: str
+    ) -> None:
+        """Browsers and servers read %2e as a dot, so both spellings are removed."""
+        parts = parse_url(f"https://example.edu{written}")
+        assert parts.path == sent
+        assert parts.url == f"https://example.edu{sent}"
+        assert parse_url(parts.url) == parts
+
+    @pytest.mark.parametrize(
         "url", ["https://localhost./x", "https://foo.localhost/x", "https://LOCALHOST:8443/"]
     )
     def test_local_names_are_forbidden_in_any_spelling(self, url: str) -> None:
@@ -375,6 +414,46 @@ class TestTheUrlThatIsSent:
         again = client.get("https://Dept.Example.edu:443/events#later")
         assert (again.from_cache, again.text) == (True, "body\n")
         assert page.calls[1].request.headers["if-none-match"] == '"v1"'
+
+
+DOT_SPELLINGS = ["/public/../private/x", "/./private/x", "/private/./x", "/public/%2e%2e/private/x"]
+DOT_SPELLINGS += ["/a/b/../../private/x", "/public/%2E./private/x", "/private/y/../x"]
+"""Ways to write /private/x that do not start with /private/ as text."""
+
+
+class TestDotSegmentsAndRobots:
+    """robots.txt is matched against the path that is sent, not against the path as written."""
+
+    @pytest.mark.parametrize("path", DOT_SPELLINGS)
+    def test_a_disallowed_path_cannot_be_reached_through_dot_segments(
+        self, client: PoliteClient, respx_router: respx.MockRouter, path: str
+    ) -> None:
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nDisallow: /private/\n")
+        private = respx_router.get(url__startswith=f"{HOST}/").respond(200, text="secret")
+        with pytest.raises(RobotsDisallowedError):
+            client.get(f"{HOST}{path}")
+        assert private.call_count == 0
+
+    @pytest.mark.parametrize("path", DOT_SPELLINGS)
+    def test_nor_through_an_absolute_redirect(
+        self, client: PoliteClient, respx_router: respx.MockRouter, path: str
+    ) -> None:
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nDisallow: /private/\n")
+        respx_router.get(PAGE).respond(302, headers={"Location": f"{HOST}{path}"})
+        private = respx_router.get(url__startswith=f"{HOST}/p").respond(200, text="secret")
+        with pytest.raises(RobotsDisallowedError):
+            client.get(PAGE)
+        assert private.call_count == 0
+
+    def test_an_allowed_path_is_requested_without_its_dot_segments(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nDisallow: /private/\n")
+        page = respx_router.get(PAGE).respond(200, text="ok")
+        written = f"{HOST}/private/../events"
+        document = client.get(written)
+        assert (document.url, document.final_url, document.text) == (written, written, "ok\n")
+        assert page.calls.last.request.url.raw_path == b"/events"
 
 
 class TestOfflineClient:
