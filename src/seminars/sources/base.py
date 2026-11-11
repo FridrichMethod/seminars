@@ -33,6 +33,15 @@ Rules for adapters:
   as live, because offline mode looks fixtures up by URL. ``window`` tells it
   which period to ask the source for; query parameters derived from it must
   be recorded as volatile (see tests/fixtures/README.md).
+* ``fetch`` stays on the hosts of its source. It requests a URL only when
+  ``on_source_host(source, url)`` is true: the host is one of the source's
+  ``url`` / ``urls`` / ``homepage``, or it is listed under
+  ``params.extra_hosts`` of the source. Links found in a page (detail
+  pages, the next page) are checked before they are fetched and skipped
+  otherwise; ``fetch_urls`` does the check and raises ``ForeignHostError``.
+  The pauses and request budgets of the HTTP client are kept per host
+  name, so a page that lists links to other hosts could otherwise steer
+  requests at third parties or use up the budget of another source.
 * ``parse`` is a pure function of the payload and the source entry. Use
   ``payload.fetched_at`` as "now" (for example to infer a missing year).
   Copy what the source says into ``EventDraft``; cleaning is not its job.
@@ -62,6 +71,7 @@ adapters registered so far.
 
 from __future__ import annotations
 
+import contextlib
 import importlib
 import pkgutil
 import re
@@ -72,6 +82,7 @@ from typing import Final, Protocol, runtime_checkable
 from urllib.parse import urljoin, urlsplit
 
 from seminars.httpbase import HttpClient
+from seminars.httpurl import canonical_host
 from seminars.models import (
     EventDraft,
     FetchedDocument,
@@ -81,6 +92,7 @@ from seminars.models import (
     ascii_url,
     check_http_url,
 )
+from seminars.textrules import ascii_printable
 
 ADAPTER_PACKAGES: Final = ("seminars.sources.generic", "seminars.sources.custom")
 """Packages whose modules are imported by adapter discovery."""
@@ -129,6 +141,19 @@ class DuplicateAdapterError(AdapterError):
     """Two different adapters were registered under one name."""
 
 
+class ForeignHostError(AdapterError):
+    """An adapter was about to request a URL on a host that its source does not name."""
+
+    def __init__(self, source_id: str, url: str) -> None:
+        self.source_id = source_id
+        self.url = url
+        super().__init__(
+            f"source {source_id}: {ascii_printable(url)} is not on a host of this source; "
+            "an adapter only requests URLs on the hosts of its url, urls and homepage. "
+            "Name any other host under params.extra_hosts of the source"
+        )
+
+
 class AdapterDiscoveryError(AdapterError):
     """One or more adapter modules failed to import."""
 
@@ -143,7 +168,12 @@ class Adapter(Protocol):
     """What every source adapter implements; see the module docstring."""
 
     def fetch(self, http: HttpClient, source: SourceConfig, *, window: TimeWindow) -> RawPayload:
-        """Download everything needed for ``source`` and return it unparsed."""
+        """Download everything needed for ``source`` and return it unparsed.
+
+        An adapter requests only URLs for which ``on_source_host(source,
+        url)`` is true. A source that needs another host (detail pages on a
+        campus-wide calendar, for example) names it in ``params.extra_hosts``.
+        """
         ...
 
     def parse(self, payload: RawPayload, source: SourceConfig) -> list[EventDraft]:
@@ -374,6 +404,47 @@ def absolute_url(base: str, link: str | None) -> str | None:
         return None
 
 
+def _host_of(url: str) -> str | None:
+    """The host of ``url`` in canonical form; ``None`` when the text has no host."""
+    try:
+        return canonical_host(urlsplit(url).hostname or "")
+    except ValueError:
+        return None
+
+
+def source_hosts(source: SourceConfig) -> frozenset[str]:
+    """The hosts ``source`` is fetched from, in the spelling the HTTP client uses.
+
+    These are the hosts of its ``url`` / ``urls`` and of its ``homepage``,
+    plus the host names listed under ``params.extra_hosts``::
+
+        params: {extra_hosts: [events.stanford.edu]}
+
+    An entry of that list which is not a host name (a URL, a path, a
+    number) adds nothing, and neither does a value that is not a list.
+    """
+    urls = [*source.all_urls, *([source.homepage] if source.homepage else [])]
+    hosts = {_host_of(url) for url in urls}
+    extra = source.params.get("extra_hosts", [])
+    for name in extra if isinstance(extra, list) else []:
+        if isinstance(name, str):
+            with contextlib.suppress(ValueError):
+                hosts.add(canonical_host(name))
+    return frozenset(host for host in hosts if host is not None)
+
+
+def on_source_host(source: SourceConfig, url: str) -> bool:
+    """Whether ``url`` is on one of the hosts of ``source`` (``source_hosts``).
+
+    This is the test every adapter makes before it requests a URL that it
+    did not take from the configuration: a detail link, the next page, a
+    feed that a page points to. Only the host counts, whatever the scheme,
+    the port and the path are; ``www.example.edu`` and ``example.edu`` are
+    two hosts. Text that is no absolute URL is on no host.
+    """
+    return _host_of(url) in source_hosts(source)
+
+
 def make_payload(
     source: SourceConfig, documents: Sequence[FetchedDocument], *, window: TimeWindow
 ) -> RawPayload:
@@ -403,9 +474,16 @@ def fetch_urls(
     """Fetch ``urls`` (default: all URLs of the source) into one payload.
 
     This is the complete ``fetch`` step of adapters that need no pagination.
-    ``label`` is attached to every document.
+    ``label`` is attached to every document. Raises ``ForeignHostError``,
+    before anything is requested, when one of ``urls`` is not on a host of
+    the source (``on_source_host``).
     """
-    documents = [http.get(url) for url in (source.all_urls if urls is None else urls)]
+    targets = list(source.all_urls if urls is None else urls)
+    hosts = source_hosts(source)
+    for url in targets:
+        if _host_of(url) not in hosts:
+            raise ForeignHostError(source.id, url)
+    documents = [http.get(url) for url in targets]
     if label is not None:
         documents = [document.evolve(label=label) for document in documents]
     return make_payload(source, documents, window=window)

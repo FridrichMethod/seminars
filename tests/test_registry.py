@@ -34,11 +34,14 @@ from seminars.sources.base import (
     AdapterDiscoveryError,
     AdapterRegistry,
     DuplicateAdapterError,
+    ForeignHostError,
     ParseError,
     UnknownAdapterError,
     absolute_url,
     fetch_urls,
     make_payload,
+    on_source_host,
+    source_hosts,
 )
 
 ADAPTER_MODULE = """\
@@ -479,8 +482,9 @@ class TestFetchHelpers:
 
     def test_fetch_urls_with_explicit_urls(self) -> None:
         source = make_source()
-        http = FakeHttpClient({"https://example.edu/a": "a", "https://example.edu/b": "b"})
-        payload = fetch_urls(http, source, window=make_window(), urls=["https://example.edu/b"])
+        site = "https://bioengineering.stanford.edu"
+        http = FakeHttpClient({f"{site}/a": "a", f"{site}/b": "b"})
+        payload = fetch_urls(http, source, window=make_window(), urls=[f"{site}/b"])
         assert [document.text for document in payload.documents] == ["b\n"]
         assert payload.documents[0].label is None
 
@@ -498,6 +502,133 @@ class TestFetchHelpers:
 
     def test_parse_error_is_an_adapter_error(self) -> None:
         assert issubclass(ParseError, base.AdapterError)
+
+
+SITE = "https://bioengineering.stanford.edu"
+"""The host of ``make_source()``."""
+
+
+class TestSourceHosts:
+    """An adapter stays on the hosts its source names; a page cannot send it elsewhere."""
+
+    def test_the_hosts_of_the_urls_and_of_the_homepage(self) -> None:
+        source = make_source(
+            url="https://Events.Example.EDU./feed",
+            urls=["http://events.example.edu:8080/more", "https://api.example.org/v2/events"],
+            homepage="https://www.example.edu/calendar",
+        )
+        hosts = source_hosts(source)
+        assert hosts == {"events.example.edu", "api.example.org", "www.example.edu"}
+        assert isinstance(hosts, frozenset)
+
+    def test_extra_hosts_are_added_in_canonical_form(self) -> None:
+        source = make_source(params={"extra_hosts": ["Events.Stanford.EDU", "b\u00fccher.example"]})
+        assert source_hosts(source) == {
+            "bioengineering.stanford.edu",
+            "events.stanford.edu",
+            "xn--bcher-kva.example",
+        }
+
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            "events.stanford.edu",
+            {"events.stanford.edu": True},
+            None,
+            7,
+            [["events.stanford.edu"]],
+            ["https://events.stanford.edu/x"],
+            ["events.stanford.edu/x"],
+            ["not a host"],
+            [""],
+            [7, None],
+        ],
+    )
+    def test_extra_hosts_that_are_no_list_of_host_names_add_nothing(self, extra: object) -> None:
+        source = make_source(params={"extra_hosts": extra})
+        assert source_hosts(source) == {"bioengineering.stanford.edu"}
+
+    def test_the_entries_that_are_host_names_still_count(self) -> None:
+        source = make_source(
+            params={"extra_hosts": ["a.example.edu", "no host", 7, "b.example.edu"]}
+        )
+        assert source_hosts(source) == {
+            "bioengineering.stanford.edu",
+            "a.example.edu",
+            "b.example.edu",
+        }
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            f"{SITE}/events/all/rss",
+            f"{SITE}/events/42?page=2#top",
+            "http://bioengineering.stanford.edu/events",
+            "https://BioEngineering.Stanford.edu./events",
+            "https://bioengineering.stanford.edu:8443/api",
+        ],
+    )
+    def test_a_url_on_a_host_of_the_source_is_on_a_source_host(self, url: str) -> None:
+        assert on_source_host(make_source(), url)
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://events.stanford.edu/api/2/events",
+            "https://www.bioengineering.stanford.edu/events",
+            "https://stanford.edu/events",
+            "https://bioengineering.stanford.edu.evil.example/events",
+            "https://evil.example/bioengineering.stanford.edu",
+            "https://bioengineering.stanford.edu@evil.example/",
+            "https://93.184.216.34/events",
+            "/events/42",
+            "events/42",
+            "mailto:jane@bioengineering.stanford.edu",
+            "http://[broken",
+            "https://exa mple.edu/",
+            "",
+        ],
+    )
+    def test_any_other_url_is_not(self, url: str) -> None:
+        assert not on_source_host(make_source(), url)
+
+    def test_an_extra_host_makes_its_urls_fetchable(self) -> None:
+        source = make_source(params={"extra_hosts": ["events.stanford.edu"]})
+        assert on_source_host(source, "https://events.stanford.edu/api/2/events")
+        assert not on_source_host(source, "https://events.example.edu/api/2/events")
+
+    def test_fetch_urls_refuses_a_foreign_url_before_it_requests_anything(self) -> None:
+        source = make_source()
+        foreign = "https://third-party.example.org/x\ny"
+        http = FakeHttpClient({f"{SITE}/a": "a", foreign: "b"})
+        with pytest.raises(ForeignHostError) as caught:
+            fetch_urls(http, source, window=make_window(), urls=[f"{SITE}/a", foreign])
+        assert http.requests == []
+        assert isinstance(caught.value, base.AdapterError)
+        assert (caught.value.source_id, caught.value.url) == ("sites-bioengineering", foreign)
+        message = str(caught.value)
+        assert "sites-bioengineering" in message
+        assert "https://third-party.example.org/x\\ny" in message
+        assert "params.extra_hosts" in message
+        assert all(" " <= char <= "~" for char in message)
+
+    def test_fetch_urls_takes_a_url_on_an_extra_host(self) -> None:
+        source = make_source(params={"extra_hosts": ["events.stanford.edu"]})
+        detail = "https://events.stanford.edu/event/42"
+        http = FakeHttpClient({f"{SITE}/a": "a", detail: "b"})
+        payload = fetch_urls(http, source, window=make_window(), urls=[f"{SITE}/a", detail])
+        assert http.requests == [f"{SITE}/a", detail]
+        assert len(payload.documents) == 2
+
+    def test_the_urls_of_the_source_itself_are_always_fetched(self) -> None:
+        source = make_source(urls=["https://api.example.org/events"], homepage=f"{SITE}/")
+        http = FakeHttpClient(dict.fromkeys(source.all_urls, "body"))
+        assert len(fetch_urls(http, source, window=make_window()).documents) == 2
+
+    def test_the_rule_is_part_of_the_adapter_contract(self) -> None:
+        assert "on_source_host" in (Adapter.fetch.__doc__ or "")
+        assert "extra_hosts" in (Adapter.fetch.__doc__ or "")
+        assert "on_source_host" in (base.__doc__ or "")
 
 
 PAGE_URL = "https://dept.example.edu/events/upcoming?page=2"
