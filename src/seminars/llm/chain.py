@@ -5,10 +5,19 @@ failure (credential, quota, rate limit, timeout, network; any
 ``LLMProviderError``) marks that provider unavailable for the rest of the
 run and the request moves on to the next one. When none is left the chain
 has reached its end, ``none``: the request raises ``LLMUnavailableError``
-and the caller goes on with the rules only. There is no separate probe when
-a run starts: the first request plays that role, so a run that needs no
-answer costs nothing (``seminars llm-smoke`` probes on purpose, see
-``seminars.llm.resolve``).
+and the caller goes on with the rules only.
+
+The probe. A run learns whether its first provider works from its first
+request. A run that sends no request (every answer came from the cache)
+would never learn it, and an expired credential would go unnoticed for as
+long as the cache serves everything. ``probe`` covers that case: when the
+run has sent nothing yet, it sends one cheap request (``ProbeAnswer``)
+through the chain like any other request, so it counts against the cap of
+the run, a provider that fails is marked unavailable and the next one is
+asked, and the outcome is in ``usage``. With ``probe_when_idle`` (how
+``seminars.llm.resolve.build_llm_client`` builds the chain) ``usage`` calls
+``probe`` itself, so the run report never lacks the state of the chain.
+``seminars llm-smoke`` probes every provider instead (``seminars.llm.resolve``).
 
 An answer that does not validate (``LLMInvalidOutputError``) is discarded
 and reported to the caller. It is not a reason to switch: the provider did
@@ -44,6 +53,7 @@ from seminars.contracts import (
     LLMInvalidOutputError,
 )
 from seminars.llm.base import Completion, NoneProvider, Provider
+from seminars.llm.probe import PROBE_MAX_TOKENS, PROBE_SYSTEM, PROBE_USER, ProbeAnswer
 from seminars.llm.schema import strict_json_schema
 from seminars.models import LLMFailureKind, LLMProviderResult, LLMProviderStatus, LLMUsage
 from seminars.textrules import ascii_printable
@@ -75,6 +85,8 @@ class _RunState:
     """The state of one run, shared by a chain and all of its restricted views."""
 
     max_calls: int
+    probe_when_idle: bool = False
+    probed: bool = False
     lock: threading.Lock = field(default_factory=threading.Lock)
     records: dict[str, _ProviderRecord] = field(default_factory=dict)
     calls: int = 0
@@ -91,7 +103,9 @@ class ProviderChain:
 
     ``max_calls`` is the cap of requests for the run and ``max_input_chars``
     the longest user prompt that is sent (``LLMConfig.max_calls_per_run`` and
-    ``max_input_chars``). Safe to use from several threads.
+    ``max_input_chars``). With ``probe_when_idle``, ``usage`` probes first
+    when the run has sent no request (see the module). Safe to use from
+    several threads.
     """
 
     def __init__(
@@ -100,12 +114,13 @@ class ProviderChain:
         *,
         max_calls: int,
         max_input_chars: int,
+        probe_when_idle: bool = False,
         _state: _RunState | None = None,
         _excluded: frozenset[str] = frozenset(),
     ) -> None:
         self._providers = tuple(providers)
         self._max_input_chars = max_input_chars
-        self._state = _state or _RunState(max_calls=max_calls)
+        self._state = _state or _RunState(max_calls=max_calls, probe_when_idle=probe_when_idle)
         self._excluded = _excluded
         self._end = NoneProvider()
         for provider in self._providers:
@@ -127,6 +142,7 @@ class ProviderChain:
             self._providers,
             max_calls=self._state.max_calls,
             max_input_chars=self._max_input_chars,
+            probe_when_idle=self._state.probe_when_idle,
             _state=self._state,
             _excluded=self._excluded | frozenset(exclude),
         )
@@ -214,6 +230,24 @@ class ProviderChain:
                 return completion.value
         return self._end.complete_json(system, user, schema, max_tokens=max_tokens)
 
+    def probe(self) -> None:
+        """Send the probe request when the run has sent no request yet; only the first time.
+
+        A run that has sent a request has had its probe. The probe request
+        goes through the chain like any other (see the module) and never
+        raises: its outcome is in ``usage``.
+        """
+        state = self._state
+        with state.lock:
+            idle = not state.probed and state.calls == 0 and state.max_calls > 0
+            state.probed = True
+        if not idle:
+            return
+        try:
+            self.complete_json(PROBE_SYSTEM, PROBE_USER, ProbeAnswer, max_tokens=PROBE_MAX_TOKENS)
+        except LLMError as error:
+            logger.info("LLM probe: no provider answered (%s)", type(error).__name__)
+
     def record_skipped_too_long(self, count: int) -> None:
         """Count requests a caller did not make because the input is too long (``SkipRecorder``)."""
         if count < 0:
@@ -222,7 +256,13 @@ class ProviderChain:
             self._state.skipped_too_long += count
 
     def usage(self) -> LLMUsage:
-        """The LLM activity of the run so far, for the run report and health."""
+        """The LLM activity of the run so far, for the run report and health.
+
+        With ``probe_when_idle`` a run that has sent no request yet sends the
+        probe request first (``probe``), once.
+        """
+        if self._state.probe_when_idle:
+            self.probe()
         state = self._state
         with state.lock:
             results = [

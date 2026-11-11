@@ -22,6 +22,12 @@ Credentials are read from the given environment, stripped, and handed to
 the backend that needs them. They are never logged, and building a chain
 runs no command and sends no request. A chain without any provider is
 ``None``: rules-only mode.
+
+The chain probes its first provider once per run: the first request of the
+run is that probe, and a run that sends no request at all (every answer
+came from the cache) sends the probe request when its usage is read for
+the run report (``ProviderChain`` with ``probe_when_idle``). So an expired
+credential shows up in health also on a day without new events.
 """
 
 from __future__ import annotations
@@ -47,20 +53,10 @@ from seminars.llm.chain import ProviderChain
 from seminars.llm.claude_cli import ClaudeCliProvider
 from seminars.llm.cli import CliRunner, run_cli
 from seminars.llm.codex_cli import CodexCliProvider
-from seminars.models import LLMProviderResult, Model
+from seminars.llm.probe import PROBE_MAX_TOKENS, PROBE_SYSTEM, PROBE_USER, ProbeAnswer
+from seminars.models import LLMProviderResult
 
 logger: Final = logging.getLogger(__name__)
-
-PROBE_SYSTEM: Final = 'This is a connection check. Answer with the JSON object {"ok": true}.'
-PROBE_USER: Final = "ping"
-PROBE_MAX_TOKENS: Final = 512
-"""Room for the probe answer; models that think before they answer need more than the answer."""
-
-
-class ProbeAnswer(Model):
-    """The answer to the probe request: a closed vocabulary, so every backend may give it."""
-
-    ok: bool
 
 
 @dataclass(frozen=True)
@@ -153,13 +149,17 @@ def build_llm_client(config: LLMConfig, env: Mapping[str, str]) -> LLMChainClien
 
     ``config`` has the environment overrides applied already. Never raises
     for a missing or broken provider: such a provider is left out, or fails
-    when it is first asked and the chain moves on.
+    when it is first asked and the chain moves on. The chain probes when
+    its usage is read and the run has sent nothing (see the module).
     """
     providers = build_providers(config, env)
     if not providers:
         return None
     return ProviderChain(
-        providers, max_calls=config.max_calls_per_run, max_input_chars=config.max_input_chars
+        providers,
+        max_calls=config.max_calls_per_run,
+        max_input_chars=config.max_input_chars,
+        probe_when_idle=True,
     )
 
 

@@ -46,7 +46,10 @@ claude-cli -> codex-cli -> anthropic -> openai -> openai-compat -> none
 * The repository variable `LLM_PROVIDERS` (comma separated) replaces the order or selects
   providers, for example `claude-cli,anthropic`. `none` in the list ends it, so
   `LLM_PROVIDERS=none` switches the LLM off.
-* The first request of a run plays the role of a probe. When a provider fails with an
+* The first provider is probed once per run: the first request of the run is that probe,
+  and a run that sends no request at all, because every answer came from the cache, sends
+  one small probe request when the run report is made. So an expired credential shows up
+  in the health data also on a day without new events. When a provider fails with an
   authentication failure, an exhausted quota, a rate limit, a timeout or a network error,
   it is marked unavailable for the rest of the run and the request goes to the next
   provider. When all of them have failed, the run goes on with the rules only.

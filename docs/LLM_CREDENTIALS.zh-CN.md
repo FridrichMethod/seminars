@@ -33,7 +33,7 @@ claude-cli -> codex-cli -> anthropic -> openai -> openai-compat -> none
 * 只有配了凭证的 provider 才进链。`anthropic` 和 `openai` 还需要配模型，`openai-compat` 需要地址和模型。
 * `codex-cli` 只有被显式点名时才进链，而且在 GitHub Actions 里永远不进链。所以 CI 里的链是 `claude-cli -> anthropic -> openai -> openai-compat -> none`。
 * repo 变量 `LLM_PROVIDERS`（逗号分隔）可以替换顺序或者只选其中几个，例如 `claude-cli,anthropic`。列表里的 `none` 表示到此为止，所以 `LLM_PROVIDERS=none` 会关掉 LLM。
-* 每次运行的第一个请求就起探活的作用。provider 遇到认证失败、额度用完、限流、超时或网络错误时，在本次运行剩下的时间里被标记为不可用，请求交给下一个 provider。全部失败后，运行只用规则继续。
+* 每次运行对第一个 provider 探活一次：运行的第一个请求就是探活；如果整次运行一个请求都没发（所有回答都来自缓存），就在生成 report 时发一个很小的探活请求。所以即使某天没有新事件，过期的凭证也会出现在 health 数据里。provider 遇到认证失败、额度用完、限流、超时或网络错误时，在本次运行剩下的时间里被标记为不可用，请求交给下一个 provider。全部失败后，运行只用规则继续。
 * 格式不符合要求的回答会被丢弃。这不是换 provider 的理由。
 * 每次失败都记进 health 数据。同一个 provider 连续失败两次，就为它开一个 `llm-auth` issue，写明要换哪个 secret、要跑什么命令；provider 恢复后 issue 自动关闭。
 
