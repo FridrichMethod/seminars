@@ -20,12 +20,20 @@ What counts as a credential:
 * the exact value of every credential the process was started with
   (``known_credentials``), whatever it looks like.
 
+The two generic rules (``Bearer`` and the keywords) take a value only when
+it looks generated: it holds a digit, one of ``_ ~ + / =``, or a lower
+case letter followed by an upper case one. Words joined by hyphens, as in
+"bearer token-based-authentication-schemes", are prose, not a token.
+
 A finding names the place and the rule, never the text. The same rules
 back ``redact``, which normalization applies to every text taken from a
 page: a token that a page shows (a talk about web security, a pasted
-command) is replaced before it is stored, so page content cannot stop the
-daily run. What is left for the scan to find is a real leak, for example
-in an answer of an LLM.
+command) is replaced before it is stored in an event. Text that is stored
+as it came is not redacted: data/llm_cache holds the answers of the LLM
+verbatim, so a token that a page shows can reach the cache through the
+extraction of that page, and the scan then stops every run until the page
+changes. What the scan finds is therefore either a real leak or such a
+verbatim copy; both must stay out of a commit.
 
 The patterns in this file are written so that they do not match
 themselves, and tests build their samples by concatenation: the scanner
@@ -60,6 +68,10 @@ escape (backslash ``n``, backslash ``u00a0``), so a token that starts a line
 of an abstract follows a letter or a digit in the file that holds it.
 """
 
+_TOKEN_CHAR: Final = r"[A-Za-z0-9._~+/=-]"
+_GENERATED: Final = rf"(?={_TOKEN_CHAR}*?(?:[0-9_~+/=]|[a-z][A-Z]))"
+"""Lookahead at the start of a value: somewhere in it is a sign that it was generated."""
+
 RULES: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     # Distinctive prefixes need no guard: they are found even when glued to a word.
     ("github-token", re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}")),
@@ -67,7 +79,10 @@ RULES: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("anthropic-key", re.compile(r"sk-ant-[A-Za-z0-9_-]{16,}")),
     ("openai-key", re.compile(r"sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{16,}")),
     ("openai-key", re.compile(_NOT_AFTER_WORD + r"sk-[A-Za-z0-9]{20,}")),
-    ("bearer-token", re.compile(rf"(?:\b|{_ESCAPED})(?i:bearer)\s+[A-Za-z0-9._~+/=-]{{20,}}")),
+    (
+        "bearer-token",
+        re.compile(rf"(?:\b|{_ESCAPED})(?i:bearer)\s+{_GENERATED}{_TOKEN_CHAR}{{20,}}"),
+    ),
     (
         "jwt",
         re.compile(
@@ -79,7 +94,7 @@ RULES: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
         "token-keyword",
         re.compile(
             rf"(?:\b|{_ESCAPED})(?i:(?:refresh_token|access_token|id_token|client_secret)\b)"
-            r"[\"']?\s*[:=]\s*[\"']?[A-Za-z0-9._~+/=-]{12,}"
+            rf"[\"']?\s*[:=]\s*[\"']?{_GENERATED}{_TOKEN_CHAR}{{12,}}"
         ),
     ),
 )
