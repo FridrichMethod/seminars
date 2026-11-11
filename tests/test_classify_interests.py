@@ -49,7 +49,7 @@ PRESET_KEYWORDS: list[str] = [
     "probability",
     "combinatorics",
 ]
-"""The preset interest keywords, spelled as the project plan lists them."""
+"""The interests the shipped file must cover, spelled as a talk title would spell them."""
 
 WEAK_PRESETS: frozenset[str] = frozenset({"de novo"})
 """Presets that are too common on their own ("de novo mutations") to make a pick alone."""
@@ -64,7 +64,7 @@ PRESET_SERIES: list[str] = [
     "MLSys seminar",
     "SLAC Colloquium",
 ]
-"""The preset series allow-list, spelled as the project plan lists it."""
+"""The series the shipped allow-list must hold, exactly as listed there."""
 
 
 @pytest.fixture(scope="module")
