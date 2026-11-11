@@ -153,6 +153,8 @@ _SURROGATE_CLASS: Final = _character_class((_SURROGATE_RANGE,))
 _UNWANTED: Final = re.compile(f"[{_TABLES}]")
 _REJECTED_IN_DATA: Final = re.compile(f"[{_TABLES}{_CONTROLS}{_SURROGATE_CLASS}]")
 _SURROGATES: Final = re.compile(f"[{_SURROGATE_CLASS}]")
+_CONTROL_CHARACTERS: Final = re.compile(r"[\x00-\x1f\x7f]")
+_CONTROL_ESCAPES: Final = {"\n": "\\n", "\r": "\\r", "\t": "\\t"}
 
 _LIGATURE_LETTERS: Final = ("ff", "fi", "fl", "ffi", "ffl", "st", "st")  # U+FB00 .. U+FB06
 _SPACES: Final = (0x0009, 0x00A0, *range(0x2000, 0x200B), 0x202F, 0x205F)
@@ -293,6 +295,28 @@ def ascii_safe(text: str) -> str:
     text is returned unchanged, so the function is idempotent.
     """
     return text.encode("ascii", "backslashreplace").decode("ascii")
+
+
+def ascii_printable(text: str) -> str:
+    """``ascii_safe`` that escapes control characters as well: printable ASCII on one line.
+
+    The control characters U+0000 to U+001F and U+007F become ``\\n``,
+    ``\\r``, ``\\t`` or an escape such as ``\\x1b``; everything outside
+    ASCII is escaped as ``ascii_safe`` does it. Printable ASCII is returned
+    unchanged, so the function is idempotent.
+
+    Use it for text that a site controls (a header value, a URL from a
+    link or a redirect, a file name) wherever it goes into an error
+    message, a log line or the output of a command. An escape sequence
+    could otherwise repaint the terminal it is shown on, and a newline
+    could forge a line of a log or a workflow command of a CI system.
+    """
+    return ascii_safe(_CONTROL_CHARACTERS.sub(_escaped_control, text))
+
+
+def _escaped_control(match: re.Match[str]) -> str:
+    char = match.group()
+    return _CONTROL_ESCAPES.get(char) or f"\\x{ord(char):02x}"
 
 
 def data_charset_problems(text: str) -> list[str]:

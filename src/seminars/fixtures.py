@@ -46,7 +46,7 @@ import sys
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Final, Literal, Self
+from typing import TYPE_CHECKING, Annotated, Final, Literal, Self, TextIO
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit
 
 from pydantic import AfterValidator, StringConstraints, ValidationError
@@ -63,7 +63,7 @@ from seminars.httpurl import split_url
 from seminars.models import SOURCE_ID_PATTERN, FetchedDocument, Model, dump_json
 from seminars.models.base import SortedStrList, SourceId, Timestamp, sorted_dict
 from seminars.textio import read_text, write_text_atomic
-from seminars.textrules import ascii_safe
+from seminars.textrules import ascii_printable, ascii_safe
 
 if TYPE_CHECKING:
     from seminars.http import PoliteClient
@@ -494,6 +494,15 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _say(line: str, file: TextIO | None = None) -> None:
+    """Print one line of output that may contain text of a site, a URL or a file name.
+
+    Whatever is not printable ASCII is escaped, so nothing a site sent can
+    act on the terminal and no line can pretend to be two.
+    """
+    print(ascii_printable(line), file=file)
+
+
 def _record_one(args: argparse.Namespace, http: HttpClient, store: FixtureStore, url: str) -> bool:
     """Record ``url`` and report the outcome on the console; False when it failed."""
     try:
@@ -506,10 +515,10 @@ def _record_one(args: argparse.Namespace, http: HttpClient, store: FixtureStore,
             allow_statuses=args.allow_status,
         )
     except (HttpError, FixtureError) as error:
-        print(f"error: {error}", file=sys.stderr)
+        _say(f"error: {error}", file=sys.stderr)
         return False
     except OSError as error:
-        print(f"error: cannot store {ascii_safe(url)}: {error.strerror or error}", file=sys.stderr)
+        _say(f"error: cannot store {url}: {error.strerror or error}", file=sys.stderr)
         return False
     size = (store.directory / entry.file).stat().st_size
     print(f"recorded {args.source_id}/{entry.file} (HTTP {entry.status}, {size} bytes)")
@@ -565,13 +574,13 @@ def _fetch_one(
     try:
         document = http.get(url, allow_statuses=allow_statuses)
     except HttpError as error:
-        print(f"error: {error}", file=sys.stderr)
+        _say(f"error: {error}", file=sys.stderr)
         return False
-    print(f"fetched {ascii_safe(url)}")
-    print(f"  status: {document.status}")
-    print(f"  final URL: {ascii_safe(document.final_url)}")
-    print(f"  content type: {document.content_type or 'unknown'}")
-    print(f"  bytes: {len(document.text.encode('utf-8'))}")
+    _say(f"fetched {url}")
+    _say(f"  status: {document.status}")
+    _say(f"  final URL: {document.final_url}")
+    _say(f"  content type: {document.content_type or 'unknown'}")
+    _say(f"  bytes: {len(document.text.encode('utf-8'))}")
     if save_dir is None:
         return True
     path = save_dir / scratch_file_name(url, document.content_type)
@@ -657,7 +666,7 @@ def main(
         return _fetch_command(args, paths, http, resolver, save_dir)
     problems = check_tree(paths.fixtures_dir, args.source_id)
     for problem in problems:
-        print(problem)
+        _say(problem)
     print(f"{len(problems)} problem(s) found" if problems else "fixtures OK")
     return 1 if problems else 0
 

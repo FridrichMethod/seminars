@@ -9,11 +9,12 @@ modules is re-exported by ``seminars.http``; import it from there.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import Final, Protocol, runtime_checkable
 
 from seminars.models import FetchedDocument
-from seminars.textrules import ascii_safe
+from seminars.textrules import ascii_printable
 
 Clock = Callable[[], float]
 """Returns the current time as epoch seconds."""
@@ -50,11 +51,23 @@ BINARY_MEDIA_TYPES: Final = frozenset(
 )
 
 
+_MEDIA_TYPE: Final = re.compile(r"[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+-]+")
+"""A type and a subtype, each a token of the characters media types are made of."""
+
+
 def media_type(content_type: str | None) -> str | None:
-    """``"Text/HTML; charset=utf-8"`` -> ``"text/html"``; ``None`` stays ``None``."""
+    """``"Text/HTML; charset=utf-8"`` -> ``"text/html"``; ``None`` stays ``None``.
+
+    The header is whatever a site sent, and its value goes into documents,
+    fixture manifests and messages. What stands before the first ``;`` is
+    therefore only passed on when it is a plain ``type/subtype`` pair of
+    tokens. Anything else (control characters, spaces, several values)
+    gives ``None``, like a missing header.
+    """
     if not content_type:
         return None
-    return content_type.split(";", 1)[0].strip().lower() or None
+    value = content_type.split(";", 1)[0].strip().lower()
+    return value if _MEDIA_TYPE.fullmatch(value) else None
 
 
 def is_binary_media_type(value: str | None) -> bool:
@@ -65,11 +78,16 @@ def is_binary_media_type(value: str | None) -> bool:
 
 
 class HttpError(Exception):
-    """Base class of every error raised by an ``HttpClient``."""
+    """Base class of every error raised by an ``HttpClient``.
+
+    The message is printable ASCII on one line, whatever the URL and the
+    answer of a site contained (``seminars.textrules.ascii_printable``), so
+    it can be logged and printed as it is. ``url`` is kept as it was given.
+    """
 
     def __init__(self, url: str, message: str) -> None:
         self.url = url
-        super().__init__(f"{message}: {ascii_safe(url)}")
+        super().__init__(ascii_printable(f"{message}: {url}"))
 
 
 class UnsupportedSchemeError(HttpError, ValueError):

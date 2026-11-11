@@ -178,6 +178,10 @@ fetched https://chemistry.stanford.edu/events
   the project is used as it is.
 - `--allow-status CODE` (repeatable) shows an error response instead of
   failing on it.
+- Nothing a site sent is printed raw. In the output of `fetch`, `record`
+  and `check`, every character outside printable ASCII appears as an
+  escape such as `\x1b` or `\n`, so a line of output is always one line.
+  A Content-Type that is not a plain `type/subtype` is shown as `unknown`.
 - A URL that fails is reported on stderr and the remaining ones are still
   fetched; the exit status is 1 when any failed.
 - Once you know which URLs an adapter needs, record them with `record`.
