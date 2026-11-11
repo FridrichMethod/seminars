@@ -4,6 +4,12 @@ Adapters copy what a source says. Everything in here turns that into the
 text an ``Event`` holds: plain text without markup, cleaned by
 ``seminars.textrules.clean_text``, with tidy whitespace and a bounded
 length. The functions are pure and never raise on odd input.
+
+A field can be as large as a page (several megabytes), and a broken or
+hostile page must not stall a run. ``one_line`` and ``paragraphs`` therefore
+cut what they are given to ``RAW_FACTOR`` times their limit before anything
+else happens, and every pattern applied to text runs in time linear in its
+length.
 """
 
 from __future__ import annotations
@@ -19,6 +25,8 @@ from seminars.models import TBA_TITLE, EventStatus, url_has_credential
 from seminars.textrules import clean_text
 
 ELLIPSIS: Final = "..."
+RAW_FACTOR: Final = 8
+"""How much raw text, markup included, a field may hold per character of its limit."""
 LINK_REMOVED: Final = "[link removed]"
 VALUE_REMOVED: Final = "[removed]"
 
@@ -34,9 +42,12 @@ _BLOCK_TAG: Final = re.compile(rf"</?(?:{_BLOCK_TAGS})(?:\s[^<>]*)?/?>", re.IGNO
 _KNOWN_TAG: Final = re.compile(
     rf"</?(?:{_BLOCK_TAGS}|{_INLINE_TAGS})(?:\s[^<>]*)?/?>", re.IGNORECASE
 )
-_HIDDEN_BLOCK: Final = re.compile(
-    r"<(script|style)\b[^>]*>.*?</\1\s*>|<!--.*?-->", re.IGNORECASE | re.DOTALL
-)
+_HIDDEN_OPENER: Final = re.compile(r"<(?:(script|style)\b[^<>]*>|!--)", re.IGNORECASE)
+_HIDDEN_CLOSERS: Final[dict[str, re.Pattern[str]]] = {
+    "script": re.compile(r"</script\s*>", re.IGNORECASE),
+    "style": re.compile(r"</style\s*>", re.IGNORECASE),
+    "--": re.compile(r"-->"),
+}
 _HIDDEN_TAGS: Final = ["script", "style", "noscript", "template", "head"]
 
 _URL: Final = re.compile(r"https?://[^\s<>\"')\]]+", re.IGNORECASE)
@@ -103,6 +114,39 @@ def html_to_text(markup: str) -> str:
     return body.text(deep=True, separator="") if body is not None else ""
 
 
+def drop_hidden(text: str) -> str:
+    """``text`` without scripts, styles and comments; each becomes one space.
+
+    An opener without its closer stays as it is: ``a <!-- b`` in a title
+    is text. Once the closer of a kind was not found, it is not searched
+    for again, so the time is linear in the length of ``text``.
+    """
+    pieces: list[str] = []
+    position = 0
+    unclosed: set[str] = set()
+    while (opener := _HIDDEN_OPENER.search(text, position)) is not None:
+        kind = (opener.group(1) or "--").lower()
+        closer = None if kind in unclosed else _HIDDEN_CLOSERS[kind].search(text, opener.end())
+        if closer is None:
+            unclosed.add(kind)
+            pieces.append(text[position : opener.end()])
+        else:
+            pieces.append(text[position : opener.start()] + " ")
+        position = opener.end() if closer is None else closer.end()
+    pieces.append(text[position:])
+    return "".join(pieces)
+
+
+def bounded(text: str, limit: int) -> str:
+    """At most ``RAW_FACTOR * limit`` characters of ``text``, without a tag cut in half."""
+    size = RAW_FACTOR * max(limit, 1)
+    if len(text) <= size:
+        return text
+    cut = text[:size]
+    tail = cut.rfind("<")
+    return cut[:tail] if tail > cut.rfind(">") else cut
+
+
 def strip_markup(text: str) -> str:
     """Plain text that may hold stray tags and entities, without them.
 
@@ -110,7 +154,7 @@ def strip_markup(text: str) -> str:
     ``<x, y>`` in a title about mathematics stay as they are. A block tag
     leaves a line break behind.
     """
-    without_hidden = _HIDDEN_BLOCK.sub(" ", text)
+    without_hidden = drop_hidden(text)
     with_breaks = _BLOCK_TAG.sub("\n", without_hidden)
     return html.unescape(_KNOWN_TAG.sub("", with_breaks))
 
@@ -131,7 +175,7 @@ def one_line(text: str | None, *, limit: int) -> str | None:
     """
     if text is None:
         return None
-    collapsed = " ".join(clean_text(strip_markup(text)).split())
+    collapsed = " ".join(clean_text(strip_markup(bounded(text, limit))).split())
     return truncate(collapsed, limit) or None
 
 
@@ -143,7 +187,8 @@ def paragraphs(text: str | None, *, limit: int, is_html: bool = False) -> str | 
     """
     if text is None:
         return None
-    plain = clean_text(html_to_text(text) if is_html else strip_markup(text))
+    raw = bounded(text, limit)
+    plain = clean_text(html_to_text(raw) if is_html else strip_markup(raw))
     lines = (" ".join(line.split()) for line in plain.split("\n"))
     return truncate("\n".join(line for line in lines if line), limit) or None
 

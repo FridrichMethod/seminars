@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from seminars.pipeline.speakers import ParsedSpeaker, looks_like_name, split_speakers
 from seminars.pipeline.text import (
+    RAW_FACTOR,
+    bounded,
     canonical_name,
+    drop_hidden,
     fold,
     html_to_text,
     is_tba,
@@ -71,6 +76,46 @@ class TestMarkup:
         assert one_line(None, limit=10) is None
         assert one_line(" \n\t ", limit=10) is None
         assert paragraphs(None, limit=10) is None
+
+
+MEGABYTE = 1_000_000
+
+
+class TestLargeFields:
+    @pytest.mark.parametrize("opener", ["<!--", "<script>", "<style media=x>", "<script x "])
+    def test_a_megabyte_of_unclosed_openers_is_quick(self, opener: str) -> None:
+        text = (opener + "a ") * (MEGABYTE // (len(opener) + 2))
+        started = time.perf_counter()
+        line = one_line(text, limit=1200)
+        block = paragraphs(text, limit=16000)
+        markup = paragraphs(text, limit=16000, is_html=True)
+        hidden = drop_hidden(text)
+        assert time.perf_counter() - started < 1.0
+        assert line is not None
+        assert len(line) <= 1200
+        assert block is not None
+        assert len(block) <= 16000
+        assert markup is None or len(markup) <= 16000
+        assert hidden == text
+
+    def test_hidden_blocks_go_and_unclosed_openers_stay(self) -> None:
+        text = "a<script>x</script >b<!-- c -->d<STYLE type=x>e</style>f <!-- open"
+        assert drop_hidden(text) == "a b d f <!-- open"
+        assert drop_hidden("a <script> b </style> c") == "a <script> b </style> c"
+        assert drop_hidden("<!-- one --> x <!-- two") == "  x <!-- two"
+
+    def test_raw_text_is_cut_before_cleaning_without_half_a_tag(self) -> None:
+        assert bounded("short", 10) == "short"
+        text = "x" * (RAW_FACTOR * 10 - 3) + "<em class=y>z"
+        assert bounded(text, 10) == "x" * (RAW_FACTOR * 10 - 3)
+        assert len(bounded("y" * 1000, 10)) == RAW_FACTOR * 10
+
+    def test_a_long_field_keeps_its_beginning(self) -> None:
+        text = "Knots and braids " * 100_000
+        line = one_line(text, limit=60)
+        assert line is not None
+        assert line.startswith("Knots and braids")
+        assert line.endswith("...")
 
 
 class TestUnicode:
