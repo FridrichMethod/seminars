@@ -1,0 +1,220 @@
+English | [&#20013;&#25991;](README.zh-CN.md)
+
+# seminars
+
+Academic seminars, talks and colloquia at Stanford and at nearby institutes (SLAC,
+Arc Institute and CZ Biohub), collected every day from public web pages and
+published in three forms:
+
+- **calendar feeds** (ICS) that calendar apps subscribe to: one per field, one of
+  personal picks and one with everything;
+- a **static web site** with the upcoming talks, filters by field and source, and
+  full-text search;
+- a **weekly digest**, a GitHub issue opened every Monday morning (Pacific time).
+
+Everything runs on GitHub Actions and GitHub Pages; there is no server. The data is
+kept in this repository (`data/`), and every daily update is one commit.
+
+## What you get
+
+### Calendar feeds
+
+Nine feeds. A talk can be in several field feeds; `all` holds every talk that belongs
+to at least one field.
+
+| Feed | Contents | Subscribe |
+|---|---|---|
+| `all` | Every talk collected from Stanford, SLAC, Arc Institute and CZ Biohub | (filled in at release) |
+| `picks` | Talks that match the personal interest rules (`config/interests.yaml`) | (filled in at release) |
+| `math` | Pure mathematics, applied mathematics and statistics | (filled in at release) |
+| `cs` | Computer science | (filled in at release) |
+| `ai-ml` | Artificial intelligence and machine learning | (filled in at release) |
+| `chem` | Chemistry and chemical engineering | (filled in at release) |
+| `bio` | Biology, bioengineering, structural biology and genetics | (filled in at release) |
+| `physics` | Physics and applied physics | (filled in at release) |
+| `med` | Medicine and biomedical research | (filled in at release) |
+
+Each feed is the file `feeds/<feed>.ics` of the web site. Every event keeps a stable
+identifier, so a changed title or time updates the event in your calendar instead of
+adding a second one.
+
+### Web site
+
+The site lists the upcoming talks in time order, with filters by field and by source
+and a full-text search. It is available in English and Chinese. Its status page shows
+when the last update ran and how each source did.
+
+### Weekly digest
+
+Every Monday morning a new issue with the label `digest` lists the talks of the coming
+week and what was added since the previous digest; the previous digest issue is
+closed.
+
+## Subscribe
+
+Use the address of a feed with `webcal://` in place of `https://`; most calendar apps
+then subscribe instead of importing once.
+
+### Apple Calendar
+
+1. In Calendar on a Mac, choose File > New Calendar Subscription.
+2. Paste the `webcal://` address of the feed and click Subscribe.
+3. Set Location to iCloud, so that your iPhone and iPad get the calendar too, and
+   choose how often it refreshes; once a day is enough, because the data changes
+   once a day.
+
+### Google Calendar
+
+Open Other calendars > From URL on calendar.google.com and paste the `https://`
+address of the feed. Google refreshes subscribed calendars on its own schedule,
+which can take several hours.
+
+### Other calendar apps
+
+Any app that can subscribe to an ICS address works. Importing the file once also
+works, but then later changes do not arrive.
+
+## Coverage
+
+The numbers below are measured on the first public run.
+
+- Sources and their state: (filled in at release)
+- Talks in the next four weeks, per feed: (filled in at release)
+- Known gaps: (filled in at release)
+
+The status page of the web site always shows the current state of every source.
+
+## How the daily update works
+
+### Schedule
+
+The workflow `.github/workflows/update.yml` runs every day at 04:23 Pacific time, and
+once more at 10:23 as a catch-up, because GitHub sometimes delays or drops scheduled
+runs. A scheduled run first looks at `data/last_run.json`: when today's run (Pacific
+date) already succeeded, it stops and changes nothing. The effect is one update a
+day. The schedule follows daylight saving time.
+
+### Steps of one run
+
+1. Fetch every source politely: robots.txt is honoured, including `Crawl-delay`, each
+   host is asked one request at a time, and the number of requests per host is
+   capped.
+2. Turn what each source says into events, remove duplicates (the same talk listed by
+   two sources) and drop what is not an academic talk.
+3. Tag each event with its fields, by rules and, when a credential is configured, with
+   the help of an LLM; score the picks.
+4. Write `data/`, the nine feeds and the data of the web site, then check the output:
+   a secret scan and the charset rule of `data/`. When a check fails, the run ends
+   with exit status 3 and nothing is committed or deployed.
+5. Validate the data and the feeds (`seminars validate`), commit `data/` as
+   `github-actions[bot]` with the message `chore(data): daily update YYYY-MM-DD`,
+   build the site (`seminars build-site`) and deploy it to GitHub Pages.
+
+A source that fails does not stop the run. After three bad runs in a row an issue
+with the label `source-broken` is opened, and it is closed again once the source
+works. Problems with LLM credentials open an issue with the label `llm-auth`.
+
+### The weekly digest
+
+The workflow `.github/workflows/digest.yml` runs on Monday at 07:07 Pacific time,
+with a catch-up on Tuesday at the same time. It reads the committed data, fetches
+nothing and uses no LLM. It never opens two digests for the same week.
+
+### LLM help (optional)
+
+An LLM is used for two things only: extracting events from a page that the rules
+cannot read, and tagging fields. Everything works without one. In GitHub Actions
+the providers are tried in this order, and only those with a credential take part:
+`claude-cli` (a Claude subscription token), `anthropic`, `openai`, `openai-compat`
+(API keys). The credentials are repository secrets (`CLAUDE_CODE_OAUTH_TOKEN`,
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `LLM_API_KEY`), and the order and the models
+are repository variables (`LLM_PROVIDERS`, `LLM_MODEL_<PROVIDER>`, `LLM_BASE_URL`).
+Changing a credential or a plan needs no code change: see
+[docs/LLM_CREDENTIALS.md](docs/LLM_CREDENTIALS.md). A manual run of the update
+workflow with the mode `llm-smoke` checks every configured provider and changes
+nothing.
+
+Only the step that runs the pipeline receives the LLM credentials. The workflows
+that see a credential never run for pull requests, so code from a fork cannot reach
+them.
+
+### If GitHub disables the schedule
+
+GitHub disables the scheduled workflows of a public repository after 60 days without
+activity. The daily data commit should prevent that, but GitHub does not promise
+that it counts. If you get the notice, open the Actions tab, choose the workflow and
+click Enable workflow.
+
+## Run it locally
+
+### Requirements
+
+- [uv](https://docs.astral.sh/uv/); it installs the Python version of
+  `.python-version` and exactly the dependencies of `uv.lock`.
+- git, and bash for the scripts.
+
+### Commands
+
+```
+uv sync --locked
+uv run seminars run --offline       # recorded pages from tests/fixtures/, no network
+uv run seminars run --no-llm        # the real sites, rules only
+uv run seminars validate
+uv run seminars build-site          # assembles public/
+uv run python -m http.server --directory public 8000
+uv run seminars digest --dry-run    # prints the digest instead of opening an issue
+```
+
+A run rewrites `data/` in your checkout. A live run is polite and therefore slow:
+some sites ask for 30 seconds between two requests. `uv run seminars --help` lists
+every command and option.
+
+### Checks
+
+These are the checks of the CI workflow (`.github/workflows/ci.yml`); run them before
+you push:
+
+```
+python3 scripts/check_ascii.py
+uv run ruff check
+uv run ruff format --check
+uv run pyright
+uv run pytest
+```
+
+The tests never touch the network. The browser smoke tests of the web site are
+deselected by default; run them with:
+
+```
+uv sync --locked --extra browser
+uv run --extra browser playwright install chromium
+uv run --extra browser pytest -m browser
+```
+
+## Add a source
+
+Most sources need nothing but a few lines of YAML; odd sites get a small adapter
+module. [docs/ADDING_A_SOURCE.md](docs/ADDING_A_SOURCE.md) explains both, how to
+record test fixtures with the polite client, and the charset rule.
+
+## Repository layout
+
+```
+config/            settings, LLM settings, fields, interests, sources.d/ (one file per group)
+data/              the committed data: events, stable ids, health, last run, LLM cache, archive
+docs/              documentation in English and Chinese
+locales/           every text of the web site and the digest (en, zh-CN)
+scripts/           check_ascii.py, set-llm-credential.sh
+site/              the static web site (no build step)
+src/seminars/      the package: sources/, pipeline/, classify/, llm/, outputs/, cli.py
+tests/             tests, and fixtures/ with recorded pages of every source
+.github/workflows/ ci.yml, update.yml, digest.yml
+```
+
+## License and data
+
+The code is licensed under the MIT license, see [LICENSE](LICENSE). The event
+information belongs to the organizers who published it; every event links to its
+original page. Everything in `data/` is public, like the rest of this repository.
+Only public pages are read: nothing behind a login, no mailing lists and no personal
+data beyond what the public pages show.

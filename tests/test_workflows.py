@@ -1,4 +1,4 @@
-"""Checks of the GitHub Actions workflows.
+"""Checks of the GitHub Actions workflows and of the user documentation.
 
 A workflow only runs on GitHub, after a push, so this file checks
 everything about them that can be checked on one machine:
@@ -12,6 +12,9 @@ everything about them that can be checked on one machine:
   git repositories (nothing leaves the machine).
 
 actionlint (run by ci.yml) checks the syntax and the scripts on top.
+
+The README and the contributor guide exist in English and Chinese; the
+last part of this file keeps the two versions in step.
 """
 
 from __future__ import annotations
@@ -22,6 +25,7 @@ import re
 import shutil
 import subprocess
 import sys
+from collections import Counter
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,6 +42,9 @@ from seminars.config import (
     load_settings,
     model_env_var,
 )
+from seminars.models import FEED_IDS
+from seminars.models.source import SOURCE_GROUP_PREFIXES
+from seminars.sources.base import GENERIC_ADAPTERS
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 WORKFLOWS_DIR: Final = ROOT / ".github" / "workflows"
@@ -885,3 +892,132 @@ def test_the_digest_step_gets_the_dispatch_input_through_env() -> None:
     dry_run = triggers("digest.yml")["workflow_dispatch"]["inputs"]["dry_run"]
     assert dry_run["type"] == "boolean"
     assert dry_run["default"] is False
+
+
+# --- documentation -------------------------------------------------------------------------
+
+DOC_PAIRS: Final = (
+    ("README.md", "README.zh-CN.md"),
+    ("docs/ADDING_A_SOURCE.md", "docs/ADDING_A_SOURCE.zh-CN.md"),
+)
+OTHER_NODES_DOCS: Final = {"docs/LLM_CREDENTIALS.md", "docs/LLM_CREDENTIALS.zh-CN.md"}
+"""Documents written elsewhere in the project that the README links to."""
+
+PLACEHOLDER_EN: Final = "(filled in at release)"
+PLACEHOLDER_ZH: Final = "\uff08\u53d1\u5e03\u65f6\u586b\u5199\uff09"
+"""The Chinese for "(filled in at release)", in full-width parentheses."""
+ZH_LABEL: Final = "\u4e2d\u6587"
+LINK: Final = re.compile(r"\]\(([^)\s]+)\)")
+FENCE: Final = re.compile(r"^```[^\n]*\n.*?^```$", re.DOTALL | re.MULTILINE)
+
+
+def doc(path: str) -> str:
+    return (ROOT / path).read_text(encoding="utf-8")
+
+
+def headings(text: str) -> list[int]:
+    prose = FENCE.sub("", text)
+    return [len(m.group(1)) for m in re.finditer(r"^(#+) ", prose, re.MULTILINE)]
+
+
+def links(text: str) -> Counter[str]:
+    return Counter(target.replace(".zh-CN.md", ".md") for target in LINK.findall(text))
+
+
+def first_line(text: str) -> str:
+    return next(line for line in text.splitlines() if line.strip())
+
+
+@pytest.mark.parametrize(("english", "chinese"), DOC_PAIRS)
+def test_each_document_links_to_its_translation_on_top(english: str, chinese: str) -> None:
+    english_name, chinese_name = Path(english).name, Path(chinese).name
+    # The English file is ASCII only, so it writes the Chinese label as character references.
+    assert first_line(doc(english)) == f"English | [&#20013;&#25991;]({chinese_name})"
+    assert first_line(doc(chinese)) == f"[English]({english_name}) | {ZH_LABEL}"
+
+
+@pytest.mark.parametrize(("english", "chinese"), DOC_PAIRS)
+def test_translations_have_the_same_structure(english: str, chinese: str) -> None:
+    assert headings(doc(english)) == headings(doc(chinese))
+    assert FENCE.findall(doc(english)) == FENCE.findall(doc(chinese))
+    assert links(doc(english)) == links(doc(chinese))
+
+
+@pytest.mark.parametrize("path", [path for pair in DOC_PAIRS for path in pair])
+def test_relative_links_point_to_files_of_the_repository(path: str) -> None:
+    base = (ROOT / path).parent
+    for target in LINK.findall(doc(path)):
+        if re.match(r"[a-z]+:", target) or target.startswith("#"):
+            continue
+        resolved = (base / target.split("#")[0]).resolve()
+        relative = resolved.relative_to(ROOT).as_posix()
+        assert resolved.exists() or relative in OTHER_NODES_DOCS, (path, target)
+
+
+def test_numbers_known_only_at_release_are_marked_in_both_readmes() -> None:
+    count = doc("README.md").count(PLACEHOLDER_EN)
+    assert count > 0
+    assert doc("README.zh-CN.md").count(PLACEHOLDER_ZH) == count
+
+
+@pytest.mark.parametrize("path", ["README.md", "README.zh-CN.md"])
+def test_the_readme_lists_every_feed(path: str) -> None:
+    for feed in FEED_IDS:
+        assert f"`{feed}`" in doc(path), feed
+
+
+@pytest.mark.parametrize("path", ["docs/ADDING_A_SOURCE.md", "docs/ADDING_A_SOURCE.zh-CN.md"])
+def test_the_contributor_guide_covers_the_adapters_and_groups(path: str) -> None:
+    text = doc(path)
+    for adapter in GENERIC_ADAPTERS:
+        assert f"`{adapter}`" in text, adapter
+    for prefix in SOURCE_GROUP_PREFIXES.values():
+        assert f"`{prefix}`" in text, prefix
+    for needle in ("register_adapter", "seminars.fixtures record", "scripts/check_ascii.py"):
+        assert needle in text, needle
+
+
+@pytest.mark.parametrize("path", [path for pair in DOC_PAIRS for path in pair])
+def test_documents_never_name_the_removed_secrets(path: str) -> None:
+    for secret in FORBIDDEN_SECRET_NAMES:
+        assert secret not in doc(path)
+
+
+COMMANDS: Final = frozenset(
+    {"run", "llm-smoke", "sources", "add-source", "validate", "digest", "build-site", "--help"}
+)
+"""Subcommands of the command line that the documents may show (seminars.contracts)."""
+
+INLINE_CODE: Final = re.compile(r"`([^`\n]+)`")
+
+
+def code_of(text: str) -> list[str]:
+    fences = FENCE.findall(text)
+    return [*fences, *INLINE_CODE.findall(FENCE.sub("", text))]
+
+
+@pytest.mark.parametrize("path", [path for pair in DOC_PAIRS for path in pair])
+def test_documents_show_only_commands_of_the_command_line(path: str) -> None:
+    used = {
+        match.group(1)
+        for code in code_of(doc(path))
+        for match in re.finditer(r"\bseminars ([a-z-]+)", code)
+    }
+    assert used
+    assert used <= COMMANDS, used - COMMANDS
+
+
+@pytest.mark.parametrize(
+    ("path", "days"), [("README.md", "60 days"), ("README.zh-CN.md", "60 \u5929")]
+)
+def test_the_readme_says_what_to_do_when_github_disables_the_schedule(path: str, days: str) -> None:
+    text = doc(path)
+    assert days in text
+    assert "Enable workflow" in text
+
+
+@pytest.mark.parametrize("path", ["README.md", "README.zh-CN.md"])
+def test_the_readme_names_the_credentials_and_variables_of_the_workflows(path: str) -> None:
+    text = doc(path)
+    for name in [*LLM_SECRET_NAMES, "LLM_PROVIDERS", "LLM_MODEL_<PROVIDER>", "LLM_BASE_URL"]:
+        assert f"`{name}`" in text, name
