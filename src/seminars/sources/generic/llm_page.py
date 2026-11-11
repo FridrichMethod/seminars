@@ -550,6 +550,55 @@ def _draft(
         return None
 
 
+def _speaker_names(draft: EventDraft) -> frozenset[str]:
+    return frozenset(normalize_for_grounding(speaker.name) for speaker in draft.speakers)
+
+
+def _fits(first: object, second: object) -> bool:
+    """Whether two values of a field can belong to the same talk: equal, or one is missing."""
+    return not first or not second or first == second
+
+
+def _same_talk(first: EventDraft, second: EventDraft) -> bool:
+    """Whether two drafts describe the same talk: same title and start, and nothing differs.
+
+    Two talks at the same time with the same title, or with none, are told
+    apart by their speakers, place, end or links; only drafts where none of
+    these differ are one talk (the same talk read twice, once with more
+    detail).
+    """
+    if str(first.start) != str(second.start):
+        return False
+    if normalize_for_grounding(first.title or "") != normalize_for_grounding(second.title or ""):
+        return False
+    pairs = (
+        (_speaker_names(first), _speaker_names(second)),
+        (
+            normalize_for_grounding(first.location or ""),
+            normalize_for_grounding(second.location or ""),
+        ),
+        (str(first.end or ""), str(second.end or "")),
+        (first.url, second.url),
+        (first.stream_url, second.stream_url),
+    )
+    return all(_fits(one, other) for one, other in pairs)
+
+
+def _detail(draft: EventDraft) -> int:
+    """How much a draft says beyond its title and start."""
+    values = (draft.end, draft.speakers, draft.series, draft.location)
+    return sum(1 for value in (*values, draft.url, draft.stream_url, draft.abstract) if value)
+
+
+def _with_draft(drafts: Sequence[EventDraft], draft: EventDraft) -> list[EventDraft]:
+    """``drafts`` with ``draft`` added, or in place of the same talk when it says more."""
+    for index, known in enumerate(drafts):
+        if _same_talk(known, draft):
+            better = draft if _detail(draft) > _detail(known) else known
+            return [*drafts[:index], better, *drafts[index + 1 :]]
+    return [*drafts, draft]
+
+
 # --- the extractor -------------------------------------------------------------------------
 
 
@@ -600,7 +649,7 @@ class LLMPageExtractor:
     def extract(self, payload: RawPayload, source: SourceConfig) -> list[EventDraft]:
         """Drafts for the talks on the fetched pages; empty when the LLM is unavailable."""
         today = payload.fetched_at.astimezone(ZoneInfo(source.timezone)).date()
-        drafts: dict[tuple[str, str], EventDraft] = {}
+        drafts: list[EventDraft] = []
         for count, (document, page, chunk) in enumerate(self._chunks(payload)):
             if count >= MAX_CHUNKS_PER_SOURCE:
                 logger.info("source %s: the rest of the page text is not read", source.id)
@@ -617,9 +666,8 @@ class LLMPageExtractor:
             for item in found.answer.events[:MAX_EVENTS_PER_CHUNK]:
                 draft = _draft(item, page, chunk, grounding, found.reference, source)
                 if draft is not None:
-                    identity = (normalize_for_grounding(draft.title or ""), str(draft.start))
-                    drafts.setdefault(identity, draft)
-        return list(drafts.values())
+                    drafts = _with_draft(drafts, draft)
+        return drafts
 
 
 def build_page_extractor(

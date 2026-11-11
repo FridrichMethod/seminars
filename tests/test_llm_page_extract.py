@@ -213,6 +213,55 @@ class TestDrafts:
         assert len(drafts) == 1
         assert drafts[0].abstract == TALK["abstract"]
 
+    def test_the_richer_copy_of_one_talk_is_kept_whatever_the_order(self) -> None:
+        bare = {"title": TALK["title"], "month": 11, "day": 17, "start_hour": 16}
+        drafts = extract(FakeLLMClient(answer(bare, TALK)))
+        assert len(drafts) == 1
+        assert drafts[0].speakers == [
+            SpeakerDraft(name="Jane Doe", affiliation="Massachusetts Institute of Technology")
+        ]
+
+    def test_two_untitled_talks_at_the_same_time_are_both_kept(self) -> None:
+        page = (
+            "<html><body><p>Nov 17 4 PM: Jane Doe (room A)</p>"
+            "<p>Nov 17 4 PM: John Smith (room B)</p></body></html>"
+        )
+        items = [
+            {
+                "month": 11,
+                "day": 17,
+                "start_hour": 16,
+                "speakers": [{"name": name}],
+                "location": room,
+            }
+            for name, room in (("Jane Doe", "room A"), ("John Smith", "room B"))
+        ]
+        drafts = extract(FakeLLMClient(answer(*items)), page)
+        assert [(draft.speakers[0].name, draft.location) for draft in drafts] == [
+            ("Jane Doe", "room A"),
+            ("John Smith", "room B"),
+        ]
+
+    def test_talks_with_one_title_and_start_are_told_apart_by_place_and_link(self) -> None:
+        page = (
+            "<html><body><p>PhD Defense, Nov 17: Room 101 <a href='/a'>first</a>,"
+            " Room 102 <a href='/b'>second</a>, Room 103</p></body></html>"
+        )
+        base = {"title": "PhD Defense", "month": 11, "day": 17}
+        items = [
+            {**base, "location": "Room 101", "link": 1},
+            {**base, "location": "Room 102", "link": 2},
+            {**base, "location": "Room 101"},
+            {**base, "location": "Room 103", "link": 1},
+        ]
+        drafts = extract(FakeLLMClient(answer(*items)), page)
+        site = "https://bioengineering.stanford.edu"
+        assert [(draft.location, draft.url) for draft in drafts] == [
+            ("Room 101", f"{site}/a"),
+            ("Room 102", f"{site}/b"),
+            ("Room 103", f"{site}/a"),
+        ]
+
     def test_a_stated_cancellation_is_kept(self) -> None:
         page = "<html><body><p>Talk on November 17 - CANCELLED</p></body></html>"
         item = {"title": "Talk", "month": 11, "day": 17, "cancelled": True}
