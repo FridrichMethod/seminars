@@ -1,0 +1,378 @@
+# Stanford Events (events.stanford.edu): the campus-wide calendar of Stanford University,
+# served by the Localist API. Schema of one entry: seminars.models.SourceConfig; everything
+# under "params" is read by the "localist" adapter only.
+#
+# The calendar lists events of every school and office, most of them outside the seven
+# fields of this project (humanities, policy, arts, wellness). The source therefore has no
+# default field: a draft gets its field hints from the department and group maps below, and
+# an event that ends up without any field is dropped as out of scope.
+#
+# Requests of the adapter (verified against the live API on 2026-11-10 and 2026-11-11;
+# fixtures in tests/fixtures/localist-stanford/, where README.md lists the recorded cases):
+#
+#   GET <url>?<parameters of one query>&start=<D1>&end=<D2>&pp=<per_page>&page=<n>
+#
+# * One series of requests per entry of params.queries. "type_ids" become repeated
+#   "type[]" parameters and "exclude_type_ids" repeated "exclude_type[]" parameters.
+# * D1 is the first local day of the time window and D2 the local day on which the window
+#   ends (YYYY-MM-DD). "start" is inclusive and "end" is exclusive, like the window itself.
+#   The parameter "days" was measured to be answered with HTTP 400 above 370 days; that the
+#   same limit holds for a start/end range is an inference, not measured (the time window
+#   of the settings spans 135 days). Without dates only the events of today come back.
+# * "page" starts at 1 and is sent with every request. The answer carries
+#   page: {current, size, total, total_items, next_page, previous_page}; the adapter follows
+#   next_page until it is null. It never computes the number of pages from per_page: the
+#   fixtures were recorded with pp=50 to keep the files small, and "pp" is ignored when a
+#   recorded request is matched (like "start" and "end").
+# * Never send "distinct" (it would collapse the instances of a recurring event) and never
+#   send "match". By default several type[] values are alternatives (OR) and every other
+#   criterion narrows the result (AND). match=any turns all criteria into alternatives,
+#   match=all requires every type.
+# * Every record is one event instance: events[].event.event_instances has exactly one
+#   element. Its "id" is the native id of the draft. The queries do not overlap, but an
+#   event moves from one to the other when its organizer adds an event type, so a record
+#   whose instance id was already seen in the same run is dropped. Both queries belong to
+#   one source for the same reason: the native id, and with it the uid, stays the same.
+
+sources:
+  - id: localist-stanford
+    name: Stanford Events
+    group: localist
+    adapter: localist
+    url: https://events.stanford.edu/api/2/events
+    homepage: https://events.stanford.edu/
+    institution: stanford
+    host_org: Stanford University
+    default_fields: []
+    default_event_type: seminar
+    aggregator: true
+    params:
+      # "pp". 100 is the maximum; a larger value is cut to 100 without an error.
+      per_page: 100
+
+      # Intended behaviour when a query fails (any HTTP error on any page, for example the
+      # 400 that an unknown type id causes): the fetch of the whole source fails, and the
+      # drafts of the other query are not used either, so health reports the source as
+      # failed. A partial result would look like a healthy run, and the events of the
+      # failed query would then count as gone from the source although they were never
+      # asked for.
+      queries:
+        # Events that carry at least one of the five talk-like event types.
+        - label: talk-types
+          type_ids:
+            - 37952570025304  # Class/Seminar
+            - 37952570027353  # Conference/Symposium
+            - 37952570034524  # Lecture/Presentation/Talk
+            - 37952570047842  # Workshop
+            - 40490468118962  # PhD Defense
+        # Events on which the organizer set no event type at all: every known event type
+        # is excluded. Seminar series of the neuroscience institute, grand rounds and
+        # lectures of the Department of Surgery and several symposia are only found this
+        # way. The list holds all 17 ids of event_types in /api/2/events/filters.
+        - label: untyped
+          exclude_type_ids:
+            - 37952570025304  # Class/Seminar
+            - 37952570027353  # Conference/Symposium
+            - 37952570030426  # Exhibition
+            - 37952570032475  # Film/Screening
+            - 37952570034524  # Lecture/Presentation/Talk
+            - 37952570036573  # Meeting
+            - 37952570038622  # Fitness/Recreational Sport
+            - 37952570040671  # Performance
+            - 37952570042720  # Social Event/Reception
+            - 37952570044769  # Tour
+            - 37952570047842  # Workshop
+            - 38406833071942  # Other
+            - 39324630417361  # Academic Dates
+            - 39324639694320  # Student Billing Dates
+            - 40490468118962  # PhD Defense
+            - 40864883971398  # Religious/Spiritual
+            - 48623384665207  # Support Space
+
+      # filters.event_types[].id of a record -> EventDraft.event_type_hint. An event can
+      # carry several types; the first entry of this list that it carries decides. Events
+      # without any of them get no hint (the source default applies).
+      event_types:
+        - {id: 40490468118962, name: PhD Defense, event_type: defense}
+        - {id: 37952570027353, name: Conference/Symposium, event_type: conference}
+        - {id: 37952570047842, name: Workshop, event_type: workshop}
+        - {id: 37952570025304, name: Class/Seminar, event_type: seminar}
+        - {id: 37952570034524, name: Lecture/Presentation/Talk, event_type: lecture}
+
+      # departments[].name of a record -> EventDraft.field_hints (the union over all
+      # departments of the event). Keys are the names exactly as the API returns them
+      # (compare after stripping surrounding whitespace); every key exists in the recorded
+      # list of all 736 departments (fixtures departments-page1..8.json). A department that
+      # is not listed gives no hint. The key "departments" is missing in about 2% of the
+      # records.
+      #
+      # Deliberately not listed: units outside the seven fields (earth sciences, energy,
+      # civil, mechanical and aerospace engineering, management science), and units of the
+      # School of Medicine whose events are not scientific talks: libraries and public
+      # health education, wellness programs, medical humanities and ethics, patient
+      # outreach, and the administrative, career and student offices.
+      department_fields:
+        # Mathematics and computational mathematics
+        "Department of Mathematics": [math]
+        "Mathematics Research Center": [math]
+        "Institute for Computational and Mathematical Engineering (ICME)": [math]
+        "Financial Math Program": [math]
+        "Stanford Data Science": [math, ai-ml]
+        # Computer science and electrical engineering
+        "Computer Science Department": [cs]
+        "Computer Science Department, Theory Group": [cs]
+        "Stanford Computer Forum": [cs]
+        "Electrical Engineering": [cs]
+        "Information Systems Lab": [cs]
+        "Center for Blockchain Research": [cs]
+        "Stanford Center for Image Systems Engineering (SCIEN)": [cs]
+        "Stanford High Performance Computing Center": [cs]
+        "Stanford NetFPGA Project": [cs]
+        "Stanford Robotics Center": [cs, ai-ml]
+        # Artificial intelligence and machine learning
+        "Stanford Artificial Intelligence Lab (SAIL)": [ai-ml, cs]
+        "Stanford Institute for Human-Centered Artificial Intelligence (HAI)": [ai-ml]
+        "Center for Artificial Intelligence in Medicine and Imaging (AIMI)": [ai-ml, med]
+        # Chemistry, chemical engineering and materials
+        "Chemistry Department": [chem]
+        "Chemical Engineering": [chem]
+        "Stanford ChEM-H": [chem, bio]
+        "Materials Science and Engineering": [chem, physics]
+        "Stanford University Mass Spectrometry": [chem]
+        "Stanford Magnetic Resonance Laboratory": [chem, bio]
+        # Biology and bioengineering
+        "Department of Biology": [bio]
+        "Bioengineering": [bio]
+        "Bio-X Program": [bio]
+        "Program in Human Biology": [bio]
+        "Hopkins Marine Station": [bio]
+        "Jasper Ridge Biological Preserve": [bio]
+        "Center for Conservation Biology": [bio]  # two departments share this name
+        "Carnegie Institution for Science - Department of Global Ecology": [bio]
+        "Center for Computational, Evolutionary and Human Genomics (CEHG)": [bio]
+        "Stanford Genome Technology Center": [bio]
+        "Biomedical Computation at Stanford": [bio, cs]
+        "Simbios": [bio]
+        "National Center for Simulation in Rehabilitation Research (NCSRR)": [bio]
+        "Mobilize Center within Bioengineering": [bio]
+        "Wu Tsai Neurosciences Institute": [bio]
+        "Wu Tsai Human Performance Alliance": [bio]
+        "Center for Cognitive and Neurobiological Imaging": [bio]
+        "Cognitive Neuroscience Interest Group": [bio]
+        # Physics and applied physics
+        "Department of Physics": [physics]
+        "Department of Applied Physics": [physics]
+        "Applied Physics/Physics Colloquium": [physics]
+        "Stanford Institute for Theoretical Physics": [physics]
+        "KIPAC": [physics]
+        "PULSE": [physics]
+        "HEPL Seminars": [physics]
+        "SLAC National Accelerator Laboratory": [physics]
+        "Ginzton Laboratory": [physics]
+        "Q-FARM Initiative": [physics]
+        "Stanford Photonics Research Center (SPRC)": [physics]
+        "Solid State and Photonics Laboratory": [physics]
+        "Center for Magnetic Nanotechnology": [physics]
+        # School of Medicine: basic science departments, programs and institutes
+        "Biochemistry": [bio, chem]
+        "Chemical & Systems Biology": [bio, chem]
+        "Molecular Pharmacology": [bio, chem]
+        "Department of Structural Biology": [bio]
+        "Department of Genetics": [bio]
+        "Developmental Biology": [bio]
+        "Molecular & Cellular Physiology": [bio]
+        "Department of Neurobiology": [bio]
+        "Cell Science Imaging Facility": [bio]
+        "Department of Microbiology and Immunology": [bio, med]
+        "Department of Biomedical Data Science": [bio, med]
+        "Comparative Medicine": [bio, med]
+        "Stanford Immunology Program": [bio, med]
+        "Cancer Biology Program": [bio, med]
+        "Institute for Immunity, Transplantation and Infection ITI": [bio, med]
+        "Beckman Center for Molecular and Genetic Medicine": [bio, med]
+        "Baxter Laboratory for Stem Cell Biology": [bio, med]
+        "Stanford Center for Genomics and Personalized Medicine (SCGPM)": [bio, med]
+        "Center for Molecular Neuroscience in Health and Disease": [bio, med]
+        "Knight Initiative for Brain Resilience": [bio, med]
+        "Stanford Cancer Institute": [bio, med]
+        "Cardiovascular Institute": [bio, med]
+        "Stanford Diabetes Research Center": [bio, med]
+        "Canary Center": [bio, med]
+        "Molecular Imaging Program at Stanford": [bio, med]
+        "Center for Definitive and Curative Medicine": [bio, med]
+        # School of Medicine: the school, clinical departments and divisions
+        "School of Medicine": [med]
+        "Stanford University School of Medicine": [med]
+        "Department of Medicine": [med]
+        "Department of Medicine, Division of Immunology/Rheumatology/CCIS": [med]
+        "School of Medicine - Infectious Diseases & Geographic Medicine": [med]
+        "School of Medicine Gastroenterology and Hepatology": [med]
+        "School of Medicine - Emergency Medicine": [med]
+        "Department of Anesthesiology": [med]
+        "Department of Anesthesiology, Perioperative and Pain Medicine": [med]
+        "Division of Pain Medicine": [med]
+        "Department of Surgery": [med]
+        "Department of Cardiothoracic Surgery": [med]
+        "Department of Neurosurgery": [med]
+        "Dept of Otolaryngology Head & Neck Surgery": [med]
+        "Department of Dermatology": [med]
+        "Department of Neurology": [med]
+        "Department of Psychiatry": [med]
+        "Psychiatry & Behavioral Sciences": [med]
+        "Stanford Psychiatry and Behavioral Sciences": [med]
+        "Department of Radiology": [med]
+        "Department of Radiation Oncology": [med]
+        "Department of Epidemiology & Population Health": [med]
+        "Pediatrics": [med]
+        # The calendar itself cuts the next name off after "Regenerative".
+        "Department of Pediatrics/Division of Stem Cell Transplantation and Regenerative": [med]
+        "Department of Pediatrics/Palliative Care & Critical Care Medicine": [med]
+        "Division of Pediatric Infectious Diseases": [med]
+        "Pediatric Pulmonary": [med]
+        "School of Medicine, Ob/Gyn Department": [med]
+        "Division of Clinical Anatomy": [med]
+        "Byers Eye Institute at Stanford": [med]
+        "Office of Pediatric Education": [med]  # posts the Pediatric Grand Rounds
+        # School of Medicine: clinical and translational centers and programs
+        "Stanford Center for Continuing Medical Education": [med]
+        "Stanford Cancer Center": [med]
+        "Asian Liver Center": [med]
+        "California Perinatal Quality Care Collaborative": [med]
+        "Center for Asian Health Research and Education": [med]
+        "Center for Cancer Nanotechnology Excellence and Translation": [med]
+        "Center for Digital Health": [med]
+        "Center for Immersive and Simulation-based Learning": [med]
+        "Center for Innovation in Global Health": [med]
+        "Center for Innovative Study Design": [med]
+        "Center for Population Health Sciences": [med]
+        "Clinical Excellence Research Center (CERC)": [med]
+        "Down Syndrome Research Center": [med]
+        "Dunlevie Maternal-Fetal Medicine Center": [med]
+        "Integrative Biomedical Imaging Informatics (IBIIS)": [med]
+        "Maternal and Child Health Research Institute": [med]
+        "Meta-Research Innovation Center at Stanford (METRICS)": [med]
+        "Precision Health & Integrated Diagnostics Center": [med]
+        "Program in Menopause & Healthy Aging": [med]
+        "Restore Center": [med]
+        "S-SPIRE Center": [med]
+        "SPARK at Stanford": [med]
+        "Spectrum: Stanford Center for Clinical and Translational Research": [med]
+        "Stanford AIM Lab": [med]
+        "Stanford Alpha Clinic": [med]
+        "Stanford Autism Center": [med]
+        "Stanford Bipolar Disorders Clinic": [med]
+        "Stanford Center for Optic Disc Drusen": [med]
+        "Stanford Center for Precision Mental Health and Wellness": [med]
+        "Stanford Geriatric Education Center": [med]
+        "Stanford Medical Mixed Reality": [med]
+        "Stanford Medicine X": [med]
+        "Stanford Medicine Children's Health Center for IBD and Celiac Disease": [med]
+        "Stanford Mussallem Center for Biodesign": [med]
+        "Stanford Prevention Research Center": [med]
+        "Stanford Program on Research Rigor & Reproducibility": [med]
+        "The Etkin Lab": [med]
+        "WHSDM Center": [med]
+
+      # groups[].name of a record -> EventDraft.field_hints, like department_fields. Only
+      # about 1% of the records have the key "groups" at all; nearly all of the 400 groups
+      # (fixtures groups-page1..4.json) are student organizations and give no hint.
+      group_fields:
+        "Biomedical Informatics": [bio, med]
+        "Center of AI Safety (SAFE)": [ai-ml]
+        "Stanford Intelligent Systems Lab": [ai-ml]
+
+    research:
+      verified: 2026-11-11
+      sample_events: 477
+      has_rss: true
+      has_ics: true
+      has_jsonld: true
+      extraction: api
+      crawl_delay: 1
+      api: Localist API v2 (JSON), https://developer.localist.com/doc/api
+      window: 2026-10-28 to 2027-03-12 (the 135 days of the default time window)
+      events_all_types: 2252
+      events_talk_types: 477
+      events_untyped: 139
+      requests_per_run: 7
+      departments_total: 736
+      groups_total: 400
+      notes:
+        - >-
+          Volume in the default window: 477 records with one of the five talk-like types
+          (432 distinct events), 139 records without any type, 2252 records of all types.
+          With pp=100 one run needs 5 + 2 requests of up to 700 KB each.
+        - >-
+          Fields of a record (events[].event): id, title, description_text (plain text),
+          description (HTML), location_name, room_number, address, experience (inperson,
+          hybrid or virtual), stream_url, stream_info (HTML joining instructions, never
+          copied, see below), url, localist_url, status, filters.event_types,
+          filters.event_subject, filters.event_audience, departments[].{id, name},
+          groups[].{id, name}, event_instances[0].event_instance.{id, event_id, start, end,
+          all_day}. A filter family is missing when the event has no item of it.
+        - >-
+          start carries the UTC offset (2026-11-10T15:30:00-08:00). end is null for 51 of
+          the 477 records: 30 timed events and 21 all-day events.
+        - >-
+          All-day events (25 of 477): start is local midnight and end is null, or 23:59 of
+          the same day. Every day of an event that lasts several days is an instance of its
+          own with its own id, so an all-day draft always covers one day.
+        - >-
+          experience says whether an event is online: 288 inperson, 110 virtual, 79 hybrid.
+          stream_url is set on 58 records and 15 of those carry a meeting password in the
+          query (pwd=...), which normalization has to drop.
+        - >-
+          Meeting passcodes are not only in stream_url. stream_info is an HTML field with
+          the joining instructions: a Zoom link with pwd=..., "pwd=..." as plain text after
+          the link, "Password:", "Passcode:" or "Password if prompted:" followed by the
+          code. Never copy stream_info into any field of a draft. description and
+          description_text can hold the same: a Zoom link with pwd=... and "(passcode:
+          ...)" in the text that becomes the abstract. Links that carry a credential (pwd,
+          passcode, tk, token) and written-out passcodes have to be removed from the
+          abstract as well, not only from stream_url. Fixture records (values replaced by
+          placeholders): stream_info of 54445649547777, 54435561022415 (pwd as plain text),
+          54420408876947 and 54435582365420; description of 54420408876947 and
+          54294379845960; description_text of 54420408876947 (link) and 54294379845960
+          (written-out passcode).
+        - >-
+          status is "live" on every record seen, cancelled events included (the API also
+          knows canceled, postponed and soldout). A cancellation shows in the title only:
+          "CANCELED:...", "CANCELED | ...", "... - Event Cancelled".
+        - >-
+          localist_url is the detail page of the event and exists on every record; use it
+          as the URL of the draft. url is whatever the organizer entered (missing on 47% of
+          the records): a registration form, a ticket shop, the home page of a department,
+          sometimes the event page of the department site.
+        - >-
+          There are no speaker names in a record (speaker_ids is a list of bare ids), so
+          speakers have to be read from the title and the description. A title may contain
+          HTML entities.
+        - >-
+          The subject filter (Science, Engineering/Technology, Medicine and 16 more) is too
+          coarse for a field hint. Wellness fairs, nutrition classes and medical humanities
+          are filed under Medicine, and 60 of the 71 records under Engineering/Technology
+          come from departments outside the seven fields. Pass the names on as categories
+          only.
+        - >-
+          An unknown id in type[] or exclude_type[] fails the whole request with HTTP 400
+          (argument_error, "Unknown event filter"). If the calendar ever removes an event
+          type, its id has to be removed here as well.
+        - >-
+          group_id (not used by this source) selects the events of one department or one
+          group; ids come from /api/2/departments and /api/2/groups. group_id[] can be
+          repeated and the ids are alternatives. It combines with type[] as AND. A list
+          separated by commas is HTTP 400 and an unknown id is HTTP 404 for the whole
+          request, also inside a list. The id of a school does not include the events of its
+          departments. There is no separate department parameter: department_id is ignored.
+        - >-
+          The home page of the calendar also advertises an RSS feed (/xml/rss.xml and
+          /calendar/1.xml) and an ICS feed (/calendar/1.ics), and its pages embed
+          schema.org/Event JSON-LD. They were seen on the home page and not fetched; none
+          is used, because only the API has event types, departments and instance ids.
+        - >-
+          Fixtures: the department and group lists were trimmed to id, name, urlname,
+          filters and localist_url (the full items hold contact addresses and long
+          descriptions). In the event pages, meeting passcodes (pwd values and written-out
+          passcodes), the local parts of e-mail addresses and two telephone numbers were
+          replaced by placeholders; everything else is as recorded. The fixture README.md
+          lists every replacement.

@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "source_id": "localist-stanford",
+  "entries": {
+    "https://events.stanford.edu/api/2/departments/filters": {
+      "file": "departments-filters.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:37:26Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/departments?pp=100&page=1": {
+      "file": "departments-page1.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:37:29Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/departments?pp=100&page=2": {
+      "file": "departments-page2.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:37:31Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/departments?pp=100&page=3": {
+      "file": "departments-page3.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:37:45Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/departments?pp=100&page=4": {
+      "file": "departments-page4.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:37:49Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/departments?pp=100&page=5": {
+      "file": "departments-page5.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:37:52Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/departments?pp=100&page=6": {
+      "file": "departments-page6.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:37:54Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/departments?pp=100&page=7": {
+      "file": "departments-page7.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:37:56Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/departments?pp=100&page=8": {
+      "file": "departments-page8.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:37:59Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/events/filters": {
+      "file": "events-filters.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:37:25Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/events?exclude_type[]=37952570025304&exclude_type[]=37952570027353&exclude_type[]=37952570030426&exclude_type[]=37952570032475&exclude_type[]=37952570034524&exclude_type[]=37952570036573&exclude_type[]=37952570038622&exclude_type[]=37952570040671&exclude_type[]=37952570042720&exclude_type[]=37952570044769&exclude_type[]=37952570047842&exclude_type[]=38406833071942&exclude_type[]=39324630417361&exclude_type[]=39324639694320&exclude_type[]=40490468118962&exclude_type[]=40864883971398&exclude_type[]=48623384665207&start=2026-11-09&end=2026-11-19&pp=50&page=1": {
+      "file": "events-untyped-page1.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:49:33Z",
+      "final_url": null,
+      "volatile_params": [
+        "end",
+        "pp",
+        "start"
+      ]
+    },
+    "https://events.stanford.edu/api/2/events?type[]=37952570025304&type[]=37952570027353&type[]=37952570034524&type[]=37952570047842&type[]=40490468118962&start=2026-11-09&end=2026-11-19&pp=50&page=1": {
+      "file": "events-types-page1.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:49:12Z",
+      "final_url": null,
+      "volatile_params": [
+        "end",
+        "pp",
+        "start"
+      ]
+    },
+    "https://events.stanford.edu/api/2/events?type[]=37952570025304&type[]=37952570027353&type[]=37952570034524&type[]=37952570047842&type[]=40490468118962&start=2026-11-09&end=2026-11-19&pp=50&page=2": {
+      "file": "events-types-page2.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:49:15Z",
+      "final_url": null,
+      "volatile_params": [
+        "end",
+        "pp",
+        "start"
+      ]
+    },
+    "https://events.stanford.edu/api/2/events?type[]=37952570025304&type[]=37952570027353&type[]=37952570034524&type[]=37952570047842&type[]=40490468118962&start=2026-11-09&end=2026-11-19&pp=50&page=3": {
+      "file": "events-types-page3.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:49:19Z",
+      "final_url": null,
+      "volatile_params": [
+        "end",
+        "pp",
+        "start"
+      ]
+    },
+    "https://events.stanford.edu/api/2/events?type[]=37952570025304&type[]=37952570027353&type[]=37952570034524&type[]=37952570047842&type[]=40490468118962&start=2026-11-09&end=2026-11-19&pp=50&page=4": {
+      "file": "events-types-page4.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:49:21Z",
+      "final_url": null,
+      "volatile_params": [
+        "end",
+        "pp",
+        "start"
+      ]
+    },
+    "https://events.stanford.edu/api/2/groups?pp=100&page=1": {
+      "file": "groups-page1.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:38:02Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/groups?pp=100&page=2": {
+      "file": "groups-page2.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:38:06Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/groups?pp=100&page=3": {
+      "file": "groups-page3.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:38:24Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://events.stanford.edu/api/2/groups?pp=100&page=4": {
+      "file": "groups-page4.json",
+      "status": 200,
+      "content_type": "application/json",
+      "fetched_at": "2026-11-11T15:38:27Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}
