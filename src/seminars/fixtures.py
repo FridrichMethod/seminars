@@ -49,7 +49,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Final, Literal, Self, TextIO
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit
 
-from pydantic import AfterValidator, StringConstraints, ValidationError
+from pydantic import AfterValidator, ValidationError
 
 from seminars.config import ProjectPaths, find_project_root, load_settings
 from seminars.httpbase import (
@@ -90,7 +90,41 @@ _EXTENSIONS: Final[dict[str, str]] = {
     "text/plain": ".txt",
 }
 
-FileName = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$")]
+FIXTURE_EXTENSIONS: Final = tuple(sorted({*_EXTENSIONS.values(), ".md"}))
+"""What the name of a file in a fixture directory ends in: a body type, or ``.md`` for notes.
+
+A body is whatever a site sent, so it must never become a file that is
+executed. pytest imports every ``conftest.py`` and ``test_*.py`` it comes
+across; with these extensions only, nothing in a fixture directory is a
+program. ``FixtureStore.add`` writes no other file and ``check`` reports
+any other.
+"""
+
+_FILE_NAME: Final = re.compile(
+    "[A-Za-z0-9][A-Za-z0-9._-]*(?:" + "|".join(map(re.escape, FIXTURE_EXTENSIONS)) + ")"
+)
+
+
+def is_fixture_file_name(name: str) -> bool:
+    """Whether ``name`` can be a file of a fixture directory.
+
+    It starts with a letter or a digit, consists of letters, digits, ``.``,
+    ``_`` and ``-``, and ends in one of ``FIXTURE_EXTENSIONS`` (lower case).
+    """
+    return _FILE_NAME.fullmatch(name) is not None
+
+
+def _fixture_file_name(name: str) -> str:
+    if not is_fixture_file_name(name):
+        allowed = ", ".join(FIXTURE_EXTENSIONS)
+        raise ValueError(
+            f"{name[:80]!a} is not a fixture file name: use letters, digits, '.', '_' and '-' "
+            f"and one of the extensions {allowed}"
+        )
+    return name
+
+
+FileName = Annotated[str, AfterValidator(_fixture_file_name)]
 
 
 class FixtureError(ValueError):
@@ -261,6 +295,10 @@ class FixtureStore:
         entries = dict(self.manifest.entries)
         if found is not None:
             del entries[found[0]]
+        try:
+            _fixture_file_name(file_name)
+        except ValueError as error:
+            raise FixtureError(str(error)) from error
         if file_name in _RESERVED_NAMES or file_name.startswith(_NOTE_PREFIX):
             raise FixtureError(f"file name {file_name!r} is reserved")
         if any(entry.file == file_name for entry in entries.values()):
@@ -298,8 +336,12 @@ class FixtureStore:
             keys[key] = url
             found.extend(self._body_problems(entry.file))
         expected = {entry.file for entry in self.manifest.entries.values()} | _RESERVED_NAMES
+        *others, last = FIXTURE_EXTENSIONS
+        only = f"only {', '.join(others)} and {last} files belong here"
         for path in sorted(self.directory.iterdir()) if self.directory.is_dir() else []:
-            if path.name not in expected and not path.name.startswith(_NOTE_PREFIX):
+            if path.suffix not in FIXTURE_EXTENSIONS:
+                found.append(f"{path.name} is not a fixture file: {only}")
+            elif path.name not in expected and not path.name.startswith(_NOTE_PREFIX):
                 found.append(f"{path.name} is not listed in the manifest")
         return [f"{self.source_id}: {problem}" for problem in found]
 
@@ -425,6 +467,14 @@ def _source_id(value: str) -> str:
     return value
 
 
+def _name(value: str) -> str:
+    """Command line type of ``--name``: a fixture file name, which has a data extension."""
+    try:
+        return _fixture_file_name(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m seminars.fixtures", description="Record and check HTTP fixtures."
@@ -445,7 +495,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="absolute http(s) URL to record; several are fetched one after another",
     )
     rec.add_argument(
-        "--name", default=None, help="file name for the body (default: derived); one URL only"
+        "--name",
+        default=None,
+        type=_name,
+        help="file name for the body (default: derived); one URL only; "
+        f"must end in {', '.join(FIXTURE_EXTENSIONS)}",
     )
     rec.add_argument(
         "--volatile-param",

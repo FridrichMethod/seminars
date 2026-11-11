@@ -354,7 +354,7 @@ class TestCommandLine:
         fake_http.add(PAGE, "x")
         assert run(capsys, tmp_path, fake_http, "record", "--source-id", "probe", PAGE)[0] == 0
         directory = tmp_path / "tests" / "fixtures" / "probe"
-        (directory / f"stray{ESC}[2K\nfixtures OK").write_text("x\n", encoding="utf-8")
+        (directory / f"stray{ESC}[2K\nfixtures OK.txt").write_text("x\n", encoding="utf-8")
         broken = tmp_path / "tests" / "fixtures" / "broken"
         broken.mkdir()
         (broken / "manifest.json").write_text(
@@ -365,5 +365,5 @@ class TestCommandLine:
         assert (code, err) == (1, [])
         assert len(out) == 3
         assert out[0].startswith("broken: ")
-        assert out[1] == "probe: stray\\x1b[2K\\nfixtures OK is not listed in the manifest"
+        assert out[1] == "probe: stray\\x1b[2K\\nfixtures OK.txt is not listed in the manifest"
         assert out[2] == "2 problem(s) found"

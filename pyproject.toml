@@ -82,6 +82,21 @@ reportUnnecessaryTypeIgnoreComment = "error"
 minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["tests"]
+# Recorded fixtures are whatever a site sent; pytest must never import a file from there.
+# The first nine patterns are the defaults of pytest, which this option replaces.
+norecursedirs = [
+    "*.egg",
+    ".*",
+    "_darcs",
+    "build",
+    "CVS",
+    "dist",
+    "node_modules",
+    "venv",
+    "{arch}",
+    "tests/fixtures",
+    "tests/fixtures/*",
+]
 addopts = ["-ra", "--strict-markers", "--strict-config", "-m", "not live and not browser"]
 markers = [
     "live: talks to the real network (deselected by default; run with -m live)",

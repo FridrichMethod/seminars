@@ -77,7 +77,8 @@ uv run python -m seminars.fixtures record --source-id sites-chemistry \
 ```
 
 Options: `--name FILE` chooses the body file name (default: derived from the
-URL; only with a single URL), `--volatile-param NAME` (repeatable) marks a
+URL; only with a single URL; a plain name that ends in `.html`, `.ics`,
+`.json`, `.md`, `.txt` or `.xml`), `--volatile-param NAME` (repeatable) marks a
 query parameter as volatile, `--allow-status CODE` (repeatable) also records
 an error response. Options apply to every URL of the call. A URL that fails
 is reported and the remaining ones are still recorded; the exit status is 1
@@ -197,6 +198,13 @@ only ways to send a request to a source site by hand.
 
 - Text only (HTML, JSON, XML, ICS). Images and other binary content are
   refused; never store them.
+- Data files only. A fixture directory holds `manifest.json`, the bodies
+  and notes, and every file name in it ends in `.html`, `.ics`, `.json`,
+  `.md`, `.txt` or `.xml`. A body is whatever a site sent, so it must
+  never be a file that gets executed: pytest would import a `conftest.py`
+  or a `test_*.py`. `record` refuses any other name, `check` reports any
+  other file, and pytest does not look for tests below `tests/fixtures`
+  (`norecursedirs` in `pyproject.toml`). Never put a Python file there.
 - Bodies are stored in canonical form: no byte order mark, LF line endings
   (CRLF and CR are converted) and a final newline. Every HTTP client hands out
   document text in this same form, live as well as offline, so an adapter sees
