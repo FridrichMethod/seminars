@@ -23,10 +23,10 @@
 # All runs of this workflow share one concurrency group, so two of them never run at
 # the same time. A run in progress is never cancelled (cancel-in-progress: false), but
 # GitHub keeps at most one waiting run per group: a newer run replaces a waiting one.
-# Every job checks out the tip of main when it starts (ref: main), not the commit the
-# run was created for, so a run that waited starts from the data commit of the run
-# before it: a catch-up then sees that today's run is done, and nothing is computed
-# from old data. Should main still move during a run in a way that the data commit
+# Each job that checks out the repository takes the tip of main when it starts
+# (ref: main), not the commit the run was created for, so a run that waited starts
+# from the data commit of the run before it: a catch-up then sees that today's run is
+# done, and nothing is computed from old data. Should main still move during a run in a way that the data commit
 # cannot be rebased onto, the job fails before anything is deployed, and the next run
 # starts again from the new main.
 #
