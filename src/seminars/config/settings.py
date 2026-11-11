@@ -57,7 +57,8 @@ class HttpSettings(Model):
     @property
     def robots_token(self) -> str:
         """Product token matched against robots.txt groups, e.g. ``seminars-bot``."""
-        return self.user_agent.split("/", 1)[0].split()[0].lower()
+        words = self.user_agent.split("/", 1)[0].split()
+        return words[0].lower() if words else "*"
 
 
 class EventSettings(Model):

@@ -367,7 +367,11 @@ class PageExtractor(Protocol):
 
 
 class PageExtractorFactory(Protocol):
-    """``seminars.sources.generic.llm_page:build_page_extractor``."""
+    """``seminars.sources.generic.llm_page:build_page_extractor``.
+
+    Extraction requests must never be served by a provider listed in
+    ``seminars.config.TAG_ONLY_PROVIDERS``.
+    """
 
     def __call__(
         self, client: LLMClient, *, config: LLMConfig, cache: LLMCache | None = None

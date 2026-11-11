@@ -1,0 +1,420 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-10T12:30:00Z",
+  "timezone": "America/Los_Angeles",
+  "fields": [
+    "math",
+    "cs",
+    "ai-ml",
+    "chem",
+    "bio",
+    "physics",
+    "med"
+  ],
+  "feeds": [
+    {
+      "id": "all",
+      "path": "feeds/all.ics"
+    },
+    {
+      "id": "picks",
+      "path": "feeds/picks.ics"
+    },
+    {
+      "id": "math",
+      "path": "feeds/math.ics"
+    },
+    {
+      "id": "cs",
+      "path": "feeds/cs.ics"
+    },
+    {
+      "id": "ai-ml",
+      "path": "feeds/ai-ml.ics"
+    },
+    {
+      "id": "chem",
+      "path": "feeds/chem.ics"
+    },
+    {
+      "id": "bio",
+      "path": "feeds/bio.ics"
+    },
+    {
+      "id": "physics",
+      "path": "feeds/physics.ics"
+    },
+    {
+      "id": "med",
+      "path": "feeds/med.ics"
+    }
+  ],
+  "events": [
+    {
+      "uid": "sample-past-math",
+      "title": "Moduli of curves and tropical geometry",
+      "speakers": [
+        {
+          "name": "Ana Souza",
+          "affiliation": "UC Berkeley",
+          "url": null
+        }
+      ],
+      "series": "Algebraic Geometry Seminar",
+      "host_org": "Stanford Mathematics",
+      "institution": "stanford",
+      "event_type": "seminar",
+      "start": "2026-11-09T14:30:00-08:00",
+      "end": "2026-11-09T15:30:00-08:00",
+      "all_day": false,
+      "location": "Building 380, Room 383-N",
+      "is_online": false,
+      "stream_url": null,
+      "abstract": "A survey of recent results on tropical compactifications.",
+      "url": "https://example.stanford.edu/events/sample-past-math",
+      "fields": [
+        "math"
+      ],
+      "is_pick": true,
+      "picks_reasons": [
+        "abstract: algebraic geometry"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "uid": "sample-xss",
+      "title": "<script>alert(\"xss-title\")</script> Robust learning <b>under</b> attack",
+      "speakers": [
+        {
+          "name": "<i>Mallory</i> O'Brien",
+          "affiliation": "\"><b>Evil Corp</b>",
+          "url": null
+        }
+      ],
+      "series": "Security <Lunch>",
+      "host_org": "Stanford Computer Science & <Friends>",
+      "institution": "stanford",
+      "event_type": "seminar",
+      "start": "2026-11-12T12:00:00-08:00",
+      "end": "2026-11-12T13:00:00-08:00",
+      "all_day": false,
+      "location": "Gates <u>104</u>",
+      "is_online": false,
+      "stream_url": null,
+      "abstract": "<img src=x onerror=alert(\"xss-abstract\")> \"><svg onload=alert(1)> javascript:alert(2) &lt;b&gt;entities stay literal&lt;/b&gt; </script><script>document.title='pwned'</script>",
+      "url": "https://example.stanford.edu/events/sample-xss",
+      "fields": [
+        "cs",
+        "ai-ml"
+      ],
+      "is_pick": false,
+      "picks_reasons": [],
+      "status": "confirmed"
+    },
+    {
+      "uid": "sample-cancelled",
+      "title": "Random matrices and number theory",
+      "speakers": [
+        {
+          "name": "Wei Zhang",
+          "affiliation": "MIT",
+          "url": null
+        }
+      ],
+      "series": "Math Colloquium",
+      "host_org": "Stanford Mathematics",
+      "institution": "stanford",
+      "event_type": "colloquium",
+      "start": "2026-11-13T16:00:00-08:00",
+      "end": "2026-11-13T17:00:00-08:00",
+      "all_day": false,
+      "location": "Building 380, Room 380-C",
+      "is_online": false,
+      "stream_url": null,
+      "abstract": null,
+      "url": "https://example.stanford.edu/events/sample-cancelled",
+      "fields": [
+        "math"
+      ],
+      "is_pick": false,
+      "picks_reasons": [],
+      "status": "cancelled"
+    },
+    {
+      "uid": "sample-online",
+      "title": "Serving large models on small budgets",
+      "speakers": [
+        {
+          "name": "Priya Raman",
+          "affiliation": "Example Labs",
+          "url": null
+        }
+      ],
+      "series": "MLSys Seminar",
+      "host_org": "Stanford MLSys",
+      "institution": "stanford",
+      "event_type": "seminar",
+      "start": "2026-11-14T15:30:00-08:00",
+      "end": "2026-11-14T16:30:00-08:00",
+      "all_day": false,
+      "location": null,
+      "is_online": true,
+      "stream_url": "https://stanford.zoom.us/j/1234567890",
+      "abstract": "Online only. Systems tricks for cheap inference.",
+      "url": "https://example.stanford.edu/events/sample-online",
+      "fields": [
+        "cs",
+        "ai-ml"
+      ],
+      "is_pick": false,
+      "picks_reasons": [],
+      "status": "confirmed"
+    },
+    {
+      "uid": "sample-pick",
+      "title": "Protein design with diffusion models",
+      "speakers": [
+        {
+          "name": "Jane Doe",
+          "affiliation": "Stanford University",
+          "url": "https://example.stanford.edu/people/jane-doe"
+        }
+      ],
+      "series": "Bioengineering Seminar",
+      "host_org": "Stanford Bioengineering",
+      "institution": "stanford",
+      "event_type": "seminar",
+      "start": "2026-11-17T16:00:00-08:00",
+      "end": "2026-11-17T17:00:00-08:00",
+      "all_day": false,
+      "location": "Shriram Center, Room 104",
+      "is_online": false,
+      "stream_url": null,
+      "abstract": "Generative models for de novo enzyme design, with wet-lab validation.",
+      "url": "https://example.stanford.edu/events/sample-pick",
+      "fields": [
+        "ai-ml",
+        "bio"
+      ],
+      "is_pick": true,
+      "picks_reasons": [
+        "title: protein design",
+        "title: diffusion model",
+        "series: allow-list"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "uid": "sample-tba",
+      "title": "TBA",
+      "speakers": [
+        {
+          "name": "Zoé Müller",
+          "affiliation": "ETH Zürich",
+          "url": null
+        }
+      ],
+      "series": "Physical Chemistry Seminar",
+      "host_org": "Stanford Chemistry",
+      "institution": "stanford",
+      "event_type": "seminar",
+      "start": "2026-11-18T16:30:00-08:00",
+      "end": null,
+      "all_day": false,
+      "location": "Sapp Center Lecture Hall",
+      "is_online": false,
+      "stream_url": null,
+      "abstract": null,
+      "url": "https://example.stanford.edu/events/sample-tba",
+      "fields": [
+        "chem"
+      ],
+      "is_pick": false,
+      "picks_reasons": [],
+      "status": "confirmed"
+    },
+    {
+      "uid": "sample-hybrid-med",
+      "title": "Grand Rounds: cell therapies for solid tumors",
+      "speakers": [
+        {
+          "name": "Maria Chen",
+          "affiliation": "Stanford Medicine",
+          "url": null
+        },
+        {
+          "name": "Omar Haddad",
+          "affiliation": "UCSF",
+          "url": null
+        }
+      ],
+      "series": null,
+      "host_org": "Stanford Medicine",
+      "institution": "stanford",
+      "event_type": "lecture",
+      "start": "2026-11-19T08:00:00-08:00",
+      "end": "2026-11-19T09:00:00-08:00",
+      "all_day": false,
+      "location": "Li Ka Shing Center, Berg Hall",
+      "is_online": true,
+      "stream_url": null,
+      "abstract": "Hybrid event; the livestream link is on the detail page.",
+      "url": "https://example.stanford.edu/events/sample-hybrid-med",
+      "fields": [
+        "bio",
+        "med"
+      ],
+      "is_pick": false,
+      "picks_reasons": [],
+      "status": "confirmed"
+    },
+    {
+      "uid": "sample-all-day",
+      "title": "Bay Area Symposium on Structural Biology",
+      "speakers": [],
+      "series": null,
+      "host_org": "SLAC",
+      "institution": "slac",
+      "event_type": "conference",
+      "start": "2026-11-20T00:00:00-08:00",
+      "end": "2026-11-21T00:00:00-08:00",
+      "all_day": true,
+      "location": "SLAC, Kavli Auditorium",
+      "is_online": false,
+      "stream_url": null,
+      "abstract": "A full day of talks on cryo-EM, crystallography and structure prediction.",
+      "url": "https://example.stanford.edu/events/sample-all-day",
+      "fields": [
+        "chem",
+        "bio",
+        "physics"
+      ],
+      "is_pick": true,
+      "picks_reasons": [
+        "abstract: cryo-EM",
+        "abstract: structure prediction"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "uid": "sample-tentative-physics",
+      "title": "Dark matter searches with quantum sensors",
+      "speakers": [
+        {
+          "name": "Kenji Watanabe",
+          "affiliation": "KIPAC",
+          "url": null
+        }
+      ],
+      "series": "SLAC Colloquium",
+      "host_org": "SLAC",
+      "institution": "slac",
+      "event_type": "colloquium",
+      "start": "2026-11-23T15:30:00-08:00",
+      "end": "2026-11-23T16:30:00-08:00",
+      "all_day": false,
+      "location": "Panofsky Auditorium",
+      "is_online": false,
+      "stream_url": null,
+      "abstract": null,
+      "url": "https://example.stanford.edu/events/sample-tentative-physics",
+      "fields": [
+        "physics"
+      ],
+      "is_pick": false,
+      "picks_reasons": [],
+      "status": "tentative"
+    },
+    {
+      "uid": "sample-biohub",
+      "title": "Single-cell atlases of the immune system",
+      "speakers": [
+        {
+          "name": "Lucia Fernández",
+          "affiliation": "CZ Biohub San Francisco",
+          "url": null
+        }
+      ],
+      "series": "Biohub Seminar Series",
+      "host_org": "CZ Biohub",
+      "institution": "biohub",
+      "event_type": "seminar",
+      "start": "2026-12-03T11:00:00-08:00",
+      "end": "2026-12-03T12:00:00-08:00",
+      "all_day": false,
+      "location": "499 Illinois Street, San Francisco",
+      "is_online": false,
+      "stream_url": null,
+      "abstract": null,
+      "url": "https://example.stanford.edu/events/sample-biohub",
+      "fields": [
+        "bio",
+        "med"
+      ],
+      "is_pick": false,
+      "picks_reasons": [],
+      "status": "confirmed"
+    },
+    {
+      "uid": "sample-arc",
+      "title": "Language models for genome engineering",
+      "speakers": [
+        {
+          "name": "Sam Okafor",
+          "affiliation": "Arc Institute",
+          "url": null
+        }
+      ],
+      "series": null,
+      "host_org": "Arc Institute",
+      "institution": "arc",
+      "event_type": "workshop",
+      "start": "2026-12-10T13:00:00-08:00",
+      "end": "2026-12-10T14:00:00-08:00",
+      "all_day": false,
+      "location": "Arc Institute, Palo Alto",
+      "is_online": false,
+      "stream_url": null,
+      "abstract": null,
+      "url": "https://example.stanford.edu/events/sample-arc",
+      "fields": [
+        "ai-ml",
+        "bio"
+      ],
+      "is_pick": true,
+      "picks_reasons": [
+        "title: language model"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "uid": "sample-defense",
+      "title": "PhD Defense: verified compilers for accelerators",
+      "speakers": [
+        {
+          "name": "Alex Kim",
+          "affiliation": null,
+          "url": null
+        }
+      ],
+      "series": null,
+      "host_org": "Stanford Electrical Engineering",
+      "institution": "other",
+      "event_type": "defense",
+      "start": "2027-02-12T10:00:00-08:00",
+      "end": "2027-02-12T11:00:00-08:00",
+      "all_day": false,
+      "location": "Packard 101",
+      "is_online": false,
+      "stream_url": null,
+      "abstract": null,
+      "url": "https://example.stanford.edu/events/sample-defense",
+      "fields": [
+        "cs"
+      ],
+      "is_pick": false,
+      "picks_reasons": [],
+      "status": "confirmed"
+    }
+  ]
+}

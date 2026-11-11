@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-10T12:30:00Z",
+  "last_run_at": "2026-11-10T12:29:00Z",
+  "last_run_ok": true,
+  "event_count": 12,
+  "llm_provider": "claude-cli",
+  "sources": [
+    {
+      "id": "bayarea-arc",
+      "name": "Arc Institute",
+      "group": "bayarea",
+      "url": "https://arcinstitute.org/",
+      "state": "empty",
+      "events": 0,
+      "last_run_at": "2026-11-10T12:23:00Z",
+      "last_success_at": "2026-11-03T12:24:00Z",
+      "consecutive_failures": 0,
+      "error": null
+    },
+    {
+      "id": "custom-nlp",
+      "name": "Stanford NLP Seminar <script>alert('xss-status')</script>",
+      "group": "stanford-custom",
+      "url": "https://nlp.stanford.edu/seminar",
+      "state": "failed",
+      "events": 0,
+      "last_run_at": "2026-11-10T12:23:00Z",
+      "last_success_at": "2026-11-03T12:24:00Z",
+      "consecutive_failures": 3,
+      "error": "HTTP 503: https://nlp.stanford.edu/seminar <img src=x onerror=alert(1)>"
+    },
+    {
+      "id": "custom-theory",
+      "name": "Stanford Theory Seminar",
+      "group": "stanford-custom",
+      "url": "https://theory.stanford.edu/",
+      "state": "disabled",
+      "events": 0,
+      "last_run_at": null,
+      "last_success_at": null,
+      "consecutive_failures": 0,
+      "error": null
+    },
+    {
+      "id": "localist-stanford",
+      "name": "Stanford Events",
+      "group": "localist",
+      "url": "https://events.stanford.edu/",
+      "state": "ok",
+      "events": 85,
+      "last_run_at": "2026-11-10T12:23:00Z",
+      "last_success_at": "2026-11-10T12:23:00Z",
+      "consecutive_failures": 0,
+      "error": null
+    },
+    {
+      "id": "rsorg-new-series",
+      "name": "researchseminars.org: a series that never ran",
+      "group": "researchseminars",
+      "url": null,
+      "state": "unknown",
+      "events": 0,
+      "last_run_at": null,
+      "last_success_at": null,
+      "consecutive_failures": 0,
+      "error": null
+    },
+    {
+      "id": "sites-chemistry",
+      "name": "Stanford Chemistry",
+      "group": "stanford-sites",
+      "url": "https://chemistry.stanford.edu/events/upcoming-events",
+      "state": "ok",
+      "events": 12,
+      "last_run_at": "2026-11-10T12:23:00Z",
+      "last_success_at": "2026-11-10T12:23:00Z",
+      "consecutive_failures": 0,
+      "error": null
+    }
+  ]
+}

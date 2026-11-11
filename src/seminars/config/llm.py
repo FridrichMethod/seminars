@@ -34,6 +34,13 @@ OPT_IN_PROVIDERS: Final[frozenset[ProviderId]] = frozenset({"codex-cli"})
 LOCAL_ONLY_PROVIDERS: Final[frozenset[ProviderId]] = frozenset({"codex-cli"})
 """Providers that are never used inside GitHub Actions (DECISIONS D5)."""
 
+TAG_ONLY_PROVIDERS: Final[frozenset[ProviderId]] = frozenset({"codex-cli"})
+"""Providers that may tag fields (closed vocabulary) but never extract free text.
+
+The codex CLI cannot run without tools, so its output is only trusted when it
+is an enumeration value (SPEC section 7.3, DECISIONS D18).
+"""
+
 ENV_LLM_PROVIDERS: Final = "LLM_PROVIDERS"
 ENV_LLM_BASE_URL: Final = "LLM_BASE_URL"
 ENV_LLM_MODEL_PREFIX: Final = "LLM_MODEL_"

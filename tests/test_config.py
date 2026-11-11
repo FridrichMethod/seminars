@@ -11,10 +11,14 @@ from pydantic import ValidationError
 
 from factories import REFERENCE_NOW
 from seminars.config import (
+    LOCAL_ONLY_PROVIDERS,
+    OPT_IN_PROVIDERS,
     PROVIDER_CREDENTIAL_ENV,
     PROVIDER_IDS,
+    TAG_ONLY_PROVIDERS,
     AppConfig,
     ConfigError,
+    HttpSettings,
     Interests,
     LLMConfig,
     ProjectPaths,
@@ -316,6 +320,15 @@ class TestLLMEnvironment:
     def test_invalid_base_url_override_is_an_error(self, project: Path) -> None:
         with pytest.raises(ConfigError, match="LLM environment overrides"):
             load_config(project, env={"LLM_BASE_URL": "not-a-url"})
+
+    def test_codex_is_opt_in_local_only_and_tag_only(self) -> None:
+        assert OPT_IN_PROVIDERS == LOCAL_ONLY_PROVIDERS == TAG_ONLY_PROVIDERS == {"codex-cli"}
+
+    def test_robots_token_of_odd_user_agents(self) -> None:
+        assert HttpSettings(user_agent="Seminars-Bot/1.0 (+https://x.org/)").robots_token == (
+            "seminars-bot"
+        )
+        assert HttpSettings(user_agent="/odd").robots_token == "*"
 
     def test_model_env_var_names(self) -> None:
         assert model_env_var("claude-cli") == "LLM_MODEL_CLAUDE_CLI"
