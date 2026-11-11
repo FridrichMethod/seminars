@@ -31,6 +31,14 @@ other question the live client asks the operating system, "is this address
 one of my own?" (``seminars.httpwire.system_own_address``), by "no"; pass
 ``own_address=...`` to a ``PoliteClient`` to answer otherwise.
 
+A test may talk to a server it starts itself (a static site served for a
+browser test, for example). Bind it to ``127.0.0.1`` and address it as
+``127.0.0.1``, ``::1`` or ``localhost``: the loopback needs no DNS, and the
+guard lets exactly these lookups through, so ``urllib``, ``http.client``
+and ``socket.create_connection`` work with them. Any other host, a public
+IP address included, fails the test. A script that a test starts as a
+child process is outside the guard and has to bring its own stubs.
+
 Browser tests (``@pytest.mark.browser``) get Playwright from the
 ``playwright_sync_api`` fixture and never import it themselves; the fixture
 explains why.
@@ -38,6 +46,7 @@ explains why.
 
 from __future__ import annotations
 
+import ipaddress
 import shutil
 import socket
 from collections.abc import Callable, Iterator
@@ -92,6 +101,20 @@ def resolver() -> StubResolver:
     return StubResolver()
 
 
+def _is_loopback(host: object) -> bool:
+    """True for ``localhost`` and for a loopback address (127.0.0.0/8, ::1), as text or bytes."""
+    if isinstance(host, bytes):
+        host = host.decode("ascii", "replace")
+    if not isinstance(host, str):
+        return False
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 @pytest.fixture(autouse=True)
 def no_real_dns(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Fail any test that reaches the real resolver, and keep the routing table out of tests.
@@ -103,6 +126,10 @@ def no_real_dns(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch)
     they exist to talk to the real network and only run on request
     (``-m live``).
 
+    Lookups of ``localhost`` and of loopback addresses (127.0.0.0/8, ::1)
+    go on to the real function: they need no DNS, and a test that starts a
+    server of its own reaches it that way.
+
     The default ``own_address`` check of the live client asks the kernel
     which source address it would use, through a UDP socket. In tests it
     answers "not mine" without opening one, so no outcome depends on the
@@ -111,13 +138,18 @@ def no_real_dns(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch)
     if request.node.get_closest_marker("live") is not None:
         return
     monkeypatch.setattr(httpwire, "system_own_address", lambda address: False)
+    real_lookup = socket.getaddrinfo
 
-    def refuse(host: object, *args: object, **kwargs: object) -> None:
+    def guarded(host: Any, *args: Any, **kwargs: Any) -> Any:
+        if _is_loopback(host):
+            return real_lookup(host, *args, **kwargs)
         raise AssertionError(
-            f"a test tried a real DNS lookup of {host!r}: pass resolver=... to PoliteClient"
+            f"a test tried a real DNS lookup of {host!r}: pass resolver=... to PoliteClient. "
+            "A test that talks to a server of its own addresses it as 127.0.0.1, ::1 or "
+            "localhost, which need no DNS and are let through"
         )
 
-    monkeypatch.setattr(socket, "getaddrinfo", refuse)
+    monkeypatch.setattr(socket, "getaddrinfo", guarded)
 
 
 @pytest.fixture

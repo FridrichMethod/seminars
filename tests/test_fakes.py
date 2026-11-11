@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import http.client
+import ipaddress
+import socket
+import socketserver
+import threading
+import urllib.request
+from collections.abc import Callable, Iterator
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -478,6 +484,83 @@ class TestFakeEmitters:
             fake_emitters.probe_source(fake_http, "https://a.example.edu/feed").format == "unknown"
         )
         assert [name for name, _ in fake_emitters.calls] == ["update_health", "probe_source"]
+
+
+class Greeting(socketserver.StreamRequestHandler):
+    """Answers every HTTP request with "hello"."""
+
+    def handle(self) -> None:
+        while self.rfile.readline().strip():
+            pass
+        self.wfile.write(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\nhello")
+
+
+@pytest.fixture
+def local_server() -> Iterator[int]:
+    """The port of an HTTP server on the loopback interface, as a test of a site would start."""
+    try:
+        server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), Greeting)
+    except OSError as error:  # pragma: no cover - a sandbox without loopback sockets
+        pytest.skip(f"cannot listen on the loopback interface: {error}")
+    server.daemon_threads = True
+    thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01})
+    thread.start()
+    try:
+        yield server.server_address[1]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+NOT_THE_LOOPBACK = ["dept.example.edu", "93.184.216.34", "10.0.0.1", "0.0.0.0", "::"]
+NOT_THE_LOOPBACK += ["2606:4700::1111", "localhost.example.edu", "127.0.0.1.example.edu"]
+NOT_THE_LOOPBACK += ["127.1", "2130706433", "", None, b"dept.example.edu", b"\xff", 7]
+
+
+class TestDnsGuard:
+    """``no_real_dns`` refuses name lookups and lets a test reach a server of its own."""
+
+    @pytest.mark.parametrize("host", NOT_THE_LOOPBACK)
+    def test_a_lookup_of_anything_but_the_loopback_fails_the_test(self, host: object) -> None:
+        with pytest.raises(AssertionError, match="a test tried a real DNS lookup") as caught:
+            socket.getaddrinfo(host, 80)  # type: ignore[arg-type]
+        message = str(caught.value)
+        assert "resolver=" in message
+        assert "127.0.0.1" in message  # says what a test with a server of its own does
+        assert not isinstance(caught.value, OSError)  # no retry logic can swallow it
+
+    @pytest.mark.parametrize(
+        "host", ["127.0.0.1", "127.9.8.7", "::1", "localhost", "LocalHost", b"127.0.0.1"]
+    )
+    def test_the_loopback_needs_no_dns_and_is_let_through(self, host: str | bytes) -> None:
+        answers = socket.getaddrinfo(host, 80, type=socket.SOCK_STREAM)
+        addresses = {str(answer[4][0]) for answer in answers}
+        assert addresses
+        assert all(ipaddress.ip_address(address).is_loopback for address in addresses)
+
+    def test_a_socket_reaches_a_local_server(self, local_server: int) -> None:
+        with socket.create_connection(("127.0.0.1", local_server), timeout=5) as connection:
+            connection.sendall(b"GET / HTTP/1.1\r\nHost: x\r\n\r\n")
+            assert connection.makefile("rb").read().endswith(b"hello")
+
+    @pytest.mark.parametrize("host", ["127.0.0.1", "localhost"])
+    def test_urllib_reaches_a_local_server(self, local_server: int, host: str) -> None:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(f"http://{host}:{local_server}/", timeout=5) as response:
+            assert response.read() == b"hello"
+
+    def test_http_client_reaches_a_local_server(self, local_server: int) -> None:
+        connection = http.client.HTTPConnection("127.0.0.1", local_server, timeout=5)
+        try:
+            connection.request("GET", "/")
+            assert connection.getresponse().read() == b"hello"
+        finally:
+            connection.close()
+
+    def test_a_connection_to_a_name_still_fails_the_test(self) -> None:
+        with pytest.raises(AssertionError, match=r"real DNS lookup of 'dept\.example\.edu'"):
+            socket.create_connection(("dept.example.edu", 80), timeout=1)
 
 
 class TestFixtures:

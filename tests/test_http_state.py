@@ -349,7 +349,27 @@ else:
 """
 """Reports whether the lock file given as the argument can be taken right now."""
 
-RECORDER = """\
+ISOLATED = """\
+import sys
+
+
+def refuse_the_network(event, arguments):
+    if event in ("socket.connect", "socket.getaddrinfo", "socket.gethostbyname"):
+        raise RuntimeError(f"a child process of a test used the network: {event}")
+
+
+sys.addaudithook(refuse_the_network)
+"""
+"""How the scripts below begin. A child process is outside the guards of conftest.py.
+
+It passes its own resolver and its own answer to "is this address mine?",
+and this hook ends it with an error should it look a name up or connect a
+socket all the same (the default ``own_address`` connects a UDP socket).
+"""
+
+RECORDER = (
+    ISOLATED
+    + """\
 import sys
 import time
 from pathlib import Path
@@ -378,15 +398,22 @@ def resolver(host):
 settings = HttpSettings(user_agent="seminars-bot/1.0 (+https://example.org/)")
 settings = settings.evolve(min_interval_seconds=0.0)
 with PoliteClient(
-    settings, cache_dir=cache_dir, transport=httpx.MockTransport(handler), resolver=resolver
+    settings,
+    cache_dir=cache_dir,
+    transport=httpx.MockTransport(handler),
+    resolver=resolver,
+    own_address=lambda address: False,
 ) as client:
     print("ready", flush=True)
     sys.stdin.readline()
     client.get("https://dept.example.edu/events")
 """
+)
 """One fixture recorder run: a live client with the real clock, a fake network and a log."""
 
-BATCH = """\
+BATCH = (
+    ISOLATED
+    + """\
 import sys
 import time
 from pathlib import Path
@@ -422,6 +449,7 @@ with PoliteClient(
     for number in range(count):
         client.get(f"https://dept.example.edu/{name}/{number}")
 """
+)
 """One call with ``count`` URLs for one host: a live client, the real clock, a fake network.
 
 The log gets one line per request. Requests of one host never overlap, so
