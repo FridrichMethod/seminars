@@ -236,20 +236,28 @@ def _llm_env(llm: str | None, no_llm: bool) -> dict[str, str]:
 @app.command()
 def run(
     offline: Annotated[
-        bool, typer.Option(help="Read the recorded fixtures instead of the network.")
+        bool, typer.Option("--offline", help="Read the recorded fixtures instead of the network.")
     ] = False,
     source: Annotated[
-        list[str] | None, typer.Option("--source", help="Run only this source (repeatable).")
+        list[str] | None,
+        typer.Option("--source", metavar="ID", help="Run only this source (repeatable)."),
     ] = None,
     no_llm: Annotated[bool, typer.Option("--no-llm", help="Classify by rules only.")] = False,
     llm: Annotated[
-        str | None, typer.Option(help="Use this provider chain (comma separated) for the run.")
+        str | None,
+        typer.Option(
+            "--llm", metavar="PROVIDER", help="Use this provider chain (comma separated)."
+        ),
     ] = None,
     dry_run: Annotated[
-        bool, typer.Option(help="Do everything in a scratch directory; change nothing.")
+        bool,
+        typer.Option("--dry-run", help="Do everything in a scratch directory; change nothing."),
     ] = False,
     skip_if_done_today: Annotated[
-        bool, typer.Option(help="Exit at once when a run of this mode succeeded today.")
+        bool,
+        typer.Option(
+            "--skip-if-done-today", help="Exit at once when a run of this mode succeeded today."
+        ),
     ] = False,
 ) -> None:
     """Fetch every source, update data/ and write the feeds and the site data."""
@@ -455,7 +463,9 @@ def printable_markdown(text: str) -> str:
 
 @app.command()
 def digest(
-    dry_run: Annotated[bool, typer.Option(help="Print the markdown; open no issue.")] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Print the markdown; open no issue.")
+    ] = False,
 ) -> None:
     """Open this week's digest issue (idempotent per week) and close the previous one."""
     with failures():
