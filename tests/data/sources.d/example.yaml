@@ -1,0 +1,91 @@
+# Reference example of a config/sources.d/*.yaml file (validated by tests/test_config.py).
+# Schema of one entry: seminars.models.SourceConfig. Unknown keys are an error; anything
+# that only one adapter understands goes into "params".
+#
+# Top-level keys starting with "x-" are ignored by the loader. Use them for YAML anchors
+# that hold values shared by several entries.
+
+x-stanford-site: &stanford-site
+  group: stanford-sites
+  institution: stanford
+  timezone: America/Los_Angeles
+
+sources:
+  - <<: *stanford-site
+    id: sites-chemistry
+    name: Stanford Chemistry
+    adapter: drupal_jsonapi
+    url: https://chemistry.stanford.edu/jsonapi/node/hs_event
+    homepage: https://chemistry.stanford.edu/events/upcoming-events
+    host_org: Stanford Chemistry
+    default_fields: [chem]
+    params:
+      page_limit: 50
+      include: [field_hs_event_speaker, field_hs_event_series]
+    research:
+      verified: 2026-11-10
+      sample_events: 12
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: true
+      extraction: api
+      crawl_delay: 30
+      notes:
+        - H&S template (Drupal 11); /events/all/rss returns 404.
+      template: A
+
+  - <<: *stanford-site
+    id: sites-bioengineering
+    name: Stanford Bioengineering
+    adapter: rss
+    url: https://bioengineering.stanford.edu/events/all/rss
+    urls:
+      - https://bioengineering.stanford.edu/events
+    host_org: Stanford Bioengineering
+    default_fields: [bio]
+    default_event_type: seminar
+    series: Bioengineering Seminar
+    research:
+      verified: 2026-11-10
+      sample_events: 4
+      has_rss: true
+      extraction: feed
+      notes: RSS is an index only; details come from the list page.
+
+  - id: localist-stanford
+    name: Stanford Events
+    group: localist
+    adapter: localist
+    url: https://events.stanford.edu/api/2/events
+    institution: stanford
+    host_org: Stanford University
+    default_fields: []
+    aggregator: true
+    params:
+      type_ids: [37952570025304, 37952570034524]
+      per_page: 100
+      department_fields:
+        Chemistry: [chem]
+        Bioengineering: [bio]
+
+  - id: rsorg-stanford-example
+    name: researchseminars.org example series
+    group: researchseminars
+    adapter: ics
+    url: https://researchseminars.org/seminar/ExampleSeries/ics
+    institution: stanford
+    host_org: Stanford Mathematics
+    default_fields: [math]
+    timezone: UTC
+    aggregator: true
+
+  - id: custom-example-lab
+    name: Example lab page without structured data
+    group: stanford-custom
+    adapter: llm_page
+    enabled: false
+    url: https://example.stanford.edu/seminar
+    institution: stanford
+    host_org: Example Lab
+    default_fields: [cs, ai-ml]

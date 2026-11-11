@@ -1,0 +1,36 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+.venv/
+
+# Git worktrees used during development
+.worktrees/
+
+# Build output (assembled by "seminars build-site", deployed by CI)
+public/
+
+# Scratch space for looking at sources:
+# python -m seminars.fixtures fetch --save-dir .scratch/<topic> URL ...
+/.scratch/
+
+# Caches
+.cache/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.pyright/
+.mypy_cache/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+
+# Coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/

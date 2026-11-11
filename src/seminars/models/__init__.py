@@ -1,0 +1,230 @@
+"""Data models shared by every part of the project.
+
+Import everything from ``seminars.models``; the sub-modules are an
+implementation detail. All models are frozen pydantic models that reject
+unknown keys; use ``model.evolve(...)`` to derive a changed copy.
+
+* event.py      Event, Speaker: the record stored in data/events.json
+* draft.py      EventDraft, RawPayload, FetchedDocument, TimeWindow: adapter I/O
+* source.py     SourceConfig, ResearchInfo: one entry of config/sources.d/*.yaml
+* classify.py   Candidate, EventHints, TagDecision, FilterResult, ...: classification I/O
+* report.py     RunReport and its parts, LastRun (data/last_run.json)
+* health.py     HealthFile (data/health.json), UidMap (data/uid_map.json)
+* issues.py     Issue, DigestDocument, DigestOutcome
+* public.py     PublicEventsPayload, PublicStatusPayload: what the site reads
+* serialize.py  deterministic readers and writers for all of the above
+
+Most of these models are written to files below data/, which are committed
+and checked by the charset gate. ``seminars.textrules`` states the rule and
+what each writer has to do about it. One part of it is built into every
+model: a lone surrogate, which no file can hold, is dropped from all strings
+when a model is built (see ``Model``), so any model can be dumped and written.
+"""
+
+from seminars.models.base import (
+    CREDENTIAL_QUERY_PARAMS,
+    FEED_IDS,
+    FIELD_IDS,
+    SOURCE_ID_PATTERN,
+    UID_PATTERN,
+    EventStatus,
+    EventType,
+    ExtractionMethod,
+    FieldId,
+    FieldTagMethod,
+    Institution,
+    Model,
+    ascii_url,
+    canonical_fields,
+    check_http_url,
+    check_timezone,
+    source_key,
+    split_source_key,
+    url_has_credential,
+)
+from seminars.models.classify import (
+    Candidate,
+    EventHints,
+    ExcludedEvent,
+    ExclusionReason,
+    FilterResult,
+    LLMTagResult,
+    PicksResult,
+    RuleExclusionReason,
+    RuleTagMethod,
+    ScopeResult,
+    TagDecision,
+)
+from seminars.models.draft import (
+    EventDraft,
+    FetchedDocument,
+    RawPayload,
+    SpeakerDraft,
+    TimeWindow,
+)
+from seminars.models.event import TBA_TITLE, Event, Speaker
+from seminars.models.health import (
+    HEALTH_HISTORY_LIMIT,
+    HealthFile,
+    LLMHealthEntry,
+    LLMProviderHealth,
+    SourceHealth,
+    SourceHealthEntry,
+    UidMap,
+)
+from seminars.models.issues import (
+    DigestDocument,
+    DigestOutcome,
+    Issue,
+    IssueLabel,
+    IssueState,
+    IssueStateFilter,
+)
+from seminars.models.public import (
+    FEEDS_DIRNAME,
+    PUBLIC_SCHEMA_VERSION,
+    PublicEvent,
+    PublicEventsPayload,
+    PublicFeed,
+    PublicSourceState,
+    PublicSourceStatus,
+    PublicStatusPayload,
+    feed_path,
+)
+from seminars.models.report import (
+    LastRun,
+    LLMCacheStats,
+    LLMFailureKind,
+    LLMProviderResult,
+    LLMProviderStatus,
+    LLMUsage,
+    RunCounts,
+    RunMode,
+    RunReport,
+    SecretFinding,
+    SourceErrorKind,
+    SourceRunResult,
+    SourceStatus,
+)
+from seminars.models.serialize import (
+    EVENTS_SCHEMA_VERSION,
+    dump_ascii_json,
+    dump_event_lines,
+    dump_events,
+    dump_json,
+    event_from_line,
+    event_to_line,
+    load_event_lines,
+    load_events,
+    load_json,
+    read_events,
+    read_model,
+    write_events,
+    write_model,
+)
+from seminars.models.source import (
+    DEFAULT_TIMEZONE,
+    LLM_PAGE_ADAPTER,
+    SOURCE_GROUP_PREFIXES,
+    ProbeFormat,
+    ProbeResult,
+    ResearchInfo,
+    SourceConfig,
+)
+
+__all__ = [
+    "CREDENTIAL_QUERY_PARAMS",
+    "DEFAULT_TIMEZONE",
+    "EVENTS_SCHEMA_VERSION",
+    "FEEDS_DIRNAME",
+    "FEED_IDS",
+    "FIELD_IDS",
+    "HEALTH_HISTORY_LIMIT",
+    "LLM_PAGE_ADAPTER",
+    "PUBLIC_SCHEMA_VERSION",
+    "SOURCE_GROUP_PREFIXES",
+    "SOURCE_ID_PATTERN",
+    "TBA_TITLE",
+    "UID_PATTERN",
+    "Candidate",
+    "DigestDocument",
+    "DigestOutcome",
+    "Event",
+    "EventDraft",
+    "EventHints",
+    "EventStatus",
+    "EventType",
+    "ExcludedEvent",
+    "ExclusionReason",
+    "ExtractionMethod",
+    "FetchedDocument",
+    "FieldId",
+    "FieldTagMethod",
+    "FilterResult",
+    "HealthFile",
+    "Institution",
+    "Issue",
+    "IssueLabel",
+    "IssueState",
+    "IssueStateFilter",
+    "LLMCacheStats",
+    "LLMFailureKind",
+    "LLMHealthEntry",
+    "LLMProviderHealth",
+    "LLMProviderResult",
+    "LLMProviderStatus",
+    "LLMTagResult",
+    "LLMUsage",
+    "LastRun",
+    "Model",
+    "PicksResult",
+    "ProbeFormat",
+    "ProbeResult",
+    "PublicEvent",
+    "PublicEventsPayload",
+    "PublicFeed",
+    "PublicSourceState",
+    "PublicSourceStatus",
+    "PublicStatusPayload",
+    "RawPayload",
+    "ResearchInfo",
+    "RuleExclusionReason",
+    "RuleTagMethod",
+    "RunCounts",
+    "RunMode",
+    "RunReport",
+    "ScopeResult",
+    "SecretFinding",
+    "SourceConfig",
+    "SourceErrorKind",
+    "SourceHealth",
+    "SourceHealthEntry",
+    "SourceRunResult",
+    "SourceStatus",
+    "Speaker",
+    "SpeakerDraft",
+    "TagDecision",
+    "TimeWindow",
+    "UidMap",
+    "ascii_url",
+    "canonical_fields",
+    "check_http_url",
+    "check_timezone",
+    "dump_ascii_json",
+    "dump_event_lines",
+    "dump_events",
+    "dump_json",
+    "event_from_line",
+    "event_to_line",
+    "feed_path",
+    "load_event_lines",
+    "load_events",
+    "load_json",
+    "read_events",
+    "read_model",
+    "source_key",
+    "split_source_key",
+    "url_has_credential",
+    "write_events",
+    "write_model",
+]

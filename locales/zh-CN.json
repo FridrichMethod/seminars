@@ -1,0 +1,105 @@
+{
+  "fields": {
+    "math": "数学",
+    "cs": "计算机科学",
+    "ai-ml": "AI / 机器学习",
+    "chem": "化学",
+    "bio": "生物",
+    "physics": "物理",
+    "med": "医学"
+  },
+  "feeds": {
+    "all": {
+      "name": "学术报告 - 全部",
+      "description": "从 Stanford、SLAC、Arc Institute 和 CZ Biohub 收集到的全部学术报告。"
+    },
+    "picks": {
+      "name": "学术报告 - 精选",
+      "description": "符合个人兴趣规则的报告。"
+    },
+    "math": {
+      "name": "学术报告 - 数学",
+      "description": "纯数学、应用数学和统计方向的报告。"
+    },
+    "cs": {
+      "name": "学术报告 - 计算机科学",
+      "description": "计算机科学方向的报告。"
+    },
+    "ai-ml": {
+      "name": "学术报告 - AI / 机器学习",
+      "description": "人工智能和机器学习方向的报告。"
+    },
+    "chem": {
+      "name": "学术报告 - 化学",
+      "description": "化学和化学工程方向的报告。"
+    },
+    "bio": {
+      "name": "学术报告 - 生物",
+      "description": "生物、生物工程、结构生物学和遗传学方向的报告。"
+    },
+    "physics": {
+      "name": "学术报告 - 物理",
+      "description": "物理和应用物理方向的报告。"
+    },
+    "med": {
+      "name": "学术报告 - 医学",
+      "description": "医学和生物医学研究方向的报告。"
+    }
+  },
+  "digest": {
+    "issue_title": "学术报告 - {date} 当周",
+    "heading": "学术报告 - {date} 当周",
+    "intro": "{start} 至 {end} 的报告。所有时间均为太平洋时间。",
+    "summary": "本周共 {events} 场报告，其中精选 {picks} 场。",
+    "sections": {
+      "picks": "精选",
+      "new": "上一期以来新增",
+      "health": "数据源健康状况"
+    },
+    "table": {
+      "date": "日期",
+      "time": "时间",
+      "title": "标题",
+      "speaker": "报告人",
+      "location": "地点",
+      "link": "链接",
+      "field": "领域",
+      "reasons": "入选理由"
+    },
+    "labels": {
+      "all_day": "全天",
+      "online": "线上",
+      "cancelled": "已取消",
+      "tentative": "待定",
+      "tba": "待公布",
+      "details": "详情",
+      "more": "另有 {count} 场"
+    },
+    "empty": {
+      "picks": "本周没有精选报告。",
+      "field": "本周没有报告。",
+      "new": "上一期以来没有新增。",
+      "first_issue": "第一期：全部都是新增。"
+    },
+    "health": {
+      "all_ok": "全部 {total} 个数据源运行正常。",
+      "summary": "{total} 个数据源中有 {ok} 个运行正常。",
+      "source": "数据源",
+      "status": "状态",
+      "events": "事件数",
+      "last_success": "上次成功",
+      "error": "错误",
+      "status_ok": "正常",
+      "status_empty": "没有事件",
+      "status_failed": "失败",
+      "never": "从未",
+      "llm": "领域标签使用了 LLM 提供方 {provider}。",
+      "llm_none": "领域标签只使用了规则（未使用 LLM）。"
+    },
+    "footer": {
+      "site": "完整列表和日历订阅：{url}",
+      "notify": "抄送 {mention}"
+    }
+  },
+  "site": {}
+}
