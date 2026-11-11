@@ -21,7 +21,8 @@ odd site each) and decorating a class::
 
 Every module in those two packages is imported automatically (recursively),
 so no shared file has to be edited. A source selects its adapter by name
-(``adapter: my_format`` in config/sources.d/*.yaml).
+(``adapter: my_format`` in config/sources.d/*.yaml). An adapter is named
+after the module that defines it (see GENERIC_ADAPTERS for the generic ones).
 
 Rules for adapters:
 
@@ -57,6 +58,23 @@ ADAPTER_PACKAGES: Final = ("seminars.sources.generic", "seminars.sources.custom"
 """Packages whose modules are imported by adapter discovery."""
 
 ADAPTER_NAME_PATTERN: Final = r"[a-z][a-z0-9_]*"
+
+GENERIC_ADAPTERS: Final = (
+    "localist",  # Localist JSON API (events.stanford.edu)
+    "drupal_jsonapi",  # Drupal JSON:API, node type hs_event
+    "ics",  # iCalendar feeds
+    "rss",  # RSS / Atom feeds, optionally with detail pages
+    "jsonld",  # schema.org/Event JSON-LD embedded in pages
+    "html_list",  # HTML lists driven by selectors in ``params``
+    "llm_page",  # pages without structure, read by the LLM page extractor
+)
+"""Names reserved for the generic adapters.
+
+Each one is registered by the module of the same name in
+``seminars.sources.generic``. Any other adapter is named after its own
+module (``seminars.sources.custom.<name>``), or ``<module name>_<variant>``
+when a module holds several, which keeps names unique without coordination.
+"""
 
 
 class AdapterError(Exception):

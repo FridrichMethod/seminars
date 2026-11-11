@@ -84,8 +84,12 @@ class SourceConfig(Model):
       five built-in groups require the prefix in SOURCE_GROUP_PREFIXES.
     * ``url`` / ``urls``: at least one absolute http(s) URL; ``all_urls``
       lists them in order. URLs are used exactly as written.
-    * ``adapter``: checked against the registry at run time, not at load time,
-      so a source can be described before its adapter exists.
+    * ``adapter``: name of the adapter, which is the name of its module: one
+      of the generic ones (``localist``, ``drupal_jsonapi``, ``ics``, ``rss``,
+      ``jsonld``, ``html_list``, ``llm_page``) or a module in
+      seminars.sources.custom. It is checked against the registry at run
+      time, not at load time, so a source can be described before its adapter
+      exists.
     * ``homepage``: human-facing page for the status page (default: first URL).
     * ``default_fields``: fields of every event of this source (may be empty
       for campus-wide calendars, which are then classified by rules).

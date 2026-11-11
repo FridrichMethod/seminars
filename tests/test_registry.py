@@ -13,10 +13,17 @@ import pytest
 from factories import REFERENCE_NOW, make_document, make_source, make_window
 from fakes import FakeHttpClient
 from seminars.http import FixtureNotFoundError, HttpClient
-from seminars.models import EventDraft, RawPayload, SourceConfig, TimeWindow
+from seminars.models import (
+    LLM_PAGE_ADAPTER,
+    EventDraft,
+    RawPayload,
+    SourceConfig,
+    TimeWindow,
+)
 from seminars.sources import base
 from seminars.sources.base import (
     ADAPTER_PACKAGES,
+    GENERIC_ADAPTERS,
     Adapter,
     AdapterDiscoveryError,
     AdapterRegistry,
@@ -258,6 +265,27 @@ class TestRealAdapterPackages:
     def test_every_registered_adapter_follows_the_protocol(self) -> None:
         for name in base.adapter_names():
             assert isinstance(base.get_adapter(name), Adapter), name
+
+    def test_adapters_are_named_after_their_module(self) -> None:
+        for name in base.adapter_names():
+            module = type(base.get_adapter(name)).__module__.rsplit(".", 1)[-1]
+            assert name == module or name.startswith(f"{module}_"), (name, module)
+
+    def test_generic_adapter_names_are_reserved(self) -> None:
+        assert GENERIC_ADAPTERS == (
+            "localist",
+            "drupal_jsonapi",
+            "ics",
+            "rss",
+            "jsonld",
+            "html_list",
+            "llm_page",
+        )
+        assert LLM_PAGE_ADAPTER in GENERIC_ADAPTERS
+        for name in base.adapter_names():
+            module = type(base.get_adapter(name)).__module__
+            if name in GENERIC_ADAPTERS:
+                assert module == f"seminars.sources.generic.{name}"
 
 
 class TestFetchHelpers:
