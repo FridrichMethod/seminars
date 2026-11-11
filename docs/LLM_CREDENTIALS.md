@@ -183,7 +183,8 @@ What keeps the cost down, all set in `config/llm.yaml`:
 * `batch_size` (20): events per tagging request, answered as one JSON list.
 * `max_calls_per_run` (60): requests in one run; the rest is skipped and reported.
 * `max_input_chars` (12000): the longest prompt that is sent; a long page is read in
-  pieces of this size.
+  pieces of this size, at most six pieces per source. An event too long for any request
+  and the page text after those six pieces are skipped and reported.
 * The cache in `data/llm_cache/`: the key is the SHA-256 of the prompt version, the task and
   the normalized input. Model and provider are not part of it, so a new key, plan or model
   never repeats a request. An entry that has not been used for `cache_ttl_days` (180) is

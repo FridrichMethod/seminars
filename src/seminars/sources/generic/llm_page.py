@@ -58,7 +58,7 @@ import hashlib
 import logging
 import re
 import unicodedata
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Final
@@ -78,6 +78,7 @@ from seminars.contracts import (
     llm_cache_key,
 )
 from seminars.httpbase import HttpClient
+from seminars.llm.base import record_skipped_too_long
 from seminars.llm.grounding import Grounding, normalize_for_grounding
 from seminars.models import (
     LLM_PAGE_ADAPTER,
@@ -638,6 +639,9 @@ def _with_draft(drafts: Sequence[EventDraft], draft: EventDraft) -> list[EventDr
 
 # --- the extractor -------------------------------------------------------------------------
 
+type _Piece = tuple[FetchedDocument, PageText, str]
+"""One piece of page text to read, with the document and the page it comes from."""
+
 
 class LLMPageExtractor:
     """``PageExtractor`` over an ``LLMClient``; see the module docstring."""
@@ -676,24 +680,44 @@ class LLMPageExtractor:
             self._cache.put(key, fresh.model_dump(mode="json"))
         return fresh
 
-    def _chunks(self, payload: RawPayload) -> Iterator[tuple[FetchedDocument, PageText, str]]:
-        """The pieces of text of all documents, each with the page it belongs to."""
+    def _pieces(self, payload: RawPayload) -> tuple[list[_Piece], int]:
+        """The pieces of text to read, and the number of requests that are left out.
+
+        At most ``MAX_CHUNKS_PER_SOURCE`` pieces of all documents together
+        are read. Left out are the pieces after those, and every document
+        whose text has no room in a request at all.
+        """
+        pieces: list[_Piece] = []
+        unsent = 0
         for document in payload.documents:
             page = page_text(document)
-            room = self._max_input_chars - len(build_user_prompt("", document.final_url))
-            if room < MIN_CHUNK_CHARS or not page.text:
+            if not page.text:
                 continue
-            for chunk in split_text(page.text, room):
-                yield document, page, chunk
+            room = self._max_input_chars - len(build_user_prompt("", document.final_url))
+            if room < MIN_CHUNK_CHARS:
+                unsent += 1
+                continue
+            pieces.extend((document, page, chunk) for chunk in split_text(page.text, room))
+        unsent += max(0, len(pieces) - MAX_CHUNKS_PER_SOURCE)
+        return pieces[:MAX_CHUNKS_PER_SOURCE], unsent
 
     def extract(self, payload: RawPayload, source: SourceConfig) -> list[EventDraft]:
-        """Drafts for the talks on the fetched pages; empty when the LLM is unavailable."""
+        """Drafts for the talks on the fetched pages; empty when the LLM is unavailable.
+
+        Text that is left out for its length is counted in the run report
+        when the client keeps that count (``seminars.llm.base.SkipRecorder``).
+        """
         today = payload.fetched_at.astimezone(ZoneInfo(source.timezone)).date()
+        pieces, unsent = self._pieces(payload)
+        if unsent:
+            logger.info(
+                "source %s: the rest of the page text is not read (%d request(s) left out)",
+                source.id,
+                unsent,
+            )
+            record_skipped_too_long(self._client, unsent)
         drafts: list[EventDraft] = []
-        for count, (document, page, chunk) in enumerate(self._chunks(payload)):
-            if count >= MAX_CHUNKS_PER_SOURCE:
-                logger.info("source %s: the rest of the page text is not read", source.id)
-                break
+        for document, page, chunk in pieces:
             grounding = Grounding(chunk, min_similarity=self._min_similarity)
             try:
                 found = self._answer(chunk, document.final_url, today, grounding)

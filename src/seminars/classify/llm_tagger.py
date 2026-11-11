@@ -43,6 +43,7 @@ from seminars.contracts import (
     LLMInvalidOutputError,
     llm_cache_key,
 )
+from seminars.llm.base import record_skipped_too_long
 from seminars.models import Candidate, FieldId, LLMTagResult, Model
 
 logger: Final = logging.getLogger(__name__)
@@ -198,13 +199,30 @@ class LLMTagger:
         except ValidationError:
             return None
 
+    def _fitting(self, pending: Sequence[_Open]) -> list[_Open]:
+        """The events of ``pending`` that fit into a request of their own.
+
+        Any other event is left out and counted as skipped for its length
+        (``seminars.llm.base.record_skipped_too_long``).
+        """
+        fitting = [
+            item
+            for item in pending
+            if len(build_user_prompt([item.payload])) <= self._max_input_chars
+        ]
+        skipped = len(pending) - len(fitting)
+        if skipped:
+            logger.info("LLM tagging: %d event(s) too long for a request are skipped", skipped)
+            record_skipped_too_long(self._client, skipped)
+        return fitting
+
     def _batches(self, pending: Sequence[_Open]) -> Iterator[list[_Open]]:
-        """Split ``pending`` into requests within the batch size and the input limit."""
+        """Split ``pending`` into requests within the batch size and the input limit.
+
+        Every event of ``pending`` fits into a request of its own (``_fitting``).
+        """
         batch: list[_Open] = []
         for item in pending:
-            if len(build_user_prompt([item.payload])) > self._max_input_chars:
-                logger.info("LLM tagging: one event is too long for a request and is skipped")
-                continue
             trial = [*batch, item]
             prompt = build_user_prompt([entry.payload for entry in trial])
             if len(trial) > self._batch_size or len(prompt) > self._max_input_chars:
@@ -234,7 +252,7 @@ class LLMTagger:
     def _collect(self, pending: Sequence[_Open]) -> dict[str, LLMTagResult]:
         """Ask for everything in ``pending`` and store the answers; never raises ``LLMError``."""
         answers: dict[str, LLMTagResult] = {}
-        for batch in self._batches(pending):
+        for batch in self._batches(self._fitting(pending)):
             try:
                 found = self._ask(batch)
             except LLMInvalidOutputError:

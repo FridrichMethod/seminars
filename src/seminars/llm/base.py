@@ -22,7 +22,7 @@ none            NoneProvider (below)                   none
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -74,6 +74,28 @@ class Provider(Protocol):
     ) -> T:
         """``complete`` without the usage: the ``LLMClient`` method."""
         ...
+
+
+@runtime_checkable
+class SkipRecorder(Protocol):
+    """A client that keeps the count of input skipped for its length: the provider chain.
+
+    The chain counts every request whose prompt exceeds ``max_input_chars``
+    by itself. A caller that leaves input out before it builds a request
+    (an event that cannot fit into any request, page text beyond what is
+    read for one source) reports it here, so that it shows up in
+    ``LLMUsage.skipped_too_long`` of the run report as well.
+    """
+
+    def record_skipped_too_long(self, count: int) -> None:
+        """Count ``count`` (>= 0) requests that were not made because the input is too long."""
+        ...
+
+
+def record_skipped_too_long(client: object, count: int) -> None:
+    """Report ``count`` skipped requests to ``client`` when it keeps that count, else nothing."""
+    if count and isinstance(client, SkipRecorder):
+        client.record_skipped_too_long(count)
 
 
 class ProviderBase:

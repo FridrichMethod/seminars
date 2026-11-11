@@ -17,7 +17,9 @@ its part, and another provider would see the same input.
 Two caps of the run are enforced here, before anything is sent: the number
 of requests (every attempt at a provider counts) and the length of the user
 prompt. A request over a cap raises ``LLMBudgetExceededError`` and is
-counted for the run report.
+counted for the run report. Callers that leave input out for its length
+before they make a request report it with ``record_skipped_too_long``
+(``seminars.llm.base.SkipRecorder``), so the report has those as well.
 
 ``restricted`` gives a view of the same chain without some providers. The
 view shares everything else with the chain it came from: caps, failures
@@ -211,6 +213,13 @@ class ProviderChain:
                 self._succeeded(provider, completion)
                 return completion.value
         return self._end.complete_json(system, user, schema, max_tokens=max_tokens)
+
+    def record_skipped_too_long(self, count: int) -> None:
+        """Count requests a caller did not make because the input is too long (``SkipRecorder``)."""
+        if count < 0:
+            raise ValueError("a count of skipped requests cannot be negative")
+        with self._state.lock:
+            self._state.skipped_too_long += count
 
     def usage(self) -> LLMUsage:
         """The LLM activity of the run so far, for the run report and health."""
