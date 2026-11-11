@@ -91,6 +91,8 @@ here and in `check --source-id`.
 - The recorder goes through the polite HTTP client: robots.txt is honoured,
   and the pause between two requests to one host is `max(1 s, Crawl-delay)`.
   Expect a 30 s wait per request on hosts that ask for `Crawl-delay: 30`.
+  The delay counts for the whole host: when the robots.txt of its https
+  site asks for 30 s, requests to its http site wait 30 s as well.
 - Pass all URLs of one host to a single call. They are fetched one after
   another, which is the simplest way to stay serial.
 - The pause also holds between separate calls, one after another or at the

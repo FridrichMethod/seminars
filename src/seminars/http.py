@@ -38,10 +38,14 @@ Rules of the live client:
   http(s) address and waits for its turn on the host it goes to;
 * the pause between two requests to one host is
   ``max(min_interval_seconds, Crawl-delay)``, measured from the end of the
-  previous request. The Crawl-delay is the one of the origin the request
-  goes to. A request for a robots.txt cannot know that one yet: it waits
-  for the longest Crawl-delay known for any origin of its host (http and
-  https, other ports), at most ``max_crawl_delay_seconds``;
+  previous request. The Crawl-delay is a property of the host, not of an
+  origin: before ANY request, for a page or for a robots.txt, the client
+  waits for the longest Crawl-delay that any origin of the host (http and
+  https, other ports) is known to ask for. Known is what this client
+  worked out and what the recent robots.txt copies in the cache directory
+  say. What another origin asks for counts up to
+  ``max_crawl_delay_seconds``; an origin whose own robots.txt asks for
+  more is not fetched at all (``CrawlDelayTooLongError``);
 * requests to one host are strictly serial, different hosts may be used
   concurrently from several threads;
 * both rules also hold between clients and between processes, provided they
@@ -461,8 +465,11 @@ class PoliteClient:
         policy = self._policy(state, target.host, target.origin, deadline)
         if not policy.allows(target.path):
             raise RobotsDisallowedError(url, "disallowed by robots.txt")
-        interval = self._interval(url, policy)
+        own_interval = self._interval(url, policy)
         with self._pacer.turn(state, target.host, deadline):
+            # What the other origins of the host ask for is known for sure only now,
+            # with the turn: other clients may have left their copies in the meantime.
+            interval = max(own_interval, self._known_crawl_delay(state))
             cached = self._cache.page(target.url)
             request_headers = self._request_headers(extra_headers, cached)
             exchange = self._pacer.send(
@@ -641,11 +648,13 @@ class PoliteClient:
     def _known_crawl_delay(self, state: HostState) -> float:
         """The longest crawl delay any origin of the host is known to ask for, capped.
 
-        A robots.txt request cannot follow the policy of its own origin,
-        which is what it is about to find out. It respects what the other
-        origins of the same host (http and https, other ports) asked for:
-        the policies this client worked out and the recent robots.txt copies
-        that other clients left in the cache directory.
+        The pause before every request to the host is at least this long.
+        A page request thus respects what the other origins of its host
+        (http and https, other ports) asked for, and a robots.txt request,
+        which cannot follow the policy it is about to find out, does the
+        same. Known are the policies this client worked out and the recent
+        robots.txt copies that other clients left in the cache directory.
+        The caller holds the turn of the host.
         """
         delays = [policy.crawl_delay or 0.0 for policy in tuple(state.policies.values())]
         for origin in tuple(state.record.robots):
@@ -681,6 +690,7 @@ class PoliteClient:
         return RobotsUnavailableError(origin + ROBOTS_PATH, reason)
 
     def _interval(self, url: str, policy: RobotsPolicy) -> float:
+        """The pause the origin of ``url`` itself asks for; refuses one that is too long."""
         delay = policy.crawl_delay or 0.0
         limit = self._settings.max_crawl_delay_seconds
         if delay > limit:

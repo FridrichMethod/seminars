@@ -163,7 +163,7 @@ PLAIN = "http://dept.example.edu"
 
 
 class TestRobotsOfAnotherOriginOnAKnownHost:
-    """What one origin of a host asked for also slows down the first visit to the next one."""
+    """The crawl delay belongs to the host: what one origin asked for holds for the others."""
 
     def test_the_request_waits_for_the_crawl_delay_another_origin_asked_for(
         self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
@@ -197,8 +197,50 @@ class TestRobotsOfAnotherOriginOnAKnownHost:
             "https robots": 0.0,
             "https page": 30.0,
             "http robots": 60.0,
-            "http page": 61.0,
+            "http page": 90.0,
         }
+
+    def test_every_request_to_the_host_keeps_the_longest_delay_known(
+        self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
+    ) -> None:
+        """Pages of an origin whose own robots.txt asks for nothing, between pages of one
+        that asks for 30 s: the host gets one request every 30 s, whatever the origin."""
+        times: list[tuple[str, float]] = []
+
+        def note(request: httpx.Request) -> httpx.Response:
+            times.append((f"{request.url.scheme} {request.url.path}", fake_clock()))
+            if request.url.path != "/robots.txt":
+                return httpx.Response(200, text="ok")
+            if request.url.scheme == "https":
+                return httpx.Response(200, text="User-agent: *\nCrawl-delay: 30\n")
+            return httpx.Response(404)
+
+        respx_router.get(url__regex=r".*").mock(side_effect=note)
+        for url in (f"{PAGE}?a", f"{PLAIN}/x", f"{PLAIN}/y", f"{PAGE}?b", f"{PLAIN}/z"):
+            client.get(url)
+        start = times[0][1]
+        assert [(name, moment - start) for name, moment in times] == [
+            ("https /robots.txt", 0.0),
+            ("https /events", 30.0),
+            ("http /robots.txt", 60.0),
+            ("http /x", 90.0),
+            ("http /y", 120.0),
+            ("https /events", 150.0),
+            ("http /z", 180.0),
+        ]
+        assert fake_clock.sleeps == [30.0] * 6
+
+    def test_a_host_that_asks_for_nothing_keeps_the_minimum_interval(
+        self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
+    ) -> None:
+        other = "https://www.example.edu"
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nCrawl-delay: 30\n")
+        respx_router.get(f"{other}/robots.txt").respond(404)
+        respx_router.get(url__regex=r".*/events$").respond(200, text="ok")
+        client.get(PAGE)
+        client.get(f"{other}/events")
+        client.get(f"{other}/events")
+        assert fake_clock.sleeps == [30.0, 1.0, 1.0]  # another host: its own, shorter pause
 
     def test_the_wait_is_capped_like_any_crawl_delay(
         self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
@@ -210,7 +252,7 @@ class TestRobotsOfAnotherOriginOnAKnownHost:
             client.get(PAGE)
         assert fake_clock.sleeps == []
         client.get(f"{PLAIN}/events")
-        assert fake_clock.sleeps == [120.0, 1.0]
+        assert fake_clock.sleeps == [120.0, 120.0]
 
     def test_the_longest_known_delay_of_the_host_counts(
         self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
@@ -226,7 +268,9 @@ class TestRobotsOfAnotherOriginOnAKnownHost:
         client.get(f"{PLAIN}/events")
         assert fake_clock.sleeps == [10.0, 10.0, 45.0]
         client.get(f"{other_port}/events")
-        assert fake_clock.sleeps == [10.0, 10.0, 45.0, 45.0, 1.0]
+        assert fake_clock.sleeps == [10.0, 10.0, 45.0, 45.0, 45.0]
+        client.get(PAGE)  # also the origin that asked for less itself
+        assert fake_clock.sleeps == [10.0, 10.0, 45.0, 45.0, 45.0, 45.0]
 
     def test_a_delay_another_client_recorded_in_the_cache_directory_counts(
         self,
@@ -253,7 +297,7 @@ class TestRobotsOfAnotherOriginOnAKnownHost:
         assert fake_clock.sleeps == [30.0]
         fake_clock.advance(5.0)
         new_client().get(f"{PLAIN}/events")
-        assert fake_clock.sleeps == [30.0, 25.0, 1.0]
+        assert fake_clock.sleeps == [30.0, 25.0, 30.0]
 
     def test_an_outdated_copy_in_the_cache_directory_does_not_count(
         self,
