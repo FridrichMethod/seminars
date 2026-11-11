@@ -10,8 +10,11 @@ import uuid
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from factories import REFERENCE_NOW, make_document, make_draft, make_source, make_window
 from fakes import FakeHttpClient
@@ -531,6 +534,81 @@ class TestAbsoluteUrl:
     def test_a_relative_link_needs_an_absolute_base(self) -> None:
         assert absolute_url("/events", "42") is None
         assert absolute_url("", "https://example.edu/x") == "https://example.edu/x"
+
+    def test_markup_in_a_link_is_percent_encoded(self) -> None:
+        link = 'x"><script>alert(1)</script>'
+        assert absolute_url("https://base.example/dir/page", link) == (
+            "https://base.example/dir/x%22%3E%3Cscript%3Ealert(1)%3C/script%3E"
+        )
+        assert absolute_url(PAGE_URL, '/x#"><img src=x onerror=alert(1)>') == (
+            "https://dept.example.edu/x#%22%3E%3Cimg%20src=x%20onerror=alert(1)%3E"
+        )
+
+    @pytest.mark.parametrize(
+        ("char", "escape"),
+        [
+            ('"', "%22"),
+            ("<", "%3C"),
+            (">", "%3E"),
+            ("\\", "%5C"),
+            ("`", "%60"),
+            ("{", "%7B"),
+            ("|", "%7C"),
+            ("}", "%7D"),
+            ("^", "%5E"),
+            (" ", "%20"),
+            ("\x7f", "%7F"),
+        ],
+    )
+    def test_what_a_url_may_not_contain_as_it_is_gets_encoded(self, char: str, escape: str) -> None:
+        expected = f"https://dept.example.edu/a{escape}b?q={escape}c#f{escape}g"
+        assert absolute_url(PAGE_URL, f"/a{char}b?q={char}c#f{char}g") == expected
+        assert absolute_url(PAGE_URL, expected) == expected
+
+    @pytest.mark.parametrize(
+        "link",
+        [
+            "/a%20b%22?q=%3Cb%3E&r=%C3%A9#%7Bx%7D",
+            "/100%/x?rate=5%&odd=%zz",
+            "/a!$&'()*+,;=:@~._-/x?page[limit]=50&filter[a]=b#frag",
+            "/people/@jane?mail=jane@example.edu",
+        ],
+    )
+    def test_escapes_and_the_characters_a_url_may_contain_stay_as_written(self, link: str) -> None:
+        assert absolute_url(PAGE_URL, link) == f"https://dept.example.edu{link}"
+
+    @pytest.mark.parametrize(
+        "link",
+        [
+            "http://user:pw@evil.example/",
+            "https://user@evil.example/x",
+            "//user:pw@cdn.example.org/x",
+            "http://@evil.example/",
+            "http://:pw@evil.example/",
+            "http://a.example\\@evil.example/",
+            "http://dept.example.edu%40evil.example@other.example/",
+        ],
+    )
+    def test_a_link_with_a_user_name_or_password_gives_none(self, link: str) -> None:
+        assert absolute_url(PAGE_URL, link) is None
+
+    def test_a_base_with_a_user_name_gives_none_for_relative_links(self) -> None:
+        assert absolute_url("https://user:pw@dept.example.edu/events", "42") is None
+        assert absolute_url("https://user:pw@dept.example.edu/events", "https://x.example/") == (
+            "https://x.example/"
+        )
+
+    @given(st.text(max_size=60))
+    def test_whatever_the_link_the_result_is_none_or_a_plain_ascii_url(self, link: str) -> None:
+        url = absolute_url(PAGE_URL, link)
+        if url is None:
+            return
+        assert all("!" <= char <= "~" for char in url)
+        assert not set(url) & set('"<>\\^`{|}')
+        assert url.startswith(("http://", "https://"))
+        assert "@" not in urlsplit(url).netloc
+        assert absolute_url(PAGE_URL, url) == url
+        assert make_draft(url=url).url == url
 
     def test_the_base_of_a_redirected_page_is_its_final_url(self) -> None:
         document = make_document(

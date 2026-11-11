@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import string
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Annotated, Any, Final, Literal, Self
@@ -150,15 +149,28 @@ def url_has_credential(url: object) -> bool:
     return any(name.lower() in CREDENTIAL_QUERY_PARAMS for name, _ in pairs)
 
 
-def ascii_url(url: str) -> str:
-    """``url`` with everything outside printable ASCII percent-encoded (as UTF-8).
+_URL_CHARACTERS: Final = "!#$%&'()*+,/:;=?@[]"
+"""What a URL may contain as it is, besides letters, digits and ``-._~`` (RFC 3986).
 
-    Spaces and control characters are encoded too; existing escapes are left
-    alone, so the function is idempotent. The result names the same resource
-    and is safe to write into any file. A lone surrogate has no UTF-8 form
-    and is dropped.
+The delimiters of the generic syntax (``:/?#[]@``), the sub-delimiters
+(``!$&'()*+,;=``) and the percent sign of an escape.
+"""
+
+
+def ascii_url(url: str) -> str:
+    """``url`` with everything percent-encoded (as UTF-8) that a URL may not contain as it is.
+
+    That is everything outside printable ASCII, spaces and control
+    characters, and the nine printable characters that RFC 3986 has no use
+    for: the double quote, ``<``, ``>``, the backslash, ``^``, the backtick,
+    ``{``, ``|`` and ``}``. A URL taken from a page can thus not carry
+    markup into a file it is written to (whoever writes HTML still has to
+    escape, the single quote and ``&`` for a start). Existing escapes are
+    left alone, so the function is idempotent. The result names the same
+    resource and is safe to write into any file. A lone surrogate has no
+    UTF-8 form and is dropped.
     """
-    return quote(strip_surrogates(url), safe=string.punctuation)
+    return quote(strip_surrogates(url), safe=_URL_CHARACTERS)
 
 
 def source_key(source_id: str, native_id: str) -> str:

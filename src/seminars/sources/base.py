@@ -69,7 +69,7 @@ import threading
 from collections.abc import Callable, Sequence
 from types import ModuleType
 from typing import Final, Protocol, runtime_checkable
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from seminars.httpbase import HttpClient
 from seminars.models import (
@@ -354,15 +354,22 @@ def absolute_url(base: str, link: str | None) -> str | None:
     ``base`` is the address of the document the link was found in; pass
     ``document.final_url`` so that links on a redirected page resolve
     correctly. Relative links are resolved against it, surrounding
-    whitespace is dropped and characters outside printable ASCII are
-    percent-encoded. Missing and empty links, other schemes (``mailto:``,
-    ``tel:``, ``javascript:``) and links that cannot be parsed give
-    ``None``. Use it for every URL that goes into an ``EventDraft``.
+    whitespace is dropped, and whatever a URL may not contain as it is gets
+    percent-encoded (``seminars.models.ascii_url``): characters outside
+    printable ASCII, spaces, and the double quote, ``<``, ``>``, backslash,
+    ``^``, backtick, ``{``, ``|`` and ``}``, so a link cannot carry markup
+    into a draft. Escapes that are there already stay as they are.
+
+    Missing and empty links, other schemes (``mailto:``, ``tel:``,
+    ``javascript:``), links that cannot be parsed and links with a user
+    name or password (``https://user:secret@host/``) give ``None``. Use it
+    for every URL that goes into an ``EventDraft``.
     """
     if link is None or not link.strip():
         return None
     try:
-        return check_http_url(ascii_url(urljoin(base, link.strip())))
+        url = check_http_url(ascii_url(urljoin(base, link.strip())))
+        return None if "@" in urlsplit(url).netloc else url
     except ValueError:
         return None
 

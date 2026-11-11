@@ -148,6 +148,21 @@ class TestVocabularies:
         assert encoded == "https://example.edu/caf%C3%A9/%F0%9F%9A%80%20talk%C2%A0"
         assert ascii_url(encoded) == encoded
 
+    def test_ascii_url_encodes_what_a_url_may_not_contain_as_it_is(self) -> None:
+        """RFC 3986: these nine printable characters have no place in a URL."""
+        hostile = 'https://example.edu/a"b<c>d\\e^f`g{h|i}j'
+        encoded = "https://example.edu/a%22b%3Cc%3Ed%5Ce%5Ef%60g%7Bh%7Ci%7Dj"
+        assert ascii_url(hostile) == encoded
+        assert ascii_url(encoded) == encoded
+        allowed = "https://user@example.edu:8443/a-b._~c/!$&'()*+,;=:@?q[0]=%41%zz&r=100%#top"
+        assert ascii_url(allowed) == allowed
+
+    def test_an_excluded_event_never_carries_markup_in_its_url(self) -> None:
+        excluded = ExcludedEvent(
+            title="x", url='https://example.edu/"><script>alert(1)</script>', reason="not_a_talk"
+        )
+        assert excluded.url == "https://example.edu/%22%3E%3Cscript%3Ealert(1)%3C/script%3E"
+
 
 class TestEventSchema:
     def test_fields_are_exactly_the_agreed_ones(self) -> None:
