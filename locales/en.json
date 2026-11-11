@@ -1,0 +1,105 @@
+{
+  "fields": {
+    "math": "Math",
+    "cs": "Computer Science",
+    "ai-ml": "AI / ML",
+    "chem": "Chemistry",
+    "bio": "Biology",
+    "physics": "Physics",
+    "med": "Medicine"
+  },
+  "feeds": {
+    "all": {
+      "name": "Seminars - All",
+      "description": "Every academic talk collected from Stanford, SLAC, Arc Institute and CZ Biohub."
+    },
+    "picks": {
+      "name": "Seminars - Picks",
+      "description": "Talks that match the personal interest rules."
+    },
+    "math": {
+      "name": "Seminars - Math",
+      "description": "Talks in pure mathematics, applied mathematics and statistics."
+    },
+    "cs": {
+      "name": "Seminars - Computer Science",
+      "description": "Talks in computer science."
+    },
+    "ai-ml": {
+      "name": "Seminars - AI / ML",
+      "description": "Talks in artificial intelligence and machine learning."
+    },
+    "chem": {
+      "name": "Seminars - Chemistry",
+      "description": "Talks in chemistry and chemical engineering."
+    },
+    "bio": {
+      "name": "Seminars - Biology",
+      "description": "Talks in biology, bioengineering, structural biology and genetics."
+    },
+    "physics": {
+      "name": "Seminars - Physics",
+      "description": "Talks in physics and applied physics."
+    },
+    "med": {
+      "name": "Seminars - Medicine",
+      "description": "Talks in medicine and biomedical research."
+    }
+  },
+  "digest": {
+    "issue_title": "Seminars - week of {date}",
+    "heading": "Seminars - week of {date}",
+    "intro": "Talks from {start} to {end}. All times are Pacific Time.",
+    "summary": "{events} talks this week, {picks} of them picks.",
+    "sections": {
+      "picks": "Picks",
+      "new": "New since last issue",
+      "health": "Source health"
+    },
+    "table": {
+      "date": "Date",
+      "time": "Time",
+      "title": "Title",
+      "speaker": "Speaker",
+      "location": "Location",
+      "link": "Link",
+      "field": "Field",
+      "reasons": "Why picked"
+    },
+    "labels": {
+      "all_day": "All day",
+      "online": "Online",
+      "cancelled": "Cancelled",
+      "tentative": "Tentative",
+      "tba": "TBA",
+      "details": "Details",
+      "more": "{count} more"
+    },
+    "empty": {
+      "picks": "No picks this week.",
+      "field": "No talks this week.",
+      "new": "Nothing new since the last issue.",
+      "first_issue": "First issue: everything is new."
+    },
+    "health": {
+      "all_ok": "All {total} sources are healthy.",
+      "summary": "{ok} of {total} sources are healthy.",
+      "source": "Source",
+      "status": "Status",
+      "events": "Events",
+      "last_success": "Last success",
+      "error": "Error",
+      "status_ok": "OK",
+      "status_empty": "No events",
+      "status_failed": "Failed",
+      "never": "never",
+      "llm": "Field tagging used the LLM provider {provider}.",
+      "llm_none": "Field tagging used rules only (no LLM)."
+    },
+    "footer": {
+      "site": "Full list and calendar subscriptions: {url}",
+      "notify": "cc {mention}"
+    }
+  },
+  "site": {}
+}
