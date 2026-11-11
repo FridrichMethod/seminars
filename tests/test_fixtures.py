@@ -63,6 +63,12 @@ class TestFixtureKey:
         assert fixture_key(f"{API}?page=1") != fixture_key(API)
         assert fixture_key("https://a.example.edu/x") != fixture_key("http://a.example.edu/x")
 
+    def test_default_ports_are_dropped(self) -> None:
+        plain = fixture_key("https://a.example.edu/x")
+        assert fixture_key("https://a.example.edu:443/x") == plain
+        assert fixture_key("https://a.example.edu:8443/x") != plain
+        assert fixture_key("http://a.example.edu:80/x") == fixture_key("http://a.example.edu/x")
+
     def test_repeated_parameters_are_kept(self) -> None:
         assert fixture_key(f"{API}?type[]=1&type[]=2") != fixture_key(f"{API}?type[]=1")
         assert fixture_key(f"{API}?type[]=2&type[]=1") == fixture_key(f"{API}?type[]=1&type[]=2")

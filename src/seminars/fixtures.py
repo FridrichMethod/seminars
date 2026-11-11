@@ -51,6 +51,7 @@ MAX_FIXTURE_BYTES: Final = 500_000
 
 _RESERVED_NAMES: Final = frozenset({MANIFEST_NAME})
 _BOM: Final = chr(0xFEFF)
+_DEFAULT_PORTS: Final = {"http": 80, "https": 443}
 _NOTE_PREFIX: Final = "README"
 _EXTENSIONS: Final[dict[str, str]] = {
     "application/json": ".json",
@@ -99,19 +100,28 @@ class FixtureManifest(Model):
 def fixture_key(url: str, volatile_params: Iterable[str] = ()) -> str:
     """Canonical form of a URL for fixture lookup.
 
-    Scheme and host are lower-cased, the path is percent-decoded, the
-    fragment is dropped and the query parameters are sorted, so that the
-    order and the encoding of parameters do not matter. Parameters named in
-    ``volatile_params`` match any value (their value becomes ``*``).
+    Scheme and host are lower-cased, a default port is dropped, the path is
+    percent-decoded, the fragment is dropped and the query parameters are
+    sorted, so that the order and the encoding of parameters do not matter.
+    Parameters named in ``volatile_params`` match any value (their value
+    becomes ``*``).
     """
     parts = urlsplit(url)
+    scheme = parts.scheme.lower()
+    host = (parts.hostname or "").lower()
+    try:
+        port = parts.port
+    except ValueError:
+        port = None
+    if port is not None and port != _DEFAULT_PORTS.get(scheme):
+        host = f"{host}:{port}"
     volatile = set(volatile_params)
     pairs = sorted(
         (name, "*" if name in volatile else value)
         for name, value in parse_qsl(parts.query, keep_blank_values=True)
     )
     query = f"?{urlencode(pairs)}" if pairs else ""
-    return f"{parts.scheme.lower()}://{parts.netloc.lower()}{unquote(parts.path) or '/'}{query}"
+    return f"{scheme}://{host}{unquote(parts.path) or '/'}{query}"
 
 
 def normalize_body(text: str) -> str:
