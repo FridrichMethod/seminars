@@ -170,6 +170,22 @@ class TestWhatIsAskedFor:
             "gzip, deflate",
         ]
 
+    def test_what_the_http_library_could_decode_does_not_matter(
+        self,
+        site: Site,
+        http_settings: HttpSettings,
+        fake_clock: FakeClock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """With brotli or zstandard installed, the library would offer them by itself."""
+        monkeypatch.setattr("httpx._client.ACCEPT_ENCODING", "gzip, deflate, br, zstd")
+        assert httpx.Client().headers["accept-encoding"] == "gzip, deflate, br, zstd"
+        build(site, http_settings, fake_clock).get(PAGE)
+        assert [request.headers["accept-encoding"] for request in site.requests] == [
+            "gzip, deflate",
+            "gzip, deflate",
+        ]
+
     def test_a_caller_cannot_ask_for_another_coding(self, client: PoliteClient, site: Site) -> None:
         client.get(PAGE, headers={"Accept-Encoding": "br", "accept-encoding": "zstd"})
         assert site.requests[-1].headers.get_list("accept-encoding") == ["gzip, deflate"]
