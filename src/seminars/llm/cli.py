@@ -24,7 +24,7 @@ import re
 import signal
 import subprocess
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
@@ -47,22 +47,43 @@ class CliStartError(Exception):
 
 @dataclass(frozen=True)
 class CliRequest:
-    """One run of a command: arguments, standard input, environment, directory, time limit."""
+    """One run of a command: arguments, standard input, environment, directory, time limit.
+
+    The environment can hold a credential (CLAUDE_CODE_OAUTH_TOKEN), so the
+    ``repr`` of a request names its variables and never shows their values.
+    """
 
     argv: tuple[str, ...]
     stdin: str
-    env: Mapping[str, str]
+    env: Mapping[str, str] = field(repr=False)
     cwd: Path
     timeout: float
+
+    def __repr__(self) -> str:
+        names = ", ".join(sorted(self.env))
+        return (
+            f"CliRequest(argv={self.argv!r}, env names=[{names}], cwd={self.cwd!r}, "
+            f"timeout={self.timeout!r})"
+        )
 
 
 @dataclass(frozen=True)
 class CliResult:
-    """What a finished child left behind. ``stderr`` is for classification only."""
+    """What a finished child left behind. ``stderr`` is for classification only.
+
+    The standard error output can name the account, so the ``repr`` of a
+    result gives only its length.
+    """
 
     returncode: int
     stdout: str
-    stderr: str
+    stderr: str = field(repr=False)
+
+    def __repr__(self) -> str:
+        return (
+            f"CliResult(returncode={self.returncode!r}, stdout={self.stdout!r}, "
+            f"stderr=<{len(self.stderr)} characters>)"
+        )
 
 
 CliRunner = Callable[[CliRequest], CliResult]
