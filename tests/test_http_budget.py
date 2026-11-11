@@ -12,6 +12,7 @@ from fakes import FakeClock, StubResolver
 from seminars.config import HttpSettings
 from seminars.http import (
     HostBudgetExceededError,
+    HttpClient,
     HttpError,
     PoliteClient,
     RobotsDisallowedError,
@@ -160,6 +161,69 @@ class TestRequestsPerHost:
         with pytest.raises(HostBudgetExceededError, match=r"robots\.txt request budget"):
             client.get(f"http://{VICTIM}/a")
         assert len(answers) == 6
+
+
+class TestLimitsBelongToTheHostName:
+    """What the limits do not cover, as the module docstring says under "What remains"."""
+
+    def test_names_that_share_an_address_are_paced_and_counted_apart(
+        self, http_settings: HttpSettings, fake_clock: FakeClock
+    ) -> None:
+        """Every name resolves to the same address here; each is a host of its own."""
+        site = Site(robots_text="")
+        client = build(http_settings, fake_clock, site)
+        names = [f"n{number}.example.net" for number in range(30)]
+        assert outcomes(client, [f"https://{name}/x" for name in names]) == {"ok": 30}
+        assert client.request_counts() == dict.fromkeys(sorted(names), 1)
+        assert len(site.requests) == 60
+        assert fake_clock.sleeps == [1.0] * 30  # robots.txt, then the page; no pause between names
+
+    def test_a_redirect_hop_is_charged_to_the_host_it_goes_to(
+        self, http_settings: HttpSettings, fake_clock: FakeClock
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/robots.txt":
+                return httpx.Response(404)
+            if request.url.host == "sender.example.org":
+                target = f"https://{VICTIM}/landing?{request.url.path[1:]}"
+                return httpx.Response(302, headers={"Location": target})
+            return httpx.Response(200, text="ok")
+
+        client = PoliteClient(
+            http_settings,
+            clock=fake_clock,
+            sleep=fake_clock.sleep,
+            transport=httpx.MockTransport(handler),
+            resolver=StubResolver(),
+        )
+        for number in range(20):
+            assert client.get(f"https://sender.example.org/{number}").text == "ok\n"
+        assert client.request_counts() == {"sender.example.org": 20, VICTIM: 20}
+        with pytest.raises(HostBudgetExceededError, match=f"host {VICTIM} is exhausted"):
+            client.get(f"https://{VICTIM}/events")
+
+    def test_the_docstrings_say_so(self) -> None:
+        rules, remains = (
+            " ".join(part.split()) for part in http_docstring().split("What remains:")
+        )
+        assert "one host NAME at most ``2 * max_requests_per_host`` requests per run" in rules
+        assert "is charged to the host it leads to" in rules
+        for phrase in (
+            "per host NAME, not per address",
+            "a redirect hop is charged to the host it goes to",
+            "``seminars.sources.base.on_source_host``",
+        ):
+            assert phrase in remains
+        contract = " ".join((HttpClient.get.__doc__ or "").split())
+        assert "per host NAME, not per address" in contract
+        assert "a redirect hop is charged to the host it goes to" in contract
+        assert "``seminars.sources.base.on_source_host``" in contract
+
+
+def http_docstring() -> str:
+    import seminars.http
+
+    return seminars.http.__doc__ or ""
 
 
 class TestHostRecordSize:

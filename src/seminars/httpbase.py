@@ -209,5 +209,14 @@ class HttpClient(Protocol):
         Cookies are never kept between requests; a ``Cookie`` header given
         here is sent like any other header. A final status outside 2xx
         raises ``HttpStatusError`` unless it is listed in ``allow_statuses``.
+
+        The live client is polite per host NAME, not per address: the
+        pause between two requests, the serial order and the request
+        budgets of a run belong to the name in the URL, whatever machine
+        answers for it, and a redirect hop is charged to the host it goes
+        to. Asking for URLs on many names, or on the host of somebody
+        else, therefore gets around what these limits are for. A caller
+        only asks for URLs on the hosts it was configured for; adapters
+        check with ``seminars.sources.base.on_source_host``.
         """
         ...

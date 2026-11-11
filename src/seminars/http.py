@@ -63,15 +63,19 @@ Rules of the live client:
   every git worktree of one repository, and ``SEMINARS_HTTP_CACHE_DIR``
   moves it, which separate clones that fetch at the same time need. On
   Windows there is no lock between processes; see ``seminars.httpcache``;
-* every host has a request budget per client (``max_requests_per_host``,
-  retries included); exceeding it raises ``HostBudgetExceededError``.
-  Requests for a robots.txt do not use it up. They have a budget of the
-  same size of their own, counted on the host each of them goes to (also
-  when it is a redirect hop of another host's robots.txt). One client thus
-  sends a host at most ``2 * max_requests_per_host`` requests per run,
-  however many links, ports and redirects point at it. A robots.txt costs
-  at most ``retries + 1`` requests per hop and origin, whether it can be
-  fetched or not; only its first 512000 characters are used;
+* every host name has a request budget per client
+  (``max_requests_per_host``, retries included); exceeding it raises
+  ``HostBudgetExceededError``. Requests for a robots.txt do not use it up:
+  they have a budget of the same size of their own. Both are counted on
+  the host name a request goes to. A redirect hop, of a page or of a
+  robots.txt, is charged to the host it leads to, not to the host that
+  sent it there. One client thus sends one host NAME at most
+  ``2 * max_requests_per_host`` requests per run, however many links,
+  ports and redirects point at that name. The pause, the serial order and
+  both budgets belong to the name, not to the machine behind it; see
+  "What remains" for what follows from that. A robots.txt costs at most
+  ``retries + 1`` requests per hop and origin, whether it can be fetched
+  or not; only its first 512000 characters are used;
 * network errors and 408/425/429/5xx answers are retried with exponential
   backoff (``Retry-After`` is respected);
 * time is bounded twice, whatever a site does. One request with its whole
@@ -184,6 +188,22 @@ What remains:
   else there is ``http.forbidden_networks`` in config/settings.yaml, which
   holds the platform address of Azure by default; list the address ranges
   of your own network there when the client runs inside it.
+* The pause between requests, the serial order and the budgets are kept
+  per host NAME, not per address. The client does not know which names
+  share a machine: three hundred names that resolve to one address are
+  three hundred hosts to it, each with its own pause and its own budgets,
+  so that address can get many times ``2 * max_requests_per_host``
+  requests in one run, without a pause between the names. And because a
+  redirect hop is charged to the host it goes to, requests that are made
+  for one source can use up the budget another source needs on that host
+  in the same run. Both take somebody who decides which URLs are asked
+  for, through the links of a scraped page or through redirects. The
+  client does not prevent this. The rule that does is one level up: an
+  adapter only requests URLs on the hosts of its own source
+  (``seminars.sources.base.on_source_host``; ``fetch_urls`` enforces it),
+  so a page cannot send requests to hosts that the configuration does not
+  name. Redirects are still followed wherever they lead, within the
+  budget of the host they lead to.
 
 Proxies are not supported. The client ignores the proxy variables of the
 environment (``HTTP_PROXY``, ``HTTPS_PROXY``, ``ALL_PROXY``, ``NO_PROXY``)

@@ -262,9 +262,11 @@ class Pacer:
         """Refuse a request that the budget of ``host`` does not cover any more.
 
         Pages and robots.txt requests have a budget of
-        ``max_requests_per_host`` each, counted on the host a request goes
-        to. A host therefore gets at most twice that many requests from
-        this client, whatever links, ports and redirects point at it.
+        ``max_requests_per_host`` each, counted on the host name a request
+        goes to (a redirect hop: the host it leads to). One host name
+        therefore gets at most twice that many requests from this client,
+        whatever links, ports and redirects point at that name. Names that
+        share an address are counted apart.
         """
         limit = self._settings.max_requests_per_host
         used = state.robots_requests if robots else state.requests
