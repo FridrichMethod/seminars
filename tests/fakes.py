@@ -138,25 +138,41 @@ class FakeEventFilter:
     """``EventFilter`` driven by tables keyed by event uid.
 
     ``exclude`` maps uids to the reason they are dropped; ``uncertain`` uids
-    are kept and flagged. ``drop_out_of_scope`` applies the real rule: an
-    event without fields is excluded as ``out_of_scope``.
+    are kept and flagged. Two real rules are applied as well: with
+    ``include_defenses=False`` (the ``settings.events.include_defenses``
+    switch) events of type ``defense`` are excluded with reason ``defense``,
+    and ``drop_out_of_scope`` excludes an event without fields as
+    ``out_of_scope``.
     """
 
     def __init__(
         self,
         exclude: Mapping[str, ExclusionReason] | None = None,
         uncertain: Collection[str] = (),
+        *,
+        include_defenses: bool = True,
     ) -> None:
         self.exclude: dict[str, ExclusionReason] = dict(exclude or {})
         self.uncertain = set(uncertain)
+        self.include_defenses = include_defenses
+
+    def _reason(self, candidate: Candidate) -> ExclusionReason | None:
+        reason = self.exclude.get(candidate.event.uid)
+        if reason is None and not self.include_defenses:
+            return "defense" if candidate.event.event_type == "defense" else None
+        return reason
 
     def filter(self, candidates: Sequence[Candidate]) -> FilterResult:
-        kept = [c for c in candidates if c.event.uid not in self.exclude]
-        excluded = [
-            ExcludedEvent.from_event(c.event, self.exclude[c.event.uid], detail="fake filter")
-            for c in candidates
-            if c.event.uid in self.exclude
-        ]
+        kept: list[Candidate] = []
+        excluded: list[ExcludedEvent] = []
+        for candidate in candidates:
+            reason = self._reason(candidate)
+            if reason is None:
+                kept.append(candidate)
+            else:
+                excluded.append(
+                    ExcludedEvent.from_event(candidate.event, reason, detail="fake filter")
+                )
         uncertain = [c.event.uid for c in kept if c.event.uid in self.uncertain]
         return FilterResult(kept=kept, excluded=excluded, uncertain=uncertain)
 

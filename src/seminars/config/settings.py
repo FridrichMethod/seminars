@@ -62,7 +62,12 @@ class HttpSettings(Model):
 
 
 class EventSettings(Model):
-    """Event handling knobs of normalization and persistence."""
+    """Event handling knobs of normalization, filtering and persistence.
+
+    ``include_defenses`` is applied by the event filter and nowhere else:
+    when it is false, events of type ``defense`` are excluded with reason
+    ``defense`` and listed in the run report.
+    """
 
     default_duration_minutes: PositiveInt = 60  # used when a timed event has no end
     delete_after_missing_runs: PositiveInt = 3  # healthy runs a future event may be absent

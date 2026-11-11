@@ -32,6 +32,8 @@ events:
   default_duration_minutes: 60
   delete_after_missing_runs: 3
   abstract_max_chars: 4000
+  # false: PhD defenses (event type "defense") are dropped by the event filter and
+  # listed in the run report with reason "defense".
   include_defenses: true
 
 dedup:

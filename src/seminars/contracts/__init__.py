@@ -50,7 +50,7 @@ How one run uses the contracts, in order::
     payload    = adapter.fetch(http, source, window=window)
     drafts     = adapter.parse(payload, source)        # PageExtractor.extract as fallback
     candidates = normalization of the drafts           # pipeline: Candidate(event, hints)
-    filtered   = EventFilter.filter(candidates)        # exclusions by rule
+    filtered   = EventFilter.filter(candidates)        # exclusions by rule, defense switch
     merged     = de-duplication of filtered.kept       # pipeline: events and hints merge
     decision   = FieldTagger.tag(candidate)            # source defaults and rules
     answers    = LLMFieldTagger.tag_batch(open cases)  # needs_llm or uncertain; optional

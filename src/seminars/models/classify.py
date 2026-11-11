@@ -18,15 +18,22 @@ RuleExclusionReason = Literal[
     "administrative",  # committee and staff meetings
     "academic_calendar",  # deadlines, billing dates, holidays
 ]
-"""Exclusion reasons the rule-based filter can assign."""
+"""Exclusion reasons that are driven by the phrase lists in ``Taxonomy.exclusions``."""
 
 ExclusionReason = Literal[
     RuleExclusionReason,
+    "defense",  # a PhD defense while settings.events.include_defenses is false
     "not_a_talk",  # the LLM judged an ambiguous item not to be an academic talk
     "out_of_scope",  # no field matched after classification
     "invalid",  # the draft could not be normalized (for example no usable start)
 ]
-"""Why an event was left out; written to the run report."""
+"""Why an event was left out; written to the run report.
+
+Who assigns what: the event filter assigns the rule reasons and ``defense``
+(``EventFilter.filter``) and ``out_of_scope`` (``EventFilter.drop_out_of_scope``);
+the pipeline assigns ``not_a_talk`` from the LLM tagger's answer and
+``invalid`` during normalization.
+"""
 
 RuleTagMethod = Literal["source", "rules"]
 

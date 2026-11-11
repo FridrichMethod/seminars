@@ -36,6 +36,7 @@ from seminars.models import (
     PublicEvent,
     PublicEventsPayload,
     PublicStatusPayload,
+    RuleExclusionReason,
     RunCounts,
     RunReport,
     SourceHealthEntry,
@@ -92,6 +93,13 @@ class TestVocabularies:
 
     def test_out_of_scope_is_an_exclusion_reason(self) -> None:
         assert "out_of_scope" in get_args(ExclusionReason)
+
+    def test_switched_off_defenses_have_their_own_exclusion_reason(self) -> None:
+        assert "defense" in get_args(ExclusionReason)
+        assert "defense" not in get_args(RuleExclusionReason)
+        assert set(get_args(RuleExclusionReason)) < set(get_args(ExclusionReason))
+        event = make_event(event_type="defense")
+        assert ExcludedEvent.from_event(event, "defense").reason == "defense"
 
     def test_canonical_fields(self) -> None:
         assert canonical_fields(["med", "math", "med"]) == ["math", "med"]

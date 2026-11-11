@@ -165,6 +165,18 @@ class TestClassificationFakes:
         ]
         assert result.uncertain == ["c"]
 
+    def test_event_filter_applies_the_defense_switch(self) -> None:
+        candidates = [
+            make_candidate(make_event(uid="talk", fields=[])),
+            make_candidate(make_event(uid="thesis", fields=[], event_type="defense")),
+        ]
+        assert len(FakeEventFilter().filter(candidates).kept) == 2
+        result = FakeEventFilter(include_defenses=False).filter(candidates)
+        assert [candidate.event.uid for candidate in result.kept] == ["talk"]
+        assert [(item.title, item.reason) for item in result.excluded] == [
+            (candidates[1].event.title, "defense")
+        ]
+
     def test_out_of_scope_rule(self, fake_event_filter: FakeEventFilter) -> None:
         events = [make_event(uid="tagged"), make_event(uid="untagged", fields=[])]
         result = fake_event_filter.drop_out_of_scope(events)

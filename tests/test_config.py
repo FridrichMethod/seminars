@@ -395,6 +395,7 @@ class TestTaxonomyAndInterests:
             {"departments": {"Chemistry": ["alchemy"]}},
             {"source_defaults": {"Not An Id": ["chem"]}},
             {"exclusions": {"out_of_scope": ["x"]}},
+            {"exclusions": {"defense": ["x"]}},
             {"unknown": 1},
         ],
     )
