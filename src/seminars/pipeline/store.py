@@ -4,7 +4,21 @@ git is the database of this project, so a run reads the files of the last
 run and writes new ones. Writing is split in two: the functions here build
 the text of each file, which lets the output checks look at it first
 (``seminars.pipeline.checks``), and ``write_files`` then puts the texts in
-place, each file atomically.
+place.
+
+A run writes its files in two sets: the data files (``data_files``), and,
+after the feeds and the site data, the two records of the run
+(``report_files``). ``write_files`` writes one set so that a failure
+changes none of its files: every text goes to a temporary file next to its
+target first, and only when all of them are on disk are they moved into
+place, data/last_run.json last of all. That file therefore says which run
+finished last. A run that stopped in between (a crash after the data
+files, a machine that went down) leaves the data files of its own next to
+the records of the run before, and its outcome in the health history. So
+that repeating it does not count it twice, ``load_state`` drops from the
+health history every entry of a run that started after the last finished
+live run (``HealthFile.until``). The events and the uid map such a run
+wrote stay: the next run builds on them as on any other stored state.
 
 Files (``seminars.config.ProjectPaths``):
 
@@ -18,6 +32,9 @@ Files (``seminars.config.ProjectPaths``):
 
 from __future__ import annotations
 
+import contextlib
+import os
+import secrets
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,7 +55,7 @@ from seminars.models import (
     load_events,
     load_json,
 )
-from seminars.textio import read_text, write_text_atomic
+from seminars.textio import read_text
 
 
 class StoreError(Exception):
@@ -83,13 +100,27 @@ def read_events_file(path: Path) -> tuple[Event, ...]:
         raise _problem(path, error) from error
 
 
+def finished_health(health: HealthFile, last_run: LastRun | None) -> HealthFile:
+    """``health`` without the entries of runs that did not finish (see the module docstring).
+
+    Only a finished live run gives the measure: without one, and after an
+    offline run (whose time is that of the recordings), the history stays
+    as it is.
+    """
+    if last_run is None or last_run.mode != "live":
+        return health
+    return health.until(last_run.started_at)
+
+
 def load_state(paths: ProjectPaths) -> State:
     """Read what the last run stored; ``StoreError`` when a file is damaged."""
+    last_run = _read_model(paths.last_run_file, LastRun)
+    health = _read_model(paths.health_file, HealthFile) or HealthFile()
     return State(
         events=read_events_file(paths.events_file),
         uid_map=_read_model(paths.uid_map_file, UidMap) or UidMap(),
-        health=_read_model(paths.health_file, HealthFile) or HealthFile(),
-        last_run=_read_model(paths.last_run_file, LastRun),
+        health=finished_health(health, last_run),
+        last_run=last_run,
     )
 
 
@@ -132,17 +163,57 @@ def data_files(
 
 
 def report_files(paths: ProjectPaths, report: RunReport) -> dict[Path, str]:
-    """The text of data/run_report.json and data/last_run.json for ``report``."""
+    """The text of data/run_report.json and data/last_run.json for ``report``, the latter last."""
     return {
         paths.run_report_file: dump_json(report),
         paths.last_run_file: dump_json(report.to_last_run()),
     }
 
 
+def _stage(path: Path, text: str) -> Path:
+    """Write ``text`` to a new temporary file next to ``path``, flushed to disk; returns it."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(f".{path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp")
+    try:
+        with temp.open("x", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        temp.unlink(missing_ok=True)
+        raise
+    return temp
+
+
+def _sync_directory(directory: Path) -> None:
+    """Make the moves into ``directory`` durable where the system allows it."""
+    with contextlib.suppress(OSError):  # not every system opens a directory
+        handle = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(handle)
+        finally:
+            os.close(handle)
+
+
 def write_files(files: Mapping[Path, str]) -> None:
-    """Write every file of ``files``, each one atomically, in the order of their paths."""
-    for path, text in sorted(files.items()):
-        write_text_atomic(path, text)
+    """Write every file of ``files`` as one set (see the module docstring).
+
+    The files are moved into place in the order of ``files``, so the last
+    one is the last to change. A failure before the first move changes no
+    file and leaves no temporary file behind.
+    """
+    staged: list[tuple[Path, Path]] = []
+    try:
+        for path, text in files.items():
+            staged.append((_stage(path, text), path))
+        for temp, path in staged:
+            os.replace(temp, path)
+    except BaseException:
+        for temp, _ in staged:
+            temp.unlink(missing_ok=True)
+        raise
+    for directory in sorted({path.parent for _, path in staged}):
+        _sync_directory(directory)
 
 
 def state_files(paths: ProjectPaths) -> tuple[Path, ...]:
