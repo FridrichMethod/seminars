@@ -255,6 +255,29 @@ class TestText:
         assert event.title == "TBA"
         assert event.is_tba
 
+    @pytest.mark.parametrize(
+        "title",
+        [
+            "\u86cb\u767d\u8d28\u8bbe\u8ba1\u7684\u65b0\u65b9\u6cd5",
+            "\u0422\u0435\u043e\u0440\u0438\u044f \u0447\u0438\u0441\u0435\u043b",
+            "\u03a4\u03bf\u03c0\u03bf\u03bb\u03bf\u03b3\u03af\u03b1",
+            "\u03c0",
+        ],
+    )
+    def test_a_title_in_another_script_is_kept(self, title: str) -> None:
+        event = one(make_draft(title=title)).event
+        assert (event.title, event.is_tba) == (title, False)
+
+    @pytest.mark.parametrize(
+        "abstract",
+        [
+            "\u8fd9\u662f\u4e00\u4e2a\u5173\u4e8e\u86cb\u767d\u8d28\u8bbe\u8ba1\u7684\u62a5\u544a",
+            "Abstract: \u86cb\u767d\u8d28\u8bbe\u8ba1",
+        ],
+    )
+    def test_an_abstract_in_another_script_is_kept(self, abstract: str) -> None:
+        assert one(make_draft(abstract=abstract)).event.abstract == abstract
+
     def test_a_cancelled_marker_sets_the_status(self) -> None:
         event = one(make_draft(title="CANCELLED: Protein design")).event
         assert (event.title, event.status) == ("Protein design", "cancelled")
@@ -294,6 +317,66 @@ class TestSpeakers:
     def test_no_speaker(self) -> None:
         assert one(make_draft(speaker_text=None)).event.speakers == []
         assert one(make_draft(speaker_text="TBA")).event.speakers == []
+
+    @pytest.mark.parametrize(
+        ("line", "people"),
+        [
+            (
+                "\u5f20\u4e09 (\u6e05\u534e\u5927\u5b66)",
+                [("\u5f20\u4e09", "\u6e05\u534e\u5927\u5b66")],
+            ),
+            (
+                "\u5f20\u4e09\uff08\u6e05\u534e\u5927\u5b66\uff09",
+                [("\u5f20\u4e09", "\u6e05\u534e\u5927\u5b66")],
+            ),
+            (
+                "\u0418\u0432\u0430\u043d \u0418\u0432\u0430\u043d\u043e\u0432"
+                " (\u041c\u0413\u0423)",
+                [
+                    (
+                        "\u0418\u0432\u0430\u043d \u0418\u0432\u0430\u043d\u043e\u0432",
+                        "\u041c\u0413\u0423",
+                    )
+                ],
+            ),
+            (
+                "\u03a3\u03c9\u03ba\u03c1\u03ac\u03c4\u03b7\u03c2 (\u0395\u039a\u03a0\u0391)",
+                [("\u03a3\u03c9\u03ba\u03c1\u03ac\u03c4\u03b7\u03c2", "\u0395\u039a\u03a0\u0391")],
+            ),
+            ("\u674e\u96f7 and Jane Doe (MIT)", [("\u674e\u96f7", None), ("Jane Doe", "MIT")]),
+            (
+                "\u674e\u56db, \u738b\u4e94 (\u5317\u4eac\u5927\u5b66)",
+                [("\u674e\u56db", None), ("\u738b\u4e94", "\u5317\u4eac\u5927\u5b66")],
+            ),
+            (
+                "\u674e\u56db\u3001\u738b\u4e94\uff08\u5317\u4eac\u5927\u5b66\uff09",
+                [("\u674e\u56db", None), ("\u738b\u4e94", "\u5317\u4eac\u5927\u5b66")],
+            ),
+            (
+                "\u5f20\u4e09\uff0c\u6e05\u534e\u5927\u5b66",
+                [("\u5f20\u4e09", "\u6e05\u534e\u5927\u5b66")],
+            ),
+        ],
+    )
+    def test_names_in_any_script_are_kept(
+        self, line: str, people: list[tuple[str, str | None]]
+    ) -> None:
+        speakers = one(make_draft(speaker_text=line)).event.speakers
+        assert [(s.name, s.affiliation) for s in speakers] == people
+
+    def test_structured_names_in_any_script_are_kept(self) -> None:
+        draft = make_draft(
+            speakers=[
+                SpeakerDraft(name="\u738b\u5c0f\u660e", affiliation="\u5317\u4eac\u5927\u5b66"),
+                SpeakerDraft(name="\u041f\u0451\u0442\u0440 \u041f\u0435\u0442\u0440\u043e\u0432"),
+                SpeakerDraft(name="TBA"),
+            ],
+            speaker_text=None,
+        )
+        assert [(s.name, s.affiliation) for s in one(draft).event.speakers] == [
+            ("\u738b\u5c0f\u660e", "\u5317\u4eac\u5927\u5b66"),
+            ("\u041f\u0451\u0442\u0440 \u041f\u0435\u0442\u0440\u043e\u0432", None),
+        ]
 
     def test_merge_speakers_is_idempotent_and_bounded(self) -> None:
         many = [SpeakerDraft(name=f"Person Number{chr(65 + index)}") for index in range(26)]

@@ -66,10 +66,19 @@ a word when it starts with a capital ("GeophysicsSpeaker 2", where two
 paragraphs ran together), but it is never the lower-case end of a word
 ("loudspeaker 2").
 """
-_HARD_SEPARATOR: Final = re.compile(r"[;|\n]|\s+(?:and|&)\s+|,\s+(?:and|&)\s+", re.IGNORECASE)
-_ANY_SEPARATOR: Final = re.compile(r"[;|\n,]|\s+(?:and|&)\s+", re.IGNORECASE)
-_COMMA: Final = re.compile(",")
-_WITH_AFFILIATION: Final = re.compile(r"^(?P<name>[^()\[\]]*?)\s*[(\[](?P<affiliation>.+)[)\]]\s*$")
+_HARD_SEPARATOR: Final = re.compile(
+    r"[;|\n\uff1b\u3001]|\s+(?:and|&)\s+|,\s+(?:and|&)\s+", re.IGNORECASE
+)
+_ANY_SEPARATOR: Final = re.compile(r"[;|\n,\uff0c\uff1b\u3001]|\s+(?:and|&)\s+", re.IGNORECASE)
+_COMMA: Final = re.compile("[,\uff0c]")
+"""The comma, also the full-width one; the full-width semicolon and the ideographic comma of
+CJK text are the semicolon."""
+_OPENING: Final = "([\uff08"
+_CLOSING: Final = ")]\uff09"
+"""Brackets around an affiliation: round, square and the full-width round ones of CJK text."""
+_WITH_AFFILIATION: Final = re.compile(
+    r"^(?P<name>[^()\[\]\uff08\uff09]*?)\s*[(\[\uff08](?P<affiliation>.+)[)\]\uff09]\s*$"
+)
 _NAME_WORD: Final = re.compile(r"[^\W\d_](?:[^\W\d_]|['\u2019.\-])*")
 _PARTICLES: Final = word_set(
     "af al bin da das de del della den der di do dos du e el ibn la le ten ter van von y zu"
@@ -87,6 +96,23 @@ _ORGANISATION_WORDS: Final = word_set(
     "yale"
 )
 
+_CJK_ORGANISATION_WORDS: Final = (
+    "\u5927\u5b66",  # university (simplified Chinese, Japanese)
+    "\u5927\u5b78",  # university (traditional Chinese)
+    "\u5b66\u9662",  # college, school
+    "\u5b78\u9662",
+    "\u7814\u7a76",  # research (institute, centre)
+    "\u5b9e\u9a8c\u5ba4",  # laboratory
+    "\u5be6\u9a57\u5ba4",
+    "\u4e2d\u5fc3",  # centre
+    "\u533b\u9662",  # hospital
+    "\u91ab\u9662",
+    "\u516c\u53f8",  # company
+    "\ub300\ud559",  # university (Korean)
+    "\uc5f0\uad6c",  # research (Korean)
+)
+"""Words that mark an organisation in CJK text, which has no spaces between its words."""
+
 
 @dataclass(frozen=True)
 class ParsedSpeaker:
@@ -101,10 +127,10 @@ def _mask_brackets(text: str) -> str:
     masked: list[str] = []
     depth = 0
     for char in text:
-        if char in "([":
+        if char in _OPENING:
             depth += 1
             masked.append(char)
-        elif char in ")]":
+        elif char in _CLOSING:
             depth = max(depth - 1, 0)
             masked.append(char)
         else:
@@ -127,7 +153,8 @@ def looks_like_name(text: str) -> bool:
     """Whether ``text`` reads like the name of a person (see the module docstring).
 
     Text without any Latin letter (a name in another script) counts as a
-    name when it is short and has no digit.
+    name when it is short, has no digit and holds none of the CJK words
+    for a university, an institute or a company.
     """
     name = tidy_name(text)
     if not name or len(name) > MAX_NAME_LENGTH or any(char.isdigit() for char in name):
@@ -135,7 +162,7 @@ def looks_like_name(text: str) -> bool:
     if "@" in name or "://" in name:
         return False
     if not any(char.isascii() and char.isalpha() for char in name):
-        return len(name) <= 20
+        return len(name) <= 20 and not any(word in name for word in _CJK_ORGANISATION_WORDS)
     words = name.split()
     if not 2 <= len(words) <= 6:
         return False

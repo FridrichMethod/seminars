@@ -164,6 +164,29 @@ class TestTitles:
         assert not is_tba(title)
 
     @pytest.mark.parametrize(
+        "title",
+        [
+            "\u86cb\u767d\u8d28\u8bbe\u8ba1\u7684\u65b0\u65b9\u6cd5",
+            "\u041a\u0432\u0430\u043d\u0442\u043e\u0432\u044b\u0435"
+            " \u0433\u0440\u0443\u043f\u043f\u044b",
+            "\u0398\u03b5\u03c9\u03c1\u03af\u03b1 \u03b1\u03c1\u03b9\u03b8\u03bc\u03ce\u03bd",
+            "\u30bf\u30f3\u30d1\u30af\u8cea\u8a2d\u8a08",
+            "\ub2e8\ubc31\uc9c8 \uc124\uacc4",
+            "\u062a\u0635\u0645\u064a\u0645 \u0627\u0644\u0628\u0631\u0648\u062a\u064a\u0646",
+            "\u03c0",
+            "\u00dc",
+            "\u00c9\u00c9\u00c9",
+            "\u00d1",
+        ],
+    )
+    def test_titles_without_an_ascii_letter_are_titles(self, title: str) -> None:
+        assert not is_tba(title)
+
+    @pytest.mark.parametrize("title", ["\u2014", "?!", "(...)", " - "])
+    def test_titles_of_punctuation_only_say_nothing(self, title: str) -> None:
+        assert is_tba(title)
+
+    @pytest.mark.parametrize(
         "text",
         [*["Abstract", "Abstract:", "ABSTRACT: TBA", "Abstract TBD", "Summary", "TBA", "tbd."]],
     )
@@ -179,10 +202,21 @@ class TestTitles:
                 "More information forthcoming",
             ],
             *["Host: Jane Doe", "Lunch provided", "A summary of recent work"],
+            "\u8fd9\u662f\u4e00\u4e2a\u5173\u4e8e\u86cb\u767d\u8d28\u8bbe\u8ba1\u7684\u62a5\u544a",
+            "\u0410\u0431\u0441\u0442\u0440\u0430\u043a\u0442"
+            " \u0434\u043e\u043a\u043b\u0430\u0434\u0430",
+            "Abstract: \u86cb\u767d\u8d28\u8bbe\u8ba1",
+            "\u00c9t\u00e9",
         ],
     )
     def test_abstracts_that_say_something(self, text: str) -> None:
         assert not is_empty_abstract(text)
+
+    @pytest.mark.parametrize(
+        "text", ["N/A", "none", "Abstract: N/A", "No abstract", "No abstract available.", "\u2014"]
+    )
+    def test_placeholders_of_an_abstract_say_nothing(self, text: str) -> None:
+        assert is_empty_abstract(text)
 
     @pytest.mark.parametrize(
         ("title", "expected"),
@@ -352,6 +386,11 @@ class TestSpeakerLines:
             *["Stanford University", "MIT", "Room 104", "jane@example.edu", "google deepmind"],
             *["", "Department of Chemistry", "x" * 90, "A B C D E F G"],
             *["Computer Science", "Biomedical Data Science"],
+            *[
+                "\u6e05\u534e\u5927\u5b66",
+                "\u4e2d\u592e\u7814\u7a76\u9662",
+                "\uc11c\uc6b8\ub300\ud559\uad50",
+            ],
         ],
     )
     def test_not_names(self, text: str) -> None:

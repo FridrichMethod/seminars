@@ -60,6 +60,9 @@ _TBA: Final = re.compile(
     r"|title"
 )
 _ABSTRACT_HEADING: Final = re.compile(r"^(?:abstract|summary|description)(?: and title)?\b\s*")
+_NO_ABSTRACT: Final = re.compile(
+    r"n a|na|none|nil|no abstract(?: (?:yet|available|provided))?|not available"
+)
 _HONORIFIC: Final = re.compile(
     r"^(?:(?:dr|prof|professor|mr|mrs|ms|mx|sir|dame)\b\.?\s*)+", re.IGNORECASE
 )
@@ -185,25 +188,39 @@ def paragraphs(text: str | None, *, limit: int, is_html: bool = False) -> str | 
     return truncate("\n".join(line for line in lines if line), limit) or None
 
 
+def _phrase(text: str) -> str:
+    """``text`` as the words the phrases of this module are written in.
+
+    That is ``fold``, with the dots of "T.B.A." removed first. Letters of
+    every script are words, so a title or an abstract in Chinese or Greek,
+    or one that is a single accented letter, is never empty.
+    """
+    return fold(text.replace(".", ""))
+
+
 def is_tba(title: str | None) -> bool:
-    """Whether ``title`` says that the title is not announced yet (or says nothing)."""
+    """Whether ``title`` says that the title is not announced yet (or says nothing).
+
+    Nothing is said by a title without a letter or a digit of any script
+    ("--", "?!"); a title in Chinese, or the Greek letter pi alone, is one.
+    """
     if title is None:
         return True
-    words = re.sub(r"[^a-z0-9]+", " ", title.casefold().replace(".", "")).strip()
+    words = _phrase(title)
     return not words or _TBA.fullmatch(words) is not None
 
 
 def is_empty_abstract(text: str | None) -> bool:
     """Whether an abstract is only a heading or says that there is none yet.
 
-    "Abstract", "Abstract: TBA", "Summary" and "TBD" say nothing about the
-    talk; "Abstract: we study knots" and "More information forthcoming" do.
+    "Abstract", "Abstract: TBA", "Summary", "TBD", "N/A" and "No abstract"
+    say nothing about the talk; "Abstract: we study knots", "More
+    information forthcoming" and an abstract in any other script do.
     """
     if text is None:
         return True
-    words = re.sub(r"[^a-z0-9]+", " ", text.casefold().replace(".", "")).strip()
-    rest = _ABSTRACT_HEADING.sub("", words, count=1)
-    return not rest or _TBA.fullmatch(rest) is not None
+    rest = _ABSTRACT_HEADING.sub("", _phrase(text), count=1)
+    return not rest or _TBA.fullmatch(rest) is not None or _NO_ABSTRACT.fullmatch(rest) is not None
 
 
 def split_status(title: str) -> tuple[str, EventStatus | None]:
