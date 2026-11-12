@@ -153,8 +153,6 @@ def test_every_continuing_education_course_is_out_of_scope(
 @pytest.mark.parametrize(
     ("native_id", "reason", "detail"),
     [
-        ("54286951070575", "administrative", 'title matches "work in progress session"'),
-        ("54472930002186", "administrative", 'title matches "work in progress session"'),
         ("54064922323927", "academic_calendar", 'title matches "abstract deadline"'),
         ("54064532593527", "academic_calendar", 'title matches "abstract deadline"'),
         ("54420408876947", "admissions", 'title matches "info session"'),
@@ -175,8 +173,26 @@ def test_the_recorded_non_talks_come_from_mapped_departments(
     recorded: dict[str, Outcome],
 ) -> None:
     """Without the phrases, the department alone would have put them into a field."""
-    for native_id in ("54286951070575", "54472930002186", "54064922323927", "54064532593527"):
+    for native_id in ("54064922323927", "54064532593527"):
         assert recorded[native_id].candidate.hints.field_hints == ["med"]
+
+
+@pytest.mark.parametrize("native_id", ["54286951070575", "54472930002186"])
+def test_the_surgery_work_in_progress_sessions_are_talks_of_med(
+    recorded: dict[str, Outcome], native_id: str
+) -> None:
+    """S-SPIRE's monthly sessions: faculty and trainees present their research.
+
+    The records are typed Lecture/Presentation/Talk and name a talk title in
+    the description; the Department of Surgery maps them to med.
+    """
+    outcome = recorded[native_id]
+    assert outcome.candidate.event.title == "Work In Progress Session"
+    assert "Department of Surgery" in outcome.candidate.hints.categories
+    assert outcome.reason is None
+    assert outcome.fields == ("med",)
+    assert outcome.decision is not None
+    assert outcome.decision.method == "source"
 
 
 @pytest.mark.parametrize(
@@ -249,6 +265,63 @@ def test_recorded_grand_rounds_are_med(recorded: dict[str, Outcome], native_id: 
     )
 
 
+def test_the_oceans_seminar_series_is_bio_without_hopkins(recorded: dict[str, Outcome]) -> None:
+    """Only the Oceans Department lists this instance; the series name places it in bio.
+
+    The instances that Hopkins Marine Station also lists get bio from that
+    department, so every talk of the series is published the same way.
+    """
+    outcome = recorded["54444360554235"]
+    assert outcome.candidate.event.title.startswith("Oceans Seminar Series | Peter Edmunds")
+    assert outcome.candidate.hints.field_hints == []
+    assert outcome.reason is None
+    assert outcome.fields == ("bio",)
+    assert outcome.decision is not None
+    assert outcome.decision.reasons == ['bio: series "Oceans Seminar"']
+
+
+@pytest.mark.parametrize(
+    ("native_id", "field", "keyword"),
+    [
+        ("54408950715393", "ai-ml", "OpenAI"),  # Research Acceleration: The View Inside OpenAI
+        ("54437336521132", "physics", "diamond semiconductor"),  # Building Diamond Semiconductors
+    ],
+)
+def test_a_title_word_places_a_talk_of_an_unmapped_unit(
+    recorded: dict[str, Outcome], native_id: str, field: str, keyword: str
+) -> None:
+    """Talks of units outside the department map, placed by a word of their title."""
+    outcome = recorded[native_id]
+    assert outcome.candidate.hints.field_hints == []
+    assert keyword.casefold() in outcome.candidate.event.title.casefold()
+    assert outcome.reason is None
+    assert outcome.fields == (field,)
+    assert outcome.decision is not None
+    (reason,) = outcome.decision.reasons
+    assert reason.startswith(f"{field}: keywords ")
+    assert f'"{keyword}"' in reason
+
+
+@pytest.mark.parametrize(
+    "native_id",
+    [
+        "54444054768103",  # Earth System Science Seminar Series: Dr. Jenan Kharbush
+        "54471918308209",  # Earth & Planetary Sciences Seminar - Prof. Peng Ni
+        "54480326046124",  # ESE Seminar - Ruben Juanes: "Photoporomechanics ..."
+    ],
+)
+def test_earth_and_planetary_seminars_are_left_to_the_llm(
+    recorded: dict[str, Outcome], native_id: str
+) -> None:
+    """Their titles name no field of the seven; only the abstract does, and it never decides
+    alone. Without an LLM they are out of scope.
+    """
+    outcome = recorded[native_id]
+    assert outcome.decision is not None
+    assert outcome.decision.needs_llm
+    assert (outcome.reason, outcome.detail) == ("out_of_scope", OUT_OF_SCOPE_DETAIL)
+
+
 # --- records written here ----------------------------------------------------------------------
 
 
@@ -296,6 +369,18 @@ def run_records(*records: dict[str, Any]) -> list[Outcome]:
 def run_one(title: str, *departments: str, **fields: Any) -> Outcome:
     (outcome,) = run_records(record(title, *departments, **fields))
     return outcome
+
+
+@pytest.mark.parametrize(
+    "departments",
+    [("Oceans Department",), ("Hopkins Marine Station", "Oceans Department"), ()],
+)
+def test_every_oceans_seminar_is_bio(departments: tuple[str, ...]) -> None:
+    outcome = run_one(
+        "Oceans Seminar Series | Jane Doe | Enabling Low-Cost Ocean Instrumentation", *departments
+    )
+    assert outcome.reason is None
+    assert outcome.fields == ("bio",)
 
 
 @pytest.mark.parametrize(
@@ -359,9 +444,6 @@ def test_cancelled_talks_of_mapped_departments_stay_in(title: str) -> None:
 @pytest.mark.parametrize(
     ("title", "department", "reason"),
     [
-        ("Work In Progress Session", "Department of Surgery", "administrative"),
-        ("Works-in-Progress Session: Resident Research", "Department of Surgery", "administrative"),
-        ("Neurosurgery Work-in-Progress Sessions", "Department of Neurosurgery", "administrative"),
         ("Surgery M&M", "Department of Surgery", "administrative"),
         ("Surgery M & M", "Department of Surgery", "administrative"),
         (
@@ -433,6 +515,9 @@ def test_an_all_day_abstract_deadline_is_excluded() -> None:
         ("Coffee rust and the ecology of plant pathogens", "Department of Biology", "bio"),
         ("The hour-glass model of animal development", "Developmental Biology", "bio"),
         ("Quantum error correction: work in progress", "Department of Physics", "physics"),
+        ("Work In Progress Session", "Department of Surgery", "med"),
+        ("Works-in-Progress Session: Resident Research", "Department of Surgery", "med"),
+        ("Neurosurgery Work-in-Progress Sessions", "Department of Neurosurgery", "med"),
         (
             "Progress in work function engineering of electrodes",
             "Materials Science and Engineering",

@@ -45,6 +45,16 @@ The field tagger (``build_field_tagger``) decides the fields of a candidate:
    heaviest counts, then the longest, then the first. A match of
    ``exclude_keywords`` vetoes the rule evidence of that field (never a
    source field).
+   The rules read the abstract without its sections on the speaker and the
+   series (``talk_text``): a line that is a heading such as "Bio",
+   "Speaker Biography", "About the speaker" or "About the ... Series" (alone
+   on its line, or followed by a colon and text; an "About ..." heading
+   also when its first sentence follows without a break, "About the
+   SeriesThe ...") opens such a section, and it runs to the next heading of
+   the talk ("Abstract", "Title", "About the seminar", ...) or to the end.
+   A speaker who holds a degree in physics, or a series that "bridges
+   neuroscience and data science", says nothing about the field of the
+   talk. A biography without a heading is read like the talk.
 3. The abstract alone never decides for an event without source fields:
    there, the series name or the keywords of title and series must reach
    ``min_score`` without it. Abstracts on calendar-wide sources (humanities,
@@ -52,7 +62,8 @@ The field tagger (``build_field_tagger``) decides the fields of a candidate:
    passing, in a speaker's biography or a list of words, and a decision of
    the rules is final when no LLM is configured, so such a field is only
    reported. For an event that has source fields, and so is known to be a
-   talk of the seven fields, the abstract counts in full and can add fields.
+   talk of the seven fields, the talk part of the abstract counts like the
+   title and can add fields.
 4. The fields are the union of source and rule fields. The method is
    ``"source"`` when there are source fields and the rules add nothing to
    them, else ``"rules"``. ``needs_llm`` is set when there is no field at
@@ -91,6 +102,34 @@ _INITIAL: Final = re.compile(r"(?<!\w)([^\W\d_])\.(?=\s)")
 """A single letter and its point, as in "E. coli": the point is dropped before splitting."""
 _WORD: Final = re.compile(r"\w+")
 
+_ROLE: Final = r"(?:speaker|presenter|panelist|moderator|lecturer|author|host)s?"
+_BIO: Final = (
+    r"(?:(?:speaker|presenter|lecturer)(?:'s|s'|s)?\s+|short\s+|brief\s+)?"
+    r"(?:bios?|biograph(?:y|ies)|bio\s*sketch|biographical\s+(?:sketch|note))"
+)
+_ABOUT: Final = (
+    rf"about\s+(?:the|our)\s+{_ROLE}(?:\s*(?:,|and|&)\s*(?:the\s+)?{_ROLE})*"
+    r"|about\s+(?:\S+\s+){0,8}?series"
+)
+_TALK: Final = (
+    r"(?:(?:talk|seminar|lecture|colloquium|presentation)\s+)?"
+    r"(?:abstract|summary|description|title|overview)"
+    r"|about\s+(?:the|this)\s+(?:talk|seminar|lecture|colloquium|presentation|event)"
+)
+_REST: Final = r"\s*(?::.*)?"
+"""What follows a heading on its line: nothing, or a colon and the first text of the section.
+(Linear: a run of white space can be read one way only.)"""
+_RUN_ON: Final = r"(?-i:[A-Z]).*"
+"""What may also follow an "About ..." heading: its first sentence without a break, as a page
+reads once flattened that sets the heading apart by style alone ("About the SeriesThe ...").
+Never after "Bio", which begins words of its own ("BioE", "BioX")."""
+_ASIDE_HEADING: Final = re.compile(
+    rf"\s*(?:(?:{_BIO}){_REST}|(?:{_ABOUT})(?:{_REST}|{_RUN_ON}))", re.IGNORECASE | re.DOTALL
+)
+"""A line that opens a section on the speaker or the series, which the field rules skip."""
+_TALK_HEADING: Final = re.compile(rf"\s*(?:{_TALK}){_REST}", re.IGNORECASE | re.DOTALL)
+"""A line that opens a section on the talk, which ends a section on the speaker or the series."""
+
 
 def _fold(text: str) -> str:
     decomposed = unicodedata.normalize("NFKD", text)
@@ -111,6 +150,22 @@ class Words:
         folded = _INITIAL.sub(r"\1", _fold(text))
         pieces = (_WORD.findall(piece) for piece in _SEGMENT_BREAK.split(folded))
         return cls(tuple(tuple(piece) for piece in pieces if piece))
+
+
+def talk_text(abstract: str | None) -> str | None:
+    """``abstract`` without its sections on the speaker and the series (module docstring)."""
+    if not abstract:
+        return abstract
+    kept: list[str] = []
+    aside = False
+    for line in abstract.split("\n"):
+        if _ASIDE_HEADING.fullmatch(line):
+            aside = True
+        elif _TALK_HEADING.fullmatch(line):
+            aside = False
+        if not aside:
+            kept.append(line)
+    return "\n".join(kept)
 
 
 def label_key(text: str) -> str:
@@ -259,7 +314,10 @@ class EventTexts:
 
     @classmethod
     def of(cls, event: Event) -> EventTexts:
-        return cls(Words.of(event.title), Words.of(event.series), Words.of(event.abstract))
+        """Title, series and the talk part of the abstract (``talk_text``)."""
+        return cls(
+            Words.of(event.title), Words.of(event.series), Words.of(talk_text(event.abstract))
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -406,4 +464,5 @@ __all__ = [
     "build_field_tagger",
     "label_key",
     "quoted",
+    "talk_text",
 ]
