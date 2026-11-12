@@ -19,6 +19,7 @@ from seminars.models import (
     Event,
     HealthFile,
     LastRun,
+    PickReason,
     PublicEvent,
     PublicEventsPayload,
     PublicSourceStatus,
@@ -28,7 +29,6 @@ from seminars.models import (
     dump_json,
     read_model,
 )
-from seminars.models.public import PickReason
 from seminars.outputs.site_data import write_site_data
 from seminars.textio import read_text
 from seminars.textrules import decorative_characters

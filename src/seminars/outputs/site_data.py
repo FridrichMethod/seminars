@@ -11,7 +11,7 @@ Every event that is given is published, past and cancelled ones included;
 the site decides what to show. Internal state (source ids, counters, the
 picks score) is not part of the public schema and never leaves data/. The
 picks reasons are published taken apart
-(``seminars.models.public.PickReason``), so that the site can say them in
+(``seminars.models.PickReason``), so that the site can say them in
 the reader's language.
 
 The site treats all text as untrusted and escapes it, so nothing is escaped

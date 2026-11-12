@@ -11,7 +11,7 @@ unknown keys; use ``model.evolve(...)`` to derive a changed copy.
 * report.py     RunReport and its parts, LastRun (data/last_run.json)
 * health.py     HealthFile (data/health.json), UidMap (data/uid_map.json)
 * issues.py     Issue, DigestDocument, DigestOutcome
-* public.py     PublicEventsPayload, PublicStatusPayload: what the site reads
+* public.py     PublicEventsPayload, PublicStatusPayload, PickReason: what the site reads
 * serialize.py  deterministic readers and writers for all of the above
 
 Most of these models are written to files below data/, which are committed
@@ -94,6 +94,9 @@ from seminars.models.issues import (
 from seminars.models.public import (
     FEEDS_DIRNAME,
     PUBLIC_SCHEMA_VERSION,
+    PickReason,
+    PickReasonKind,
+    PickReasonPlace,
     PublicEvent,
     PublicEventsPayload,
     PublicFeed,
@@ -101,6 +104,7 @@ from seminars.models.public import (
     PublicSourceStatus,
     PublicStatusPayload,
     feed_path,
+    signed_points,
 )
 from seminars.models.report import (
     LastRun,
@@ -199,6 +203,9 @@ __all__ = [
     "LLMUsage",
     "LastRun",
     "Model",
+    "PickReason",
+    "PickReasonKind",
+    "PickReasonPlace",
     "PicksResult",
     "ProbeFormat",
     "ProbeResult",
@@ -244,6 +251,7 @@ __all__ = [
     "load_json",
     "read_events",
     "read_model",
+    "signed_points",
     "source_key",
     "split_source_key",
     "url_has_credential",

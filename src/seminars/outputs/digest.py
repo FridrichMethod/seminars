@@ -17,7 +17,7 @@ label is given in both languages, English first, and every sentence on two
 lines. A table cell that holds our own words besides labels, the field
 names and the picks reasons, has an English line and a Chinese line. The
 picks reasons are read back from the lines the picks scorer stored
-(``seminars.models.public.PickReason``) and said with the messages of the
+(``seminars.models.PickReason``) and said with the messages of the
 locale files; the terms of the configuration in them stay as they are. All
 of that text comes from the locale files; this module holds none. Event
 content is not translated.
@@ -63,12 +63,13 @@ from seminars.models import (
     DigestOutcome,
     Event,
     HealthFile,
+    PickReason,
     SourceHealth,
     SourceHealthEntry,
     Speaker,
     ascii_url,
+    signed_points,
 )
-from seminars.models.public import PickReason, signed_points
 from seminars.textrules import ascii_printable, clean_text
 
 ROW_LIMITS: Final = (40, 30, 20, 15, 10, 5, 2, 1)
