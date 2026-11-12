@@ -28,7 +28,11 @@ publishes, so this is where the rules for stored data are applied:
   and "Cancelled:" or "(postponed)" in a title sets the status instead;
   an abstract that is only its heading or says that there is none yet
   ("Abstract", "Abstract: TBA") is no abstract;
-* a speaker line is split into people (``seminars.pipeline.speakers``);
+* a speaker line is split into people (``seminars.pipeline.speakers``). A
+  draft that names no speaker at all gets the people its title names in
+  one of the common forms (``speakers_from_title``; the campus calendar
+  has no speaker field). A key of the day is built from the speakers the
+  draft names, never from those of the title, which the title already is;
 * the event gets its source key and uid (``seminars.pipeline.ids``).
 
 A draft that cannot become an event (no usable start, no usable address,
@@ -66,7 +70,7 @@ from seminars.models import (
 )
 from seminars.pipeline.ids import draft_key, resolve_uid, shared_urls
 from seminars.pipeline.privacy import is_private_link, scrub_private, scrub_title, strip_markers
-from seminars.pipeline.speakers import ParsedSpeaker, split_speakers
+from seminars.pipeline.speakers import ParsedSpeaker, speakers_from_title, split_speakers
 from seminars.pipeline.text import (
     canonical_name,
     fold,
@@ -249,7 +253,17 @@ def _structured_speakers(draft: EventDraft, cleaner: _Cleaner) -> list[Speaker]:
 
 def _line_speakers(draft: EventDraft, cleaner: _Cleaner) -> list[Speaker]:
     line = strip_markers(cleaner.block(draft.speaker_text, MAX_SPEAKER_LINE) or "")
-    people: list[ParsedSpeaker] = split_speakers(line) if line else []
+    return _parsed_speakers(split_speakers(line) if line else [])
+
+
+def _title_speakers(title: str, abstract: str | None) -> list[Speaker]:
+    """The people a cleaned title names, for a draft that names no speaker itself."""
+    if title == TBA_TITLE:
+        return []
+    return _parsed_speakers(speakers_from_title(title, abstract))
+
+
+def _parsed_speakers(people: Sequence[ParsedSpeaker]) -> list[Speaker]:
     found = (_person(person.name, person.affiliation) for person in people)
     return [
         Speaker(
@@ -333,9 +347,9 @@ def _event(
 ) -> Event:
     context = cleaner.context
     title, status = _title_and_status(draft, cleaner)
-    speakers = merge_speakers(
-        [*_structured_speakers(draft, cleaner), *_line_speakers(draft, cleaner)]
-    )
+    named = merge_speakers([*_structured_speakers(draft, cleaner), *_line_speakers(draft, cleaner)])
+    abstract = _abstract(draft, cleaner)
+    speakers = named or merge_speakers(_title_speakers(title, abstract))
     location, is_online, stream = _place(draft, cleaner)
     own_page = cleaner.url(draft.url)
     url = own_page or cleaner.url(source.homepage) or cleaner.url(source.all_urls[0])
@@ -344,12 +358,11 @@ def _event(
     key = draft_key(
         draft if own_page is not None else draft.evolve(url=None),
         start=times.start,
-        speaker=speakers[0].name if speakers else None,
+        speaker=named[0].name if named else None,
         title=None if title == TBA_TITLE else title,
         shared=shared,
         is_secret=context.is_secret,
     )
-    abstract = _abstract(draft, cleaner)
     seen = context.now.astimezone(UTC)
     return Event(
         uid=resolve_uid(key, context.uid_map),

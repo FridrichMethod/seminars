@@ -37,6 +37,47 @@ cannot always tell which. The choice made here is conservative:
 "Reads like a person" is decided by ``looks_like_name``: two to six words
 that start with a capital letter (name particles such as "van" and "de"
 excepted), no digits, and none of the words that mark an organisation.
+
+Speakers in a title
+-------------------
+
+A draft without any speaker can still name one in its title; the campus
+calendar has no speaker field at all. ``speakers_from_title`` reads the
+people of a few common forms and nothing else::
+
+    Geophysics Seminar - Shang-Ping Xie, "What powered the growth of ..."
+    Stanford Energy Seminar | Electrified metamaterial ... | Jonathan Fan, Stanford University
+    PhD Dissertation Defense: Alyssa Cutter, Bando Lab
+    CSCS Community Series: "Effects of ..." with Rebecca Buchanan, PhD
+    Sunshine - Bryant Lin in conversation with Latha Palaniappan
+    Jonathan Kipnis - Navigating turbulent CNS waters
+    Jane Doe (MIT): Knots and their invariants
+
+A title is split at its first separator (a colon, "|", or a dash with
+spaces around it). A name there must read like a person and hold none of
+the words of a series ("Seminar", "Lecture", "Grand Rounds", "Defense",
+...), of a placeholder ("Speaker TBA") or of a talk title ("New", "And",
+"Beyond"), because "Norton Lecture" and "Quantum Computing" read like
+names as well. Then the form must vouch for it:
+
+* series first ("<series>: <name>[, <affiliation>][ - "<title>"]"): the
+  part in front is a series, or the name is followed by a degree, a quoted
+  title or a further part, or the abstract names the person;
+* series, talk title, then the name ("<series> | <title> | <name>,
+  <affiliation>"): the part in front is a series and the last part is a
+  person followed by a degree or an organisation, or whom the abstract
+  names;
+* name first ("<name>: <title>", "<name> (<affiliation>): <title>"): the
+  rest does not start with a name as well, and the affiliation in
+  brackets names an organisation or the abstract names the person;
+* "... with <name>" at the end: a degree follows ("with Jane Doe, PhD")
+  or the abstract names the person; "<name> in conversation with <name>"
+  gives both people on the same terms.
+
+"The abstract names the person" means that the name occurs in the abstract
+outside a copy of the title, so a talk title that the abstract repeats
+vouches for nothing. A title that is only a name, a series name, and
+everything else give no speaker.
 """
 
 from __future__ import annotations
@@ -241,6 +282,262 @@ def _numbered_people(part: str) -> list[ParsedSpeaker]:
     head, rest = (part, "") if comma is None else (part[: comma.start()], part[comma.start() :])
     pieces = _split(head, _HARD_SEPARATOR) or [""]
     return _people_or_affiliations([*pieces[:-1], pieces[-1] + rest])
+
+
+_SERIES_WORDS: Final = word_set(
+    "seminar seminars lecture lectures lectureship colloquium colloquia rounds defense defence"
+    " series symposium symposia workshop workshops forum conference summit chat conversation"
+    " conversations talk talks panel panels webinar meeting program programme course session"
+    " sessions presentation presentations keynote award prize celebration retreat luncheon"
+    " reception club exchange alliance updates showcase festival exhibition hackathon sprint"
+    " bootcamp training orientation discussion roundtable gala ceremony"
+)
+"""Words of the name of a series or an event; no person's name holds one."""
+_NOT_IN_A_NAME: Final = _SERIES_WORDS | word_set(
+    "speaker speakers presenter tba tbd tbc title an the of and or in on for with to at from by"
+    " vs via into about beyond toward towards through new how why what when is are initiative"
+    " project studio circle concert recital launch book film screening movie challenge visiting"
+    " student students fellowship fellowships deadline application applications info network"
+    " networking mixer social we you they them our your his her its their us me shall will can"
+    " may must should would could not no all more most than after before under over between"
+    " against without within across around behind"
+)
+"""Words that rule out a name read from a title: series, placeholders, words of a title."""
+_TITLE_SEPARATOR: Final = re.compile(r"\s*[:\uff1a|]\s*|\s+[-\u2013\u2014]{1,2}\s+")
+_QUOTE: Final = re.compile('["\u201c\u201d]')
+_WITH: Final = re.compile(r"\bwith\s+(?P<person>[^\"\u201c\u201d:|]+?)\s*$", re.IGNORECASE)
+_CONVERSATION: Final = re.compile(
+    r"(?P<first>[^\"\u201c\u201d]+?)\s+in\s+conversation\s+with\s+(?P<second>[^\"\u201c\u201d]+)",
+    re.IGNORECASE,
+)
+_POSSESSIVE: Final = re.compile("[^\\W\\d_]+['\u2019]s")
+"""A word in the possessive ("Nuremberg's"), which a name never holds."""
+_SHOUTED: Final = re.compile(r"[^\W\d_]*(?:[A-Z]{2}|[a-z][A-Z]{2})[^\W\d_]*")
+"""A word in capitals ("BOOK", "TNT") or with a run of them inside ("StEMI"): no name."""
+_PERSON_BEFORE: Final = re.compile(
+    r"(?:\b(?:dr|prof|professor|mr|mrs|ms|mx|speaker|presenter|featuring|features?|welcomes?"
+    r"|by)\.?\s{0,3}:?\s{0,3})$",
+    re.IGNORECASE,
+)
+_PERSON_AFTER: Final = re.compile(
+    r"\s{0,3},?\s{0,3}(?:ph\.?\s?d|m\.?\s?d|d\.?\s?phil|sc\.?\s?d|professor|prof|associate"
+    r"|assistant|director|chair|dean|principal|lecturer|investigator|scientist|researcher"
+    r"|fellow|postdoc|founder|ceo|president)(?:\b|(?-i:(?=[A-Z])))"
+    r"|\s{1,3}(?:received|holds|leads|joined|earned|serves|directs|completed|obtained|studies"
+    r"|works|is\s{1,3}(?:a|an|the)\s{1,3}(?:\w+\s{1,3}){0,2}(?:professor|director|scientist"
+    r"|researcher|fellow|student|chair|dean|lecturer|investigator|postdoc))\b"
+    r"|'s\s|\u2019s\s"
+    r"|\s{0,3}(?:university|institute|college|school|laborator|lab\b|center|centre|hospital"
+    r"|foundation|department)",
+    re.IGNORECASE,
+)
+"""What follows a person's name in a biography: a degree, a position, "received", the
+possessive, an institution (also run together, as text taken out of HTML
+often is: "Jane DoeStanford University", "Jane Doe, PhDProfessor of Biology")."""
+_GERUND: Final = re.compile(r"[A-Z][a-z]{3,}ing\b")
+"""A first word that is a verb in "-ing" of at least seven letters ("Navigating")."""
+_COPY_AFTER: Final = re.compile(r"[ \t]{0,3}(?:[:|\"\u201c\u201d]|[-\u2013\u2014]{1,2}\s|$)", re.M)
+"""What follows a name where the abstract repeats a part of the title: a separator, a
+quote or the end of the line."""
+
+
+@dataclass(frozen=True)
+class _Mentions:
+    """How the abstract of an event speaks of a name read from its title."""
+
+    as_person: bool  # once at least as a person: "Dr. Jane Doe", "Jane Doe, PhD"
+    as_other: bool  # never as a person, once at least as something else: "in Solid Pictures,"
+
+
+@dataclass(frozen=True)
+class _Candidate:
+    """A person at the start of a part of a title, and whether the form vouches for it."""
+
+    person: ParsedSpeaker
+    marked: bool  # a degree, a quoted title or an organisation follows the name
+
+
+def _title_name(name: str) -> bool:
+    """Whether ``name``, read from a title, reads like a person and like nothing else."""
+    if not looks_like_name(name):
+        return False
+    words = tidy_name(name).split()
+    if any(_SHOUTED.fullmatch(word) or _POSSESSIVE.fullmatch(word) for word in words):
+        return False
+    if len(words[-1].rstrip(".")) < 2:
+        return False
+    return not any(word in _NOT_IN_A_NAME for word in fold(" ".join(words)).split())
+
+
+def _is_series(text: str) -> bool:
+    return any(word in _SERIES_WORDS for word in fold(text).split())
+
+
+def _names_organisation(text: str | None) -> bool:
+    """Whether an affiliation names an organisation ("MIT", "Bando Lab", "UCSF")."""
+    if not text:
+        return False
+    if any(word in text for word in _CJK_ORGANISATION_WORDS):
+        return True
+    return any(word in _ORGANISATION_WORDS for word in fold(text).split())
+
+
+def _mentions(name: str, abstract: str | None, title: str) -> _Mentions:
+    """How ``abstract`` speaks of ``name``.
+
+    The name is looked for as it is written, without regard to case. Copies
+    of the title are taken out first, and a name followed by a separator, a
+    quote or the end of its line repeats a part of the title: neither says
+    what the name stands for.
+    """
+    person = tidy_name(name)
+    if not abstract or not person:
+        return _Mentions(as_person=False, as_other=False)
+    copy = r"\s+".join(re.escape(word) for word in title.split())
+    text = re.sub(copy, "\n", abstract, flags=re.IGNORECASE) if copy else abstract
+    other = False
+    for match in re.finditer(re.escape(person), text, re.IGNORECASE):
+        before = text[max(match.start() - 30, 0) : match.start()]
+        if _PERSON_BEFORE.search(before) or _PERSON_AFTER.match(text, match.end()):
+            return _Mentions(as_person=True, as_other=False)
+        other = other or _COPY_AFTER.match(text, match.end()) is None
+    return _Mentions(as_person=False, as_other=other)
+
+
+def _taken(person: ParsedSpeaker, vouched: bool, abstract: str | None, title: str) -> bool:
+    """Whether a name read from ``title`` is a speaker.
+
+    It is when the abstract names the person, or when the form of the title
+    vouches for it (``vouched``) and the abstract does not speak of it as
+    something else. A name that starts with a verb in "-ing" ("Navigating
+    Heritage", "Building Bridges") is far more often the start of a talk
+    title than a first name ("Channing"), so for it only the abstract counts.
+    """
+    said = _mentions(person.name, abstract, title)
+    if said.as_person:
+        return True
+    return vouched and not said.as_other and _GERUND.match(person.name) is None
+
+
+def _bare(text: str) -> str:
+    """``text`` without an affiliation in brackets at its end."""
+    match = _WITH_AFFILIATION.match(text)
+    return match.group("name") if match else text
+
+
+def _has_degree(text: str) -> bool:
+    return any(is_degree(part) for part in _split(text, _COMMA)[1:])
+
+
+def _title_person(text: str) -> ParsedSpeaker | None:
+    """``"Jane Doe, PhD, MIT"`` of a title as a person whose name reads like one.
+
+    Of the parts after the name, only degrees and the parts up to the first
+    one that names no organisation or starts in lower case are kept: "Jane
+    Doe, Princeton University, on her book ..." is Jane Doe of Princeton
+    University.
+    """
+    first, *rest = _split(text.strip(" ,-\u2013\u2014"), _COMMA) or [""]
+    person = _person(_LABEL.sub("", first))
+    if person is None or not _title_name(person.name):
+        return None
+    kept: list[str] = [] if person.affiliation is None else [person.affiliation]
+    for part in rest:
+        if is_degree(part):
+            continue
+        if part[:1].islower() or not _names_organisation(part):
+            break
+        kept.append(part)
+    return ParsedSpeaker(name=person.name, affiliation=", ".join(kept) or None)
+
+
+def _leading_person(text: str) -> _Candidate | None:
+    """The person a part of a title starts with: a name, an affiliation, then a title.
+
+    Text after a comma must be a degree or name an organisation; otherwise
+    the comma separates the words of a title ("Media Art, AI and the Self").
+    """
+    quote = _QUOTE.search(text)
+    head = text[: quote.start()] if quote else text
+    separator = _TITLE_SEPARATOR.search(head)
+    head = (head[: separator.start()] if separator else head).strip(" ,-\u2013\u2014")
+    person = _title_person(head) if head else None
+    if person is None:
+        return None
+    parts = _split(head, _COMMA)[1:]
+    if any(not is_degree(part) and not _names_organisation(part) for part in parts):
+        return None
+    marked = quote is not None or bool(parts)
+    return _Candidate(person=person, marked=marked)
+
+
+def _after_separator(title: str, abstract: str | None) -> list[ParsedSpeaker]:
+    """People of the series-first and the name-first forms."""
+    separator = _TITLE_SEPARATOR.search(title)
+    if separator is None:
+        return []
+    head, tail = title[: separator.start()].strip(), title[separator.end() :].strip()
+    following = _leading_person(tail)
+    if _is_series(head) or (following is not None and not _title_name(_bare(head))):
+        if following is None:
+            return _last_part(title, abstract) if _is_series(head) else []
+        vouched = _is_series(head) or following.marked
+        return [following.person] if _taken(following.person, vouched, abstract, title) else []
+    first = _person(head)
+    if first is None or following is not None or not _title_name(first.name):
+        return []
+    return [first] if _taken(first, _names_organisation(first.affiliation), abstract, title) else []
+
+
+def _last_part(title: str, abstract: str | None) -> list[ParsedSpeaker]:
+    """The person of "<series> | <title> | <name>, <affiliation>", which is the last part."""
+    parts = _TITLE_SEPARATOR.split(title)
+    last = _leading_person(parts[-1]) if len(parts) >= 3 else None
+    if last is None:
+        return []
+    return [last.person] if _taken(last.person, last.marked, abstract, title) else []
+
+
+def _conversation(title: str, abstract: str | None) -> list[ParsedSpeaker]:
+    """The two people of "<name> in conversation with <name>", when the abstract names both."""
+    last = _TITLE_SEPARATOR.split(title)[-1]
+    match = _CONVERSATION.fullmatch(last)
+    if match is None:
+        return []
+    people = [_title_person(match.group(key)) for key in ("first", "second")]
+    found = [person for person in people if person is not None]
+    if len(found) == 2 and all(
+        _mentions(person.name, abstract, title).as_person for person in found
+    ):
+        return found
+    return []
+
+
+def _with(title: str, abstract: str | None) -> list[ParsedSpeaker]:
+    """The person of "... with <name>[, <degree>]" at the end of a title."""
+    match = _WITH.search(title)
+    if match is None:
+        return []
+    text = match.group("person")
+    person = _title_person(text)
+    if person is None:
+        return []
+    return [person] if _taken(person, _has_degree(text), abstract, title) else []
+
+
+def speakers_from_title(title: str, abstract: str | None = None) -> list[ParsedSpeaker]:
+    """The people a title names in one of the common forms (see the module docstring).
+
+    ``abstract`` is the abstract of the same event; it vouches for a name
+    that the form alone does not, and it rules out one that it speaks of
+    as something other than a person. Empty when the title names nobody.
+    """
+    text = " ".join(title.split())
+    if not text:
+        return []
+    return (
+        _conversation(text, abstract) or _after_separator(text, abstract) or _with(text, abstract)
+    )
 
 
 def split_speakers(text: str) -> list[ParsedSpeaker]:
