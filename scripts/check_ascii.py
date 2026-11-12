@@ -21,14 +21,26 @@ Scans every git-tracked file and enforces the charset rules of the project:
   against exactly what the sites serve, so anything that is valid UTF-8 is
   accepted there.
 
-Binary files (detected by a NUL byte) are skipped. Violations are printed as
+Binary files are skipped; a file is binary when its name ends in one of
+``BINARY_SUFFIXES`` (images, fonts, archives, PDF). Every other file is text
+and must be UTF-8: a byte order mark of UTF-16 or UTF-32 is reported with the
+name of the encoding, and a NUL byte (which UTF-16 text without a byte order
+mark is full of) as not UTF-8 text. A binary file of another kind fails the
+gate until its suffix is added to the list. Violations are printed as
 ``path:line:col U+XXXX NAME`` and the exit status is non-zero.
+
+``--commit-msg FILE`` checks a commit message instead of the tree, which is
+what the commit-msg hook of pre-commit runs: printable ASCII and newlines
+only. Comment lines (starting with ``#``) and everything below the scissors
+line of ``git commit --verbose`` are not part of the message and are not
+checked.
 
 The script uses the standard library only and runs under any Python 3, so it
 cannot import the project. EMOJI_RANGES and DECORATIVE_RANGES are therefore
 repeated in ``src/seminars/textrules.py`` for the code that cleans and checks
 text at run time; tests/test_textrules.py fails when the two copies differ.
-Usage: ``python3 scripts/check_ascii.py [--root DIR]``
+Usage: ``python3 scripts/check_ascii.py [--root DIR]`` or
+``python3 scripts/check_ascii.py --commit-msg FILE``.
 """
 
 from __future__ import annotations
@@ -51,8 +63,45 @@ TAB_BASENAMES = ("Makefile", "makefile", "GNUmakefile")
 TAB_SUFFIXES = (".mk",)
 
 BOM = b"\xef\xbb\xbf"
-BINARY_SNIFF_BYTES = 8000
+OTHER_BOMS = (  # longest first: the UTF-32 LE mark starts with the UTF-16 LE one
+    (b"\xff\xfe\x00\x00", "UTF-32 LE"),
+    (b"\x00\x00\xfe\xff", "UTF-32 BE"),
+    (b"\xff\xfe", "UTF-16 LE"),
+    (b"\xfe\xff", "UTF-16 BE"),
+)
+BINARY_SUFFIXES = (
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".ico",
+    ".bmp",
+    ".tif",
+    ".tiff",
+    ".avif",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".otf",
+    ".eot",
+    ".pdf",
+    ".zip",
+    ".gz",
+    ".tgz",
+    ".bz2",
+    ".xz",
+    ".zst",
+    ".7z",
+    ".mp3",
+    ".mp4",
+    ".webm",
+    ".ogg",
+    ".wav",
+)
 MAX_REPORTS_PER_FILE = 20
+COMMENT_PREFIX = "#"
+SCISSORS = ">8"
 
 # Inclusive code point ranges treated as emoji. Mirrored in src/seminars/textrules.py.
 EMOJI_RANGES: tuple[tuple[int, int], ...] = (
@@ -152,9 +201,20 @@ def allows_tab(path: str) -> bool:
     return name in TAB_BASENAMES or name.endswith(TAB_SUFFIXES)
 
 
-def is_binary(data: bytes) -> bool:
-    """Use the same heuristic as git: a NUL byte near the start means binary."""
-    return b"\0" in data[:BINARY_SNIFF_BYTES]
+def is_binary(path: str) -> bool:
+    """Whether ``path`` names a binary file: its suffix is one of ``BINARY_SUFFIXES``."""
+    return path.lower().endswith(BINARY_SUFFIXES)
+
+
+def _encoding_problem(path: str, data: bytes) -> str | None:
+    """Why ``data`` is no UTF-8 text at all (another encoding, a NUL byte); else ``None``."""
+    for mark, name in OTHER_BOMS:
+        if data.startswith(mark):
+            return f"{path}: not UTF-8 ({name} byte order mark)"
+    nul = data.find(b"\0")
+    if nul >= 0:
+        return f"{path}: NUL byte at byte offset {nul}: not UTF-8 text"
+    return None
 
 
 def _is_bad_char(char: str, mode: str, tab_ok: bool) -> bool:
@@ -189,8 +249,11 @@ def _scan_chars(path: str, text: str, mode: str) -> list[str]:
 
 def check_bytes(path: str, data: bytes) -> list[str]:
     """Return the list of violation messages for one file."""
-    if not data or is_binary(data):
+    if not data or is_binary(path):
         return []
+    problem = _encoding_problem(path, data)
+    if problem is not None:
+        return [problem]
     messages: list[str] = []
     if data.startswith(BOM):
         messages.append(f"{path}:1:1 U+FEFF byte order mark at start of file")
@@ -210,6 +273,46 @@ def check_bytes(path: str, data: bytes) -> list[str]:
     if mode != MODE_FREE:
         messages.extend(_scan_chars(path, text, mode))
     return messages
+
+
+def check_commit_message(path: str, data: bytes) -> list[str]:
+    """Return the violation messages for a commit message read from ``path``.
+
+    The message may only hold printable ASCII and newlines. Comment lines
+    and the part below the scissors line are skipped; line numbers count
+    every line of the file.
+    """
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        return [f"{path}: not valid UTF-8 (byte offset {error.start})"]
+    messages: list[str] = []
+    for line_number, line in enumerate(text.split("\n"), start=1):
+        if line.startswith(COMMENT_PREFIX):
+            if SCISSORS in line and set(line) <= set("#- >8"):
+                break
+            continue
+        for column, char in enumerate(line.rstrip("\r"), start=1):
+            if _is_bad_char(char, MODE_STRICT, False):
+                messages.append(f"{path}:{line_number}:{column} {_describe(char)}")
+    return messages
+
+
+def _check_commit_message_file(path: str) -> int:
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read()
+    except OSError as error:
+        print(f"check_ascii: cannot read the commit message: {error}", file=sys.stderr)
+        return 2
+    messages = check_commit_message(path, data)
+    for message in messages:
+        print(message)
+    if messages:
+        count = len(messages)
+        print(f"check_ascii: {count} violation(s) in the commit message", file=sys.stderr)
+        return 1
+    return 0
 
 
 def tracked_files(root: str) -> list[str]:
@@ -251,7 +354,12 @@ def _print_failures(failures: list[tuple[str, list[str]]]) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check the charset rules of the repository.")
     parser.add_argument("--root", default=".", help="directory inside the git work tree")
+    parser.add_argument(
+        "--commit-msg", metavar="FILE", help="check this commit message instead of the tree"
+    )
     args = parser.parse_args(argv)
+    if args.commit_msg is not None:
+        return _check_commit_message_file(args.commit_msg)
     try:
         toplevel = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=args.root)
         checked, failures = check_tree(toplevel.decode("utf-8").strip())

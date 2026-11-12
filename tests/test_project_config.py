@@ -179,7 +179,8 @@ class TestRepositoryFiles:
         ruff_repo, local_repo = config["repos"]
         assert ruff_repo["repo"] == "https://github.com/astral-sh/ruff-pre-commit"
         assert [hook["id"] for hook in ruff_repo["hooks"]] == ["ruff-check", "ruff-format"]
-        (hook,) = local_repo["hooks"]
+        hook, commit_msg_hook = local_repo["hooks"]
+        assert commit_msg_hook["stages"] == ["commit-msg"]
         assert hook["entry"] == "python3 scripts/check_ascii.py"
         assert hook["pass_filenames"] is False
 
