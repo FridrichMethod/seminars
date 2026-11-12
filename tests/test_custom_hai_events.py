@@ -600,6 +600,7 @@ class TestDetailPages:
             ("https://example.org/d", True),
             ("$undefined", True),
             ("mailto:talks@example.org", True),  # no web page: no organiser address
+            ("http://127.0.0.1/e", True),  # no public host: on no listed host
         ],
     )
     def test_skip_organiser_hosts(self, promo: str, kept: bool) -> None:
