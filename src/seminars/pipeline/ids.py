@@ -45,13 +45,20 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections import Counter
-from collections.abc import Callable, Iterable
+from collections import Counter, defaultdict
+from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
 from typing import Final
 from urllib.parse import urlsplit, urlunsplit
 
-from seminars.models import EventDraft, SourceConfig, UidMap, source_key, split_source_key
+from seminars.models import (
+    Candidate,
+    EventDraft,
+    SourceConfig,
+    UidMap,
+    source_key,
+    split_source_key,
+)
 from seminars.pipeline.text import fold
 
 MAX_NATIVE_ID_LENGTH: Final = 200
@@ -182,6 +189,51 @@ def is_time_of_day_key(key: str) -> bool:
     """
     _, native = split_source_key(key)
     return _TIME_OF_DAY_KEY.fullmatch(native) is not None
+
+
+def is_day_key(key: str) -> bool:
+    """Whether ``key`` is a day key: the source knows the talk by its day, not an id or a page."""
+    return split_source_key(key)[1].startswith(DAY_KEY_PREFIX)
+
+
+def _time_of_day_key(key: str, start: datetime) -> str:
+    return f"{key}:{start.strftime(TIME_OF_DAY_FORMAT)}"
+
+
+def tell_apart_day_keys(candidates: Sequence[Candidate]) -> list[Candidate]:
+    """Give talks of one source that share a day key but not the start a key each.
+
+    Two talks of one day with the same first speaker ("Lecture I" at 10:00
+    and "Lecture II" at 14:00) or, without speakers, the same title get one
+    day key, and the same key always makes one event. The talk that starts
+    last keeps the key and its uid; every earlier one gets the key with the
+    time of day of its start appended (``...:ann-smith:t1000``) and the uid
+    of that key. The last one keeps the key because pages drop talks once
+    they are over: when the earlier talks leave the page, the key and the
+    uid of the one that is left stay what they were.
+
+    The candidates come back in their order; the result does not depend on
+    it, and a second call changes nothing.
+    """
+    starts: dict[str, set[datetime]] = defaultdict(set)
+    for candidate in candidates:
+        for key in candidate.event.source_ids:
+            if is_day_key(key) and not is_time_of_day_key(key):
+                starts[key].add(candidate.event.start)
+    latest = {key: max(found) for key, found in starts.items() if len(found) > 1}
+    result: list[Candidate] = []
+    for candidate in candidates:
+        event = candidate.event
+        moved = [key for key in event.source_ids if key in latest and event.start < latest[key]]
+        if not moved:
+            result.append(candidate)
+            continue
+        keys = [
+            _time_of_day_key(key, event.start) if key in moved else key for key in event.source_ids
+        ]
+        uid = uid_for_key(_time_of_day_key(moved[0], event.start))
+        result.append(candidate.evolve(event=event.evolve(uid=uid, source_ids=keys)))
+    return result
 
 
 def is_native_key(key: str) -> bool:

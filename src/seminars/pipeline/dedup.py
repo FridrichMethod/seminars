@@ -115,7 +115,13 @@ from seminars.models import (
     event_to_line,
     split_source_key,
 )
-from seminars.pipeline.ids import canonical_url, is_native_key, is_time_of_day_key, uid_for_key
+from seminars.pipeline.ids import (
+    canonical_url,
+    is_native_key,
+    is_time_of_day_key,
+    tell_apart_day_keys,
+    uid_for_key,
+)
 from seminars.pipeline.normalize import merge_speakers
 from seminars.pipeline.speakers import looks_like_name
 from seminars.pipeline.text import canonical_name, fold, word_set
@@ -559,10 +565,13 @@ def separate_listings(candidates: Sequence[Candidate]) -> list[Candidate]:
     third listing, so this repeats until nothing moves; a listing that
     moved holds the key its uid was derived from, so it never moves again.
 
+    Before that, talks of one source that share a day key but start at
+    different times get a key each (``seminars.pipeline.ids.tell_apart_day_keys``).
+
     The candidates come back in their order; the result does not depend
     on it.
     """
-    current = list(candidates)
+    current = tell_apart_day_keys(candidates)
     while (separated := _separated_once(current)) != current:
         current = separated
     return current
