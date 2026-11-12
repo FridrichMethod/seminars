@@ -755,7 +755,7 @@ if [ "$1 $2 $3" = "run --locked python" ]; then
 fi
 if [ -n "${STUB_UV_TOUCH:-}" ]; then
   mkdir -p "$(dirname "$STUB_UV_TOUCH")"
-  printf '{"changed": true}\\n' > "$STUB_UV_TOUCH"
+  printf '%s\\n' "${STUB_UV_RECORD:-changed}" > "$STUB_UV_TOUCH"
 fi
 exit "${STUB_UV_STATUS:-0}"
 """
@@ -997,12 +997,25 @@ def test_a_run_that_could_not_start_stops_the_job(sandbox: Sandbox) -> None:
     assert "before it recorded the run" in result.stdout
 
 
+FAILED_RECORD: Final = '{"ok": false, "mode": "live"}'
+"""data/last_run.json of a run that failed: what makes exit status 1 an outage."""
+
+
+def failed_run(work: Path, record: str = FAILED_RECORD) -> dict[str, str]:
+    """The environment of a scheduled run that exits 1 after it wrote ``record``."""
+    touch = str(work / "data" / "last_run.json")
+    return {
+        "GITHUB_EVENT_NAME": "schedule",
+        "STUB_UV_STATUS": "1",
+        "STUB_UV_TOUCH": touch,
+        "STUB_UV_RECORD": record,
+    }
+
+
 @needs_shell
 def test_a_total_outage_is_handed_on_to_be_recorded(sandbox: Sandbox) -> None:
     _, work = sandbox.repo(BASE_FILES)
-    touch = str(work / "data" / "last_run.json")
-    extra = {"GITHUB_EVENT_NAME": "schedule", "STUB_UV_STATUS": "1", "STUB_UV_TOUCH": touch}
-    result = sandbox.run_step("update.yml", "fetch", "run", work, extra)
+    result = sandbox.run_step("update.yml", "fetch", "run", work, failed_run(work))
     assert result.status == 0, result.stdout
     assert result.outputs == {
         "base": sandbox.git(work, "rev-parse", "HEAD"),
@@ -1011,6 +1024,30 @@ def test_a_total_outage_is_handed_on_to_be_recorded(sandbox: Sandbox) -> None:
     }
     assert "::warning::seminars run failed with exit status 1" in result.stdout
     assert "every source failed, or the feeds could not be written" in result.stdout
+
+
+@needs_shell
+@pytest.mark.parametrize(
+    "record",
+    [
+        '{"ok": true, "mode": "live"}',
+        '{"mode": "live"}',
+        '{"ok": "false"}',
+        "[]",
+        "not json",
+    ],
+)
+def test_status_1_without_a_record_of_a_failed_run_stops_the_job(
+    sandbox: Sandbox, record: str
+) -> None:
+    # Python exits with 1 for an error that nothing caught, also after the record of a
+    # successful run was written: that run could not finish and must not be committed.
+    _, work = sandbox.repo(BASE_FILES)
+    result = sandbox.run_step("update.yml", "fetch", "run", work, failed_run(work, record))
+    assert result.status == 1
+    assert set(result.outputs) == {"base"}
+    assert "does not record a failed run" in result.stdout
+    assert "nothing is committed or deployed" in result.stdout
 
 
 @needs_shell

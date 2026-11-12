@@ -58,14 +58,16 @@
 # (the secret scan found something, or a file below data/ breaks the charset rule).
 # - 3, or any status but 0 and 1: the fetch job fails right there, and nothing is
 #   committed or deployed.
-# - 1 after the run recorded itself: a failed run. Every source failed (a total
-#   outage), or, rarely, the feeds and the site data could not be written. The commit
-#   job commits only data/health.json, data/last_run.json and data/run_report.json,
-#   not the events, so that the health history counts the failure, the health issues
-#   open after the usual number of bad runs, and the deployed status page shows the
-#   failed run. The outage job then fails the workflow run.
-# - 1 before the run recorded itself (it could not start): the fetch job fails, and
-#   nothing is committed or deployed.
+# - 1 after the run recorded itself as failed (data/last_run.json rewritten, with
+#   "ok": false): a failed run. Every source failed (a total outage), or, rarely, the
+#   feeds and the site data could not be written. The commit job commits only
+#   data/health.json, data/last_run.json and data/run_report.json, not the events, so
+#   that the health history counts the failure, the health issues open after the usual
+#   number of bad runs, and the deployed status page shows the failed run. The outage
+#   job then fails the workflow run.
+# - 1 in any other case: the run could not start, or it stopped on an error that
+#   nothing caught (Python exits with 1 then, possibly after a record that says the
+#   run went well). The fetch job fails, and nothing is committed or deployed.
 #
 # Actions, and why each one is used. Every action is pinned to the full commit SHA of
 # a release, with the release in a comment: a tag can be moved, a commit cannot.
@@ -227,7 +229,14 @@ jobs:
             echo "ran=false" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
+          # Python also exits with 1 for an error that nothing caught, even after the
+          # record of a successful run was written. Only a record of a failed run makes
+          # status 1 an outage whose records are committed.
           if [ "${outcome}" = "outage" ]; then
+            if ! uv run --locked python -I -c 'import json, sys; record = json.load(open("data/last_run.json", encoding="utf-8")); sys.exit(0 if isinstance(record, dict) and record.get("ok") is False else 1)'; then
+              echo "::error::seminars run failed with exit status 1, but data/last_run.json does not record a failed run: the run could not finish, and nothing is committed or deployed."
+              exit 1
+            fi
             echo "::warning::seminars run failed with exit status 1 (every source failed, or the feeds could not be written): only the records of the run are committed, the events stay as they are, and the workflow run fails at the end."
           fi
           echo "ran=true" >> "${GITHUB_OUTPUT}"
