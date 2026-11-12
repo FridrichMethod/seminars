@@ -120,7 +120,7 @@ scripts/set-llm-credential.sh openai-compat --from-file ~/.secrets/llm-key \
 * CI 里：`scripts/set-llm-credential.sh none`，它把变量设成 `LLM_PROVIDERS=none`。要重新打开，运行 `gh variable delete LLM_PROVIDERS`，或者用 `--providers` 设一个顺序。
 * 本地：`seminars run --no-llm`，或者 `LLM_PROVIDERS=none seminars run`。
 
-没有 provider 时（没有凭证，或者 `LLM_PROVIDERS=none`），不会发出新的请求，但以前的运行存在 `data/llm_cache/` 里的回答仍然有效：被某个回答打过标签、或被判为不是学术报告的事件，只要文字不变，就保留这个回答。凭证被拒绝的运行得到同样的数据。这时缓存只读不写：不加入新条目，也不删除旧条目。其余的领域标签来自规则，需要读页面的源在 provider 恢复之前不产生事件。`seminars run --no-llm` 只用规则，也不读缓存。
+没有 provider 时（没有凭证，或者 `LLM_PROVIDERS=none`），不会发出新的请求，但以前的运行存在 `data/llm_cache/` 里的回答仍然有效：被某个回答打过标签、或被判为不是学术报告的事件，只要文字不变，就保留这个回答。凭证被拒绝的运行得到同样的数据。这时不往缓存里加入新条目，也不删除旧条目；命中只会像平时一样更新这个条目的日期。其余的领域标签来自规则，需要读页面的源在 provider 恢复之前不产生事件。`seminars run --no-llm` 只用规则，也不读缓存。
 
 ## 费用
 
@@ -134,7 +134,7 @@ scripts/set-llm-credential.sh openai-compat --from-file ~/.secrets/llm-key \
 
 控制费用的设置，都在 `config/llm.yaml` 里：
 
-* `batch_size`（20）：每个打标签请求里的事件数，用一个 JSON 列表回答。
+* `batch_size`（20）：每个打标签请求里的事件数，用一个 JSON 列表回答。这样的请求给出的回答，如果和源说的不一样，就针对这个事件单独再问一次（见"页面文字是数据"）。规则定不了的事件从源那里得不到领域，所以这些事件每个还要单独花一个请求：缓存为空时，第一次运行大约每个待定事件一个请求，到 `max_calls_per_run` 为止，剩下的由之后的运行去问。
 * `max_calls_per_run`（60）：一次运行里的请求数上限；超出的跳过并写进 report。
 * `max_input_chars`（12000）：发送的 prompt 的最大长度；长页面按这个大小分段读，每个源最多读六段。任何请求都放不下的事件，以及六段之后的页面文字，都会跳过并写进 report。
 * `data/llm_cache/` 里的缓存：key 是 prompt 版本、任务和规范化输入的 SHA-256。模型和 provider 不在 key 里，所以换 key、换计划、换模型都不会重复请求。`cache_ttl_days`（180）天没用过的条目会被删除。读页面的回答只保存页面上有的文本值，所以页面让模型写出的其他内容永远进不了提交到 repo 的缓存。secret 扫描在其中找到凭证形状字符串的文本值也进不了，即使是页面自己显示出来的：保存回答之前就把它去掉，讲座的其余信息照常保留。

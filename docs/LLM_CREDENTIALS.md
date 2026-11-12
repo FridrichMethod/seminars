@@ -186,10 +186,11 @@ the same check is `seminars llm-smoke`.
 Without a provider (no credential, or `LLM_PROVIDERS=none`), nothing new is asked, but the
 answers stored in `data/llm_cache/` by earlier runs still apply: an event that an answer
 tagged or ruled out as no talk keeps that answer, as long as its text stays the same. A run
-whose credential is refused gives the same data. The cache is only read then: nothing is
-added to it and nothing is removed. Every other field tag comes from the rules, and sources
-that need page reading yield no events until a provider is back. `seminars run --no-llm`
-uses the rules alone and does not read the cache either.
+whose credential is refused gives the same data. Nothing is added to the cache then and
+nothing is removed; a hit only renews the date of its entry, as every hit does. Every other
+field tag comes from the rules, and sources that need page reading yield no events until a
+provider is back. `seminars run --no-llm` uses the rules alone and does not read the cache
+either.
 
 ## What it costs
 
@@ -203,7 +204,12 @@ uses the rules alone and does not read the cache either.
 
 What keeps the cost down, all set in `config/llm.yaml`:
 
-* `batch_size` (20): events per tagging request, answered as one JSON list.
+* `batch_size` (20): events per tagging request, answered as one JSON list. An answer from
+  such a request that does not say what the source says is asked again for its event alone
+  (see "Page text is data"). An event the rules cannot place has no fields from its
+  source, so each of those costs a request of its own as well: over an empty cache the
+  first run makes about one request per open event, up to `max_calls_per_run`, and the
+  next runs ask for the rest.
 * `max_calls_per_run` (60): requests in one run; the rest is skipped and reported.
 * `max_input_chars` (12000): the longest prompt that is sent; a long page is read in
   pieces of this size, at most six pieces per source. An event too long for any request

@@ -84,3 +84,27 @@ def test_switching_off_says_that_stored_answers_still_apply(path: Path) -> None:
     text = section(path, heading)
     assert "`data/llm_cache/`" in text
     assert "`seminars run --no-llm`" in text
+
+
+def bullet(text: str, start: str) -> str:
+    """The list item of ``text`` that starts with ``start``, with its continuation lines."""
+    begin = text.index(start)
+    rest = text[begin:]
+    end = re.search(r"\n(?:\* |\n)", rest)
+    return rest[: end.start()] if end else rest
+
+
+@pytest.mark.parametrize("path", BOTH)
+def test_the_cost_of_asking_again_alone_is_stated(path: Path) -> None:
+    heading = "## What it costs" if path == ENGLISH else "## \u8d39\u7528"
+    item = bullet(section(path, heading), "* `batch_size`")
+    assert "`max_calls_per_run`" in item
+    assert ("alone" if path == ENGLISH else "\u5355\u72ec") in item
+
+
+@pytest.mark.parametrize("path", BOTH)
+def test_switching_off_says_that_a_hit_still_renews_its_entry(path: Path) -> None:
+    heading = "## Switching the LLM off" if path == ENGLISH else "## \u5173\u6389 LLM"
+    text = section(path, heading)
+    renewal = "\u66f4\u65b0\u8fd9\u4e2a\u6761\u76ee\u7684\u65e5\u671f"
+    assert ("renews the date" if path == ENGLISH else renewal) in text

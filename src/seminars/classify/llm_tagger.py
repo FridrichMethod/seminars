@@ -30,10 +30,13 @@ says what the source says anyway (``_settled``: a talk, with exactly the
 fields of the source, ``source_fields``). Any other answer (no talk, other
 fields) is asked again for that event alone, and only the answer of that
 request is used and cached; when that request fails, the event has no
-answer. The extra requests are spent on those answers only. What remains: a
-hostile event can still make the batch answer of a neighbour say what its
-source says, so the neighbour is classified as if the LLM had not helped,
-as long as its text stays the same.
+answer. The extra requests are spent on those answers only, but an event
+that the rules cannot place has no fields from its source, so an answer that
+gives it fields is always asked again: such an event costs a request of its
+own besides its share of a batch. What remains: a hostile event can still
+make the batch answer of a neighbour say what its source says, so the
+neighbour is classified as if the LLM had not helped, as long as its text
+stays the same.
 
 Secrets. The cache holds no text of an event: an entry is the answer for one
 event, field ids of the closed vocabulary and the yes or no of ``is_talk``
