@@ -34,7 +34,7 @@ Keys of ``params`` (an unknown key is an error that names it;
   it a date is ISO 8601 or anything ``dateutil`` reads. A format without a
   year gets the year that puts the date closest to the fetch.
 * ``time_format``: ``strptime`` format of ``start`` and ``end``. Without it,
-  "4:30", "4:30pm", "4:30 PM", "16:30", "4 p.m.", "noon" are understood. A
+  "4:30", "4:30pm", "4:30 PM", "16:30", "4 p.m.", "noon", "12:00 noon" work. A
   ``time`` value without ``start`` / ``end`` groups is read as a range ("4:30
   - 5:30pm PT", en dash or "to" work too); "TBA" / "TBD" mean no time.
 * ``default_start_time`` / ``default_end_time``: local time of day ("12:00")
@@ -271,6 +271,7 @@ _ZONE_SUFFIX: Final = re.compile(r"\s*\(?\b(?!am\b|pm\b|noon\b)[a-z]{2,4}\)?\s*$
 _RANGE: Final = re.compile(r"\s*[-\u2013\u2014]\s*|\s+to\s+", re.IGNORECASE)
 _TBA: Final = re.compile(r"\W*(?:tba|tbd|tbc|to be (?:announced|determined|confirmed))\W*", re.I)
 _NAMED_TIMES: Final = {"noon": time(12, 0), "midnight": time(0, 0)}
+_NOON: Final = re.compile(r"12(?:[:.h]00)?\s*noon", re.IGNORECASE)
 
 
 def is_tba(text: str | None) -> bool:
@@ -295,9 +296,11 @@ def parse_clock(text: str | None, fmt: str | None = None) -> tuple[time, str | N
         except ValueError:
             return None
         return parsed, ("pm" if parsed.hour >= 12 else "am") if "%p" in fmt else None
+    value = _ZONE_SUFFIX.sub("", value[:PATTERN_INPUT_LIMIT])
     if value.lower() in _NAMED_TIMES:
         return _NAMED_TIMES[value.lower()], "pm" if value.lower() == "noon" else "am"
-    value = _ZONE_SUFFIX.sub("", value[:PATTERN_INPUT_LIMIT])
+    if _NOON.fullmatch(value):  # "12:00 noon"
+        return time(12, 0), "pm"
     match = _CLOCK.fullmatch(value)
     if match is None:
         return None
