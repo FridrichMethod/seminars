@@ -75,8 +75,12 @@ How one ``data[]`` resource becomes a draft (or several, see dates):
   (duration 0) means no end time. A date that starts at local midnight and
   ends at 23:59 (duration 1439 for one day) is all day: its draft has the
   local dates, the end being the last day, inclusive. An event with several
-  dates gives one draft per date, with ``<id>/<rrule_index>`` (or
-  ``<id>/<position>``) as native id.
+  dates gives one draft per date. Its first date (``rrule_index`` 0, or
+  the first in the list when the dates have no ``rrule_index``) keeps the
+  ``id`` as native id and every other one gets ``<id>/<rrule_index>`` (or
+  ``<id>/<position>``), so an event that gains a date keeps the native id
+  of the one it had. Without ``rrule_index``, removing a date from the
+  list changes the native ids of the dates after it.
 * ``location``: ``attributes.field_hs_event_location``; its lines (imports
   have three, joined with CR LF) are joined with ", ".
 * ``abstract_html``: ``attributes.body.value``.
@@ -407,7 +411,8 @@ def _drafts(
     dates = _dates(attributes)
     drafts = []
     for position, entry in enumerate(dates):
-        native_id = identifier if len(dates) == 1 else f"{identifier}/{_date_key(entry, position)}"
+        key = _date_key(entry, position)
+        native_id = identifier if key is None else f"{identifier}/{key}"
         try:
             start, end, all_day = _times(entry, source.timezone)
             drafts.append(common.evolve(native_id=native_id, start=start, end=end, all_day=all_day))
@@ -568,9 +573,11 @@ def _dates(attributes: dict[str, Any]) -> list[dict[str, Any]]:
     return list(unique.values())[:MAX_DATES_PER_EVENT]
 
 
-def _date_key(entry: dict[str, Any], position: int) -> str:
+def _date_key(entry: dict[str, Any], position: int) -> str | None:
+    """What the native id of one date adds to the resource id; ``None`` for the first date."""
     index = entry.get("rrule_index")
-    return str(index) if isinstance(index, int) and not isinstance(index, bool) else str(position)
+    key = index if isinstance(index, int) and not isinstance(index, bool) else position
+    return None if key == 0 else str(key)
 
 
 def _moment(value: object) -> datetime:

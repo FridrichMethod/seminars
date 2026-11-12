@@ -711,15 +711,33 @@ class TestMapping:
             "junk",
         ]
         drafts = parse_nodes(node(field_hs_event_date=dates))
-        assert [draft.native_id for draft in drafts] == ["n1/0", "n1/1"]
+        assert [draft.native_id for draft in drafts] == ["n1", "n1/1"]
         assert drafts[1].start == datetime(2026, 11, 24, 16, 0, tzinfo=PACIFIC)
 
     def test_instances_of_an_import_come_first(self) -> None:
         instances = [span("2026-11-18T00:00", "2026-11-18T01:00"), span("2026-11-19T00:00")]
         drafts = parse_nodes(node(field_hs_event_instances=instances))
-        assert [draft.native_id for draft in drafts] == ["n1/0", "n1/1"]
+        assert [draft.native_id for draft in drafts] == ["n1", "n1/1"]
         same = parse_nodes(node(field_hs_event_instances=[instances[0]]))
         assert [draft.native_id for draft in same] == ["n1"]
+
+    @pytest.mark.parametrize(
+        ("dates", "native_ids"),
+        [
+            # an event that gains a second date keeps the native id of its first one
+            ([span("2026-11-18T00:00")], ["n1"]),
+            ([span("2026-11-18T00:00"), span("2026-11-25T00:00")], ["n1", "n1/1"]),
+            # with rrule_index the ids follow it, whatever dates are left in the list
+            ([span("2026-11-25T00:00", rrule_index=1)], ["n1/1"]),
+            (
+                [span("2026-12-02T00:00", rrule_index=2), span("2026-11-18T00:00", rrule_index=0)],
+                ["n1/2", "n1"],
+            ),
+        ],
+    )
+    def test_native_ids_of_dates(self, dates: list[dict[str, Any]], native_ids: list[str]) -> None:
+        drafts = parse_nodes(node(field_hs_event_date=dates))
+        assert [draft.native_id for draft in drafts] == native_ids
 
     @pytest.mark.parametrize(
         ("value", "location"),
