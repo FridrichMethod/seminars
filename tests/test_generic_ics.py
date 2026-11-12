@@ -749,12 +749,49 @@ class TestRecurrence:
             "FREQ=YEARLY;BYMONTH=2;BYDAY=-6FR",
             "FREQ=WEEKLY;BYDAY=2MO",
             "FREQ=YEARLY;BYMONTH=13",
+            "FREQ=WEEKLY;BYMONTHDAY=13",
+            "FREQ=MONTHLY;BYMONTHDAY=32",
+            "FREQ=MONTHLY;BYMONTHDAY=0",
+            "FREQ=MONTHLY;BYDAY=-1FR;BYMONTHDAY=13",
+            "FREQ=YEARLY;BYDAY=5MO;BYMONTHDAY=13",
         ],
     )
     def test_rules_the_expansion_cannot_bound_are_skipped(self, rule: str) -> None:
         assert expand(vevent(f"RRULE:{rule}", start="DTSTART:20261020T230000Z")) == []
         with pytest.raises(ValueError, match=r"unsupported|BYSETPOS|BYMONTH|BYDAY"):
             check_rule(dict(icalendar.vRecur.from_ical(rule)))
+
+    @pytest.mark.parametrize(
+        ("rule", "refused"),
+        [
+            ("FREQ=DAILY;INTERVAL=7;BYDAY=TU", True),
+            ("FREQ=DAILY;INTERVAL=14;BYDAY=WE,TH", True),
+            ("FREQ=DAILY;INTERVAL=2;BYDAY=TU;BYMONTHDAY=13", True),
+            ("FREQ=MONTHLY;INTERVAL=2;BYMONTH=2", True),
+            ("FREQ=MONTHLY;INTERVAL=12;BYMONTH=6,12", True),
+            ("FREQ=DAILY;INTERVAL=0", True),
+            ("FREQ=DAILY;INTERVAL=7;BYDAY=MO,TU", False),
+            ("FREQ=DAILY;INTERVAL=3;BYDAY=TU", False),
+            ("FREQ=DAILY;INTERVAL=2;BYMONTHDAY=13", False),
+            ("FREQ=DAILY;BYDAY=TU;BYMONTHDAY=13", False),
+            ("FREQ=MONTHLY;INTERVAL=2;BYMONTH=1,2", False),
+            ("FREQ=MONTHLY;INTERVAL=3;BYMONTH=2", False),
+        ],
+    )
+    def test_an_interval_that_never_meets_the_filters_is_refused(
+        self, rule: str, refused: bool
+    ) -> None:
+        # DTSTART is Monday, 16 November 2026: the daily rules step on Mondays only when
+        # INTERVAL is a multiple of 7, and every second month from November skips February.
+        drafts = expand(vevent(f"RRULE:{rule}", start="DTSTART:20261116T090000"))
+        assert (drafts == []) == refused
+        parts: dict[str, list[Any]] = dict(icalendar.vRecur.from_ical(rule))
+        check_rule(parts)
+        if refused:
+            with pytest.raises(ValueError, match=r"INTERVAL|BYDAY|BYMONTH"):
+                check_rule(parts, start=date(2026, 11, 16))
+        else:
+            check_rule(parts, start=date(2026, 11, 16))
 
     @pytest.mark.parametrize(
         "rule",
