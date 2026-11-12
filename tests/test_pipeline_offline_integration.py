@@ -277,6 +277,13 @@ COMING_TALKS = [
         [],
         {"cs"},
     ),
+    (
+        "custom-dbds-workshop",
+        datetime(2026, 11, 19, 13, 30, tzinfo=STANFORD),
+        "TBA",  # "Coming soon" on the page
+        ["Marinka Zitnik"],
+        {"ai-ml", "math", "med"},
+    ),
 ]
 """A talk after the run time of each series that only its own source lists."""
 
