@@ -41,10 +41,13 @@ that names it, ``extra_hosts`` excepted):
   ``exclude_type_ids`` (repeated ``exclude_type[]``) and ``group_ids``
   (repeated ``group_id[]``: department or group ids; several are
   alternatives, and together with ``type[]`` both must hold).
-* ``event_types`` (list of ``{id, name, event_type}``): an event type id of
-  the calendar and the ``EventType`` it stands for. A record carries
-  several types; the first entry of this list that it carries gives
-  ``event_type_hint``. ``name`` is a note for readers.
+* ``event_types`` (list of ``{id, name, event_type, min_hours}``): an event
+  type id of the calendar and the ``EventType`` it stands for. A record
+  carries several types; the first entry of this list that it carries gives
+  ``event_type_hint``. An entry with ``min_hours`` (a positive number) only
+  counts for an instance that lasts at least that many hours, is all day or
+  has no end: a one-hour seminar that its organizer also tagged as a
+  conference takes the next entry it carries. ``name`` is a note for readers.
 * ``department_fields`` / ``group_fields`` (mapping of a name to a list of
   field ids): ``departments[].name`` / ``groups[].name`` of a record, as
   the API writes them (both sides compared after stripping surrounding
@@ -148,6 +151,7 @@ class LocalistEventType(Model):
     id: int
     name: str | None = None
     event_type: EventType
+    min_hours: Annotated[float, Field(gt=0)] | None = None
 
 
 class LocalistParams(Model):
@@ -345,7 +349,7 @@ def _draft(
         + _field_hints(groups, params.group_fields),
         categories=_categories(record, departments, groups),
         tags=_tags(record),
-        event_type_hint=_event_type(record, params),
+        event_type_hint=_event_type(record, params, _hours(start, end, all_day)),
         status_hint=_STATUS_HINTS.get(str(record.get("status")).strip().lower()),
     )
 
@@ -425,7 +429,18 @@ def _tags(record: dict[str, Any]) -> list[str]:
     return list(dict.fromkeys(tag.strip() for tag in tags if isinstance(tag, str) and tag.strip()))
 
 
-def _event_type(record: dict[str, Any], params: LocalistParams) -> EventType | None:
+def _hours(start: date | datetime, end: date | datetime | None, all_day: bool) -> float | None:
+    """How long a timed instance lasts; ``None`` when all day or without a comparable end."""
+    if all_day or not isinstance(start, datetime) or not isinstance(end, datetime):
+        return None
+    if (start.tzinfo is None) != (end.tzinfo is None):
+        return None
+    return (end - start).total_seconds() / 3600
+
+
+def _event_type(
+    record: dict[str, Any], params: LocalistParams, hours: float | None
+) -> EventType | None:
     types = _filters(record).get("event_types")
     carried = (
         {item.get("id") for item in types if isinstance(item, dict)}
@@ -433,6 +448,9 @@ def _event_type(record: dict[str, Any], params: LocalistParams) -> EventType | N
         else set()
     )
     for entry in params.event_types:
-        if entry.id in carried:
-            return entry.event_type
+        if entry.id not in carried:
+            continue
+        if entry.min_hours is not None and hours is not None and hours < entry.min_hours:
+            continue
+        return entry.event_type
     return None

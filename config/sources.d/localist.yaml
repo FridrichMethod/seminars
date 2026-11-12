@@ -92,9 +92,13 @@ sources:
       # filters.event_types[].id of a record -> EventDraft.event_type_hint. An event can
       # carry several types; the first entry of this list that it carries decides. Events
       # without any of them get no hint (the source default applies).
+      # Organizers tag some weekly one-hour seminars Conference/Symposium as well as
+      # Lecture/Presentation/Talk (the Microbiology & Immunology Wednesday Seminar), so
+      # the conference entry only counts for an event of at least 3 hours, a whole day
+      # or no end; a shorter one takes the next entry it carries.
       event_types:
         - {id: 40490468118962, name: PhD Defense, event_type: defense}
-        - {id: 37952570027353, name: Conference/Symposium, event_type: conference}
+        - {id: 37952570027353, name: Conference/Symposium, event_type: conference, min_hours: 3}
         - {id: 37952570047842, name: Workshop, event_type: workshop}
         - {id: 37952570025304, name: Class/Seminar, event_type: seminar}
         - {id: 37952570034524, name: Lecture/Presentation/Talk, event_type: lecture}
