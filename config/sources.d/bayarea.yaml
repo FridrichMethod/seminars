@@ -202,6 +202,9 @@ sources:
         affiliation: .slac-speaker .speaker-affiliation
         abstract: .c-field--name-field-body
         date_text: .c-card__date
+        # "No items to display." when no talk is scheduled (seen on the Theory Group
+        # site, which runs the same theme): the list is empty, not broken.
+        empty: div.c-view__empty
       detail:
         # Below the event, every detail page shows the cards of 3 OTHER events in this
         # block (div.c-card with .c-card__date and .c-field--name-field-body, the same
@@ -218,8 +221,11 @@ sources:
       max_detail_pages: 12
       # "No SLAC Colloquium 11/23" marks a week without a talk.
       skip_title_patterns: ["^No (SLAC )?Colloquium\\b"]
-      # "Talk by <name>" with "Info coming soon!" is a talk without a title yet.
-      tba_title_patterns: ["^Talk by "]
+      # "Talk by <name>" with "Info coming soon!" is a talk without a title yet; the
+      # group names its speaker, who is on neither the card nor the detail page.
+      tba_title_patterns: ["^Talk by (?P<speaker>.+)$"]
+      # The abstract of such a talk; it is no abstract.
+      tba_abstract_patterns: ["^Info coming soon\\b"]
     research:
       verified: 2026-11-11
       sample_events: 4
@@ -231,7 +237,9 @@ sources:
       crawl_delay: 0
       proposed_adapter: custom:slac_drupal
       template: SLAC Drupal 10 theme (c-card)
-      requests_per_run: 6  # the list and one detail page per card (5 on 2026-11-11)
+      # the list and one detail page per card in the window, except for skipped
+      # placeholders (5 on 2026-11-11)
+      requests_per_run: 5
       notes:
         - 5 cards on the list, one of them the "No SLAC Colloquium 11/23" placeholder.
         - /jsonapi is 404 (JSON error document); no RSS link in the page head.
@@ -257,11 +265,13 @@ sources:
     default_fields: [physics]
     series: SLAC Theory Seminar
     params:
+      # The list alone gives title, link and date (as text); no detail page is fetched.
       list:
         card: div.c-view__row div.c-card
         title: h3.c-card__title a
         link: h3.c-card__title a
         date_text: .c-card__date
+        empty: div.c-view__empty  # "No items to display." (the recorded page)
     research:
       verified: 2026-11-11
       sample_events: 0
