@@ -261,6 +261,32 @@ class TestTwoTalksOfOneDay:
         assert by_uid[first[1].uid].title == "Lecture II: Free probability"
         assert by_uid[first[0].uid].title == "Lecture I: Random matrices"
 
+    def test_the_earlier_talk_keeps_its_uid_when_the_later_one_leaves_the_page(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        early = slot(MORNING + timedelta(hours=2), "Lecture I: Random matrices", "Ann Smith")
+        late = slot(MORNING + timedelta(hours=6), "Lecture II: Free probability", "Ann Smith")
+        first, second = two_runs(config, fake_adapter, [early, late], [early])
+        titles = {event.uid: event.title for event in first}
+        listed = [event for event in second if event.missing_runs == 0]
+        assert [(event.uid, event.title) for event in listed] == [(first[0].uid, early.title)]
+        assert {event.uid: event.title for event in second}.items() <= titles.items()
+        fake_adapter.drafts = [early, late]  # the later talk was only away for a run
+        run(config, services(FakeEmitters()), days=2)
+        assert {event.uid: event.title for event in events(config)} == titles
+
+    def test_each_talk_keeps_its_uid_when_the_later_one_moves_to_another_day(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        early = slot(MORNING + timedelta(hours=2), "Lecture I: Random matrices", "Ann Smith")
+        late = slot(MORNING + timedelta(hours=6), "Lecture II: Free probability", "Ann Smith")
+        moved = slot(MORNING + timedelta(days=7), "Lecture II: Free probability", "Ann Smith")
+        first, second = two_runs(config, fake_adapter, [early, late], [early, moved])
+        assert {event.uid: event.title for event in second} == {
+            event.uid: event.title for event in first
+        }
+        assert [event.start for event in second] == [early.start, moved.start]
+
     def test_the_same_input_gives_the_same_uids_in_every_run(
         self, config: AppConfig, fake_adapter: FakeAdapter
     ) -> None:

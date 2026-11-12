@@ -84,6 +84,7 @@ TIME_OF_DAY_FORMAT: Final = "t%H%M"
 """How the time of day of the start is written in a day key without a speaker or title."""
 
 _TIME_OF_DAY_KEY: Final = re.compile(rf"{DAY_KEY_PREFIX}\d{{4}}-\d{{2}}-\d{{2}}:t\d{{4}}")
+_TIMED_DAY_KEY: Final = re.compile(rf"{DAY_KEY_PREFIX}\d{{4}}-\d{{2}}-\d{{2}}:[^:]+:t\d{{4}}")
 
 _READABLE: Final = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}")
 _SLUG_CHARACTERS: Final = re.compile(r"[^a-z0-9]+")
@@ -222,7 +223,13 @@ def tell_apart_day_keys(candidates: Sequence[Candidate]) -> list[Candidate]:
     time of day of its start appended (``...:ann-smith:t1000``) and the uid
     of that key. The last one keeps the key because pages drop talks once
     they are over: when the earlier talks leave the page, the key and the
-    uid of the one that is left stay what they were.
+    uid of the one that is left stay what they were. When the later talk
+    leaves instead, the earlier one gets the bare key and the uid bound to
+    it; ``seminars.pipeline.dedup.adopt_stored_uids`` gives it its own uid
+    back (``reclaim_timed_keys``). The uid of a key with the time appended
+    is derived from that key here, without the uid map; when the map binds
+    the key to another uid (that of a listing of another source that was
+    seen first), the same step hands the talk that uid.
 
     The candidates come back in their order; the result does not depend on
     it, and a second call changes nothing.
@@ -246,6 +253,59 @@ def tell_apart_day_keys(candidates: Sequence[Candidate]) -> list[Candidate]:
         uid = uid_for_key(_time_of_day_key(moved[0], event.start))
         result.append(candidate.evolve(event=event.evolve(uid=uid, source_ids=keys)))
     return result
+
+
+def _timed(key: str, start: datetime) -> str | None:
+    """``key`` as ``tell_apart_day_keys`` writes it for a talk at ``start``; None if no day key."""
+    native = split_source_key(key)[1]
+    if _TIMED_DAY_KEY.fullmatch(native) is not None:
+        return key
+    if is_day_key(key) and not is_time_of_day_key(key):
+        return _time_of_day_key(key, start)
+    return None
+
+
+def reclaim_timed_keys(
+    candidates: Sequence[Candidate], stored: Sequence[Event], *, title_similarity: int
+) -> list[Candidate]:
+    """Give a talk back the uid of the stored event that holds its day key with its time.
+
+    ``tell_apart_day_keys`` appends the time of day to the day key of a
+    talk that shares it with a later talk of the same day. When the later
+    talk leaves the page or moves, the earlier one gets the bare key,
+    which the uid map binds to the later talk's uid, while its own uid
+    stays behind on a stored event that no candidate claims (an orphan):
+    the talk would be listed twice. A candidate therefore takes the uid of
+    the orphan that holds its day key with the time of day of its own
+    start when the titles agree (similar, or one of them "TBA"), so that a
+    later talk that has moved to that time is not taken for it. A
+    candidate that holds such a key itself takes the uid of the orphan
+    that holds the same key whatever the titles, as the uid map would
+    give it. The uid it had is then free for the talk that moved. Only a
+    pair of which neither side is in another pair counts.
+
+    The candidates come back in their order; the result does not depend on it.
+    """
+    claimed = {candidate.event.uid for candidate in candidates}
+    holders: dict[str, list[Event]] = defaultdict(list)
+    for orphan in (event for event in stored if event.uid not in claimed):
+        for key in orphan.source_ids:
+            holders[key].append(orphan)
+    pairs: set[tuple[int, str]] = set()
+    for index, candidate in enumerate(candidates):
+        event = candidate.event
+        for key in event.source_ids:
+            timed = _timed(key, event.start)
+            for orphan in holders.get(timed, []) if timed else []:
+                if timed == key or _titles_agree(orphan, event, title_similarity):
+                    pairs.add((index, orphan.uid))
+    back = _one_to_one(pairs)
+    return [
+        candidate.evolve(event=candidate.event.evolve(uid=back[index]))
+        if index in back
+        else candidate
+        for index, candidate in enumerate(candidates)
+    ]
 
 
 def is_native_key(key: str) -> bool:
@@ -357,11 +417,16 @@ def _similar_titles(first: Event, second: Event, title_similarity: int) -> bool:
     return fuzz.token_set_ratio(fold(first.title), fold(second.title)) >= title_similarity
 
 
+def _titles_agree(first: Event, second: Event, title_similarity: int) -> bool:
+    """Whether the titles are similar or one of them is still "TBA"."""
+    return first.is_tba or second.is_tba or _similar_titles(first, second, title_similarity)
+
+
 def _moved(orphan: Event, event: Event, now: datetime, title_similarity: int) -> bool:
     """Whether ``event`` is ``orphan`` moved to another day (step 2 of ``follow_changed_keys``)."""
     if not _may_have_moved(orphan, event, now):
         return False
-    agree = orphan.is_tba or event.is_tba or _similar_titles(orphan, event, title_similarity)
+    agree = _titles_agree(orphan, event, title_similarity)
     return agree and same_people(_names(orphan), _names(event))
 
 

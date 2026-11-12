@@ -209,6 +209,53 @@ class TestMovedWithoutSpeakers:
         assert adopt(twice, [orphan]) == ["new", "next"]
 
 
+class TestTwoTalksOfOneDayKey:
+    """Two talks of one day key: the earlier one holds the key with its time of day."""
+
+    KEY = day_key(START, "ann-smith")
+    FIRST = "Lecture I: Random matrices"
+    SECOND = "Lecture II: Free probability"
+    EARLY = START - timedelta(hours=4)
+
+    def lectures(self) -> list[Event]:
+        return [
+            stored("one", title=self.FIRST, start=self.EARLY, source_ids=[f"{self.KEY}:t1200"]),
+            stored("two", title=self.SECOND, source_ids=[self.KEY]),
+        ]
+
+    @pytest.mark.parametrize("title", [FIRST, "TBA"])
+    def test_the_earlier_talk_alone_gets_its_own_uid_back(self, title: str) -> None:
+        alone = fresh("two", title=title, start=self.EARLY, source_ids=[self.KEY])
+        assert adopt([alone], self.lectures()) == ["one"]
+
+    def test_the_choice_does_not_depend_on_the_order(self) -> None:
+        alone = fresh("two", title=self.FIRST, start=self.EARLY, source_ids=[self.KEY])
+        other = fresh("other", title="Knots", speakers=people("Bob Jones"))
+        assert adopt([alone, other], self.lectures()) == ["one", "other"]
+        assert adopt([other, alone], self.lectures()) == ["other", "one"]
+
+    def test_a_talk_under_the_key_with_its_time_gets_the_uid_that_key_is_stored_with(
+        self,
+    ) -> None:
+        timed = [f"{self.KEY}:t1200"]
+        hosted = stored("hosted", title="Spectra of graphs", start=self.EARLY, source_ids=timed)
+        derived = fresh("sites-x._derived", title=self.FIRST, start=self.EARLY, source_ids=timed)
+        assert adopt([derived], [hosted]) == ["hosted"]
+
+    def test_the_later_talk_alone_keeps_its_uid(self) -> None:
+        alone = fresh("two", title=self.SECOND, source_ids=[self.KEY])
+        assert adopt([alone], self.lectures()) == ["two"]
+
+    def test_the_later_talk_at_the_time_of_the_earlier_one_keeps_its_uid(self) -> None:
+        moved = fresh("two", title=self.SECOND, start=self.EARLY, source_ids=[self.KEY])
+        assert adopt([moved], self.lectures()) == ["two"]
+
+    def test_a_uid_another_listing_holds_is_not_taken(self) -> None:
+        alone = fresh("two", title=self.FIRST, start=self.EARLY, source_ids=[self.KEY])
+        holder = fresh("one", title=self.FIRST, source_ids=["sites-y:1"])
+        assert adopt([alone, holder], self.lectures()) == ["two", "one"]
+
+
 class TestSlots:
     def test_a_generic_title_gives_way_to_the_title_of_the_talk(self) -> None:
         lunch = stored("theory-lunch", title="Theory Lunch", speakers=[])

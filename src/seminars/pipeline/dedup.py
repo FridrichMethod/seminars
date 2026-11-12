@@ -130,6 +130,7 @@ from seminars.pipeline.ids import (
     canonical_url,
     follow_changed_keys,
     is_native_key,
+    reclaim_timed_keys,
     same_people,
     tell_apart_day_keys,
     uid_for_key,
@@ -691,7 +692,9 @@ def adopt_stored_uids(
     the old entry expires (and for good after importing an older and then
     a newer file).
 
-    A candidate whose uid is not stored therefore takes the uid of a stored
+    First, a talk that shared its day key with a later talk of its day
+    gets its uid back (``seminars.pipeline.ids.reclaim_timed_keys``).
+    Then a candidate whose uid is not stored takes the uid of a stored
     event that no candidate of this run claims (an orphan), in five steps:
 
     1. an orphan that is the same talk by the rules of de-duplication
@@ -739,6 +742,7 @@ def adopt_stored_uids(
     orphan seen first is taken; each orphan is taken once. The candidates
     come back in their order; the choice does not depend on it.
     """
+    candidates = reclaim_timed_keys(candidates, stored, title_similarity=settings.title_similarity)
     claimed = {candidate.event.uid for candidate in candidates}
     known = {event.uid for event in stored}
     orphans = sorted(
