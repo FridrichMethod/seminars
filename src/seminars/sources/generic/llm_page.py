@@ -46,6 +46,17 @@ model behaving:
   (``seminars.config.TAG_ONLY_PROVIDERS``): when the client is the provider
   chain, the extractor works on ``client.restricted(...)``.
 
+Secrets never reach the cache. A page can show a token-shaped string, and
+grounding keeps exactly what a page shows. So every text value, and the
+part of the page it stands for, also goes through the secret scanner of the
+project (``seminars.llm.secret_filter``) before the answer is cached; a
+value with a finding is dropped like an ungrounded one, and the rest of the
+talk is kept. An answer that still shows a secret as a whole is not cached
+at all. A hit is filtered by the same rules: an entry that loses a value is
+stored again without it (and one that cannot be cleaned is replaced by an
+empty object, which reads as a miss), so the cache never brings a secret
+back, also one written before the scanner knew its shape.
+
 Dates follow ``EventDraft``: an item without a time is an all-day event
 whose ``end`` is its last day; a time is wall time of the source. A year
 the page does not state is the one that puts the date closest to the day
@@ -80,6 +91,7 @@ from seminars.contracts import (
 from seminars.httpbase import HttpClient
 from seminars.llm.base import record_skipped_too_long
 from seminars.llm.grounding import Grounding, normalize_for_grounding
+from seminars.llm.secret_filter import SecretFilter, project_secret_filter
 from seminars.models import (
     LLM_PAGE_ADAPTER,
     EventDraft,
@@ -552,15 +564,21 @@ def _draft(
         return None
 
 
-def _grounded_item(item: ExtractedEvent, grounding: Grounding) -> ExtractedEvent:
-    """``item`` with every text value that the page does not have set to null.
+def _grounded_item(
+    item: ExtractedEvent, grounding: Grounding, secrets: SecretFilter
+) -> ExtractedEvent:
+    """``item`` with every text value set to null that the page lacks or that shows a secret.
 
-    A speaker whose name the page does not have is left out. The values
-    that stay are kept as the model wrote them.
+    A value stays when the page has it and neither the value nor that part
+    of the page shows a secret; it is kept as the model wrote it. A speaker
+    whose name goes is left out.
     """
 
     def kept(value: str | None) -> str | None:
-        return value if grounding.text(value) is not None else None
+        found = grounding.text(value)
+        if value is None or found is None or secrets.shows(value) or secrets.shows(found):
+            return None
+        return value
 
     speakers = [
         speaker.evolve(affiliation=kept(speaker.affiliation))
@@ -576,16 +594,21 @@ def _grounded_item(item: ExtractedEvent, grounding: Grounding) -> ExtractedEvent
     )
 
 
-def grounded_answer(answer: ExtractionAnswer, grounding: Grounding) -> ExtractionAnswer:
+def grounded_answer(
+    answer: ExtractionAnswer, grounding: Grounding, secrets: SecretFilter
+) -> ExtractionAnswer:
     """``answer`` as it is cached: the items that are read, with only the text the page has.
 
     Whatever a hostile page made the model write beyond the page text is
-    dropped before it is stored, so it never reaches the committed cache.
-    Nothing is lost by that: grounding depends on the piece of text alone,
-    which is the cache key, so it would drop the same values on every read.
+    dropped before it is stored, so it never reaches the committed cache,
+    and so is every value that shows a secret (``secrets``), on the page or
+    not. Nothing is lost by that: both depend on the piece of text alone,
+    which is the cache key, so they would drop the same values on every
+    read. The result is its own fixpoint, which is how a clean hit is told
+    from one that needs cleaning.
     """
     events = answer.events[:MAX_EVENTS_PER_CHUNK]
-    return answer.evolve(events=[_grounded_item(item, grounding) for item in events])
+    return answer.evolve(events=[_grounded_item(item, grounding, secrets) for item in events])
 
 
 def _speaker_names(draft: EventDraft) -> frozenset[str]:
@@ -651,6 +674,7 @@ class LLMPageExtractor:
             client = client.restricted(TAG_ONLY_PROVIDERS)
         self._client = client
         self._cache = cache
+        self._secrets = project_secret_filter()
         self._max_input_chars = config.max_input_chars
         self._min_similarity = config.grounding_min_similarity
 
@@ -663,21 +687,38 @@ class LLMPageExtractor:
         except ValidationError:
             return None
 
+    def _cacheable(self, entry: CachedExtraction) -> dict[str, Any] | None:
+        """``entry`` as plain JSON for the cache; ``None`` when it shows a secret as a whole."""
+        value = entry.model_dump(mode="json")
+        if self._secrets.holds(value):
+            logger.info("an extraction answer shows a secret as a whole and is not cached")
+            return None
+        return value
+
     def _answer(self, chunk: str, url: str, today: date, grounding: Grounding) -> CachedExtraction:
         """The answer for one piece of text, from the cache or the model (``LLMError``).
 
-        A new answer is stored grounded (``grounded_answer``).
+        A new answer is stored grounded and without secrets
+        (``grounded_answer``); a hit is cleaned the same way and stored again
+        when that changes it (see the module docstring).
         """
         key = llm_cache_key(PROMPT_VERSION, TASK, chunk)
         cached = self._cached(key)
         if cached is not None:
-            return cached
+            clean = cached.evolve(answer=grounded_answer(cached.answer, grounding, self._secrets))
+            value = self._cacheable(clean)
+            if (value is None or clean != cached) and self._cache is not None:
+                self._cache.put(key, value or {})
+            return clean
         answer = self._client.complete_json(
             SYSTEM_PROMPT, build_user_prompt(chunk, url), ExtractionAnswer, max_tokens=MAX_TOKENS
         )
-        fresh = CachedExtraction(reference=today, answer=grounded_answer(answer, grounding))
-        if self._cache is not None:
-            self._cache.put(key, fresh.model_dump(mode="json"))
+        fresh = CachedExtraction(
+            reference=today, answer=grounded_answer(answer, grounding, self._secrets)
+        )
+        value = self._cacheable(fresh)
+        if value is not None and self._cache is not None:
+            self._cache.put(key, value)
         return fresh
 
     def _pieces(self, payload: RawPayload) -> tuple[list[_Piece], int]:
