@@ -1009,8 +1009,7 @@ out_of_scope_categories:
 # the reception of a text), "yoga class" but not "yoga" (a clinical trial of
 # yoga), "town hall with" but not "town hall" (a collaboration's town hall on
 # its experiments), "certificate program" but not "certificate" (proof
-# certificates), "coffee hour" but not "coffee" (coffee rust), "work in progress
-# session" but not "work in progress" (a talk that calls its results one).
+# certificates), "coffee hour" but not "coffee" (coffee rust).
 exclusions:
   course:
     - problem session
@@ -1188,9 +1187,9 @@ exclusions:
     - all hands meeting
     - business meeting
     - planning meeting
-    # internal meetings where residents and students present unfinished projects
-    - work in progress session
-    - works in progress session
+    # No "work in progress session": the monthly sessions of the Department of
+    # Surgery (S-SPIRE) are research talks of faculty and trainees, with a talk
+    # title and a speaker, and the department places them in med.
     # morbidity and mortality ("M&M") conferences: a department's internal review
     # of its own cases, unlike grand rounds; "M&M" alone would match two initials
     - surgery M&M

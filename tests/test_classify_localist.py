@@ -153,8 +153,6 @@ def test_every_continuing_education_course_is_out_of_scope(
 @pytest.mark.parametrize(
     ("native_id", "reason", "detail"),
     [
-        ("54286951070575", "administrative", 'title matches "work in progress session"'),
-        ("54472930002186", "administrative", 'title matches "work in progress session"'),
         ("54064922323927", "academic_calendar", 'title matches "abstract deadline"'),
         ("54064532593527", "academic_calendar", 'title matches "abstract deadline"'),
         ("54420408876947", "admissions", 'title matches "info session"'),
@@ -175,8 +173,26 @@ def test_the_recorded_non_talks_come_from_mapped_departments(
     recorded: dict[str, Outcome],
 ) -> None:
     """Without the phrases, the department alone would have put them into a field."""
-    for native_id in ("54286951070575", "54472930002186", "54064922323927", "54064532593527"):
+    for native_id in ("54064922323927", "54064532593527"):
         assert recorded[native_id].candidate.hints.field_hints == ["med"]
+
+
+@pytest.mark.parametrize("native_id", ["54286951070575", "54472930002186"])
+def test_the_surgery_work_in_progress_sessions_are_talks_of_med(
+    recorded: dict[str, Outcome], native_id: str
+) -> None:
+    """S-SPIRE's monthly sessions: faculty and trainees present their research.
+
+    The records are typed Lecture/Presentation/Talk and name a talk title in
+    the description; the Department of Surgery maps them to med.
+    """
+    outcome = recorded[native_id]
+    assert outcome.candidate.event.title == "Work In Progress Session"
+    assert "Department of Surgery" in outcome.candidate.hints.categories
+    assert outcome.reason is None
+    assert outcome.fields == ("med",)
+    assert outcome.decision is not None
+    assert outcome.decision.method == "source"
 
 
 @pytest.mark.parametrize(
@@ -359,9 +375,6 @@ def test_cancelled_talks_of_mapped_departments_stay_in(title: str) -> None:
 @pytest.mark.parametrize(
     ("title", "department", "reason"),
     [
-        ("Work In Progress Session", "Department of Surgery", "administrative"),
-        ("Works-in-Progress Session: Resident Research", "Department of Surgery", "administrative"),
-        ("Neurosurgery Work-in-Progress Sessions", "Department of Neurosurgery", "administrative"),
         ("Surgery M&M", "Department of Surgery", "administrative"),
         ("Surgery M & M", "Department of Surgery", "administrative"),
         (
@@ -433,6 +446,9 @@ def test_an_all_day_abstract_deadline_is_excluded() -> None:
         ("Coffee rust and the ecology of plant pathogens", "Department of Biology", "bio"),
         ("The hour-glass model of animal development", "Developmental Biology", "bio"),
         ("Quantum error correction: work in progress", "Department of Physics", "physics"),
+        ("Work In Progress Session", "Department of Surgery", "med"),
+        ("Works-in-Progress Session: Resident Research", "Department of Surgery", "med"),
+        ("Neurosurgery Work-in-Progress Sessions", "Department of Neurosurgery", "med"),
         (
             "Progress in work function engineering of electrodes",
             "Materials Science and Engineering",
