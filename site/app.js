@@ -86,11 +86,16 @@ function prepareModel(payload, now) {
   });
 }
 
-/** Show the current filters: the address, the controls and the list. */
+/**
+ * Show the current filters: the address, the controls and the list. Until the talks
+ * are there, the list is a notice (loading or failed) that the filters do not change.
+ */
 function applyFilters() {
   replaceQuery(queryFromFilters(view.filters, window.location.search));
   syncControls();
-  renderList();
+  if (view.model !== null) {
+    renderList();
+  }
 }
 
 const pendingSearch = debounced(applyFilters, SEARCH_DELAY_MS);
@@ -386,8 +391,9 @@ async function main() {
     (payload) => ({ payload, error: null }),
     (error) => ({ payload: null, error }),
   );
-  const refresh = await startPage(render);
+  // Connected before the messages arrive, so nothing typed or ticked meanwhile is lost.
   connectControls();
+  const refresh = await startPage(render);
   try {
     const { payload, error } = await loading;
     if (error !== null) {

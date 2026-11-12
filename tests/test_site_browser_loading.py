@@ -1,11 +1,12 @@
-"""Browser tests of the talk list while events.json is still on its way.
+"""Browser tests of the talk list while events.json or the messages are on their way.
 
 A bookmarked or shared link holds filters in its address. Until the talks arrive the
 address is the state of the page: the controls show its filters, and a change made in
 the meantime (typing, a select, the picks box) is added to them instead of replacing
-them. Once the talks are there the filters are checked against what exists.
+them, also before the messages are in. Once the talks are there the filters are
+checked against what exists.
 
-events.json is held back by a route of the test and released when the test says so; the
+The file is held back by a route of the test and released when the test says so; the
 page clock is paused as in test_site_browser_search.py. The server, the browser and the
 sessions are those of test_site_browser.py; its fixtures are bound to names of this
 module, so pytest finds them here as well. Marked ``browser`` like that module:
@@ -57,19 +58,26 @@ class Loading:
         return self.page.eval_on_selector_all(f"{container} button[aria-pressed=true]", PRESSED)
 
 
-def loading(session: Callable[..., Session], path: str) -> Loading:
-    """Open ``path`` and wait for the messages, with events.json held back."""
+def loading(
+    session: Callable[..., Session], path: str, *, held_back: str = "events.json"
+) -> Loading:
+    """Open ``path`` with the file ``held_back`` held back until ``arrive``.
+
+    While events.json is held, the page is returned once its messages are in; while a
+    message file is held, as soon as the page has asked for it.
+    """
     current = paused(session, open_page=False)
     held: list[Any] = []
 
     def hold(request_route: Any) -> None:
         held.append(request_route)
 
-    current.page.route("**/events.json", hold)
-    current.page.goto(current.base_url + path)
-    current.page.wait_for_function(TRANSLATED)
+    current.page.route(f"**/{held_back}", hold)
+    with current.page.expect_request(f"**/{held_back}"):
+        current.page.goto(current.base_url + path)
+    if held_back == "events.json":
+        current.page.wait_for_function(TRANSLATED)
     assert current.shown() == []
-    assert len(held) == 1
     return Loading(current=current, held=held)
 
 
@@ -166,4 +174,20 @@ class TestWhileTheTalksLoad:
         assert state.current.shown() == ["sample-xss", "sample-online", "sample-defense"]
         page.locator("#clear").click()
         assert state.current.shown() == UPCOMING
+        state.current.assert_clean()
+
+    def test_what_is_typed_before_the_messages_arrive_is_kept(
+        self, session: Callable[..., Session]
+    ) -> None:
+        state = loading(session, "index.html?field=ai-ml", held_back="locales/en.json")
+        page = state.page
+        page.locator("#search").press_sequentially("protein")
+        page.locator("#picks").check()
+        assert page.locator("#search").get_attribute("placeholder") is None
+        state.arrive()
+        assert page.locator("#search").input_value() == "protein"
+        assert page.locator("#picks").is_checked()
+        assert state.pressed("#field-chips") == ["ai-ml"]
+        assert state.current.shown() == ["sample-pick"]
+        assert state.current.query() == {"field": ["ai-ml"], "q": ["protein"], "picks": ["1"]}
         state.current.assert_clean()
