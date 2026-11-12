@@ -15,9 +15,14 @@ normalization accepted none of its drafts, and ``ok`` otherwise. That is
 counted before the time window is applied: a seminar page that works but
 has no talk in the window (a series between terms) is healthy, not empty.
 Drafts that normalization rejected do not count, so a source whose every
-draft is broken is empty. The run report keeps the status of the run
-itself (``ok`` only with an event in the window), which is what the stored
-events of the source are judged by.
+draft is broken is empty. A source whose entry says ``allow_empty: true``
+(a list that is often empty between events, ``allows_empty``) is healthy
+when it parsed no draft at all without failing: its adapter found the page
+it knows and nothing on it. Its adapter is the one to tell a page that has
+changed apart from a page without items, by failing (``ParseError``). The
+run report keeps the status of the run itself (``ok`` only with an event
+in the window), which is what the stored events of the source are judged
+by.
 
 When a source counts as broken (``settings.health``):
 
@@ -50,7 +55,7 @@ daily run.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import datetime
 from typing import Final, Literal
 
@@ -106,19 +111,35 @@ def llm_issue_title(provider: str) -> str:
 # --- history -------------------------------------------------------------------------------
 
 
-def health_status(result: SourceRunResult) -> SourceStatus:
+def allows_empty(source: SourceConfig) -> bool:
+    """Whether a run of ``source`` that parsed nothing found a page that works.
+
+    That is what ``params.allow_empty: true`` says (see the module docstring).
+    """
+    return source.params.get("allow_empty") is True
+
+
+def health_status(result: SourceRunResult, *, allow_empty: bool = False) -> SourceStatus:
     """What one run of a source counts as for health (see the module docstring)."""
     if result.status == "empty" and result.drafts > result.invalid:
+        return "ok"
+    if result.status == "empty" and allow_empty and result.drafts == 0:
         return "ok"
     return result.status
 
 
-def record_run(health: HealthFile, report: RunReport) -> HealthFile:
-    """``health`` with the sources and LLM providers of ``report`` appended to the history."""
+def record_run(
+    health: HealthFile, report: RunReport, *, allow_empty: Collection[str] = ()
+) -> HealthFile:
+    """``health`` with the sources and LLM providers of ``report`` appended to the history.
+
+    ``allow_empty`` holds the ids of the sources for which ``allows_empty``
+    is true.
+    """
     for result in report.sources:
         entry = SourceHealthEntry(
             at=report.started_at,
-            status=health_status(result),
+            status=health_status(result, allow_empty=result.source_id in allow_empty),
             events=result.events,
             error=result.error,
         )
@@ -345,7 +366,8 @@ def update_health(
     touched. A failure of the issue client is logged and does not change
     the result.
     """
-    updated = record_run(health, report)
+    quiet = {source.id for source in config.sources if allows_empty(source)}
+    updated = record_run(health, report, allow_empty=quiet)
     if issues is None or report.dry_run:
         return updated
     try:
