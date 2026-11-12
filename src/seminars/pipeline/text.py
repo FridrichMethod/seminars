@@ -59,6 +59,7 @@ _TBA: Final = re.compile(
     rf"(?:(?:talk|seminar|lecture|colloquium) )?(?:title (?:is |and abstract )?)?(?:{_TBA_WORDS})"
     r"|title"
 )
+_ABSTRACT_HEADING: Final = re.compile(r"^(?:abstract|summary|description)(?: and title)?\b\s*")
 _HONORIFIC: Final = re.compile(
     r"^(?:(?:dr|prof|professor|mr|mrs|ms|mx|sir|dame)\b\.?\s*)+", re.IGNORECASE
 )
@@ -190,6 +191,19 @@ def is_tba(title: str | None) -> bool:
         return True
     words = re.sub(r"[^a-z0-9]+", " ", title.casefold().replace(".", "")).strip()
     return not words or _TBA.fullmatch(words) is not None
+
+
+def is_empty_abstract(text: str | None) -> bool:
+    """Whether an abstract is only a heading or says that there is none yet.
+
+    "Abstract", "Abstract: TBA", "Summary" and "TBD" say nothing about the
+    talk; "Abstract: we study knots" and "More information forthcoming" do.
+    """
+    if text is None:
+        return True
+    words = re.sub(r"[^a-z0-9]+", " ", text.casefold().replace(".", "")).strip()
+    rest = _ABSTRACT_HEADING.sub("", words, count=1)
+    return not rest or _TBA.fullmatch(rest) is not None
 
 
 def split_status(title: str) -> tuple[str, EventStatus | None]:

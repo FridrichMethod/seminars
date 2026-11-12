@@ -32,14 +32,17 @@ PAST_AFTERNOON = {
 """Talks of the afternoon of 11 November (Pacific time), before the run time."""
 
 
-@pytest.fixture(scope="module")
-def offline_run(tmp_path_factory: pytest.TempPathFactory) -> tuple[str, Path]:
-    """The output of one offline run and the project it wrote into."""
-    root = tmp_path_factory.mktemp("offline") / "project"
+def make_project(root: Path) -> Path:
+    """A project at ``root`` with the configuration and the fixtures of the repository."""
     (root / "tests").mkdir(parents=True)
     shutil.copytree(REPO_ROOT / "config", root / "config")
     shutil.copytree(REPO_ROOT / "locales", root / "locales")
     (root / "tests" / "fixtures").symlink_to(REPO_ROOT / "tests" / "fixtures")
+    return root
+
+
+def run_offline(root: Path) -> str:
+    """``seminars run --offline --no-llm`` in the project ``root``; its output."""
     with pytest.MonkeyPatch.context() as patch:
         for name in (*filter(None, PROVIDER_CREDENTIAL_ENV.values()), "GITHUB_TOKEN"):
             patch.delenv(name, raising=False)
@@ -49,7 +52,24 @@ def offline_run(tmp_path_factory: pytest.TempPathFactory) -> tuple[str, Path]:
         patch.chdir(root)
         result = CliRunner().invoke(cli.app, ["run", "--offline", "--no-llm"])
     assert result.exit_code == 0, result.output
-    return result.output, root
+    return result.output
+
+
+@pytest.fixture(scope="module")
+def offline_run(tmp_path_factory: pytest.TempPathFactory) -> tuple[str, Path]:
+    """The output of one offline run and the project it wrote into."""
+    root = make_project(tmp_path_factory.mktemp("offline") / "project")
+    return run_offline(root), root
+
+
+def test_a_second_run_over_the_same_recordings_changes_nothing(tmp_path: Path) -> None:
+    # Merged talks keep the values of the same listing once they share their uid.
+    root = make_project(tmp_path / "project")
+    run_offline(root)
+    events = (root / "data" / "events.json").read_bytes()
+    output = run_offline(root)
+    assert ", 0 new, 0 changed, 0 missing," in output
+    assert (root / "data" / "events.json").read_bytes() == events
 
 
 def stored(root: Path) -> list[Event]:
@@ -100,6 +120,28 @@ def test_every_field_has_talks_in_the_four_weeks_after_the_run(
         assert any(field in event.fields for event in coming), field
 
 
+@pytest.mark.parametrize(
+    ("speaker", "title"),
+    [
+        ("Stefan Feske", "Ion channels and transporters regulating lymphocyte function"),
+        ("Cecilia Leal", "Non-Lamellar Lipid Membranes as Regulators of Biological Function"),
+    ],
+)
+def test_a_talk_the_campus_calendar_wraps_keeps_the_title_of_the_department(
+    offline_run: tuple[str, Path], speaker: str, title: str
+) -> None:
+    # The calendar lists 'Biology Seminar Series - <speaker> "<title> "'; Biology lists <title>.
+    _, root = offline_run
+    (event,) = [
+        event
+        for event in stored(root)
+        if [person.name for person in event.speakers] == [speaker]
+        and event.start.year == RUN_TIME.year
+    ]
+    assert event.title == title
+    assert {key.split(":")[0] for key in event.source_ids} == {"localist-stanford", "sites-biology"}
+
+
 def test_a_talk_two_hosts_announce_keeps_the_title_of_the_talk(
     offline_run: tuple[str, Path],
 ) -> None:
@@ -115,4 +157,42 @@ def test_a_talk_two_hosts_announce_keeps_the_title_of_the_talk(
     assert {key.split(":")[0] for key in event.source_ids} == {
         "custom-csb-events",
         "sites-chemh",
+    }
+
+
+def test_the_sessions_of_a_schedule_name_one_speaker_per_label(
+    offline_run: tuple[str, Path],
+) -> None:
+    # ICME's schedule: "Speaker 1 (1:30 PM - 2:05 PM) - Alison Marsden, Professor, ...".
+    _, root = offline_run
+    (event,) = [event for event in stored(root) if event.title == "Seminar Session 8"]
+    assert [(person.name, person.affiliation) for person in event.speakers] == [
+        ("Alison Marsden", "Professor, Pediatrics - Cardiology"),
+        ("Emily Fox", "Professor, Statistics and Computer Science"),
+    ]
+    # Session 7's paragraphs run together: "..., GeophysicsSpeaker 2 (2:10 PM ...".
+    (event,) = [event for event in stored(root) if event.title == "Seminar Session 7"]
+    assert [(person.name, person.affiliation) for person in event.speakers] == [
+        ("Ching-Yao Lai", "Assistant Professor, Geophysics"),
+        ("Simona Onori", "Associate Professor, Energy Science and Engineering"),
+    ]
+
+
+def test_a_calendar_title_that_names_the_speaker_joins_the_host_listing(
+    offline_run: tuple[str, Path],
+) -> None:
+    # "MRC Public Lecture: Tadashi Tokieda" on the calendar and Mathematics, without a
+    # speaker; the Mathematics Research Center lists the talk with its speaker.
+    _, root = offline_run
+    (event,) = [
+        event
+        for event in stored(root)
+        if any(key.startswith("sites-mrc:") for key in event.source_ids)
+        and "Tokieda" in event.title
+    ]
+    assert event.title == "Tadashi Tokieda: Surprises from rubbing the wrong way"
+    assert {key.split(":")[0] for key in event.source_ids} == {
+        "localist-stanford",
+        "sites-mathematics",
+        "sites-mrc",
     }

@@ -11,6 +11,16 @@ Sources write speakers in many ways::
 A comma can separate two people or a person from an affiliation, and rules
 cannot always tell which. The choice made here is conservative:
 
+0. A line that starts with a numbered label ("Speaker 1 (1:30 PM - 2:05
+   PM) - ", "Speaker 2:") names the people of each label in the text up
+   to the next label: the name, then after the first comma the
+   affiliation. So the schedule of a session, whose paragraphs often run
+   together ("...Cardiology Speaker 2 (2:10 PM) - Emily Fox, Professor,
+   Statistics and Computer Science"), gives one speaker per label and
+   never a "Computer Science". Only before the first comma do ``;``,
+   ``|``, a line break, "and" and ``&`` separate people, and only when
+   every part reads like a person: "Speaker 1: Jane Doe and John Roe,
+   MIT" names two, and the affiliation goes to the last, as in 3.
 1. A leading label ("Speaker:", "Presented by:") is dropped, and so is a
    part that is nothing but a label ("Contact:").
 2. When every part between separators (``;``, ``|``, a line break, "and",
@@ -43,6 +53,19 @@ _LABEL: Final = re.compile(
     r"\s*[:\-]\s*",
     re.IGNORECASE,
 )
+_NUMBERED_LABEL: Final = re.compile(
+    r"(?:\b|(?-i:(?<=[a-z0-9])(?=[A-Z][a-z])))"
+    r"(?:speaker|presenter|panelist|lecturer)\s{0,3}#?\d{1,2}\s{0,3}(?:\([^()\n]{0,60}\))?"
+    r"\s{0,3}[:\-\u2013\u2014]\s*",
+    re.IGNORECASE,
+)
+"""A numbered label in front of the speakers of one slot.
+
+It may follow a bracket or a stop without a space ("(OTL)Speaker 2"), and
+a word when it starts with a capital ("GeophysicsSpeaker 2", where two
+paragraphs ran together), but it is never the lower-case end of a word
+("loudspeaker 2").
+"""
 _HARD_SEPARATOR: Final = re.compile(r"[;|\n]|\s+(?:and|&)\s+|,\s+(?:and|&)\s+", re.IGNORECASE)
 _ANY_SEPARATOR: Final = re.compile(r"[;|\n,]|\s+(?:and|&)\s+", re.IGNORECASE)
 _COMMA: Final = re.compile(",")
@@ -53,14 +76,15 @@ _PARTICLES: Final = word_set(
 )
 _ORGANISATION_WORDS: Final = word_set(
     "academy amazon anthropic apple berkeley biohub biology broad caltech cambridge center "
-    "centre chemistry clinic cnrs college columbia company cornell corp corporation csail "
-    "deepmind department dept division ecole engineering epfl eth faculty flatiron foundation "
-    "genentech google group harvard hhmi hopkins hospital ibm inc inria institut institute "
-    "institution intel janelia kaist lab laboratories laboratory labs llc ltd mathematics "
-    "medicine mellon merck meta microsoft mit national nih novartis nvidia openai oxford pfizer "
-    "physics polytechnic polytechnique princeton program research riken salk school sciences "
-    "scripps simons slac society stanford state statistics team tech technion uc ucb ucla ucsd "
-    "ucsf universidad universitat universite university weizmann yale"
+    "centre chemistry clinic cnrs college columbia company computer cornell corp corporation "
+    "csail data deepmind department dept division ecole engineering epfl eth faculty flatiron "
+    "foundation genentech google group harvard hhmi hopkins hospital ibm inc inria institut "
+    "institute institution intel janelia kaist lab laboratories laboratory labs llc ltd "
+    "mathematics medicine mellon merck meta microsoft mit national nih novartis nvidia openai "
+    "oxford pfizer physics polytechnic polytechnique princeton program research riken salk "
+    "school science sciences scripps simons slac society stanford state statistics team tech "
+    "technion uc ucb ucla ucsd ucsf universidad universitat universite university weizmann "
+    "yale"
 )
 
 
@@ -150,8 +174,35 @@ def _is_person(text: str) -> bool:
     return looks_like_name(match.group("name") if match else text)
 
 
+def _numbered(text: str) -> list[str] | None:
+    """The parts after each numbered label, when ``text`` starts with one; else ``None``."""
+    labels = list(_NUMBERED_LABEL.finditer(text))
+    if not labels or text[: labels[0].start()].strip():
+        return None
+    ends = [label.start() for label in labels[1:]] + [len(text)]
+    pairs = zip(labels, ends, strict=True)
+    parts = (text[label.end() : end].strip(" \n,;") for label, end in pairs)
+    return [part for part in parts if part]
+
+
+def _numbered_people(part: str) -> list[ParsedSpeaker]:
+    """The people after one numbered label (see rule 0 of the module docstring)."""
+    comma = _mask_brackets(part).find(",")
+    head, rest = (part, "") if comma < 0 else (part[:comma], part[comma:])
+    names = _split(head, _HARD_SEPARATOR)
+    if len(names) < 2 or not all(_is_person(name) for name in names):
+        names = [part]
+    else:
+        names = [*names[:-1], names[-1] + rest]
+    people = (_person_with_commas(name) for name in names)
+    return [person for person in people if person is not None]
+
+
 def split_speakers(text: str) -> list[ParsedSpeaker]:
     """The people named in a raw speaker line, in order; empty when there is no name."""
+    numbered = _numbered(text.strip())
+    if numbered is not None:
+        return [person for part in numbered for person in _numbered_people(part)]
     line = _LABEL.sub("", text.strip())
     parts = [part for part in _split(line, _ANY_SEPARATOR) if not is_degree(part)]
     if len(parts) > 1 and all(_is_person(part) for part in parts):

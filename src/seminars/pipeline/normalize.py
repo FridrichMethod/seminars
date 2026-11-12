@@ -23,6 +23,8 @@ publishes, so this is where the rules for stored data are applied:
   not when output is written;
 * the title "TBA" stands for every way of saying that there is none yet,
   and "Cancelled:" or "(postponed)" in a title sets the status instead;
+  an abstract that is only its heading or says that there is none yet
+  ("Abstract", "Abstract: TBA") is no abstract;
 * a speaker line is split into people (``seminars.pipeline.speakers``);
 * the event gets its source key and uid (``seminars.pipeline.ids``).
 
@@ -64,6 +66,7 @@ from seminars.pipeline.speakers import ParsedSpeaker, split_speakers
 from seminars.pipeline.text import (
     canonical_name,
     fold,
+    is_empty_abstract,
     is_tba,
     one_line,
     paragraphs,
@@ -99,7 +102,10 @@ _ONLINE_FILLER: Final = word_set(
 _HYBRID_WORDS: Final = word_set("zoom online livestream webinar hybrid webex")
 _NO_LOCATION: Final = frozenset(
     {"tba", "tbd", "tbc", "location tba", "location tbd", "to be announced", "to be determined"}
+    | {"united states", "united states of america", "usa", "us"}
 )
+"""Locations that name no place: not announced yet, or only the country (the address
+block of a Stanford Sites card can hold just "United States")."""
 
 
 def _same(text: str) -> str:
@@ -190,6 +196,16 @@ class _Cleaner:
         return public
 
 
+def _abstract(draft: EventDraft, cleaner: _Cleaner) -> str | None:
+    """The plain abstract of ``draft``, else its HTML one, unless it says nothing."""
+    limit = cleaner.context.settings.events.abstract_max_chars
+    for text, is_html in ((draft.abstract, False), (draft.abstract_html, True)):
+        block = cleaner.block(text, limit, is_html=is_html)
+        if block is not None and not is_empty_abstract(block):
+            return block
+    return None
+
+
 def _title_and_status(draft: EventDraft, cleaner: _Cleaner) -> tuple[str, EventStatus]:
     text = cleaner.title(draft.title, MAX_TITLE)
     title, marked = split_status(text) if text else (TBA_TITLE, None)
@@ -269,11 +285,11 @@ def _place(draft: EventDraft, cleaner: _Cleaner) -> tuple[str | None, bool, Http
     if draft.is_online is not False and _LINK.fullmatch(link):
         return None, True, stream or cleaner.url(link)
     location = cleaner.line(draft.location, MAX_LOCATION)
-    if location is None or draft.is_online is False:
-        return location, online, stream
-    words = fold(location).split()
+    words = fold(location).split() if location is not None else []
     if " ".join(words) in _NO_LOCATION:
         return None, online, stream
+    if location is None or draft.is_online is False:
+        return location, online, stream
     if _ONLINE_CORE.intersection(words) and all(
         word in _ONLINE_CORE or word in _ONLINE_FILLER for word in words
     ):
@@ -326,10 +342,7 @@ def _event(
         shared=shared,
         is_secret=context.is_secret,
     )
-    limit = context.settings.events.abstract_max_chars
-    abstract = cleaner.block(draft.abstract, limit) or cleaner.block(
-        draft.abstract_html, limit, is_html=True
-    )
+    abstract = _abstract(draft, cleaner)
     seen = context.now.astimezone(UTC)
     return Event(
         uid=resolve_uid(key, context.uid_map),

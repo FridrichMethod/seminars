@@ -14,6 +14,7 @@ from seminars.pipeline.text import (
     drop_hidden,
     fold,
     html_to_text,
+    is_empty_abstract,
     is_tba,
     one_line,
     paragraphs,
@@ -163,6 +164,27 @@ class TestTitles:
         assert not is_tba(title)
 
     @pytest.mark.parametrize(
+        "text",
+        [*["Abstract", "Abstract:", "ABSTRACT: TBA", "Abstract TBD", "Summary", "TBA", "tbd."]],
+    )
+    def test_abstracts_that_say_nothing(self, text: str) -> None:
+        assert is_empty_abstract(text)
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            *[
+                "Abstract: we study knots.",
+                "Abstracts of the posters",
+                "More information forthcoming",
+            ],
+            *["Host: Jane Doe", "Lunch provided", "A summary of recent work"],
+        ],
+    )
+    def test_abstracts_that_say_something(self, text: str) -> None:
+        assert not is_empty_abstract(text)
+
+    @pytest.mark.parametrize(
         ("title", "expected"),
         [
             ("CANCELLED: Knots", ("Knots", "cancelled")),
@@ -250,6 +272,69 @@ class TestSpeakerLines:
             ("Contact:", []),
             ("Jane Doe (MIT); Contact:", [("Jane Doe", "MIT")]),
             ("Contact:\nJohn Roe, MIT", [("John Roe", "MIT")]),
+            (
+                # A schedule of the Stanford Sites template: one numbered label per speaker,
+                # paragraphs run together.
+                "Speaker 1 (1:30 PM \u2013 2:05 PM) - Alison Marsden, Professor, Pediatrics -"
+                " Cardiology Speaker 2 (2:10 PM \u2013 2:45 PM) - Emily Fox, Professor,"
+                " Statistics and Computer Science",
+                [
+                    ("Alison Marsden", "Professor, Pediatrics - Cardiology"),
+                    ("Emily Fox", "Professor, Statistics and Computer Science"),
+                ],
+            ),
+            (
+                "Speaker 1 (1:30 PM \u2013 2:05 PM) - Evan Elder, Associate Director for"
+                " Licensing and Strategic Alliances, Office of Technology Licensing (OTL)Speaker"
+                " 2 (2:10 PM \u2013 2:45 PM) - Taeho Kim, Department of Energy Science and"
+                " Engineering",
+                [
+                    (
+                        "Evan Elder",
+                        "Associate Director for Licensing and Strategic Alliances, Office of"
+                        " Technology Licensing (OTL)",
+                    ),
+                    ("Taeho Kim", "Department of Energy Science and Engineering"),
+                ],
+            ),
+            (
+                "Speaker 1: Jane Doe (MIT)\nSpeaker 2: John Roe, PhD, Stanford",
+                [("Jane Doe", "MIT"), ("John Roe", "Stanford")],
+            ),
+            ("Speaker 1 - Jane Doe", [("Jane Doe", None)]),
+            (
+                "Speaker 1: Alice Smith and Bob Jones",
+                [("Alice Smith", None), ("Bob Jones", None)],
+            ),
+            (
+                "Speaker 1: Alice Smith & Bob Jones, MIT\nSpeaker 2: Mary Major (UCSF)",
+                [("Alice Smith", None), ("Bob Jones", "MIT"), ("Mary Major", "UCSF")],
+            ),
+            (
+                # "and" after the first comma is part of the affiliation.
+                "Speaker 1: Jane Doe, Department of Chemistry and Chemical Biology",
+                [("Jane Doe", "Department of Chemistry and Chemical Biology")],
+            ),
+            (
+                # A label word inside another word is no label.
+                "Speaker 1: Jane Doe, loudspeaker 2 - design",
+                [("Jane Doe", "loudspeaker 2 - design")],
+            ),
+            (
+                "Speaker 1: Jane Doe, LOUDSPEAKER 2 - design",
+                [("Jane Doe", "LOUDSPEAKER 2 - design")],
+            ),
+            (
+                # Two paragraphs ran together: a capital starts the label right after a word.
+                "Speaker 1 (1:30 PM \u2013 2:05 PM) - Ching-Yao Lai, Assistant Professor,"
+                " GeophysicsSpeaker 2 (2:10 PM \u2013 2:45 PM) - Simona Onori, Associate"
+                " Professor, Energy Science and Engineering",
+                [
+                    ("Ching-Yao Lai", "Assistant Professor, Geophysics"),
+                    ("Simona Onori", "Associate Professor, Energy Science and Engineering"),
+                ],
+            ),
+            ("Jane Doe, Computer Science", [("Jane Doe", "Computer Science")]),
         ],
     )
     def test_split(self, line: str, people: list[tuple[str, str | None]]) -> None:
@@ -266,6 +351,7 @@ class TestSpeakerLines:
         [
             *["Stanford University", "MIT", "Room 104", "jane@example.edu", "google deepmind"],
             *["", "Department of Chemistry", "x" * 90, "A B C D E F G"],
+            *["Computer Science", "Biomedical Data Science"],
         ],
     )
     def test_not_names(self, text: str) -> None:

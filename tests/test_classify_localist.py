@@ -362,6 +362,13 @@ def test_cancelled_talks_of_mapped_departments_stay_in(title: str) -> None:
         ("Work In Progress Session", "Department of Surgery", "administrative"),
         ("Works-in-Progress Session: Resident Research", "Department of Surgery", "administrative"),
         ("Neurosurgery Work-in-Progress Sessions", "Department of Neurosurgery", "administrative"),
+        ("Surgery M&M", "Department of Surgery", "administrative"),
+        ("Surgery M & M", "Department of Surgery", "administrative"),
+        (
+            "Pediatric Surgery Morbidity and Mortality Conference",
+            "Department of Surgery",
+            "administrative",
+        ),
         ("Stanford Physician Leadership Certificate Program", "School of Medicine", "course"),
         ("Clinical Research Certificate Programs", "Department of Medicine", "course"),
         ("Certificate Course in Global Health", "Center for Innovation in Global Health", "course"),
@@ -381,6 +388,21 @@ def test_non_talks_of_mapped_departments_are_excluded(
     assert outcome.candidate.hints.field_hints != []
     assert outcome.reason == reason
     assert outcome.decision is None
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Trends in morbidity and mortality after cardiac surgery",
+        "M. M. Rivera: Outcomes research in trauma surgery",
+        "Surgery Grand Rounds: Morbidity and Mortality Conferences in the Age of AI",
+    ],
+)
+def test_research_on_morbidity_and_initials_are_no_case_review(title: str) -> None:
+    # Only an "M&M" or "morbidity and mortality" conference of a department is internal.
+    outcome = run_one(title, "Department of Surgery")
+    assert outcome.reason is None
+    assert outcome.fields == ("med",)
 
 
 def test_an_all_day_abstract_deadline_is_excluded() -> None:

@@ -223,6 +223,62 @@ class TestRecurrence:
         counted = vevent("RRULE:FREQ=DAILY;COUNT=100000", start="DTSTART:19000101T230000Z")
         assert expand(counted) == []
 
+    def test_a_series_whose_walk_runs_out_of_steps_is_logged(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        counted = vevent(
+            "RRULE:FREQ=DAILY;COUNT=100000", uid="since-1900", start="DTSTART:19000101T230000Z"
+        )
+        current = vevent("RRULE:FREQ=WEEKLY;COUNT=2", uid="now", start="DTSTART:20261020T230000Z")
+        with caplog.at_level("WARNING", logger="seminars.sources.generic.ics"):
+            drafts = expand(counted, current)
+        assert [draft.native_id for draft in drafts] == [
+            "now/20261020T230000Z",
+            "now/20261027T230000Z",
+        ]
+        (record,) = caplog.records
+        message = record.getMessage()
+        assert "custom-example-talks" in message
+        assert "since-1900" in message
+        assert "steps" in message
+
+    def test_a_series_that_ends_by_count_before_the_window_is_not_logged(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        ended = vevent("RRULE:FREQ=DAILY;COUNT=5", uid="old", start="DTSTART:20200107T230000Z")
+        with caplog.at_level("WARNING", logger="seminars.sources.generic.ics"):
+            assert expand(ended) == []
+        assert caplog.records == []
+
+    def test_the_walk_of_a_rule_cut_short_by_its_steps_says_so(self) -> None:
+        def run(rule: str, start: datetime) -> ics_rules.Expansion:
+            return ics_rules.expand(
+                ics_rules.RecurrenceProperties(rules=(icalendar.vRecur.from_ical(rule),)),
+                start,
+                WINDOW,
+                "UTC",
+                allowance=ics_rules.Allowance(steps=10**6, rules=10),
+            )
+
+        old = run("FREQ=DAILY;COUNT=100000", datetime(1900, 1, 1, 23, tzinfo=UTC))
+        assert (old.cut_short, old.exceeded) == (True, None)
+        assert old.starts == ()
+        recent = run("FREQ=DAILY;COUNT=100000", datetime(2026, 10, 20, 23, tzinfo=UTC))
+        assert (recent.cut_short, len(recent.starts)) == (False, 28)
+
+    def test_a_feed_with_too_many_occurrences_in_the_window_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Recurring and single events of the window count; single ones outside it do not.
+        monkeypatch.setattr(ics, "MAX_FEED_OCCURRENCES", 5)
+        weekly = vevent("RRULE:FREQ=WEEKLY;COUNT=4", uid="w", start="DTSTART:20261020T230000Z")
+        past = vevent(uid="past", start="DTSTART:20200107T230000Z")
+        inside = vevent(uid="inside", start="DTSTART:20261021T230000Z")
+        assert len(expand(weekly, past, inside)) == 6
+        more = vevent(uid="more", start="DTSTART:20261022T230000Z")
+        with pytest.raises(ParseError, match=r"example-talks: .*more than 5 occurrences"):
+            expand(weekly, past, inside, more)
+
     def test_a_calendar_that_keeps_its_past_series(self) -> None:
         # Exports keep every series: 55 quarters of weekly talks, ended by COUNT or UNTIL.
         past = [
