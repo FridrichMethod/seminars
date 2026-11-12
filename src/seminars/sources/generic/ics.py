@@ -30,7 +30,10 @@ Times, as the draft conventions want them:
   (``check_rule``). An occurrence keeps the duration of the first one. A
   VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names; one whose
   occurrence is not generated (it was moved into the window, or the rule is
-  gone) stands on its own when it starts in the window.
+  gone) stands on its own when it starts in the window. An override without
+  ``DTSTART`` keeps the original start (and end, unless it has its own);
+  one whose times cannot be read is ignored, so the occurrence stays as the
+  rule gives it and the rest of the series is not affected.
 
 Fields of a draft, without parameters: ``native_id`` = ``UID`` (an
 occurrence of a recurring event: ``<UID>/<RECURRENCE-ID>``, the original
@@ -328,6 +331,10 @@ def _is_recurring(vevent: icalendar.Component) -> bool:
     return "RRULE" in vevent or "RDATE" in vevent
 
 
+_Override = tuple[icalendar.Component, Moment]
+"""A VEVENT with RECURRENCE-ID and the original start that this property names."""
+
+
 def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> list[IcsOccurrence]:
     """Every occurrence of the calendar's events; recurring ones only inside ``window``.
 
@@ -335,7 +342,7 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
     source's). VEVENTs that cannot be used are left out; see the module
     docstring for the limits of the expansion.
     """
-    overrides: dict[tuple[str, str], icalendar.Component] = {}
+    overrides: dict[tuple[str, str], _Override] = {}
     masters: list[icalendar.Component] = []
     for vevent in calendar.vevents:
         uid = _first_text(vevent, "UID")
@@ -344,7 +351,7 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
         except ValueError:
             continue
         if uid is not None and recurrence_id is not None:
-            overrides.setdefault((uid, instance_key(recurrence_id)), vevent)
+            overrides.setdefault((uid, instance_key(recurrence_id)), (vevent, recurrence_id))
         else:
             masters.append(vevent)
     found: list[IcsOccurrence] = []
@@ -358,21 +365,39 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
             found += _occurrences_of(vevent, window, timezone, overrides)
         except (ValueError, TypeError, OverflowError):
             continue
-    for (uid, key), vevent in overrides.items():
-        try:
-            single = IcsOccurrence.of(vevent)
-        except ValueError:
-            continue
-        if _starts_in(single.start, window, timezone):
-            found.append(IcsOccurrence(vevent, single.start, single.end, f"{uid}/{key}"))
+    for (uid, key), (vevent, original) in overrides.items():
+        single = _replacement(vevent, original, None, f"{uid}/{key}")
+        if single is not None and _starts_in(single.start, window, timezone):
+            found.append(single)
     return found
+
+
+def _replacement(
+    override: icalendar.Component, original: Moment, end: Moment | None, native_id: str | None
+) -> IcsOccurrence | None:
+    """The occurrence that ``override`` makes of the one that starts at ``original``.
+
+    ``end`` is the end of that original occurrence. An override without
+    DTSTART (which a published feed may send) keeps the original start, and
+    the original end unless it has a DTEND or DURATION of its own. ``None``
+    when its times cannot be read: the occurrence is then left as the
+    recurrence gives it, and the rest of the series is not affected.
+    """
+    try:
+        start = _moment(override, "DTSTART")
+        if start is not None:
+            return IcsOccurrence(override, start, _end(override, start), native_id)
+        own_end = _end(override, original)
+    except ValueError:
+        return None
+    return IcsOccurrence(override, original, end if own_end is None else own_end, native_id)
 
 
 def _occurrences_of(
     vevent: icalendar.Component,
     window: TimeWindow,
     timezone: str,
-    overrides: dict[tuple[str, str], icalendar.Component],
+    overrides: dict[tuple[str, str], _Override],
 ) -> list[IcsOccurrence]:
     """The occurrences of one VEVENT; replaced ones are taken out of ``overrides``."""
     first = IcsOccurrence.of(vevent)
@@ -383,13 +408,11 @@ def _occurrences_of(
     for start in _expand(vevent, first.start, window, timezone):
         key = instance_key(start)
         native_id = None if first.native_id is None else f"{first.native_id}/{key}"
-        replacement = overrides.pop((first.native_id, key), None) if first.native_id else None
-        if replacement is not None:
-            moved = IcsOccurrence.of(replacement)
-            found.append(IcsOccurrence(replacement, moved.start, moved.end, native_id))
-        else:
-            end = None if duration is None else start + duration
-            found.append(IcsOccurrence(vevent, start, end, native_id))
+        end = None if duration is None else start + duration
+        generated = IcsOccurrence(vevent, start, end, native_id)
+        override = overrides.pop((first.native_id, key), None) if first.native_id else None
+        moved = None if override is None else _replacement(override[0], start, end, native_id)
+        found.append(generated if moved is None else moved)
     return found
 
 

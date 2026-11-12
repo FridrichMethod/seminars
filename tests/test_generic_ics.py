@@ -518,6 +518,9 @@ WINDOW = TimeWindow(
 )
 
 
+WEEK = [datetime(2026, 10, 20, 23, 0, tzinfo=UTC) + timedelta(weeks=n) for n in range(4)]
+
+
 def expand(*events: str) -> list[EventDraft]:
     """The drafts of a calendar of ``events`` in the window ``WINDOW``."""
     return parse(calendar(*events), window=WINDOW)
@@ -603,9 +606,32 @@ class TestRecurrence:
                 uid="gone",
             ),
             vevent("RECURRENCE-ID:20260115T230000Z", "SUMMARY:no start", start=None, uid="gone"),
+            vevent("RECURRENCE-ID:20261111T230000Z", "SUMMARY:kept", start=None, uid="gone"),
         )
-        assert [(draft.native_id, draft.title) for draft in drafts] == [
-            ("gone/20260101T230000Z", "moved in")
+        assert [(draft.native_id, draft.title, draft.start) for draft in drafts] == [
+            ("gone/20260101T230000Z", "moved in", datetime(2026, 11, 4, 23, 0, tzinfo=UTC)),
+            ("gone/20261111T230000Z", "kept", datetime(2026, 11, 11, 23, 0, tzinfo=UTC)),
+        ]
+
+    def test_an_override_without_usable_times_spares_its_series(self) -> None:
+        drafts = expand(
+            vevent(
+                "DTEND:20261021T000000Z",
+                "RRULE:FREQ=WEEKLY;COUNT=4",
+                "SUMMARY:Weekly",
+                start="DTSTART:20261020T230000Z",
+            ),
+            vevent("RECURRENCE-ID:20261027T230000Z", "STATUS:CANCELLED", start=None),
+            vevent("RECURRENCE-ID:20261103T230000Z", "SUMMARY:broken", start="DTSTART:garbage"),
+            vevent("RECURRENCE-ID:20261110T230000Z", "DURATION:PT2H", "SUMMARY:Longer", start=None),
+        )
+        found = [(d.native_id, d.start, d.end, d.title, d.status_hint) for d in drafts]
+        hour = timedelta(hours=1)
+        assert found == [
+            ("talk-1/20261020T230000Z", WEEK[0], WEEK[0] + hour, "Weekly", None),
+            ("talk-1/20261027T230000Z", WEEK[1], WEEK[1] + hour, None, "cancelled"),
+            ("talk-1/20261103T230000Z", WEEK[2], WEEK[2] + hour, "Weekly", None),
+            ("talk-1/20261110T230000Z", WEEK[3], WEEK[3] + 2 * hour, "Longer", None),
         ]
 
     def test_until_in_utc_with_a_floating_start_and_until_as_a_date(self) -> None:
