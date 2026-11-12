@@ -42,6 +42,7 @@ the document as a second opinion.
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -79,6 +80,7 @@ _LABEL_SOURCE: Final = "digest.health.source"
 _LABEL_CANCELLED: Final = "digest.labels.cancelled"
 
 _LAST_WORD: Final = re.compile(r"\s\S{0,30}$")
+_NOT_A_WORD: Final = re.compile(r"[^\w]|_")
 _ONE_DAY: Final = timedelta(days=1)
 _ONE_SECOND: Final = timedelta(seconds=1)
 _LAST_SCANNED_YEAR: Final = 9998  # the scan of a year needs the first day of the next one
@@ -144,17 +146,32 @@ def _speaker(speaker: Speaker) -> str:
     return f"{name} ({affiliation})" if name and affiliation else name
 
 
+def _words(text: str) -> str:
+    """``text`` folded for finding a name in it: no accents, no case, words between spaces."""
+    decomposed = unicodedata.normalize("NFKD", text)
+    letters = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return f" {' '.join(_NOT_A_WORD.sub(' ', letters.casefold()).split())} "
+
+
+def _speaker_list(names: Sequence[str]) -> str:
+    speakers = ", ".join(names[:SUMMARY_MAX_SPEAKERS])
+    return f"{speakers}, {ELLIPSIS}" if len(names) > SUMMARY_MAX_SPEAKERS else speakers
+
+
 def _summary(event: Event, ctx: _Context) -> str:
-    """``<title> - <speakers>``, or ``<series>: <speakers>`` while the title is not announced."""
+    """``<title> - <speakers>``, or ``<series>: <speakers>`` while the title is not announced.
+
+    A speaker whose name the title holds already is left out after the
+    title, so that "Thesis Defense: Jane Doe" does not end in "- Jane Doe".
+    """
     title = _one_line(event.title)
     names = [name for speaker in event.speakers if (name := _one_line(speaker.name))]
-    speakers = ", ".join(names[:SUMMARY_MAX_SPEAKERS])
-    if len(names) > SUMMARY_MAX_SPEAKERS:
-        speakers = f"{speakers}, {ELLIPSIS}"
     if not title or title == TBA_TITLE:
         heading = _one_line(event.series) or _one_line(event.host_org)
-        text = f"{heading}: {speakers or TBA_TITLE}"
+        text = f"{heading}: {_speaker_list(names) or TBA_TITLE}"
     else:
+        named = _words(title)
+        speakers = _speaker_list([name for name in names if _words(name) not in named])
         text = f"{title} - {speakers}" if speakers else title
     if event.status == "cancelled":
         text = f"{ctx.locale.t(_LABEL_CANCELLED)}: {text}"

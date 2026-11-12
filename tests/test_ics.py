@@ -473,6 +473,28 @@ class TestEventProperties:
             ({"status": "cancelled", "title": "T"}, "Cancelled: T - Jane Doe"),
             ({"title": "Two\nlines  and\ttabs"}, "Two lines and tabs - Jane Doe"),
             ({"title": ROCKET}, "Bioengineering Seminar: Jane Doe"),
+            # a speaker the title names already is not repeated
+            (
+                {
+                    "title": "Thesis Defense: Julisia Chau, Lin Group",
+                    "speakers": people("Julisia Chau"),
+                },
+                "Thesis Defense: Julisia Chau, Lin Group",
+            ),
+            (
+                {"title": "DISSERTATION DEFENSE: Connie Miao", "speakers": people("Connie Miao")},
+                "DISSERTATION DEFENSE: Connie Miao",
+            ),
+            (
+                {"title": f"Seminar: Jos{E_ACUTE} Garcia", "speakers": people("JOSE GARC\u00cdA")},
+                f"Seminar: Jos{E_ACUTE} Garcia",
+            ),
+            (
+                {"title": "Jane Doe on knots", "speakers": people("Jane Doe", "Bob Roe")},
+                "Jane Doe on knots - Bob Roe",
+            ),
+            ({"title": "Annals of knots", "speakers": people("Ann")}, "Annals of knots - Ann"),
+            ({"title": "Jane Doe", "status": "cancelled"}, "Cancelled: Jane Doe"),
         ],
     )
     def test_summary(self, overrides: dict[str, Any], summary: str, one: Any) -> None:
