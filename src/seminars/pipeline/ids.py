@@ -436,8 +436,8 @@ def _moved_without_speakers(
 ) -> bool:
     """Whether ``event`` is ``orphan`` moved, neither naming a speaker (step 5).
 
-    The title is all that tells such talks apart, so both must be "TBA" or
-    neither, and two titles must be similar.
+    The title is all that tells such talks apart: both are "TBA", or
+    neither is and the two titles are similar.
     """
     if orphan.speakers or event.speakers or not _may_have_moved(orphan, event, now):
         return False
