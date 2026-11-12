@@ -281,6 +281,14 @@ class Grounding:
         span = self._closest_span(wanted, alignment.dest_start, alignment.dest_end, allowed)
         return None if span is None else self._original(*span)
 
+    def has(self, value: str) -> bool:
+        """Whether ``value`` is a part of the page text after normalization, without fuzziness.
+
+        Unlike ``text`` this does not depend on ``min_similarity``.
+        """
+        wanted = normalize_for_grounding(value)
+        return bool(wanted) and wanted in self._text
+
     def _exact(self, wanted: str, tidy: str) -> str | None:
         """The page text of the best place where ``wanted`` occurs; ``None`` when it does not.
 

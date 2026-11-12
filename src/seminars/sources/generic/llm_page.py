@@ -13,7 +13,8 @@ the model in pieces of at most ``max_input_chars``, each between two marker
 lines that are derived from the piece itself, so no page can spell them.
 The model answers with one item per talk. The answers are cached by the
 text of the piece, never by model or provider, and only with the text
-values that the piece has (``grounded_answer``).
+values that the piece has, without private data and without secrets
+(``seminars.llm.extraction``).
 
 What a hostile page cannot do. A page can say "ignore previous
 instructions", imitate a system message or ask for secrets. Whatever the
@@ -23,7 +24,8 @@ model behaving:
 * The answer must validate against the schema; an answer with an extra or
   mistyped field is discarded as a whole.
 * Every text value (title, speaker, affiliation, series, location,
-  abstract) must occur in the text of the piece: as it is after
+  abstract) must occur in the text of the piece (read as normalization
+  reads text, with its private data scrubbed, see below): as it is after
   normalization, or with a few characters of difference at most
   (``grounding_min_similarity``, and never more than
   ``seminars.llm.grounding.MAX_FUZZY_EDITS`` characters). A value that does
@@ -46,16 +48,36 @@ model behaving:
   (``seminars.config.TAG_ONLY_PROVIDERS``): when the client is the provider
   chain, the extractor works on ``client.restricted(...)``.
 
-Secrets never reach the cache. A page can show a token-shaped string, and
-grounding keeps exactly what a page shows. So every text value, and the
-part of the page it stands for, also goes through the secret scanner of the
-project (``seminars.llm.secret_filter``) before the answer is cached; a
-value with a finding is dropped like an ungrounded one, and the rest of the
-talk is kept. An answer that still shows a secret as a whole is not cached
-at all. A hit is filtered by the same rules: an entry that loses a value is
-stored again without it (and one that cannot be cleaned is replaced by an
-empty object, which reads as a miss), so the cache never brings a secret
-back, also one written before the scanner knew its shape.
+Neither private data nor secrets reach the cache, which is committed to a
+public repository. Grounding keeps exactly what a page shows, and a talk
+announcement often shows a meeting code, the e-mail address of the host or
+a phone number, or a page a token-shaped string. So the piece is read the
+way normalization reads text before it scrubs it (entities decoded,
+characters cleaned) and scrubbed by the scrubber of normalization
+(``seminars.llm.privacy_filter``). That is the text every value is
+grounded in and taken from, and the ``source_text`` of the drafts. A value
+of a new answer is cached in the words of the model only where that text
+has them, and otherwise in the words of the page, so a slip of the model
+cannot bring back what the scrubber took out. A value that still hides
+private data in a form normalization reads (behind markup, say), or that
+shows a secret, or whose part of the page does
+(``seminars.llm.secret_filter``), is dropped like an ungrounded one, and
+the rest of the talk is kept. The model still gets the piece as it is, and
+the cache key is that piece. An answer that still shows a secret as a whole
+is not cached at all; the next run asks again.
+
+A hit is checked for privacy and secrets, but not grounded: grounding
+depends on ``grounding_min_similarity`` as well, and is applied when the
+drafts are made. Its values are scrubbed as they are, and a value goes when
+it shows a secret, hides private data, or stands for a part of the page that
+the scrubber changed; ``seminars.llm.extraction`` has the rules. An entry is
+stored again only when that changes it, so the cache never brings private
+data or a secret back (also one stored before the rules knew its shape),
+and a change of the configuration never rewrites it. An entry that cannot be
+cleaned is replaced by the placeholder ``{}``: the run that finds it still
+uses the cleaned answer, and from then on the placeholder reads as a miss,
+for the extractor and in the cache hits of the run report
+(``seminars.llm.cache``), until a new answer replaces it or it ages out.
 
 Dates follow ``EventDraft``: an item without a time is an all-day event
 whose ``end`` is its last day; a time is wall time of the source. A year
@@ -90,13 +112,24 @@ from seminars.contracts import (
 )
 from seminars.httpbase import HttpClient
 from seminars.llm.base import record_skipped_too_long
+from seminars.llm.extraction import (
+    MAX_EVENTS_PER_CHUNK,
+    AnswerFilter,
+    CachedExtraction,
+    ExtractedEvent,
+    ExtractionAnswer,
+    PieceForms,
+    filtered_answer,
+    grounded_answer,
+    piece_forms,
+)
 from seminars.llm.grounding import Grounding, normalize_for_grounding
-from seminars.llm.secret_filter import SecretFilter, project_secret_filter
+from seminars.llm.privacy_filter import project_privacy_filter
+from seminars.llm.secret_filter import project_secret_filter
 from seminars.models import (
     LLM_PAGE_ADAPTER,
     EventDraft,
     FetchedDocument,
-    Model,
     RawPayload,
     SourceConfig,
     SpeakerDraft,
@@ -116,7 +149,6 @@ MAX_TOKENS: Final = 8192
 MAX_CHUNKS_PER_SOURCE: Final = 6
 """Pieces of page text that are read for one source in one run; the rest is left out."""
 
-MAX_EVENTS_PER_CHUNK: Final = 100
 MAX_LINKS: Final = 500
 MIN_CHUNK_CHARS: Final = 400
 """Below this much room for page text a request is not worth sending."""
@@ -238,49 +270,6 @@ class LlmPageAdapter:
 
     def parse(self, payload: RawPayload, source: SourceConfig) -> list[EventDraft]:
         return []
-
-
-# --- what the model answers ----------------------------------------------------------------
-
-
-class ExtractedSpeaker(Model):
-    name: str
-    affiliation: str | None = None
-
-
-class ExtractedEvent(Model):
-    """One talk as the model read it. Text is copied from the page; the rest is numbers."""
-
-    title: str | None = None
-    year: int | None = None
-    month: int
-    day: int
-    start_hour: int | None = None
-    start_minute: int | None = None
-    end_hour: int | None = None
-    end_minute: int | None = None
-    end_month: int | None = None
-    end_day: int | None = None
-    speakers: list[ExtractedSpeaker] = []
-    series: str | None = None
-    location: str | None = None
-    abstract: str | None = None
-    link: int | None = None
-    stream_link: int | None = None
-    cancelled: bool = False
-
-
-class ExtractionAnswer(Model):
-    """The answer to one extraction request."""
-
-    events: list[ExtractedEvent]
-
-
-class CachedExtraction(Model):
-    """What the cache holds for one piece of page text: the raw answer and when it was read."""
-
-    reference: date
-    answer: ExtractionAnswer
 
 
 # --- from a document to text ---------------------------------------------------------------
@@ -525,14 +514,13 @@ def _link(number: int | None, links: Sequence[str]) -> str | None:
 
 
 def _draft(
-    item: ExtractedEvent,
-    page: PageText,
-    chunk: str,
-    grounding: Grounding,
-    reference: date,
-    source: SourceConfig,
+    item: ExtractedEvent, page: PageText, piece: PieceForms, reference: date, source: SourceConfig
 ) -> EventDraft | None:
-    """The draft for ``item`` with every ungrounded value dropped; ``None`` when nothing is left."""
+    """The draft for ``item`` with every ungrounded value dropped; ``None`` when nothing is left.
+
+    Values are grounded in ``piece.scrubbed``, which becomes ``source_text``.
+    """
+    grounding = piece.grounding
     times = _times(item, grounding, reference)
     if times is None:
         return None
@@ -558,57 +546,10 @@ def _draft(
             stream_url=_link(item.stream_link, page.links),
             abstract=grounding.text(item.abstract),
             status_hint="cancelled" if item.cancelled and grounding.cancellation() else None,
-            source_text=chunk,
+            source_text=piece.scrubbed,
         )
     except ValidationError:
         return None
-
-
-def _grounded_item(
-    item: ExtractedEvent, grounding: Grounding, secrets: SecretFilter
-) -> ExtractedEvent:
-    """``item`` with every text value set to null that the page lacks or that shows a secret.
-
-    A value stays when the page has it and neither the value nor that part
-    of the page shows a secret; it is kept as the model wrote it. A speaker
-    whose name goes is left out.
-    """
-
-    def kept(value: str | None) -> str | None:
-        found = grounding.text(value)
-        if value is None or found is None or secrets.shows(value) or secrets.shows(found):
-            return None
-        return value
-
-    speakers = [
-        speaker.evolve(affiliation=kept(speaker.affiliation))
-        for speaker in item.speakers
-        if kept(speaker.name) is not None
-    ]
-    return item.evolve(
-        title=kept(item.title),
-        speakers=speakers,
-        series=kept(item.series),
-        location=kept(item.location),
-        abstract=kept(item.abstract),
-    )
-
-
-def grounded_answer(
-    answer: ExtractionAnswer, grounding: Grounding, secrets: SecretFilter
-) -> ExtractionAnswer:
-    """``answer`` as it is cached: the items that are read, with only the text the page has.
-
-    Whatever a hostile page made the model write beyond the page text is
-    dropped before it is stored, so it never reaches the committed cache,
-    and so is every value that shows a secret (``secrets``), on the page or
-    not. Nothing is lost by that: both depend on the piece of text alone,
-    which is the cache key, so they would drop the same values on every
-    read. The result is its own fixpoint, which is how a clean hit is told
-    from one that needs cleaning.
-    """
-    events = answer.events[:MAX_EVENTS_PER_CHUNK]
-    return answer.evolve(events=[_grounded_item(item, grounding, secrets) for item in events])
 
 
 def _speaker_names(draft: EventDraft) -> frozenset[str]:
@@ -674,7 +615,9 @@ class LLMPageExtractor:
             client = client.restricted(TAG_ONLY_PROVIDERS)
         self._client = client
         self._cache = cache
-        self._secrets = project_secret_filter()
+        self._filters = AnswerFilter(
+            privacy=project_privacy_filter(), secrets=project_secret_filter()
+        )
         self._max_input_chars = config.max_input_chars
         self._min_similarity = config.grounding_min_similarity
 
@@ -690,22 +633,25 @@ class LLMPageExtractor:
     def _cacheable(self, entry: CachedExtraction) -> dict[str, Any] | None:
         """``entry`` as plain JSON for the cache; ``None`` when it shows a secret as a whole."""
         value = entry.model_dump(mode="json")
-        if self._secrets.holds(value):
+        if self._filters.secrets.holds(value):
             logger.info("an extraction answer shows a secret as a whole and is not cached")
             return None
         return value
 
-    def _answer(self, chunk: str, url: str, today: date, grounding: Grounding) -> CachedExtraction:
+    def _answer(self, chunk: str, url: str, today: date, piece: PieceForms) -> CachedExtraction:
         """The answer for one piece of text, from the cache or the model (``LLMError``).
 
-        A new answer is stored grounded and without secrets
-        (``grounded_answer``); a hit is cleaned the same way and stored again
-        when that changes it (see the module docstring).
+        ``piece`` is ``chunk`` in the forms the values are checked against.
+        A new answer is stored with every value checked and grounded
+        (``grounded_answer``). A hit is checked for privacy and secrets only
+        (``filtered_answer``) and stored again when that changes it, or
+        replaced by the placeholder ``{}`` when it shows a secret as a whole;
+        see the module docstring.
         """
         key = llm_cache_key(PROMPT_VERSION, TASK, chunk)
         cached = self._cached(key)
         if cached is not None:
-            clean = cached.evolve(answer=grounded_answer(cached.answer, grounding, self._secrets))
+            clean = cached.evolve(answer=filtered_answer(cached.answer, piece, self._filters))
             value = self._cacheable(clean)
             if (value is None or clean != cached) and self._cache is not None:
                 self._cache.put(key, value or {})
@@ -714,7 +660,7 @@ class LLMPageExtractor:
             SYSTEM_PROMPT, build_user_prompt(chunk, url), ExtractionAnswer, max_tokens=MAX_TOKENS
         )
         fresh = CachedExtraction(
-            reference=today, answer=grounded_answer(answer, grounding, self._secrets)
+            reference=today, answer=grounded_answer(answer, piece, self._filters)
         )
         value = self._cacheable(fresh)
         if value is not None and self._cache is not None:
@@ -759,9 +705,9 @@ class LLMPageExtractor:
             record_skipped_too_long(self._client, unsent)
         drafts: list[EventDraft] = []
         for document, page, chunk in pieces:
-            grounding = Grounding(chunk, min_similarity=self._min_similarity)
+            piece = piece_forms(chunk, self._filters.privacy, min_similarity=self._min_similarity)
             try:
-                found = self._answer(chunk, document.final_url, today, grounding)
+                found = self._answer(chunk, document.final_url, today, piece)
             except LLMInvalidOutputError:
                 logger.info("source %s: an extraction answer was discarded", source.id)
                 continue
@@ -769,7 +715,7 @@ class LLMPageExtractor:
                 logger.info("source %s: extraction stopped (%s)", source.id, type(error).__name__)
                 break
             for item in found.answer.events[:MAX_EVENTS_PER_CHUNK]:
-                draft = _draft(item, page, chunk, grounding, found.reference, source)
+                draft = _draft(item, page, piece, found.reference, source)
                 if draft is not None:
                     drafts = _with_draft(drafts, draft)
         return drafts

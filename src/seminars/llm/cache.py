@@ -20,6 +20,14 @@ A file that is not a valid entry (cut off, edited by hand, left by a merge)
 is never an answer: a lookup treats it as a miss, the next ``put`` replaces
 it and ``prune`` removes it. Files that do not look like entries (a README)
 are left alone.
+
+An entry whose value is the empty object is a placeholder. The cache has
+no delete, so a user that may no longer keep an answer (the page extractor
+with an answer that shows a secret) stores ``{}`` over it. A placeholder
+answers nothing: ``get`` returns it as it was stored, but the lookup counts
+as a miss in ``stats`` (and so in the cache hits of the run report), and it
+never renews the recorded date, so ``prune`` removes the placeholder once
+``ttl_days`` have passed, however often it is looked up.
 """
 
 from __future__ import annotations
@@ -107,10 +115,11 @@ class FileLLMCache:
     def get(self, key: str) -> dict[str, Any] | None:
         path = self._path(key)
         entry = _read_entry(path)
-        self._count(hit=entry is not None)
+        answered = entry is not None and bool(entry.value)  # {} is a placeholder
+        self._count(hit=answered)
         if entry is None:
             return None
-        if (self._today - entry.used).days >= self._refresh_days:
+        if answered and (self._today - entry.used).days >= self._refresh_days:
             self._write(path, entry.value)
         return entry.value
 
