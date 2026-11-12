@@ -359,6 +359,7 @@ def test_near_misses(tagger: FieldTagger, field: str, title: str, abstract: str 
         ("MLSys Seminar Series", "ai-ml"),
         ("Physical Chemistry Seminar", "chem"),
         ("Bioengineering Seminar Series", "bio"),
+        ("Oceans Seminar Series", "bio"),
         ("Applied Physics/Physics Colloquium", "physics"),
         ("SLAC Colloquium", "physics"),
         ("Medicine Grand Rounds", "med"),

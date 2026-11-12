@@ -513,6 +513,10 @@ fields:
       - ChEM-H Seminar
       - Biohub Seminar
       - Arc Institute Seminar
+      # Oceans Department, Doerr School: marine biology and ecology. Instances that
+      # Hopkins Marine Station also lists get bio from that department already;
+      # the name places the ones that only the Oceans Department lists.
+      - Oceans Seminar
     keywords:
       biology: 1.0
       biological: 0.5

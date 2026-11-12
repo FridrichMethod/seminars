@@ -265,6 +265,21 @@ def test_recorded_grand_rounds_are_med(recorded: dict[str, Outcome], native_id: 
     )
 
 
+def test_the_oceans_seminar_series_is_bio_without_hopkins(recorded: dict[str, Outcome]) -> None:
+    """Only the Oceans Department lists this instance; the series name places it in bio.
+
+    The instances that Hopkins Marine Station also lists get bio from that
+    department, so every talk of the series is published the same way.
+    """
+    outcome = recorded["54444360554235"]
+    assert outcome.candidate.event.title.startswith("Oceans Seminar Series | Peter Edmunds")
+    assert outcome.candidate.hints.field_hints == []
+    assert outcome.reason is None
+    assert outcome.fields == ("bio",)
+    assert outcome.decision is not None
+    assert outcome.decision.reasons == ['bio: series "Oceans Seminar"']
+
+
 # --- records written here ----------------------------------------------------------------------
 
 
@@ -312,6 +327,18 @@ def run_records(*records: dict[str, Any]) -> list[Outcome]:
 def run_one(title: str, *departments: str, **fields: Any) -> Outcome:
     (outcome,) = run_records(record(title, *departments, **fields))
     return outcome
+
+
+@pytest.mark.parametrize(
+    "departments",
+    [("Oceans Department",), ("Hopkins Marine Station", "Oceans Department"), ()],
+)
+def test_every_oceans_seminar_is_bio(departments: tuple[str, ...]) -> None:
+    outcome = run_one(
+        "Oceans Seminar Series | Jane Doe | Enabling Low-Cost Ocean Instrumentation", *departments
+    )
+    assert outcome.reason is None
+    assert outcome.fields == ("bio",)
 
 
 @pytest.mark.parametrize(
