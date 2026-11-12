@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -260,6 +261,15 @@ class TestHandWrittenPages:
         when = "".join(f"<span>{part}</span>" for part in parts)
         [talk] = parse(page(block("a1", "Workshop", when)))
         assert (talk.start, talk.end) == (datetime(2026, 11, 20, 10), datetime(2026, 11, 20, 16))
+
+    def test_a_block_of_many_paragraphs_takes_linear_time(self) -> None:
+        # The block used to be rebuilt for every paragraph: about 6 s for this page.
+        text = page(block("big", "Big", WHEN, *(["x"] * 50_000)))
+        started = time.perf_counter()
+        [talk] = parse(text)
+        assert time.perf_counter() - started < 1.5
+        assert talk.title == "Big"
+        assert (talk.abstract or "").count("x") == 50_000
 
     def test_a_payload_without_the_page_is_not_understood(self) -> None:
         adapter = SynbioEventsAdapter()

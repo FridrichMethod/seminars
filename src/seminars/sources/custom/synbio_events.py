@@ -57,7 +57,7 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import Annotated, Final, Literal
 
@@ -242,21 +242,21 @@ def read_blocks(
     nodes = f"{params.selectors.heading}, {params.selectors.line}"
     blocks: list[Block] = []
     for container in containers:
-        current: Block | None = None
+        current: Block | None = None  # its lines are collected in ``lines``
+        lines: list[Line] = []
         for node in container.css(nodes):
             text = node_text(node)
             if node.css_matches(params.selectors.heading):
                 if current is not None:
-                    blocks.append(current)
-                current = None
+                    blocks.append(replace(current, lines=tuple(lines)))
+                current, lines = None, []
                 if text and fold(text) not in not_events:
                     links = tuple(heading_links(params, document, node))
                     current = Block(text, heading_key(params, node), links, ())
             elif current is not None and text:
-                line = read_line(kinds, text)
-                current = Block(current.name, current.key, current.links, (*current.lines, line))
+                lines.append(read_line(kinds, text))
         if current is not None:
-            blocks.append(current)
+            blocks.append(replace(current, lines=tuple(lines)))
     return blocks
 
 
