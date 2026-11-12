@@ -148,13 +148,31 @@ class TestRecordedTopos:
         ]
 
     def test_no_meeting_link_password_or_location_url_reaches_a_draft(self) -> None:
-        for draft in recorded(TOPOS)[1]:
-            texts = [draft.url, draft.stream_url, draft.location, draft.abstract, draft.title]
+        feed = (REPO_ROOT / "tests" / "fixtures" / TOPOS / "series.ics").read_text("utf-8")
+        words = ("zoom.us", "pwd", "Password hint", "livestream")
+        assert all(word in feed for word in words)  # the recording has all of them
+        drafts = recorded(TOPOS)[1]
+        assert len(drafts) == 233
+        for draft in drafts:
+            texts = [
+                draft.url,
+                draft.stream_url,
+                draft.location,
+                draft.abstract,
+                draft.abstract_html,
+                draft.title,
+                draft.speaker_text,
+                draft.series,
+                *(speaker.name for speaker in draft.speakers),
+                *(speaker.affiliation for speaker in draft.speakers),
+            ]
             joined = " ".join(text for text in texts if text)
-            assert "zoom.us" not in joined
-            assert "pwd" not in joined
-            assert "Password hint" not in joined
-            assert "livestream" not in joined
+            dumped = draft.model_dump_json()  # every other field as well
+            for word in words:
+                assert word not in joined
+                assert word not in dumped
+            assert draft.abstract_html is None
+            assert draft.speaker_text is None
             assert draft.location is None
             counter = (draft.native_id or "").rpartition("/")[2]
             assert draft.url == f"{TOPOS_TALK}/{counter}/"
