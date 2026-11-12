@@ -12,36 +12,43 @@ walked only through its periods (days, weeks, months or years, INTERVAL
 apart) from the one before the window starts up to that end; a rule with
 COUNT from its DTSTART, because the occurrences before the window count.
 So what one rule costs is bounded by its periods up to the end of the
-window, whatever its filters, and every unit of that work is a step: each
-day of a walked period, each BYSETPOS entry of a period (duplicates are
-dropped) and each occurrence handed out. One rule takes at most
+window, whatever its filters, and every unit of that work is a step: in
+each period the days the rule can hit (``_candidates``: the days of
+BYMONTHDAY, else the weekdays of BYDAY, in the months of BYMONTH; at least
+one step a period), each BYSETPOS entry (duplicates are dropped) and each
+time of day the walk builds. A rule without COUNT does not build the times
+of day before the window (``_skip_before``). One rule takes at most
 ``MAX_EXPANSION_STEPS`` steps (and the rest of a period it has started;
-then its walk stops where it is), and the caps of a whole feed
-(``seminars.sources.generic.ics``) count the steps and the RRULE lines of
-all its VEVENTs together.
+then its walk stops where it is, so a series with COUNT that began more
+than about 25000 periods before the window gives nothing in it), and the
+caps of a whole feed (``seminars.sources.generic.ics``) count the steps
+and the RRULE lines of all its VEVENTs together.
 
 ``check_rule`` is a cheap first filter: it refuses what the walk does not
 implement and shapes that can never match, which are then not walked at
 all. The bound above does not depend on it catching every such shape.
 
-The cost, measured through ``IcsAdapter.parse`` on one core: a step takes 1
-to 2 us, so a feed that spends the whole step budget of the adapter
-(500000) takes 0.5 to 0.8 s and is then a ``ParseError``. Rules that took
+The cost, measured through ``IcsAdapter.parse`` on one core: a step takes
+0.6 to 2 us, so a feed that spends the whole step budget of the adapter
+(500000) takes 0.3 to 1 s and is then a ``ParseError``. Rules that took
 dateutil seconds take milliseconds: BYSETPOS=2 written 200 times 0.001 s
 (8.9 s), the 364 positions +-185..+-366 with BYHOUR=0..22;BYMINUTE=0..7
 0.001 s (16 s), 100 VEVENTs of that rule 0.1 s, one VEVENT with 50 RRULE
-lines of a rule that never matches 0.005 s (50 x 0.29 s). The worst feeds
+lines of a rule that never matches 0.004 s (50 x 0.29 s). The worst feeds
 built for this (rules that never match with COUNT and a DTSTART in 1900,
-86400 times of day, 500 RRULE lines in one VEVENT) spend the budget and
-fail after at most 0.8 s. Turning occurrences into drafts costs more than
-finding them, about 20 us each: 500 recurring VEVENTs with 500 occurrences
-each in the window (250000 drafts) take about 5 s. This module registers
-no adapter.
+every position of a year, 500 RRULE lines in one VEVENT) spend the budget
+and fail after at most 1 s. A long series with COUNT costs about two
+steps per period since its DTSTART: a feed holds 170 weekly series that
+began in 2000, or 25 daily ones, within the budget. Turning occurrences
+into drafts costs more than finding them, about 20 us each: 500 recurring
+VEVENTs with 500 occurrences each in the window (250000 drafts, also with
+86400 times of day each) take about 5 s. This module registers no adapter.
 """
 
 from __future__ import annotations
 
 import math
+from bisect import bisect_left
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
@@ -72,6 +79,8 @@ _DAYS_IN_MONTH: Final = {
 _WEEKDAYS: Final = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 _TIME_PARTS: Final = (("BYHOUR", 23), ("BYMINUTE", 59), ("BYSECOND", 59))
 _ONE_DAY: Final = timedelta(days=1)
+_MARGIN: Final = timedelta(hours=3)
+"""More than daylight saving moves the wall clock (1 h, in a few zones 2 h)."""
 
 
 # --- the guard -----------------------------------------------------------------------------
@@ -456,8 +465,78 @@ def _accepts(rule: _Rule, day: date, first: date, last: date) -> bool:
     return True
 
 
-def _moments(rule: _Rule, days: list[date], zone: tzinfo | None) -> Iterator[datetime]:
-    """The candidates of one period in order: every time of every day, or the BYSETPOS ones."""
+def _candidates(rule: _Rule, first: date, last: date) -> tuple[list[date], int]:
+    """The days of the period ``first`` to ``last`` that ``rule`` keeps, and how many it read.
+
+    Only the days the rule can hit are read, not every day of the period:
+    in a month it reaches (BYMONTH, else every month of the period) the
+    days of BYMONTHDAY, else its ordinal weekdays, else its plain weekdays
+    (a yearly rule with ordinals and no BYMONTH: its ordinals of the year);
+    in a week its weekdays. ``_read_rule`` gives every monthly and yearly
+    rule one of these, so a yearly rule on one day costs that day, not 366.
+    """
+    if rule.frequency == "DAILY":
+        read = [first]
+    elif rule.frequency == "WEEKLY":
+        read = _week_days(first, last, rule.weekdays)
+    elif rule.frequency == "YEARLY" and rule.ordinals and not rule.months:
+        found = (_nth_weekday(first, last, *ordinal) for ordinal in rule.ordinals)
+        read = [day for day in found if day is not None]
+    else:
+        months = range(first.month, last.month + 1)
+        read = [
+            day
+            for month in months
+            if not rule.months or month in rule.months
+            for day in _month_candidates(rule, first.year, month)
+        ]
+    days = {day for day in read if first <= day <= last and _accepts(rule, day, first, last)}
+    return sorted(days), len(read)
+
+
+def _week_days(first: date, last: date, weekdays: frozenset[int]) -> list[date]:
+    """The days of ``weekdays`` from ``first`` to ``last`` (at most a week)."""
+    numbers = (first.toordinal() + (weekday - first.weekday()) % 7 for weekday in weekdays)
+    return [date.fromordinal(number) for number in numbers if number <= last.toordinal()]
+
+
+def _month_candidates(rule: _Rule, year: int, month: int) -> list[date]:
+    """The days of ``month`` that the day filters of ``rule`` name (see ``_candidates``)."""
+    length = _month_length(year, month)
+    first, last = date(year, month, 1), date(year, month, length)
+    if rule.monthdays:
+        numbers = {day if day > 0 else length + day + 1 for day in rule.monthdays}
+        return [date(year, month, day) for day in sorted(numbers) if 1 <= day <= length]
+    if rule.ordinals:
+        found = (_nth_weekday(first, last, *ordinal) for ordinal in rule.ordinals)
+        return [day for day in found if day is not None]
+    weekdays = rule.weekdays or frozenset(range(7))
+    begin = first.weekday()
+    return [
+        date(year, month, day)
+        for weekday in weekdays
+        for day in range(1 + (weekday - begin) % 7, length + 1, 7)
+    ]
+
+
+def _nth_weekday(first: date, last: date, ordinal: int, weekday: int) -> date | None:
+    """The ``ordinal``-th ``weekday`` of ``first`` to ``last`` (counted back when negative)."""
+    if ordinal > 0:
+        number = first.toordinal() + (weekday - first.weekday()) % 7 + 7 * (ordinal - 1)
+    else:
+        number = last.toordinal() - (last.weekday() - weekday) % 7 - 7 * (-ordinal - 1)
+    return date.fromordinal(number) if first.toordinal() <= number <= last.toordinal() else None
+
+
+def _moments(
+    rule: _Rule, days: list[date], zone: tzinfo | None, since: datetime | None
+) -> Iterator[datetime]:
+    """The candidates of one period in order: every time of every day, or the BYSETPOS ones.
+
+    Without BYSETPOS the times before ``since`` (a wall time, if given) are
+    left out without being built: whole days, and the times of its own day
+    found by bisection (the times of a day are in order).
+    """
     per_day = rule.times_per_day
     if rule.positions:
         size = len(days) * per_day
@@ -466,7 +545,12 @@ def _moments(rule: _Rule, days: list[date], zone: tzinfo | None) -> Iterator[dat
             yield datetime.combine(days[index // per_day], rule.time_at(index % per_day), zone)
         return
     for day in days:
-        for index in range(per_day):
+        begin = 0
+        if since is not None and day <= since.date():
+            if day < since.date():
+                continue
+            begin = bisect_left(range(per_day), since.time(), key=rule.time_at)
+        for index in range(begin, per_day):
             yield datetime.combine(day, rule.time_at(index), zone)
 
 
@@ -475,13 +559,16 @@ def _walk(rule: _Rule, anchor: datetime, low: datetime, high: datetime, *, limit
 
     The periods walked end with the one that holds the effective end (UNTIL
     or ``high``, the earlier); a rule without COUNT starts with the period
-    before ``low``, one with COUNT with that of DTSTART.
+    before ``low`` and leaves out the times of day before ``low`` without
+    steps (``_skip_before``); one with COUNT starts with the period of
+    DTSTART and counts every occurrence from there.
     """
     if rule.count is not None and rule.count < 1:
         return _Walk((), 0)
     end = high if rule.until is None else min(high, rule.until)
-    last_day, start_day = _wall_day(end, anchor), _wall_day(low, anchor) - _ONE_DAY
+    last_day, start_day = _wall(end, anchor).date(), _wall(low, anchor).date() - _ONE_DAY
     index = 0 if rule.count is not None else _period_index(rule, anchor.date(), start_day)
+    since = None if rule.count is not None else _skip_before(low, anchor)
     starts: list[datetime] = []
     steps = taken = 0
     while True:
@@ -493,9 +580,9 @@ def _walk(rule: _Rule, anchor: datetime, low: datetime, high: datetime, *, limit
             return _Walk(tuple(starts), steps)
         if steps >= limit:
             return _Walk(tuple(starts), steps, stopped=True)
-        days = [day for day in _days(first, last) if _accepts(rule, day, first, last)]
-        steps += (last - first).days + 1 + len(rule.positions)
-        for moment in _moments(rule, days, anchor.tzinfo):
+        days, read = _candidates(rule, first, last)
+        steps += max(1, read) + len(rule.positions)
+        for moment in _moments(rule, days, anchor.tzinfo, since):
             if steps >= limit:
                 return _Walk(tuple(starts), steps, stopped=True)
             steps += 1
@@ -511,16 +598,33 @@ def _walk(rule: _Rule, anchor: datetime, low: datetime, high: datetime, *, limit
         index += 1
 
 
-def _days(first: date, last: date) -> Iterator[date]:
-    for ordinal in range(first.toordinal(), last.toordinal() + 1):
-        yield date.fromordinal(ordinal)
+def _skip_before(low: datetime, anchor: datetime) -> datetime | None:
+    """A wall time before which no time of day on ``anchor``'s clock reaches ``low``.
+
+    Daylight saving moves the wall clock by less than ``_MARGIN``, so a
+    time that much before ``low`` lies before it. Where the UTC offset is
+    the same ``_MARGIN`` before and after ``low`` (always on a floating
+    clock or in UTC; no zone changes it twice within hours), the wall times
+    there are in the order of their moments, so ``low`` itself is the
+    bound; next to a change (a skipped or repeated hour) it is ``_MARGIN``
+    earlier, and the walk compares each time it builds. ``None`` (skip
+    nothing) at an end of the calendar.
+    """
+    wall, zone = _wall(low, anchor), anchor.tzinfo
+    try:
+        early, late = wall - _MARGIN, wall + _MARGIN
+    except OverflowError:
+        return None
+    if zone is None or zone.utcoffset(early) == zone.utcoffset(late):
+        return wall
+    return early
 
 
-def _wall_day(moment: datetime, anchor: datetime) -> date:
-    """The day of ``moment`` on the wall clock of ``anchor``."""
+def _wall(moment: datetime, anchor: datetime) -> datetime:
+    """``moment`` on the wall clock of ``anchor``, naive."""
     if anchor.tzinfo is None or moment.tzinfo is None:
-        return moment.date()
-    return moment.astimezone(anchor.tzinfo).date()
+        return moment.replace(tzinfo=None)
+    return moment.astimezone(anchor.tzinfo).replace(tzinfo=None)
 
 
 # --- expansion -----------------------------------------------------------------------------

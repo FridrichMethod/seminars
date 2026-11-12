@@ -18,7 +18,6 @@ from dateutil.rrule import rrule, rruleset, rrulestr
 from seminars.models import TimeWindow
 from seminars.sources.generic import ics_rules
 from seminars.sources.generic.ics_rules import (
-    MAX_EXPANSION_STEPS,
     MAX_OCCURRENCES,
     Allowance,
     Expansion,
@@ -228,16 +227,16 @@ POSITIONS = ",".join(str(sign * position) for position in range(185, 367) for si
 WIDE_TIMES = "BYHOUR=" + ",".join(map(str, range(23))) + ";BYMINUTE=" + ",".join(map(str, range(8)))
 
 
-MONTHS = 31 + 30  # October and November 2026, the periods of a monthly rule in WINDOW
+MONTHS = 2  # October and November 2026, the periods of a monthly rule in WINDOW
 
 
 @pytest.mark.parametrize(
     ("rule", "bound"),
     [
-        (f"{NEVER};BYSETPOS=2", MONTHS + 2),
-        (f"{NEVER};BYSETPOS=" + ",".join(["2"] * 200), MONTHS + 2),
-        (f"{NEVER};{WIDE_TIMES};BYSETPOS={POSITIONS}", MONTHS + 2 * 364),
-        ("FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=13,31;BYDAY=TU,MO;BYSETPOS=2", 365 + 1),
+        (f"{NEVER};BYSETPOS=2", MONTHS * (2 + 1)),
+        (f"{NEVER};BYSETPOS=" + ",".join(["2"] * 200), MONTHS * (2 + 1)),
+        (f"{NEVER};{WIDE_TIMES};BYSETPOS={POSITIONS}", MONTHS * (2 + 364)),
+        ("FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=13,31;BYDAY=TU,MO;BYSETPOS=2", 2 + 1),
         ("FREQ=DAILY;BYMONTH=2;BYMONTHDAY=13;BYDAY=MO", days_of(WINDOW) + 1),
     ],
 )
@@ -246,19 +245,46 @@ def test_a_rule_that_never_matches_costs_only_the_periods_of_the_window(
 ) -> None:
     # Accepted rules whose filters never meet in the window, most of them never at all:
     # dateutil walked each of them to the year 9999, the one with 200 copies of a position
-    # 200 times. The walk takes the days of the periods up to the end of the window.
+    # 200 times. The walk takes the periods up to the end of the window, and in each the
+    # days its rule names (the 13th and the 31st) and its positions, once each.
     expansion = run(rule)
     assert expansion.starts == (START,)  # DTSTART is always an occurrence
     assert (expansion.rules, expansion.exceeded) == (1, None)
     assert expansion.steps <= bound
 
 
-def test_a_rule_with_count_that_never_matches_stops_after_its_steps() -> None:
-    # COUNT counts from DTSTART, so the walk starts there; the cap of one rule ends it.
+def test_a_rule_with_count_that_never_matches_is_walked_from_dtstart() -> None:
+    # COUNT counts from DTSTART, so the walk starts there: three steps or so a month.
     expansion = run(f"{NEVER};BYSETPOS=2;COUNT=3", start=datetime(1800, 1, 1, 23, tzinfo=UTC))
     assert expansion.starts == ()
-    assert MAX_EXPANSION_STEPS <= expansion.steps <= MAX_EXPANSION_STEPS + 31 + 1
+    assert expansion.steps <= 3 * 12 * (2026 - 1800 + 1)
     assert expansion.exceeded is None
+
+
+def test_the_cap_of_one_rule_ends_a_long_walk(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(ics_rules, "MAX_EXPANSION_STEPS", 1000)
+    expansion = run(f"{NEVER};BYSETPOS=2;COUNT=3", start=datetime(1800, 1, 1, 23, tzinfo=UTC))
+    assert expansion.starts == ()
+    assert 1000 <= expansion.steps <= 1000 + 31 + 1  # it may finish the period it has started
+    assert expansion.exceeded is None  # one rule's cap stops it quietly
+
+
+def test_a_period_costs_the_days_its_rule_can_hit() -> None:
+    # A yearly rule on one day reads that day, not the 366 of its year, and a weekly one its
+    # weekday, not seven: a long series with COUNT, walked from DTSTART, stays cheap.
+    yearly = run("FREQ=YEARLY;COUNT=200", start=datetime(1950, 11, 1, 17, tzinfo=UTC))
+    assert yearly.starts == (datetime(2026, 11, 1, 17, tzinfo=UTC),)
+    assert yearly.steps <= 2 * (2026 - 1950 + 1)  # one day and one occurrence a year
+    weekly = run("FREQ=WEEKLY;COUNT=2000", start=datetime(2000, 1, 4, 17, tzinfo=UTC))
+    assert weekly.starts == tuple(
+        datetime(2026, 10, 20, 17, tzinfo=UTC) + timedelta(weeks=n) for n in range(4)
+    )
+    weeks = (date(2026, 11, 17) - date(2000, 1, 4)).days // 7 + 1
+    assert weekly.steps <= 2 * weeks
+    third = run(
+        "FREQ=YEARLY;BYMONTH=3;BYDAY=3TU;COUNT=100", start=datetime(1950, 3, 21, tzinfo=UTC)
+    )
+    assert third.steps <= 2 * (2026 - 1950 + 1)
 
 
 def test_a_rule_without_count_is_walked_from_the_window_whatever_its_dtstart() -> None:
@@ -301,14 +327,50 @@ def test_a_repeated_position_is_one_position() -> None:
     assert (again.starts, again.steps) == (once.starts, once.steps)
 
 
+EVERY_SECOND = "FREQ=DAILY;BYHOUR={};BYMINUTE={};BYSECOND={}".format(
+    *(",".join(map(str, range(n))) for n in (24, 60, 60))
+)
+
+
 def test_the_times_of_a_day_are_not_listed_before_they_are_needed() -> None:
     # 86400 times of day: the walk hands out the first MAX_OCCURRENCES and stops.
-    every_second = "FREQ=DAILY;BYHOUR={};BYMINUTE={};BYSECOND={}".format(
-        *(",".join(map(str, range(n))) for n in (24, 60, 60))
-    )
-    expansion = run(every_second, start=datetime(2026, 10, 21, 0, 0, tzinfo=UTC))
+    expansion = run(EVERY_SECOND, start=datetime(2026, 10, 21, 0, 0, tzinfo=UTC))
     assert len(expansion.starts) == MAX_OCCURRENCES
     assert expansion.steps <= 2 + MAX_OCCURRENCES + 1
+
+
+@pytest.mark.parametrize("zone", [UTC, ZoneInfo("UTC"), PACIFIC, None])
+def test_the_times_before_the_window_cost_no_steps(zone: tzinfo | None) -> None:
+    # A DTSTART long before the window: the times of the day the window starts on that lie
+    # before it are left out unbuilt, where no change of UTC offset is near.
+    expansion = run(EVERY_SECOND, start=datetime(2026, 1, 1, 0, 0, tzinfo=zone))
+    low = WINDOW.start if zone is not None else datetime(2026, 10, 20, 0, 0)
+    assert expansion.starts == tuple(low + timedelta(seconds=n) for n in range(MAX_OCCURRENCES))
+    assert expansion.steps <= 2 + MAX_OCCURRENCES + 1
+
+
+@pytest.mark.usefixtures("bounded_dateutil")
+@pytest.mark.parametrize(
+    "begin",
+    [
+        datetime(2026, 11, 1, 8, 30, tzinfo=UTC),  # 01:30 PDT, the hour that comes twice
+        datetime(2026, 11, 1, 9, 30, tzinfo=UTC),  # 01:30 PST, its second time
+        datetime(2026, 11, 1, 10, 0, tzinfo=UTC),  # 02:00 PST
+        datetime(2026, 3, 8, 10, 0, tzinfo=UTC),  # 03:00 PDT, right after the skipped hour
+        datetime(2026, 3, 8, 10, 30, tzinfo=UTC),  # 03:30 PDT
+        datetime(2026, 3, 8, 9, 59, tzinfo=UTC),  # 01:59 PST, right before it
+    ],
+)
+def test_the_times_before_a_window_next_to_a_change_of_offset(begin: datetime) -> None:
+    # Near a change of offset the order of wall times is not that of the moments (02:30 of
+    # the skipped hour is 10:30 UTC, after 03:00 PDT): the walk compares each time from three
+    # hours before the window on, and gives what dateutil gives.
+    window = TimeWindow(start=begin, end=begin + timedelta(hours=6))
+    rule = "FREQ=DAILY;BYMINUTE=0,15,30,45;BYHOUR=" + ",".join(map(str, range(24)))
+    for start in (datetime(2026, 1, 1, tzinfo=PACIFIC), datetime(2026, 1, 1)):
+        expansion = run(rule, start=start, window=window)
+        assert list(expansion.starts) == reference(rule, start, *bounds(window, start))
+        assert expansion.steps <= 2 + 4 * 3 + 4 * 6 + 8 + 1
 
 
 def test_every_rrule_line_is_counted_and_walked() -> None:

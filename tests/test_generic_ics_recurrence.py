@@ -300,6 +300,22 @@ class TestRecurrence:
         with pytest.raises(ParseError, match=r"more than 24 steps: https://calendar\.example"):
             expand(expired, current, more)
 
+    def test_long_series_with_count_fit_the_steps_of_a_feed(self) -> None:
+        # A rule with COUNT is walked from DTSTART, about two steps per period: a period reads
+        # only the days its rule can hit, one a year here, one a week there.
+        yearly = [
+            vevent("RRULE:FREQ=YEARLY;COUNT=200", uid=f"y{n}", start="DTSTART:19501101T170000Z")
+            for n in range(30)
+        ]
+        weekly = [
+            vevent("RRULE:FREQ=WEEKLY;COUNT=2000", uid=f"w{n}", start="DTSTART:20000104T170000Z")
+            for n in range(60)
+        ]
+        drafts = expand(*yearly, *weekly)
+        assert len(drafts) == 30 + 60 * 4
+        yearly_starts = {draft.start for draft in drafts if (draft.native_id or "")[:1] == "y"}
+        assert yearly_starts == {datetime(2026, 11, 1, 17, tzinfo=UTC)}
+
     def test_a_feed_with_too_many_recurring_events_fails(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

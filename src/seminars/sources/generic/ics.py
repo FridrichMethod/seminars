@@ -34,7 +34,10 @@ Times, as the draft conventions want them:
   more than ``MAX_RECURRING_EVENTS`` RRULE lines, is a ``ParseError``: a
   part of it would make the events left out count as gone. The lines are
   counted, not the events: one VEVENT with many RRULE properties costs as
-  much as many VEVENTs. An occurrence keeps the duration of the first one.
+  much as many VEVENTs. A series with COUNT is walked from its DTSTART at
+  about two steps per period, so long ones add up: a feed holds 170 weekly
+  series with COUNT that began in 2000, or 25 daily ones, and more is a
+  ``ParseError``. An occurrence keeps the duration of the first one.
 * A VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names (also
   the only one of an event without recurrence, which keeps its native id);
   without ``DTSTART`` it keeps the original times, and one whose times
@@ -128,7 +131,7 @@ NOTE_PARAMS: Final = frozenset({"calendar_ids", "embed_selector"})
 """Keys of ``params`` that record research notes; accepted and not read."""
 
 MAX_FEED_STEPS: Final = 500_000
-"""Most steps through the recurrence rules of one feed (0.5 to 0.8 s in all)."""
+"""Most steps through the recurrence rules of one feed (0.3 to 1 s in all)."""
 
 MAX_RECURRING_EVENTS: Final = 500
 """Most RRULE lines of one feed that do not end before the window (all VEVENTs together).
