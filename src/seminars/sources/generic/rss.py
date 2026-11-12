@@ -689,9 +689,9 @@ def session_drafts(
 ) -> list[EventDraft]:
     """One draft per session of the schedule; skipped headlines and dateless sessions drop.
 
-    A session's native id is the series id with the session's day, plus its
-    start time when the day has several sessions (and a counter when even
-    that repeats): adding or removing another session changes no other id.
+    A session's native id is the series id and the session's day, plus its
+    start time when the day has several sessions (and a counter if that
+    repeats): a change on another day or of a time keeps every other id.
     """
     kept = [
         (day, session, *time_range(*split_range(session.time)))
