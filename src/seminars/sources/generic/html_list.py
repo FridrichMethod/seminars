@@ -76,7 +76,7 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
-from typing import Annotated, Any, Final, Literal
+from typing import Annotated, Any, Final, Literal, get_args
 from zoneinfo import ZoneInfo
 
 from dateutil import parser as date_parser
@@ -110,20 +110,6 @@ logger = logging.getLogger(__name__)
 PATTERN_INPUT_LIMIT: Final = 2000
 """Characters of a page text that a pattern from the YAML is applied to; bounds the work."""
 
-FIELDS: Final = (
-    "title",
-    "link",
-    "date",
-    "time",
-    "speaker",
-    "affiliation",
-    "location",
-    "abstract",
-    "stream_link",
-    "region",
-    "summary",
-)
-EXTRA_GROUPS: Final = ("end_date", "start", "end", "meridiem")
 FieldName = Literal[
     "title",
     "link",
@@ -137,6 +123,8 @@ FieldName = Literal[
     "region",
     "summary",
 ]
+FIELDS: Final[tuple[str, ...]] = get_args(FieldName)
+EXTRA_GROUPS: Final = ("end_date", "start", "end", "meridiem")
 
 
 # --- params ------------------------------------------------------------------------------
