@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import UTC, date, datetime, time, timedelta, timezone
 from pathlib import Path
@@ -387,21 +388,32 @@ class TestDetailPages:
         http = serve(page(row(title="One")), **{url: self.DETAIL.format(pid=1, tag="Social")})
         assert run(self.source(keep_tags=["Seminars"]), http) == []
 
-    def test_links_to_other_hosts_are_never_fetched(self) -> None:
-        text = page(row(title="Here"), row(title="Elsewhere"))
-        text = text.replace(f"/talks/{slug('Elsewhere')}", "https://other.org/x")
+    def test_links_to_other_hosts_are_never_fetched(self, caplog: pytest.LogCaptureFixture) -> None:
+        text = page(row(title="Here"), row(title="Elsewhere"), row(title="Old", day="2020-01-01"))
+        for title in ("Elsewhere", "Old"):
+            text = text.replace(f"/talks/{slug(title)}", f"https://other.org/{slug(title)}")
         here = talk_url("Here")
         http = serve(text, **{here: self.DETAIL.format(pid=1, tag="x")})
-        drafts = run(self.source(), http)
+        with caplog.at_level(logging.WARNING, logger=html_list.__name__):
+            drafts = run(self.source(), http)
         assert http.requests == [LIST_URL, here]
         assert [draft.title for draft in drafts] == ["Here"]
+        # Only rows in the window count; the dropped rows are reported, not silent.
+        assert [record.getMessage() for record in caplog.records] == [
+            "source custom-example: 1 row(s) in the window dropped: their detail page is on "
+            "a host the source does not name (params.extra_hosts)"
+        ]
 
-    def test_only_foreign_detail_links_fetch_nothing(self) -> None:
+    def test_only_foreign_detail_links_fetch_nothing(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         text = page(row(title="Elsewhere"))
         text = text.replace(f"/talks/{slug('Elsewhere')}", "https://other.org/x")
         http = serve(text)
-        assert run(self.source(), http) == []
+        with caplog.at_level(logging.WARNING, logger=html_list.__name__):
+            assert run(self.source(), http) == []
         assert http.requests == [LIST_URL]
+        assert "1 row(s) in the window dropped" in caplog.text
 
     def test_a_list_page_redirected_to_another_host_raises(self) -> None:
         http = FakeHttpClient()

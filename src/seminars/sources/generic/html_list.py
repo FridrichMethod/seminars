@@ -655,11 +655,8 @@ def read_detail(params: DetailParams, document: FetchedDocument) -> Detail:
         if native_id is not None and params.native_id_pattern is not None:
             match = search(params.native_id_pattern, native_id)
             native_id = (match.groupdict().get("native_id") or match[0]) if match else None
-    tags = (
-        tuple(text for node in tree.css(params.tag) if (text := node_text(node)))
-        if params.tag
-        else ()
-    )
+    tag_nodes = tree.css(params.tag) if params.tag else []
+    tags = tuple(text for node in tag_nodes if (text := node_text(node)))
     return Detail(
         start=moments[0] if moments else None,
         end=moments[1] if len(moments) > 1 else None,
@@ -679,12 +676,13 @@ def detail_targets(
     """Detail pages to fetch: kept rows in the window with a link on the source's hosts.
 
     A link to another host is a third party's page: it is not fetched (the
-    row is then dropped). When the list page itself was redirected to a host
-    the source does not name, every link on it is foreign, and that is
-    ``ForeignHostError``.
+    row is then dropped, and a warning counts such rows). When the list page
+    itself was redirected to a host the source does not name, every link on
+    it is foreign, and that is ``ForeignHostError``.
     """
     zone = payload_zone(source)
     wanted: list[str] = []
+    foreign = 0
     for document in documents:
         reference = local_day(document.fetched_at, zone)
         for row in read_rows(params, document):
@@ -695,8 +693,17 @@ def detail_targets(
                 continue
             if not on_source_host(source, document.final_url):
                 raise ForeignHostError(source.id, document.final_url)
-            if on_source_host(source, url) and url not in wanted:
+            if not on_source_host(source, url):
+                foreign += 1
+            elif url not in wanted:
                 wanted.append(url)
+    if foreign:
+        logger.warning(
+            "source %s: %d row(s) in the window dropped: their detail page is on a host "
+            "the source does not name (params.extra_hosts)",
+            source.id,
+            foreign,
+        )
     return wanted[: detail.max_pages]
 
 
