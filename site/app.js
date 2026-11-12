@@ -391,8 +391,10 @@ async function main() {
     (payload) => ({ payload, error: null }),
     (error) => ({ payload: null, error }),
   );
-  // Connected before the messages arrive, so nothing typed or ticked meanwhile is lost.
+  // Connected and showing the filters of the address before the messages arrive, so
+  // nothing typed or ticked meanwhile is lost.
   connectControls();
+  syncControls();
   const refresh = await startPage(render);
   try {
     const { payload, error } = await loading;

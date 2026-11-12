@@ -179,11 +179,13 @@ class TestWhileTheTalksLoad:
     def test_what_is_typed_before_the_messages_arrive_is_kept(
         self, session: Callable[..., Session]
     ) -> None:
-        state = loading(session, "index.html?field=ai-ml", held_back="locales/en.json")
+        link = "index.html?field=ai-ml&q=prot"
+        state = loading(session, link, held_back="locales/en.json")
         page = state.page
-        page.locator("#search").press_sequentially("protein")
-        page.locator("#picks").check()
+        assert page.locator("#search").input_value() == "prot"
         assert page.locator("#search").get_attribute("placeholder") is None
+        page.locator("#search").fill("protein")
+        page.locator("#picks").check()
         state.arrive()
         assert page.locator("#search").input_value() == "protein"
         assert page.locator("#picks").is_checked()
