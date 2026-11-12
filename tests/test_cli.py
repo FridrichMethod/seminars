@@ -402,7 +402,11 @@ class TestRunProblems:
     def test_a_leak_ends_with_status_three_and_says_so(self, project: Path, fakes: Fakes) -> None:
         forged = "gh" + "p_" + "L" * 36
         record = make_event(
-            uid="planted", start=REFERENCE_NOW + timedelta(days=2), end=None, abstract=forged
+            uid="planted",
+            start=REFERENCE_NOW + timedelta(days=2),
+            end=None,
+            abstract=forged,
+            source_ids=["sites-a:planted"],
         )
         (project / "data").mkdir()
         (project / "data" / "events.json").write_text(dump_events([record]), encoding="utf-8")

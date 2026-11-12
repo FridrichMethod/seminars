@@ -33,6 +33,18 @@ class SourceRunResult(Model):
     """What happened to one source during one run.
 
     ``error`` is a short ASCII message without scraped text or credentials.
+
+    A source that delivered events was not necessarily read in full
+    (``read_in_full``): its adapter may have gone on without pages that
+    could not be fetched (``skipped_pages``), or its listing may have
+    shrunk sharply against its recent history (``shrank_from``, see
+    ``seminars.pipeline.collect``). Its status stays what it is, but the
+    run says nothing about the events it did not deliver.
+
+    A listing that stays that small is taken at its new size in the end:
+    ``resized_from`` holds the usual size that the run gave up. Such a run
+    counts as read in full, so the events it does not deliver count as
+    missing again.
     """
 
     source_id: SourceId
@@ -43,11 +55,24 @@ class SourceRunResult(Model):
     events: Count = 0  # drafts that became events inside the window
     invalid: Count = 0  # drafts dropped by normalization
     outside_window: Count = 0  # events dropped because they start outside the window
+    skipped_pages: Count = 0  # pages that failed and that the adapter went on without
+    shrank_from: Count | None = None  # the usual number of accepted drafts, when far fewer came
+    resized_from: Count | None = None  # the usual size given up in this run, see above
     extraction: ExtractionMethod | None = None
     llm_fallback_used: bool = False
     error_kind: SourceErrorKind | None = None
     error: str | None = None
     warnings: list[str] = []
+
+    @property
+    def accepted(self) -> int:
+        """Drafts that normalization accepted, inside the window or not."""
+        return max(self.drafts - self.invalid, 0)
+
+    @property
+    def read_in_full(self) -> bool:
+        """Whether nothing is known to be missing from what the source delivered."""
+        return self.skipped_pages == 0 and self.shrank_from is None
 
 
 class RunCounts(Model):

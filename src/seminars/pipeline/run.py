@@ -4,12 +4,15 @@ The stages, in order (``seminars.contracts`` has the same list from the
 point of view of the contracts)::
 
     sources   fetch, parse, LLM fallback, normalize     seminars.pipeline.collect
+              and the size of each listing against its history
     filter    EventFilter.filter                        rules of another package
     merge     adopt stored uids, de-duplicate           seminars.pipeline.dedup
     classify  FieldTagger, LLMFieldTagger               seminars.pipeline.tagging
     scope     EventFilter.drop_out_of_scope
     picks     PicksScorer.score
     persist   compare with the stored events            seminars.pipeline.diff
+              (a source counts as healthy only when it was read in full and
+              delivered an event in the window; ``healthy_sources``)
     health    update_health (history and issues)
     write     data files, then ICS feeds and site data  seminars.pipeline.store
     check     secret scan and charset rule              seminars.pipeline.checks
@@ -86,7 +89,7 @@ from seminars.pipeline.checks import (
     check_tree,
     sync_check_issue,
 )
-from seminars.pipeline.collect import Timer, collect_sources
+from seminars.pipeline.collect import Timer, collect_sources, compare_with_history
 from seminars.pipeline.dedup import adopt_stored_uids, dedupe, separate_listings
 from seminars.pipeline.diff import Reconciled, reconcile
 from seminars.pipeline.ids import canonical_url
@@ -245,11 +248,41 @@ def _gather(
     # Before anything else looks at the uids: two talks of one source that
     # the uid map holds under one uid get a uid each.
     candidates = separate_listings([c for outcome in outcomes for c in outcome.candidates])
+    history = state.health.sources
     return _Gathered(
-        results=tuple(outcome.result for outcome in outcomes),
+        results=tuple(
+            compare_with_history(outcome.result, history.get(outcome.result.source_id))
+            for outcome in outcomes
+        ),
         candidates=tuple(candidates),
         invalid=tuple(item for outcome in outcomes for item in outcome.invalid),
     )
+
+
+def healthy_sources(results: Sequence[SourceRunResult]) -> frozenset[str]:
+    """The sources whose missing events count: read in full, with an event in the window."""
+    return frozenset(r.source_id for r in results if r.status == "ok" and r.read_in_full)
+
+
+def partial_reads(results: Sequence[SourceRunResult]) -> list[str]:
+    """One warning of the run report per source that delivered events but was not read in full."""
+    return [
+        f"source {result.source_id} was not read in full; the events it did not deliver are "
+        "not counted as missing"
+        for result in results
+        if result.status != "failed" and not result.read_in_full
+    ]
+
+
+def resized_listings(results: Sequence[SourceRunResult]) -> list[str]:
+    """One warning per source whose smaller listing this run takes as its usual size."""
+    return [
+        f"source {result.source_id} has listed far fewer events than usual for so long that "
+        "its smaller listing is now taken as its usual size; the stored events it does not "
+        "list count as missing"
+        for result in results
+        if result.resized_from is not None
+    ]
 
 
 def _scored(event: Event, scorer: PicksScorer) -> Event:
@@ -483,7 +516,14 @@ def _first_report(
         excluded=sorted(processed.excluded, key=_excluded_order),
         counts=_counts(gathered, processed, reconciled, services.picks_scorer.threshold),
         llm=usage,
-        warnings=[*started_fresh, *services.warnings, *processed.warnings, *llm_warnings],
+        warnings=[
+            *started_fresh,
+            *services.warnings,
+            *partial_reads(gathered.results),
+            *resized_listings(gathered.results),
+            *processed.warnings,
+            *llm_warnings,
+        ],
     )
 
 
@@ -579,7 +619,8 @@ def run_pipeline(
         processed.events,
         now=now,
         window=config.settings.window_at(now),
-        healthy_sources={result.source_id for result in gathered.results if result.status == "ok"},
+        healthy_sources=healthy_sources(gathered.results),
+        enabled_sources={source.id for source in config.enabled_sources},
         delete_after_missing_runs=config.settings.events.delete_after_missing_runs,
         excluded_uids=processed.excluded_uids,
         absorbed=processed.absorbed,

@@ -15,9 +15,14 @@ normalization accepted none of its drafts, and ``ok`` otherwise. That is
 counted before the time window is applied: a seminar page that works but
 has no talk in the window (a series between terms) is healthy, not empty.
 Drafts that normalization rejected do not count, so a source whose every
-draft is broken is empty. The run report keeps the status of the run
-itself (``ok`` only with an event in the window), which is what the stored
-events of the source are judged by.
+draft is broken is empty. A source whose entry says ``allow_empty: true``
+(a list that is often empty between events, ``allows_empty``) is healthy
+when it parsed no draft at all without failing: its adapter found the page
+it knows and nothing on it. Its adapter is the one to tell a page that has
+changed apart from a page without items, by failing (``ParseError``). The
+run report keeps the status of the run itself (``ok`` only with an event
+in the window), which is what the stored events of the source are judged
+by.
 
 When a source counts as broken (``settings.health``):
 
@@ -25,18 +30,37 @@ When a source counts as broken (``settings.health``):
 * it was healthy at some time and its last ``source_empty_threshold``
   runs all came back empty, or
 * its last runs, as many as the larger of the two thresholds, were all
-  failed or empty and at least one of them failed.
+  failed or empty and at least one of them failed, or
+* its last ``source_failure_threshold`` runs all delivered events but none
+  of them was read in full (``SourceRunResult.read_in_full``: pages that
+  could not be fetched, a listing far smaller than usual). While that
+  lasts, the stored events the source does not deliver are kept, so it
+  needs a look as much as a failure does.
 
 The issue is closed by the first run in which the source delivers events
-again, and also when the source is disabled or removed from the
-configuration. Only the sources of the run are judged, so a run limited
-with ``--source`` leaves the others alone.
+again and was read in full, and also when the source is disabled or
+removed from the configuration. A run that delivered events but was not
+read in full neither closes an issue nor, before enough of them follow
+each other, opens one. A listing that stays far smaller than usual is in
+the end taken at its new size (``SourceRunResult.resized_from``, see
+``seminars.pipeline.collect``): that run counts as read in full and
+closes the issue with a comment of its own (``SOURCE_RESIZED``), which
+says that the stored events the source does not list count as missing
+from then on. Only the sources of the run are judged, so a run
+limited with ``--source`` leaves the others alone.
 
 An LLM provider is failing when it failed in ``llm_failure_threshold`` runs
 in a row; runs in which it was not used are skipped, because a provider
 further down the chain is only asked when the ones before it fail. The
-issue says which repository secret to replace and with which command, and
-is closed when the provider answers again.
+issue says which repository secret to replace and with which command. It
+is closed when the provider answers again; when it was not asked in a run
+in which another provider of the chain answered (an earlier one works
+again, so nothing shows whether this one would); and when it is no longer
+in the provider chain of a run (its credential is gone, LLM_PROVIDERS
+names other providers, or the run has no LLM at all). A run whose LLM was
+on but whose chain is unknown (its usage could not be read) closes
+nothing. A provider that fails again after its issue was closed gets a new
+one at once: the failures before are still counted.
 
 Issue bodies are plain ASCII markdown. The only text in them that this
 project did not write is the error of the last run, which is escaped and
@@ -50,18 +74,20 @@ daily run.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Collection
 from datetime import datetime
 from typing import Final, Literal
 
 from seminars.config import PROVIDER_CREDENTIAL_ENV, AppConfig, HealthSettings
 from seminars.contracts import LABEL_LLM_AUTH, LABEL_SOURCE_BROKEN, IssueClient
 from seminars.models import (
+    HEALTH_HISTORY_LIMIT,
     HealthFile,
     Issue,
     IssueLabel,
     LLMHealthEntry,
     LLMProviderHealth,
+    LLMUsage,
     RunReport,
     SourceConfig,
     SourceHealth,
@@ -81,8 +107,19 @@ CREDENTIAL_SCRIPT: Final = "scripts/set-llm-credential.sh"
 CREDENTIAL_DOCS: Final = "docs/LLM_CREDENTIALS.md"
 SOURCE_DOCS: Final = "docs/ADDING_A_SOURCE.md"
 
-SourceVerdict = Literal["ok", "failing", "empty", "unsettled"]
-"""``unsettled``: not delivering, but not for long enough to call it broken."""
+SourceVerdict = Literal["ok", "failing", "empty", "incomplete", "unsettled"]
+"""``unsettled``: not delivering in full, but not for long enough to call it broken."""
+
+SOURCE_BACK: Final = "The source delivers events again."
+SOURCE_COMPLETE_AGAIN: Final = "The source is read in full again."
+SOURCE_GONE: Final = "The source was disabled or removed."
+SOURCE_RESIZED: Final = (
+    "The listing has stayed far smaller than usual for so long that its smaller size is now "
+    "taken as the usual one. From this run on, the stored events it does not list count as "
+    "missing, and they are deleted when they stay missing. If the smaller listing is not "
+    "right, fix the source now."
+)
+INCOMPLETE_PHRASE: Final = "delivered events but was not read in full"
 
 _KIND_HINTS: Final[dict[str, str]] = {
     "auth": "The credential is missing, invalid or expired. Replace it.",
@@ -106,20 +143,40 @@ def llm_issue_title(provider: str) -> str:
 # --- history -------------------------------------------------------------------------------
 
 
-def health_status(result: SourceRunResult) -> SourceStatus:
+def allows_empty(source: SourceConfig) -> bool:
+    """Whether a run of ``source`` that parsed nothing found a page that works.
+
+    That is what ``params.allow_empty: true`` says (see the module docstring).
+    """
+    return source.params.get("allow_empty") is True
+
+
+def health_status(result: SourceRunResult, *, allow_empty: bool = False) -> SourceStatus:
     """What one run of a source counts as for health (see the module docstring)."""
     if result.status == "empty" and result.drafts > result.invalid:
+        return "ok"
+    if result.status == "empty" and allow_empty and result.drafts == 0:
         return "ok"
     return result.status
 
 
-def record_run(health: HealthFile, report: RunReport) -> HealthFile:
-    """``health`` with the sources and LLM providers of ``report`` appended to the history."""
+def record_run(
+    health: HealthFile, report: RunReport, *, allow_empty: Collection[str] = ()
+) -> HealthFile:
+    """``health`` with the sources and LLM providers of ``report`` appended to the history.
+
+    ``allow_empty`` holds the ids of the sources for which ``allows_empty``
+    is true.
+    """
     for result in report.sources:
         entry = SourceHealthEntry(
             at=report.started_at,
-            status=health_status(result),
+            status=health_status(result, allow_empty=result.source_id in allow_empty),
             events=result.events,
+            accepted=None if result.status == "failed" else result.accepted,
+            skipped_pages=result.skipped_pages,
+            shrank_from=result.shrank_from,
+            resized_from=result.resized_from,
             error=result.error,
         )
         health = health.with_source_entry(result.source_id, entry)
@@ -135,10 +192,24 @@ def record_run(health: HealthFile, report: RunReport) -> HealthFile:
     return health
 
 
+def partial_reads(history: SourceHealth) -> int:
+    """Most recent consecutive runs that delivered events but were not read in full."""
+    count = 0
+    for entry in reversed(history.history):
+        if entry.status != "ok" or entry.read_in_full:
+            break
+        count += 1
+    return count
+
+
 def source_verdict(history: SourceHealth, settings: HealthSettings) -> SourceVerdict:
     """What the history of a source says about it (see the module docstring)."""
-    if history.last is None or history.last.status == "ok":
+    last = history.last
+    if last is None or (last.status == "ok" and last.read_in_full):
         return "ok"
+    if last.status == "ok":
+        partial = partial_reads(history)
+        return "incomplete" if partial >= settings.source_failure_threshold else "unsettled"
     bad = history.trailing("failed", "empty")
     failed = history.trailing("failed")
     empty = history.trailing("empty")
@@ -194,14 +265,20 @@ def source_issue_body(
     source: SourceConfig | None, source_id: str, history: SourceHealth, verdict: SourceVerdict
 ) -> str:
     """Markdown body of the ``source-broken`` issue of one source."""
-    bad = history.trailing("failed", "empty")
-    what = "failed or delivered nothing" if verdict == "failing" else "parsed no events"
+    if verdict == "incomplete":
+        runs, what = partial_reads(history), INCOMPLETE_PHRASE
+    elif verdict == "failing":
+        runs, what = history.trailing("failed", "empty"), "failed or delivered nothing"
+    else:
+        runs, what = history.trailing("failed", "empty"), "parsed no events"
     last = history.last
     lines = [
-        f"The source `{source_id}` has {what} in its last {bad} runs.",
+        f"The source `{source_id}` has {what} in its last {runs} runs.",
         "",
         f"- Last healthy run: {_moment(history.last_success_at)}",
     ]
+    if verdict == "incomplete" and last is not None:
+        lines += _shortfall(last)
     if source is not None:
         page = ascii_printable(source.homepage or source.all_urls[0])
         lines += [f"- Name: {ascii_printable(source.name)}", f"- Adapter: `{source.adapter}`"]
@@ -209,16 +286,42 @@ def source_issue_body(
     if last is not None and last.status == "failed":
         lines += ["", "Error of the last run:", "", _code_block(last.error)]
     lines += ["", "Recent runs, newest first:", "", *_source_runs(history)]
+    ending = "is read in full again" if verdict == "incomplete" else "delivers events again"
     lines += [
         "",
         "What to check: open the page, compare it with the recorded fixture of the source "
         f"and adjust the entry in `config/sources.d/` or its adapter ({SOURCE_DOCS}). "
         "A source that no longer exists can be disabled with `enabled: false`.",
         "",
-        "This issue is updated by every run and closed automatically when the source "
-        "delivers events again.",
+        f"This issue is updated by every run and closed automatically when the source {ending}.",
     ]
     return "\n".join(lines) + "\n"
+
+
+def _shortfall(last: SourceHealthEntry) -> list[str]:
+    """What the last run of a source that was not read in full missed."""
+    lines = []
+    if last.skipped_pages:
+        lines.append(f"- Last run: {last.skipped_pages} page(s) could not be fetched")
+    if last.shrank_from is not None:
+        lines.append(
+            f"- Last run: {last.accepted or 0} usable draft(s) where it usually has "
+            f"{last.shrank_from}"
+        )
+    lines += [
+        "",
+        "While the source is not read in full, the events it does not deliver are kept: "
+        "they are not counted as missing, and the events it lists are updated as usual.",
+    ]
+    if last.shrank_from is not None:
+        lines += [
+            "",
+            "A listing that stays this small is in the end taken at its new size, once the "
+            f"history of the source (its last {HEALTH_HISTORY_LIMIT} runs) no longer holds "
+            "enough full reads from before. From then on the events it does not list count "
+            "as missing, and this issue is closed with a comment that says so.",
+        ]
+    return lines
 
 
 def _credential_lines(provider: str) -> list[str]:
@@ -264,8 +367,9 @@ def llm_issue_body(provider: str, history: LLMProviderHealth) -> str:
         f"- Details: {CREDENTIAL_DOCS}",
         "",
         "The pipeline goes on without this provider: it uses the next one of the chain, or "
-        "rules only when none is left. This issue is updated by every run and closed "
-        "automatically when the provider answers again.",
+        "rules only when none is left. This issue is updated by every run that asks the "
+        "provider, and closed automatically when the provider answers again, when another "
+        "provider of the chain answers instead, or when the provider leaves the chain.",
     ]
     return "\n".join(lines) + "\n"
 
@@ -300,35 +404,56 @@ def sync_source_issues(
         history = health.sources[source_id]
         verdict = source_verdict(history, config.settings.health)
         title = source_issue_title(source_id)
-        if verdict in ("failing", "empty"):
+        if verdict in ("failing", "empty", "incomplete"):
             body = source_issue_body(sources.get(source_id), source_id, history, verdict)
             _report(issues, LABEL_SOURCE_BROKEN, existing.get(title), title, body)
         elif verdict == "ok" and title in existing:
-            issues.close(existing[title].number, comment="The source delivers events again.")
+            issues.close(existing[title].number, comment=_closing(existing[title], history))
     enabled = {source_issue_title(source.id) for source in config.enabled_sources}
     for title, issue in sorted(existing.items()):
         if title not in enabled:
-            issues.close(issue.number, comment="The source was disabled or removed.")
+            issues.close(issue.number, comment=SOURCE_GONE)
+
+
+def _closing(issue: Issue, history: SourceHealth) -> str:
+    """The comment that closes ``issue``, by the run that closes it and what it was opened for."""
+    last = history.last
+    if last is not None and last.resized_from is not None:
+        return SOURCE_RESIZED
+    return SOURCE_COMPLETE_AGAIN if INCOMPLETE_PHRASE in issue.body else SOURCE_BACK
+
+
+LLM_ANSWERS_AGAIN: Final = "The provider answers again."
+LLM_NOT_ASKED: Final = (
+    "Another provider of the chain answered in this run, so this one was not asked. "
+    "A new issue is opened when it fails again."
+)
+LLM_NOT_IN_CHAIN: Final = "The provider is no longer in the provider chain."
 
 
 def sync_llm_issues(
-    issues: IssueClient, health: HealthFile, providers: Sequence[str], settings: HealthSettings
+    issues: IssueClient, health: HealthFile, usage: LLMUsage, settings: HealthSettings
 ) -> None:
-    """Open, update or close the ``llm-auth`` issues of the providers of a run."""
+    """Open, update or close the ``llm-auth`` issues after a run (see the module docstring)."""
     existing = _open_issues(issues, LABEL_LLM_AUTH, LLM_ISSUE_PREFIX)
-    for provider in sorted(set(providers)):
+    statuses = {result.provider: result.status for result in usage.providers}
+    answered = "ok" in statuses.values()
+    for provider, status in sorted(statuses.items()):
         history = health.llm[provider]
         title = llm_issue_title(provider)
-        if llm_failures(history) >= settings.llm_failure_threshold:
-            _report(
-                issues,
-                LABEL_LLM_AUTH,
-                existing.get(title),
-                title,
-                llm_issue_body(provider, history),
-            )
-        elif llm_recovered(history) and title in existing:
-            issues.close(existing[title].number, comment="The provider answers again.")
+        issue = existing.get(title)
+        if status == "unused" and answered and issue is not None:
+            issues.close(issue.number, comment=LLM_NOT_ASKED)
+        elif llm_failures(history) >= settings.llm_failure_threshold:
+            _report(issues, LABEL_LLM_AUTH, issue, title, llm_issue_body(provider, history))
+        elif llm_recovered(history) and issue is not None:
+            issues.close(issue.number, comment=LLM_ANSWERS_AGAIN)
+    if usage.enabled and not usage.providers:
+        return  # the chain of the run is not known
+    chain = {llm_issue_title(provider) for provider in statuses}
+    for title, issue in sorted(existing.items()):
+        if title not in chain:
+            issues.close(issue.number, comment=LLM_NOT_IN_CHAIN)
 
 
 def update_health(
@@ -345,16 +470,16 @@ def update_health(
     touched. A failure of the issue client is logged and does not change
     the result.
     """
-    updated = record_run(health, report)
+    quiet = {source.id for source in config.sources if allows_empty(source)}
+    updated = record_run(health, report, allow_empty=quiet)
     if issues is None or report.dry_run:
         return updated
     try:
         sync_source_issues(issues, updated, report, config)
     except Exception as error:  # the API of GitHub is not allowed to fail the run
         logger.warning("source health issues were not updated (%s)", type(error).__name__)
-    providers = [provider.provider for provider in report.llm.providers]
     try:
-        sync_llm_issues(issues, updated, providers, config.settings.health)
+        sync_llm_issues(issues, updated, report.llm, config.settings.health)
     except Exception as error:  # as above
         logger.warning("LLM health issues were not updated (%s)", type(error).__name__)
     return updated

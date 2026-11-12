@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Annotated, Final, Literal, Self
 
 from pydantic import AfterValidator, Field
@@ -15,12 +16,26 @@ HEALTH_HISTORY_LIMIT: Final = 30
 
 
 class SourceHealthEntry(Model):
-    """One run of one source."""
+    """One run of one source.
+
+    ``accepted`` is ``None`` in entries of failed runs and of runs recorded
+    before it was kept. ``skipped_pages``, ``shrank_from`` and
+    ``resized_from`` are those of ``SourceRunResult``.
+    """
 
     at: Timestamp  # start time of the run
     status: SourceStatus
     events: Count = 0
+    accepted: Count | None = None  # drafts that normalization accepted, before the window
+    skipped_pages: Count = 0
+    shrank_from: Count | None = None
+    resized_from: Count | None = None
     error: str | None = None
+
+    @property
+    def read_in_full(self) -> bool:
+        """Whether nothing was known to be missing from what the run delivered."""
+        return self.skipped_pages == 0 and self.shrank_from is None
 
 
 class LLMHealthEntry(Model):
@@ -42,6 +57,21 @@ def _trailing[E: (SourceHealthEntry, LLMHealthEntry)](history: list[E], statuses
     return count
 
 
+def _kept_until[E: (SourceHealthEntry, LLMHealthEntry)](
+    history: list[E], last_success_at: datetime | None, moment: datetime
+) -> tuple[list[E], datetime | None]:
+    """The entries of runs that started at ``moment`` or before, and the last success among them.
+
+    A last success after ``moment`` goes back to the last kept entry with
+    status "ok", or to ``None`` when the capped history has none.
+    """
+    kept = [entry for entry in history if entry.at <= moment]
+    if last_success_at is None or last_success_at <= moment:
+        return kept, last_success_at
+    successes = [entry.at for entry in kept if entry.status == "ok"]
+    return kept, max(successes, default=None)
+
+
 class SourceHealth(Model):
     """History of one source, oldest run first, at most HEALTH_HISTORY_LIMIT runs."""
 
@@ -56,6 +86,11 @@ class SourceHealth(Model):
     def last(self) -> SourceHealthEntry | None:
         return self.history[-1] if self.history else None
 
+    def until(self, moment: datetime) -> Self:
+        """The history without the runs that started after ``moment``."""
+        history, success = _kept_until(self.history, self.last_success_at, moment)
+        return self.evolve(history=history, last_success_at=success)
+
 
 class LLMProviderHealth(Model):
     """History of one LLM provider, oldest run first, at most HEALTH_HISTORY_LIMIT runs."""
@@ -66,6 +101,11 @@ class LLMProviderHealth(Model):
     def trailing(self, *statuses: LLMProviderStatus) -> int:
         """Number of most recent consecutive runs whose status is one of ``statuses``."""
         return _trailing(self.history, set(statuses))
+
+    def until(self, moment: datetime) -> Self:
+        """The history without the runs that started after ``moment``."""
+        history, success = _kept_until(self.history, self.last_success_at, moment)
+        return self.evolve(history=history, last_success_at=success)
 
 
 class HealthFile(Model):
@@ -83,6 +123,18 @@ class HealthFile(Model):
             last_success_at=entry.at if entry.status == "ok" else current.last_success_at,
         )
         return self.evolve(sources={**self.sources, source_id: updated})
+
+    def until(self, moment: datetime) -> Self:
+        """The history as the run that started at ``moment`` left it.
+
+        Every entry of a run that started later is dropped: such a run
+        wrote data/health.json but did not finish (see
+        ``seminars.pipeline.store``).
+        """
+        return self.evolve(
+            sources={key: value.until(moment) for key, value in self.sources.items()},
+            llm={key: value.until(moment) for key, value in self.llm.items()},
+        )
 
     def with_llm_entry(self, provider: str, entry: LLMHealthEntry) -> Self:
         """Return a copy with ``entry`` appended to the capped history of ``provider``."""
