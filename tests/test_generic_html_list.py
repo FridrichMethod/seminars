@@ -142,6 +142,24 @@ class TestRecordedSources:
         assert webinar.speakers == []
         assert (webinar.abstract or "").startswith("Watch our webinar on long-context")
 
+    def test_biohub_without_upcoming_events_gives_no_drafts(self) -> None:
+        # Between seasons the upcoming block is empty and only past cards are listed.
+        source = with_params(SOURCES["bayarea-biohub"], allow_empty=True)
+        past = (
+            "<li class='multisite-query-loop-item'><h3 class='card-title'>Old</h3>"
+            "<div class='card-button'><a href='/events/old/'>More</a></div></li>"
+        )
+        http = FakeHttpClient()
+        http.add(
+            "https://biohub.org/events/",
+            "<html><body><ul class='content-type-events'></ul>"
+            f"<ul class='content-type-past_events'>{past}</ul></body></html>",
+        )
+        assert run(source, http) == []
+        assert http.requests == ["https://biohub.org/events/"]
+        with pytest.raises(ParseError, match="matches nothing"):
+            run(SOURCES["bayarea-biohub"], http)
+
     def test_suncat_rows_and_their_tags(self) -> None:
         source = SOURCES["bayarea-suncat"]
         detail = {**source.params["detail_page"], "max_pages": 2}
@@ -389,6 +407,20 @@ class TestRows:
     def test_items_without_the_required_fields_are_a_parse_error(self) -> None:
         with pytest.raises(ParseError, match=r"no item .* has all of: title, date"):
             run(list_source(require=["title", "date"]), serve(page(row(title="", day=""))))
+
+    @pytest.mark.parametrize("allow_empty", [False, True])
+    def test_allow_empty_lets_a_list_without_items_give_no_drafts(self, allow_empty: bool) -> None:
+        empty = serve(page())
+        if allow_empty:
+            assert run(list_source(allow_empty=True), empty) == []
+        else:
+            with pytest.raises(ParseError, match=r"selectors\.item .* matches nothing"):
+                run(list_source(allow_empty=False), empty)
+
+    def test_allow_empty_still_needs_the_required_fields_when_there_are_items(self) -> None:
+        source = list_source(allow_empty=True, require=["title", "date"])
+        with pytest.raises(ParseError, match=r"no item .* has all of: title, date"):
+            run(source, serve(page(row(title="", day=""))))
 
     def test_a_payload_without_list_page_is_a_parse_error(self) -> None:
         source = list_source()

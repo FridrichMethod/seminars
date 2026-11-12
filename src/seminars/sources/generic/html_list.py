@@ -17,6 +17,8 @@ Keys of ``params`` (an unknown key is an error that names it;
 * ``selectors.item``: one element per talk. On every list page it must match
   at least once, and at least one item must have every field of
   ``require``; otherwise the page is not understood (``ParseError``).
+* ``allow_empty`` (default false): a page where ``selectors.item`` matches nothing
+  gives no drafts, not a ``ParseError`` (an upcoming block that is often empty).
 * ``selectors.<field>``: evaluated inside the item, first match. The fields
   are ``title``, ``link`` (detail page), ``date``, ``time``, ``speaker``,
   ``affiliation``, ``location``, ``abstract``, ``stream_link`` (recording or
@@ -469,6 +471,7 @@ class HtmlListParams(Model):
     default_start_time: time | None = None
     default_end_time: time | None = None
     require: list[FieldName] = ["date"]
+    allow_empty: bool = False
     skip_title_patterns: list[Pattern] = []
     skip_summary_patterns: list[Pattern] = []
     exclude_regions: list[str] = []
@@ -749,6 +752,8 @@ class HtmlListAdapter:
     ) -> None:
         url, item = ascii_printable(document.url), params.selectors.item
         if not rows:
+            if params.allow_empty:
+                return
             raise ParseError(
                 f"source {source.id}: selectors.item {item!r} matches nothing on {url}"
             )
