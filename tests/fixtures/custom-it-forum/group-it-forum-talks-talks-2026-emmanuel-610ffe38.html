@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en-US">
+    <head>
+        
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        
+
+        
+        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ekko-lightbox/5.3.0/ekko-lightbox.css" integrity="sha256-HAaDW5o2+LelybUhfuk0Zh2Vdk8Y2W2UeKmbaXhalfA=" crossorigin="anonymous" />
+
+        
+        
+        <link rel="stylesheet" href="https://web.stanford.edu/group/it-forum/talks/style.css">
+
+        <meta name="generator" content="Hugo 0.55.4" />
+        <title>
+            
+                Abstractions and plans | IT Forum at Stanford University
+            
+        </title>
+        <link rel="canonical" href="https://web.stanford.edu/group/it-forum/talks/talks/2026/emmanuel-abbe/">
+        
+
+        <link rel="apple-touch-icon" sizes="57x57" href="https://web.stanford.edu/group/it-forum/talks/favicon/apple-touch-icon-57x57.png" />
+        <link rel="apple-touch-icon" sizes="60x60" href="https://web.stanford.edu/group/it-forum/talks/favicon/apple-touch-icon-60x60.png" />
+        <link rel="apple-touch-icon" sizes="72x72" href="https://web.stanford.edu/group/it-forum/talks/favicon/apple-touch-icon-72x72.png" />
+        <link rel="apple-touch-icon" sizes="76x76" href="https://web.stanford.edu/group/it-forum/talks/favicon/apple-touch-icon-76x76.png" />
+        <link rel="apple-touch-icon" sizes="114x114" href="https://web.stanford.edu/group/it-forum/talks/favicon/apple-touch-icon-114x114.png" />
+        <link rel="apple-touch-icon" sizes="120x120" href="https://web.stanford.edu/group/it-forum/talks/favicon/apple-touch-icon-120x120.png" />
+        <link rel="apple-touch-icon" sizes="144x144" href="https://web.stanford.edu/group/it-forum/talks/favicon/apple-touch-icon-144x144.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="https://web.stanford.edu/group/it-forum/talks/favicon/apple-touch-icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="https://web.stanford.edu/group/it-forum/talks/favicon/apple-touch-icon-180x180.png" />
+
+        <link rel="icon" type="image/png" href="https://web.stanford.edu/group/it-forum/talks/favicon/favicon-196x196.png" sizes="196x196" />
+        <link rel="icon" type="image/png" href="https://web.stanford.edu/group/it-forum/talks/favicon/favicon-192x192.png" sizes="192x192" />
+        <link rel="icon" type="image/png" href="https://web.stanford.edu/group/it-forum/talks/favicon/favicon-128x128.png" sizes="128x128" />
+        <link rel="icon" type="image/png" href="https://web.stanford.edu/group/it-forum/talks/favicon/favicon-96x96.png" sizes="96x96" />
+        <link rel="icon" type="image/png" href="https://web.stanford.edu/group/it-forum/talks/favicon/favicon-32x32.png" sizes="32x32" />
+        <link rel="icon" type="image/png" href="https://web.stanford.edu/group/it-forum/talks/favicon/favicon-16x16.png" sizes="16x16" />
+
+        <link rel="mask-icon" href="https://web.stanford.edu/group/it-forum/talks/favicon/safari-pinned-tab.svg" color="#ffffff">
+
+        <meta name="application-name" content="IT Forum at Stanford University"/>
+        <meta name="msapplication-TileColor" content="#FFFFFF" />
+        <meta name="msapplication-TileImage" content="https://web.stanford.edu/group/it-forum/talks/favicon/mstile-144x144.png" />
+        <meta name="msapplication-square70x70logo" content="https://web.stanford.edu/group/it-forum/talks/favicon/mstile-70x70.png" />
+        <meta name="msapplication-square150x150logo" content="https://web.stanford.edu/group/it-forum/talks/favicon/mstile-150x150.png" />
+        <meta name="msapplication-square310x310logo" content="https://web.stanford.edu/group/it-forum/talks/favicon/mstile-310x310.png" />
+
+        
+    </head>
+    <body>
+        
+
+        <div class="stanford-header d-none d-lg-block">
+            <div class="container">
+                <a class="stanford-logo-engineering" href="https://web.stanford.edu/group/it-forum/talks/">
+                    <div class="_logo">
+                        <img src="https://web.stanford.edu/group/it-forum/talks/img/stanford-logo-white.png" />
+                        <span>Engineering</span>
+                    </div>
+                    <span class="_unit">IT Forum</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="stanford-header-navigation fixed-top">
+            <div class="container">
+                <nav class="navbar navbar-expand-lg">
+                    <a class="navbar-brand d-inline-block d-lg-none" href="https://web.stanford.edu/group/it-forum/talks/">
+                        <img src="https://web.stanford.edu/group/it-forum/talks/img/stanford-logo-white.png" />
+                        <span>IT Forum</span>
+                    </a>
+                    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+                        <i class="far fa-compass"></i> Menu
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarNav">
+                        <ul class="navbar-nav">
+                            
+                            
+                                
+                                    <li class="nav-item ">
+                                
+                                    <a class="nav-link" href="/group/it-forum/talks/">
+                                        
+                                        <span>Home</span>
+                                    </a>
+                                </li>
+                            
+                                
+                                    <li class="nav-item ">
+                                
+                                    <a class="nav-link" href="/group/it-forum/talks/talks/">
+                                        
+                                        <span>Talks</span>
+                                    </a>
+                                </li>
+                            
+                                
+                                    <li class="nav-item ">
+                                
+                                    <a class="nav-link" href="/group/it-forum/talks/directions/">
+                                        
+                                        <span>Directions</span>
+                                    </a>
+                                </li>
+
+
+                                    <li class="nav-item ">
+
+                                    <a class="nav-link" href="/group/it-forum/talks/contact/">
+
+                                        <span>Contact</span>
+                                    </a>
+                                </li>
+                            
+                        </ul>
+                    </div>
+                </nav>
+            </div>
+        </div>
+
+        <div class="stanford-content _default_single">
+            <div class="container">
+                <div class="row">
+
+                </div>
+            </div>
+            
+                <div class="container">
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            
+
+    <div class="stanford-box-1 _subnavigation">
+        <div class="row"><div class="col-12">
+            
+            
+                
+            
+                
+                    <a href="/group/it-forum/talks/talks/"><h4>Talks</h4></a>
+                    
+                        <ul class="nav flex-md-column">
+
+                                <li class="nav-item">
+                                    <a href="/group/it-forum/talks/talks/2026/" class="nav-link ">2026</a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a href="/group/it-forum/talks/talks/2025/" class="nav-link ">2025</a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a href="/group/it-forum/talks/talks/2024/" class="nav-link ">2024</a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a href="/group/it-forum/talks/talks/2023/" class="nav-link ">2023</a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a href="/group/it-forum/talks/talks/2022/" class="nav-link ">2022</a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a href="/group/it-forum/talks/talks/2021/" class="nav-link ">2021</a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a href="/group/it-forum/talks/talks/2020q4/" class="nav-link ">2020</a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a href="/group/it-forum/talks/talks/previous-years/" class="nav-link ">Previous Years</a>
+                                </li>
+                            
+                        </ul>
+                    
+                
+            
+                
+            
+        </div></div>
+    </div>
+
+
+                        </div>
+                        <div class="col-md-8">
+                            
+
+    <div class="_content row">
+        <div class="col-12 _page _full _talk">
+
+    <p style="font-weight: bold;"><a href="https://web.stanford.edu/group/it-forum/talks/talks/">← List all talks ...</a></p>
+
+    
+
+    <h1>Abstractions and plans</h1>
+    <h3>Emmanuel Abb&eacute; &ndash; EPFL and Apple AIML</h3>
+    
+    <p>Fri, 06-Nov-2026 / 2:30pm
+         / Allen 101X
+        
+        
+    </p>
+
+    
+
+<h3 id="abstract">Abstract</h3>
+
+<p>AI reasoning commonly relies on scaling the thinking time. In this talk, we examine how to elevate the thinking process to capture more abstract concepts. Specifically, how to use compression techniques to learn strategic plans that make execution more efficient and robust. We will present applications and formal guarantees for the resulting system.</p>
+
+<h3 id="bio">Bio</h3>
+
+<p>Emmanuel Abb&eacute; received his Ph.D. degree from the EECS department at MIT. He was a professor at Princeton University and is now a professor at EPFL, as well as a Senior Research Scientist at Apple AIML. He is the recipient of the Bell Labs Prize, the IAS von Neumann Fellowship, the ICML Outstanding Paper Award and twice the IEEE Information Theory Society Award.</p>
+
+
+</div>
+
+    </div>
+
+
+                        </div>
+                    </div>
+                    
+                </div>
+            
+        </div>
+
+        <div class="stanford-footer">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-4">
+                        <a href="http://engineering.stanford.edu/" style="border: none;" target="_blank">
+                            <img src="https://web.stanford.edu/group/it-forum/talks/img/engineering-wordmark-white.png" style="width: 100%; max-width: 370px;" />
+                        </a>
+                    </div>
+                    <div class="col-md-5">
+                        <h5>Information Systems Laboratory (ISL)</h5>
+                        <address>
+                            <p>
+                                <b>Packard Building</b><br />
+                                Electrical Engineering Department<br />
+                                350 Jane Stanford Way<br />
+                                Stanford, CA 94305-9515
+                            </p>
+                        </address>
+                    </div>
+                    <div class="col-md-3">
+                        <h5>IT Forum</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+
+        
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/ekko-lightbox/5.3.0/ekko-lightbox.min.js" integrity="sha256-Y1rRlwTzT5K5hhCBfAFWABD4cU13QGuRN6P5apfWzVs=" crossorigin="anonymous"></script>
+        <script type="text/javascript">
+
+            $(document).on('click', '[data-toggle="lightbox"]', function(event) {
+                event.preventDefault();
+                $(this).ekkoLightbox();
+            });
+
+        </script>
+        
+
+        
+    </body>
+</html>

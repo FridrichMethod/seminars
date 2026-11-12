@@ -1,0 +1,356 @@
+# Four Stanford talk series the owner added to the source list on 2026-11-11: Bio-X,
+# AI + Data for Science (the Marlowe seminar), Chemical and Systems Biology, and the two
+# series of the Information Systems Laboratory (ISL Colloquium, Information Theory Forum).
+# Schema of one entry: seminars.models.SourceConfig. Everything under "params" and the
+# extra keys under "research" are settings and notes for the adapter of that source.
+#
+# Researched on 2026-11-11. Every URL below was requested through the project's polite
+# client; the pages an adapter needs are recorded under tests/fixtures/<id>/, and the
+# README.md there describes the markup in more detail. None of these sites is a Stanford
+# Sites template A or B site that could be verified as one, so every entry is in the
+# group stanford-custom (prefix custom-).
+#
+# Adapter names: "html_list" and "llm_page" are generic adapters. "it_forum" is a
+# proposed module for seminars.sources.custom that does not exist yet (its source is
+# disabled); research.proposed_adapter says "custom:<module>" for it. The registry
+# checks adapter names at run time, not at load time.
+#
+# Overlap with the other sources (measured on 2026-11-11): the Stanford Events calendar
+# (localist-stanford) has no event of Bio-X, Chemical & Systems Biology, the Information
+# Systems Lab, Electrical Engineering or Stanford Data Science between 2026-10-28 and
+# 2027-03-12 (one request with group_id[] of these five departments: 0 records; the same
+# request with Chemical Engineering added: 1 record, so the parameter works). The HAI
+# list (custom-hai-events) carries the five autumn sessions of AI + Data for Science from
+# 2026-10-28 to 2026-12-02 (title "Marlowe | AI + Data for Science with <speaker>", the
+# time, no room, no talk title, no abstract); see the notes of custom-ai4science. The
+# ChEM-H list (sites-chemh) re-lists both upcoming special seminars of Chemical and
+# Systems Biology with the same chemsysbio.stanford.edu post addresses and with the real
+# talk titles; see the notes of custom-csb-events. No recording of any other source
+# mentions a talk of the ISL Colloquium (searched by speaker name and host name).
+#
+# Patterns are Python regular expressions. Characters outside ASCII are written as
+# escapes: \u2022 is the bullet, \u2013 the en dash.
+#
+# Parameters of the "html_list" sources in this file (see the docstring of
+# seminars.sources.generic.html_list for the full list):
+#   selectors.item         one element per talk; every other selector is evaluated
+#                          inside that element, first match, and its text is the value of
+#                          the field. A selector that the item itself satisfies matches the
+#                          item (selectolax.lexbor): custom-ai4science reads the date from
+#                          the id attribute of the item this way
+#   <field>_attribute      read this attribute of the selected element instead of its text
+#   <field>_pattern        searched in the value. A group named like the field gives its
+#                          value; every other named group sets the field of that name. The
+#                          groups start and end of time_pattern are times of day
+#   date_format            strptime format of the date; without it a date is ISO 8601 or
+#                          whatever dateutil reads, and a date without a year gets the year
+#                          that puts it closest to the fetch
+#   default_start_time,    local time of day for rows that give none
+#   default_end_time
+#   require                fields a row needs to count as a talk
+#   skip_title_patterns    rows whose title matches one of them are dropped
+#   title_event_types      {word: event type}; the first word found in the title wins
+# None of these pages states a time zone; all times are Pacific wall-clock times.
+#
+# Research keys used in this file besides the typed ones:
+#   upcoming_events        events dated on or after 2026-11-11 in the sample
+#   structured_data        every feed, JSON-LD block, API or embedded data that was looked
+#                          at, with what it holds
+#   structured_data_unknown  true when no page of the site could be read, so the typed
+#                          has_* keys and extraction are left unset rather than false
+#   robots                 what robots.txt of the host says
+#   requests_per_run       page requests of one run (robots.txt not counted)
+#   proposed_adapter       "custom:<module>" when no generic adapter fits
+#   localist_department    id and name of the department on events.stanford.edu
+#   marlowe_page           the page the owner named, when the source reads another one
+#   ics_blocked_by_robots  an iCalendar feed exists, but robots.txt of its host
+#                          disallows it, so it was not requested
+
+x-stanford-extra: &stanford-extra
+  group: stanford-custom
+  institution: stanford
+  timezone: America/Los_Angeles
+
+sources:
+  # --- Bio-X -----------------------------------------------------------------------------
+  - <<: *stanford-extra
+    id: custom-biox-seminars
+    name: Stanford Bio-X Seminars
+    adapter: llm_page
+    # Off: every page answers HTTP 403 with a Cloudflare challenge (see the notes).
+    enabled: false
+    url: https://biox.stanford.edu/event-type/seminar
+    host_org: Stanford Bio-X
+    default_fields: [bio]
+    default_event_type: seminar
+    research:
+      verified: 2026-11-11
+      sample_events: 0
+      # has_rss, has_ics, has_jsonld, has_jsonapi and extraction are left unset on
+      # purpose: nothing of the site could be seen, so none of them is known.
+      structured_data_unknown: true
+      structured_data:
+        - "none could be read: every page of the site answers HTTP 403 with a Cloudflare challenge, /events/all/rss and /jsonapi/node/stanford_event included; whether a feed or JSON:API exists behind it is unknown"
+      crawl_delay: 10
+      robots: "Crawl-delay: 10; the usual Drupal paths and /saml/, /saml_login are disallowed; robots.txt itself is answered normally"
+      localist_department: "37955139746412 Bio-X Program (mapped to [bio] in localist.yaml)"
+      notes:
+        - Disabled. biox.stanford.edu sits behind a Cloudflare managed challenge ("Just a moment...", JavaScript and cookies required). The polite client got HTTP 403 with the challenge page for /event-type/seminar, /, /events, /events/all/rss and /jsonapi/node/stanford_event; only robots.txt was answered. The client does not run JavaScript and must not try to pass the challenge, so the site cannot be read at all.
+        - Because nothing could be seen, the template of the site (Stanford Sites A or B, or neither) is unknown. The robots.txt is the standard one of a Drupal site with Stanford's SAML login, and the paths /event-type/seminar and /events/archive (found by a web search) look like Stanford Sites, which usually have the feed /events/all/rss. The url is the seminar listing the owner named; llm_page is only a placeholder adapter that reads whatever page comes back, not a chosen extraction method. If the site becomes readable, check the feed first (rss with the su-event params of stanford-sites.yaml), then JSON:API.
+        - Bio-X also publishes its events on the Stanford Events calendar (department "Bio-X Program", events.stanford.edu/department/bio-x_program), which localist-stanford already reads and maps to [bio]. A web search found Bio-X events there (Food Speaker Series 2026-02-26). Between 2026-10-28 and 2027-03-12 that department has no event at all, so this source would add nothing that can be fetched today.
+        - Enable only if the challenge is lifted for this client (a test request then returns 200), and re-check the template first.
+
+  # --- AI + Data for Science (the Marlowe seminar) ---------------------------------------
+  - <<: *stanford-extra
+    id: custom-ai4science
+    name: AI + Data for Science Seminar
+    adapter: html_list
+    url: https://aida4sci.stanford.edu/schedule.html
+    host_org: AI + Data for Science (CS 292, EE 292R, PSYCH 292R, STATS 282)
+    default_fields: [ai-ml]
+    default_event_type: seminar
+    series: AI + Data for Science
+    params:
+      selectors:
+        # One div per Wednesday of the academic year. Open dates are div.talk-card.talk-tba
+        # ("Speaker to be announced") and are not talks.
+        item: "div.talk-card:not(.talk-tba)"
+        # The id of the item is the date of the talk ("2026-11-11"). The text in
+        # span.talk-date ("November 11") has no year, and a year guessed from the fetch
+        # date would be wrong for the far end of the academic year.
+        date: "div.talk-card"
+        # Talks without a title yet have div.talk-title.talk-title-tba ("Title and
+        # abstract to be announced"); they keep no title.
+        title: "div.talk-title:not(.talk-title-tba)"
+        speaker: "h2.talk-speaker"
+        affiliation: "div.talk-affiliation"
+        # span.talk-room on a normal card; a card for another room has no span.talk-room
+        # but a p.room-notice ("Different room this week: Packard 101, not CoDA E160.")
+        # whose link names the room.
+        location: "span.talk-room, p.room-notice a"
+        abstract: "div.talk-abstract"
+      date_attribute: id
+      date_format: "%Y-%m-%d"
+      # No time on a card. The page heading says "Wednesdays 4:30-5:30 pm" (with an en
+      # dash) for every talk of the year.
+      default_start_time: "16:30"
+      default_end_time: "17:30"
+      require: [date, speaker]
+    research:
+      verified: 2026-11-11
+      sample_events: 19
+      upcoming_events: 12
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      structured_data:
+        - "none: a Quarto page with no feed link, no JSON-LD and no script data; Subscribe is a weekly e-mail"
+      extraction: html
+      crawl_delay: 0
+      robots: "aida4sci.stanford.edu: no Crawl-delay. marlowe-research.stanford.edu: Allow: /, no Crawl-delay"
+      requests_per_run: 1
+      marlowe_page: https://marlowe-research.stanford.edu/events/ai4science/
+      notes:
+        - The owner named the Marlowe page (marlowe-research.stanford.edu/events/ai4science/). That page shows only the upcoming sessions of the current quarter (3 cards in the page as served on 2026-11-11, and a script hides a card once its date has passed) with speaker, talk title and room, and links every card to the organizers' schedule on aida4sci.stanford.edu ("Talk details"). The schedule is the better source and is used here.
+        - The schedule lists every Wednesday of the academic year 2026-27 (30 cards, 2026-09-23 to 2027-06-02). 19 have a speaker (10 autumn talks with title and abstract, 8 winter talks and one spring talk without a title yet); 11 are open dates ("Speaker to be announced") and are skipped.
+        - Every talk is Wednesday 4:30 to 5:30 pm. The room is CoDA E160 unless a card says otherwise (2026-09-23 and 2026-10-07 were in Packard 101).
+        - A card has no page of its own and no link to one (the speaker name links to the speaker's home page), so a draft has no url and its uid falls back to the start and the speaker.
+        - 'Overlap with custom-hai-events. The HAI list has the five autumn sessions from 2026-10-28 to 2026-12-02 as "Marlowe | AI + Data for Science with <speaker>" with start and end, tag Seminar (kept), promo_url = the Marlowe page, and neither room, talk title nor speaker list (those events have no HAI detail page). This source adds the talk titles, abstracts, rooms and the winter talks. The two listings only merge into one event if dedup sees a shared speaker, a shared detail page or similar titles at the same start. None of these holds today: no URL is shared (these drafts have none), HAI has no speaker, and the titles score 35 to 48 (rapidfuzz token_set_ratio) against the talk titles, far below the threshold of 85. So the five sessions are published twice unless the HAI adapter changes. Either it drops the HAI events whose promo_url is on marlowe-research.stanford.edu (the simpler fix, since this source has every field and more), or it reads the speaker after " with " in the HAI title.'
+        - HAI still calls the 2026-11-11 talk by its old slug (mohsen-bayati); the schedule and the Marlowe page both say Alex Pentland. Mohsen Bayati is now on 2027-05-12.
+        - 'The Marlowe page itself has data-event-date on each card, h3 "AI and Data for Science: <speaker>", span.talk-title and span.when-where. It is not recorded because the adapter does not need it.'
+
+  # --- Chemical and Systems Biology --------------------------------------------------------
+  - <<: *stanford-extra
+    id: custom-csb-events
+    name: Stanford Chemical and Systems Biology Events
+    adapter: html_list
+    url: https://chemsysbio.stanford.edu/events/
+    host_org: Stanford Department of Chemical and Systems Biology
+    default_fields: [bio, chem]
+    default_event_type: seminar
+    params:
+      selectors:
+        # The page is the WordPress archive of the category "Events": the 10 newest posts,
+        # one article each, with no pagination link. Everything about an event is in the
+        # title of its post: "JOIN US! CSB Special Seminar & Open Discussion, David
+        # Garfield, PhD, Monday, November 16, 2026, 11:00 am <en dash> 12:45 pm, Munzer!"
+        item: "div.secondary-content-main > article"
+        title: "h2 a"
+        link: "h2 a"
+        speaker: "h2 a"
+        date: "h2 a"
+        time: "h2 a"
+        location: "h2 a"
+      link_attribute: href
+      # The title of the talk is the part before the first ", <weekday>" or ", <month>",
+      # without a leading "JOIN US!" or "SAVE THE DATE:" (the address of the Sieber post,
+      # save-the-date-csb-special-seminar-..., shows that the department uses both).
+      title_pattern: '^(?:(?:JOIN US!|SAVE THE DATE[:!]?)\s*)?(?P<title>.+?)(?:,\s+(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|January|February|March|April|May|June|July|August|September|October|November|December)\b.*|!?\s*)$'
+      # "Seminar & Open Discussion, David Garfield, PhD," "Thesis Defense <en dash> Alex
+      # Van Elgort, Jarosz Lab," "Thesis Defense, Rebecca Rodell, Wednesday".
+      speaker_pattern: '(?:Seminar(?: & Open Discussion)?|Defense|Talk|Lecture)\s*(?:,|\u2013|-)\s*(?P<speaker>[A-Z][^,!]+?)\s*,'
+      # "November 16, 2026"; some titles have no year ("Tuesday, September 15, 12 pm").
+      date_pattern: '(?P<date>(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}(?:, \d{4})?)'
+      # "11:00 am <en dash> 12:45 pm", "12:30 pm", "1pm", "12 pm".
+      time_pattern: '(?i)(?P<start>\d{1,2}(?::\d{2})?\s*[ap]m)(?:\s*(?:\u2013|-|to)\s*(?P<end>\d{1,2}(?::\d{2})?\s*[ap]m))?'
+      # The part after the time: "Munzer", "Clark Auditorium", "Clark S360 or via Zoom".
+      location_pattern: '(?i)\d\s*[ap]m\s*,\s*(?P<location>[^,]+?)\s*!?\s*$'
+      # Social events of the department share the category.
+      skip_title_patterns:
+        - '(?i)happy hour'
+        - '(?i)party'
+        - '(?i)friendsgiving'
+        - '(?i)reception'
+        - '(?i)celebrat'
+      title_event_types:
+        Defense: defense
+        Symposium: conference
+        Lecture: lecture
+        Seminar: seminar
+      require: [date, time]
+    research:
+      verified: 2026-11-11
+      sample_events: 4
+      upcoming_events: 2
+      has_rss: true
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: true
+      ics_blocked_by_robots: true
+      structured_data:
+        - "/category/events/feed/ (linked): RSS of the same 10 posts; pubDate is the publication time, the event time is only in the title and the text"
+        - "/wp-json/wp/v2/posts?categories=30: the same posts as JSON (title, link, publication date, content); no event fields, acf is empty"
+        - "Google Calendar csbdept@gmail.com embedded on /department/special-programs-events/: its iCalendar feed is on calendar.google.com, disallowed by robots.txt there, not requested (so what it holds was not seen)"
+        - "no JSON-LD on the list page or the detail page"
+      extraction: html
+      crawl_delay: 0
+      robots: "User-agent: * only, nothing disallowed, no Crawl-delay"
+      requests_per_run: 1
+      localist_department: "37955140573958 Chemical & Systems Biology (mapped to [bio, chem] in localist.yaml)"
+      notes:
+        - WordPress. The events page is the category archive "Events" (category 30) with the 10 newest posts, 2026-08-21 to 2026-12-11 when checked. Posts are announcements, not event records; the date, time and room of an event are written into the post title (and again in the post text).
+        - Of the 10 posts, 4 are talks (two special seminars, 2026-11-16 David Garfield and 2026-12-03 Stephan Sieber, and two PhD defenses in September); the other 6 are social events (holiday party, Friendsgiving, lab happy hours, a reception) or news without a date (new PhD cohort), which the skip patterns and require drop.
+        - The feed and wp-json were tried first. They hold the same posts with the publication time only, so the rss adapter (which needs an element with the start) cannot use them, and wp-json has no event fields. Reading the titles of the list page needs no further request.
+        - The post text has the talk title, the abstract and the speaker's bio (for example "Talk Title:" and "Abstract:" in the Garfield post); html_list does not read detail pages for that. The detail page of the Garfield seminar is recorded for a later adapter that does.
+        - A title without a year ("Tuesday, September 15, 12 pm") gets the year closest to the fetch, which is right as long as the list keeps moving (the 10 posts spanned four months).
+        - The department's own calendar is a Google Calendar (csbdept@gmail.com) on /department/special-programs-events/. Like the other Google Calendar sources it is not used, because robots.txt of calendar.google.com disallows the feed. The same page announced "Science Circle Faculty Talk, November 17, 12:00pm, Alway M112" in its sidebar, a talk that has no post in the category; such talks are missed.
+        - Detail links are /events/<slug>/ or /uncategorized/<slug>/ (WordPress uses the first category of a post); both are pages of a post.
+        - The Stanford Events calendar has no event of this department between 2026-10-28 and 2027-03-12.
+        - 'Overlap with sites-chemh: 2 of the 2 upcoming talks are already there. The ChEM-H list re-lists both special seminars (2026-11-16 David Garfield, 2026-12-03 Stephan Sieber) with the same chemsysbio.stanford.edu post addresses and with the real talk titles ("Science with Claude: Agentic Biology, Data Analysis, and Human Interactions in a World of LLMs", "Breaking Bacterial Resistance via Chemical Dysregulation"), but without speaker or room. Dedup merges each pair through the shared detail page (checked offline on the recordings: the 6 candidates of the two sources in the window become 4). What this source adds: the speaker and the room of those talks, and the posts that only the department lists (the PhD defenses, none upcoming in the sample).'
+        - 'Open issue, not fixable in this entry: the merged event takes the title of the member whose uid sorts first, and "custom-csb-events." sorts before "sites-chemh.", so the announcement title ("CSB Special Seminar & Open Discussion, David Garfield, PhD") replaces the talk title, and the classifier, which runs after the merge, no longer sees the words of the talk title. A fix belongs into the merge rule (prefer a title that does not contain a speaker name, or the more informative one) or into html_list (a detail_page key that reads the title from the "Talk Title:" text of the post, as recorded for the Garfield seminar).'
+
+  # --- ISL Colloquium ----------------------------------------------------------------------
+  - <<: *stanford-extra
+    id: custom-isl-colloquium
+    name: Stanford ISL Colloquium
+    adapter: html_list
+    url: https://isl.stanford.edu/talks/
+    host_org: Stanford Information Systems Laboratory
+    default_fields: [cs, ai-ml, math]
+    default_event_type: colloquium
+    series: ISL Colloquium
+    params:
+      selectors:
+        # Astro site. The home page holds every talk since 2020 as a hidden card
+        # (div.talk-template, 152 of them, newest first); a script shows the next one.
+        item: "div.talk-template"
+        title: "h3.talk-card__title"
+        link: "a.talk-card"  # /talks/talk-schedule/<quarter>-<speaker>, the detail page
+        # "<strong>Thomas Courtade</strong> <U+2022> Associate Professor, UC Berkeley"
+        speaker: "p.talk-card__speaker strong"
+        affiliation: "p.talk-card__speaker"
+        # "Thursday, November 12, 2026 at 4:00 PM <U+2022> Packard 202"
+        date: "p.talk-card__meta"
+        time: "p.talk-card__meta"
+        location: "p.talk-card__meta"
+      link_attribute: href
+      affiliation_pattern: '\u2022\s*(?P<affiliation>.+?)\s*$'
+      date_pattern: '(?P<date>[A-Z][a-z]+ \d{1,2}, \d{4})'
+      date_format: "%B %d, %Y"
+      time_pattern: '\bat\s+(?P<start>\d{1,2}:\d{2}\s*[AP]M)'
+      location_pattern: '\u2022\s*(?P<location>.+?)\s*$'
+      require: [date, title]
+    research:
+      verified: 2026-11-11
+      sample_events: 152
+      upcoming_events: 3
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      structured_data:
+        - "none: no feed link, no JSON-LD and no script data on the home page or a detail page"
+      extraction: html
+      crawl_delay: 0
+      robots: "no robots.txt (HTTP 404)"
+      requests_per_run: 1
+      localist_department: "37955142159418 Information Systems Lab (mapped to [cs] in localist.yaml)"
+      notes:
+        - Thursdays at 4 pm in Packard 202 during the academic year (4:30 pm in 2020). Autumn 2026 has talks up to 2026-12-03; 3 were upcoming on 2026-11-11.
+        - Every card has title, speaker, affiliation, date, time and room. There is no end time; the talks are an hour.
+        - The detail page (/talks/talk-schedule/<slug>, answered by a redirect to the same path with a trailing slash on the same host) repeats the card and adds the abstract and the bio (h3 "Abstract", h3 "Bio"). html_list does not read them; the page of the 2026-11-12 talk is recorded for an adapter that does.
+        - The page names the two organizers with their personal e-mail addresses; the fixture has them replaced (see its README).
+        - Talks are about information theory, statistics, optimization, control and machine learning, hence the three default fields.
+        - The Stanford Events calendar has no event of the Information Systems Lab or of Electrical Engineering between 2026-10-28 and 2027-03-12, so nothing overlaps.
+
+  # --- Information Theory Forum --------------------------------------------------------------
+  - <<: *stanford-extra
+    id: custom-it-forum
+    name: Stanford Information Theory Forum
+    adapter: it_forum
+    # Off: nearly dormant (no upcoming talk, one talk in 2026), and the list rows have
+    # no year, which no generic adapter can read (see the notes).
+    enabled: false
+    url: https://web.stanford.edu/group/it-forum/talks/talks/
+    host_org: Stanford Information Systems Laboratory
+    default_fields: [cs, math]
+    default_event_type: seminar
+    series: IT Forum
+    params:
+      # For the proposed module; nothing reads these yet.
+      selectors:
+        # One div._section per year, newest first, headed by its year (2026 to 2020).
+        # The last one, "Previous Years", holds no talks and only links older pages:
+        # the module skips every section whose heading is not a year.
+        section: "div._sections > div._section"
+        section_year: "a._title h3"  # "2026"
+        item: "div._talk"
+        link: "a"  # the detail page, /talks/talks/<year>/<slug>/
+        date: "span._date"  # "06-Nov": day and month only
+        speaker: "span._speaker"  # "Hyunjik Kim and Jonathan Schwarz" for two speakers
+        affiliation: "span._affiliation"
+        title: "p._row2"
+      date_format: "%d-%b"
+      detail_selectors:
+        title: "div._talk h1"
+        speaker_line: "div._talk h3"  # "Emmanuel Abb\xe9 <en dash> EPFL and Apple AIML"
+        meta: "div._talk h3 + p"  # "Fri, 06-Nov-2026 / 2:30pm / Allen 101X"
+        abstract: "h3#abstract + p"
+      # The meta line of the detail page has the full date, the time and the room.
+      detail_meta_pattern: '(?P<date>\d{2}-[A-Z][a-z]{2}-\d{4})\s*/\s*(?P<start>\d{1,2}(?::\d{2})?\s*[ap]m)\s*(?:/\s*(?P<location>.+?))?\s*$'
+      detail_date_format: "%d-%b-%Y"
+    research:
+      verified: 2026-11-11
+      sample_events: 53
+      upcoming_events: 0
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      structured_data:
+        - "/talks/talks/index.xml (Hugo RSS, not linked): 23 items from 2023 to 2025, every pubDate is the same Thu, 03 Sep 2020 and the 2026 talk is missing, so it holds no usable date"
+        - "no JSON-LD, no script data"
+      extraction: html
+      crawl_delay: 0
+      robots: "web.stanford.edu: a few unrelated paths disallowed, no Crawl-delay"
+      requests_per_run: "1 for the list, plus 1 per talk of the current year for its detail page"
+      proposed_adapter: custom:it_forum
+      notes:
+        - Disabled. The forum is nearly dormant and no generic adapter can read its list. The home page (/group/it-forum/talks/) says "No upcoming talks are scheduled yet; new talks are announced on the mailing list" and "Dates, times and rooms are announced on the mailing list".
+        - The list (/talks/talks/) has one talk in 2026 (2026-11-06, Emmanuel Abbe, EPFL and Apple AIML, "Abstractions and plans"), 3 in 2025, 11 in 2024, 9 in 2023, 18 in 2022, 8 in 2021 and 3 in 2020 (53 rows, the sample), and links the years before 2020 on other pages. The series went from weekly talks in autumn 2022 to a handful a year.
+        - A row gives the day and month only ("06-Nov"); the year is the heading of its section. html_list would guess the year from the fetch date and turn past talks into future ones (a 2024-01-19 row read on 2026-11-11 becomes 2027-01-19). The detail page has the full date, the time and the room ("Fri, 06-Nov-2026 / 2:30pm / Allen 101X"), the abstract and the bio.
+        - A module it_forum would read the year from the section heading, keep the rows of the current and the next year, and fetch their detail pages (at most a few per run) for time and room. The selectors above were checked on the recordings.
+        - The Hugo feed is not usable (every pubDate is the same 2020-09-03, and the talk of 2026 is missing).
+        - The home page names the organizer with a personal e-mail address; it is not recorded.
+        - The Stanford Events calendar has no event of the Information Systems Lab or of Electrical Engineering between 2026-10-28 and 2027-03-12.

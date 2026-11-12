@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_id": "custom-isl-colloquium",
+  "entries": {
+    "https://isl.stanford.edu/talks/": {
+      "file": "talks-3b771d84.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T06:37:06Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://isl.stanford.edu/talks/talk-schedule/fall-2026-thomas-courtade": {
+      "file": "talks-talk-schedule-fall-2026-thomas-cou-4db3e1c0.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T06:37:08Z",
+      "final_url": "https://isl.stanford.edu/talks/talk-schedule/fall-2026-thomas-courtade/",
+      "volatile_params": []
+    }
+  }
+}

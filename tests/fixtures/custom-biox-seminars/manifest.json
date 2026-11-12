@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source_id": "custom-biox-seminars",
+  "entries": {
+    "https://biox.stanford.edu/event-type/seminar": {
+      "file": "event-type-seminar-d9b9cd10.html",
+      "status": 403,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T06:37:13Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_id": "custom-csb-events",
+  "entries": {
+    "https://chemsysbio.stanford.edu/events/": {
+      "file": "events-bebd0f3c.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T06:37:10Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://chemsysbio.stanford.edu/events/join-us-csb-special-seminar-open-discussion-david-garfield-phd-monday-november-16-2026-1100-am-1245-pm-munzer/": {
+      "file": "events-join-us-csb-special-seminar-open-abb211c4.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T06:37:11Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

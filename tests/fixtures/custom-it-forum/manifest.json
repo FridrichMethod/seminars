@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_id": "custom-it-forum",
+  "entries": {
+    "https://web.stanford.edu/group/it-forum/talks/talks/": {
+      "file": "group-it-forum-talks-talks-1ebed354.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T06:37:12Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://web.stanford.edu/group/it-forum/talks/talks/2026/emmanuel-abbe/": {
+      "file": "group-it-forum-talks-talks-2026-emmanuel-610ffe38.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T06:37:13Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}
