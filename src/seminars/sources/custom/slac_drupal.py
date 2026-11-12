@@ -41,7 +41,10 @@ the source does not name.
   without its trailing "Link to event page: <url>" (plain text), else the
   card's teaser (HTML). An abstract matched by ``tba_abstract_patterns``
   ("Info coming soon!") is none.
-* ``url``: the card's link; there is no location on these sites.
+* ``url``: the card's link.
+* ``location``: the card's place (``list.location``, without its icon),
+  else ``default_location``: a site that says where all its talks take
+  place leaves the place off its cards.
 
 A list page without any card is a ``ParseError``, unless ``list.empty``
 matches on it (the "No items to display." block of the theme): then it
@@ -53,8 +56,10 @@ Parameters (``params``; an unknown key is an error that names it,
 
 * ``list``: CSS selectors of the list page. ``card`` (required) is one
   event; inside it ``title``, ``link`` (its ``href``), ``speaker``,
-  ``affiliation``, ``abstract``, ``date_text`` (SVG icons are left out of
-  its text). ``empty``: an element of the page that says the list is empty.
+  ``affiliation``, ``abstract``, ``date_text`` and ``location`` (SVG icons
+  are left out of these two). ``empty``: an element of the page that says
+  the list is empty.
+* ``default_location``: the place of a card that names none.
 * ``detail``: CSS selectors of a detail page. ``exclude``: blocks to
   remove first (the theme shows the cards of three OTHER events below the
   event, with the classes of the list); ``ical_link``: the link with the
@@ -81,7 +86,7 @@ from urllib.parse import unquote
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import icalendar
-from pydantic import Field, ValidationError, field_validator, model_validator
+from pydantic import Field, StringConstraints, ValidationError, field_validator, model_validator
 from selectolax.lexbor import LexborHTMLParser, LexborNode
 
 from seminars.httpbase import HttpClient
@@ -133,6 +138,7 @@ TBA_GROUPS: Final = frozenset({"speaker", "affiliation"})
 
 Moment = datetime | date
 DraftTime = datetime | date | str | None
+PlaceName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 # --- params ------------------------------------------------------------------------------
@@ -146,6 +152,7 @@ class ListSelectors(Model):
     affiliation: Selector | None = None
     abstract: Selector | None = None
     date_text: Selector | None = None
+    location: Selector | None = None
     empty: Selector | None = None
 
 
@@ -164,6 +171,7 @@ class SlacDrupalParams(Model):
     detail: DetailSelectors | None = None
     native_id: Literal["vevent_uid"] | None = None
     max_detail_pages: Annotated[int, Field(ge=1, le=19)] = 10
+    default_location: PlaceName | None = None
     skip_title_patterns: list[Pattern] = []
     tba_title_patterns: list[Pattern] = []
     tba_abstract_patterns: list[Pattern] = []
@@ -197,6 +205,7 @@ class Card:
     abstract_html: str | None = None
     abstract_text: str | None = None
     date_text: str | None = None
+    location: str | None = None
 
 
 def _first(node: LexborNode | LexborHTMLParser, selector: str | None) -> LexborNode | None:
@@ -224,6 +233,7 @@ def read_card(selectors: ListSelectors, node: LexborNode) -> Card:
         abstract_html=inner_html(abstract),
         abstract_text=node_text(abstract),
         date_text=text_without_icons(_first(node, selectors.date_text)),
+        location=text_without_icons(_first(node, selectors.location)),
     )
 
 
@@ -463,6 +473,7 @@ def card_draft(
         start=start,
         end=end,
         speakers=speakers,
+        location=card.location or params.default_location,
         abstract=abstract,
         abstract_html=abstract_html,
     )

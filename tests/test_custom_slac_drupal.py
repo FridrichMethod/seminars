@@ -111,7 +111,7 @@ class TestRecordedColloquium:
         assert len(drafts) == 4
         assert {draft.extraction for draft in drafts} == {"html"}
         assert not [draft for draft in drafts if "No SLAC Colloquium" in (draft.title or "")]
-        assert all(draft.location is None for draft in drafts)
+        assert all(draft.location == "Kavli Auditorium" for draft in drafts)  # the default
         assert all(draft.native_id for draft in drafts)
 
     def test_a_talk_with_speaker_and_affiliation(self) -> None:
@@ -122,7 +122,7 @@ class TestRecordedColloquium:
         assert draft.start.utcoffset() == timedelta(hours=-8)
         assert draft.end == datetime(2026, 11, 16, 17, 0, tzinfo=PACIFIC)
         assert speakers(draft) == [("Hemamala (Hema) Karunadasa", "Stanford Univerisity")]
-        assert draft.location is None
+        assert draft.location == "Kavli Auditorium"
         assert draft.url == (
             f"{SITE}/events/2026-11-09-single-crystal-halide-perovskite-heterostructures"
         )

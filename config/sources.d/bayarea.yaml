@@ -204,9 +204,15 @@ sources:
         affiliation: .slac-speaker .speaker-affiliation
         abstract: .c-field--name-field-body
         date_text: .c-card__date
+        # "Kavli Auditorium" or "Kavli Auditorium and zoom" on past cards (after an icon
+        # titled "Location"); the upcoming cards leave it out.
+        location: .c-card__location
         # "No items to display." when no talk is scheduled (seen on the Theory Group
         # site, which runs the same theme): the list is empty, not broken.
         empty: div.c-view__empty
+      # The home page: "Currently, the talks are in the hybrid format ... The in-person
+      # part takes place at the Kavli Auditorium". A card that names no place gets it.
+      default_location: Kavli Auditorium
       detail:
         # Below the event, every detail page shows the cards of 3 OTHER events in this
         # block (div.c-card with .c-card__date and .c-field--name-field-body, the same
@@ -246,7 +252,11 @@ sources:
         - 5 cards on the list, one of them the "No SLAC Colloquium 11/23" placeholder.
         - /jsonapi is 404 (JSON error document); no RSS link in the page head.
         - The VEVENT is embedded per detail page, there is no ICS feed URL.
-        - No location anywhere on the site; do not invent one.
+        - The upcoming cards and the detail pages name no place. Past cards have one in
+          .c-card__location ("Kavli Auditorium", "Kavli Auditorium and zoom"; 6 of the 9
+          cards on /past-events, seen in the HTTP cache), and the home page says that the
+          in-person part of the talks takes place at the Kavli Auditorium, hence
+          default_location.
         - Card date text looks like "Monday, November 16, 2026", a middle dot,
           "4:00 p.m.", an en dash, "5:00 p.m.", two no-break spaces, "PT"; the text of
           .c-card__date also starts with "Date", the title of its SVG icon.
