@@ -21,14 +21,12 @@ from typing import Final
 
 from selectolax.lexbor import LexborHTMLParser
 
-from seminars.models import TBA_TITLE, EventStatus, url_has_credential
+from seminars.models import TBA_TITLE, EventStatus
 from seminars.textrules import clean_text
 
 ELLIPSIS: Final = "..."
 RAW_FACTOR: Final = 8
 """How much raw text, markup included, a field may hold per character of its limit."""
-LINK_REMOVED: Final = "[link removed]"
-VALUE_REMOVED: Final = "[removed]"
 
 _BLOCK_TAGS: Final = (
     "address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|footer|h[1-6]|header"
@@ -49,13 +47,6 @@ _HIDDEN_CLOSERS: Final[dict[str, re.Pattern[str]]] = {
     "--": re.compile(r"-->"),
 }
 _HIDDEN_TAGS: Final = ["script", "style", "noscript", "template", "head"]
-
-_URL: Final = re.compile(r"https?://[^\s<>\"')\]]+", re.IGNORECASE)
-_PASSCODE: Final = re.compile(
-    r"\b((?:pass\s?code|password|passwd|pwd)(?:\s*[:=]\s*|\s+is\s*:?\s*))"
-    r"[A-Za-z0-9!@#$%^&*._+-]{3,}",
-    re.IGNORECASE,
-)
 
 _DASHES: Final = r"[\-\u2013\u2014]"
 _AFTER_PREFIX: Final = rf"(?:\s*[:!|]+|\s+{_DASHES}+(?=\s))\s*"
@@ -191,23 +182,6 @@ def paragraphs(text: str | None, *, limit: int, is_html: bool = False) -> str | 
     plain = clean_text(html_to_text(raw) if is_html else strip_markup(raw))
     lines = (" ".join(line.split()) for line in plain.split("\n"))
     return truncate("\n".join(line for line in lines if line), limit) or None
-
-
-def scrub_private_links(text: str) -> str:
-    """``text`` without what lets a stranger into a meeting.
-
-    A URL that carries a credential (``seminars.models.url_has_credential``:
-    a ``pwd``, ``passcode``, ``tk`` or ``token`` parameter and the like)
-    becomes ``[link removed]``, and the value after "Passcode:" or
-    "Password:" becomes ``[removed]``. data/ is public, so this happens
-    during normalization and not when output is written.
-    """
-
-    def replace_url(match: re.Match[str]) -> str:
-        url = match.group(0).rstrip(".,;")
-        return LINK_REMOVED + match.group(0)[len(url) :] if url_has_credential(url) else match[0]
-
-    return _PASSCODE.sub(rf"\g<1>{VALUE_REMOVED}", _URL.sub(replace_url, text))
 
 
 def is_tba(title: str | None) -> bool:

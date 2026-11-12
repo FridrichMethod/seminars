@@ -34,7 +34,10 @@ It writes into the project only while data/ holds no live run: once
 data/last_run.json records a live run, an offline run works in a scratch
 directory as ``--dry-run`` does and says so, because fixture events and a
 time stamp from the recordings would replace the live state (the stored
-events would count as missing, and the last change would move back).
+events would count as missing, and the last change would move back). The
+other way round, a live run that finds an offline run in
+data/last_run.json starts from no stored state, so that no fixture event
+is ever published, and prints a warning that says so.
 """
 
 from __future__ import annotations

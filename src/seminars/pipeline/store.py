@@ -18,7 +18,7 @@ Files (``seminars.config.ProjectPaths``):
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -143,3 +143,19 @@ def write_files(files: Mapping[Path, str]) -> None:
     """Write every file of ``files``, each one atomically, in the order of their paths."""
     for path, text in sorted(files.items()):
         write_text_atomic(path, text)
+
+
+def state_files(paths: ProjectPaths) -> tuple[Path, ...]:
+    """The files of the stored state that exist: events, uid map, health and the archive.
+
+    The two records of the run and the LLM cache are not part of it.
+    """
+    archive = sorted(paths.archive_dir.glob("*.jsonl")) if paths.archive_dir.is_dir() else []
+    found = [paths.events_file, paths.uid_map_file, paths.health_file, *archive]
+    return tuple(path for path in found if path.is_file())
+
+
+def remove_files(paths: Iterable[Path]) -> None:
+    """Delete every file of ``paths``; one that is already gone is no error."""
+    for path in paths:
+        path.unlink(missing_ok=True)

@@ -36,7 +36,6 @@ from seminars.models import (
     LLMUsage,
     RunReport,
     SourceConfig,
-    UidMap,
     read_model,
 )
 from seminars.outputs.health import update_health
@@ -262,150 +261,6 @@ class TestWholeRun:
         assert stored(config)[uid].picks_score == 0.0
 
 
-class TestStability:
-    def test_the_same_input_gives_the_same_files(
-        self, config: AppConfig, fake_adapter: FakeAdapter
-    ) -> None:
-        fake_adapter.drafts = [draft("sites-a", "1"), draft("sites-b", "2")]
-        run(config, services(FakeEmitters()))
-        first = config.paths.events_file.read_bytes()
-        uid_map = config.paths.uid_map_file.read_bytes()
-        report = run(config, services(FakeEmitters()), days=1)
-        assert config.paths.events_file.read_bytes() == first
-        assert config.paths.uid_map_file.read_bytes() == uid_map
-        assert (report.counts.added, report.counts.changed) == (0, 0)
-
-    def test_a_new_title_keeps_the_uid_and_raises_the_sequence(
-        self, config: AppConfig, fake_adapter: FakeAdapter
-    ) -> None:
-        fake_adapter.drafts = [draft("sites-a", "1", title="TBA")]
-        run(config, services(FakeEmitters()))
-        before = by_key(config)["sites-a:1"]
-        fake_adapter.drafts = [draft("sites-a", "1", title="Folding proteins in the cell")]
-        report = run(config, services(FakeEmitters()), days=1)
-        after = by_key(config)["sites-a:1"]
-        assert after.uid == before.uid
-        assert (after.sequence, after.title) == (1, "Folding proteins in the cell")
-        assert after.last_changed == REFERENCE_NOW + timedelta(days=1)
-        assert after.first_seen == REFERENCE_NOW
-        assert report.counts.changed == 1
-
-    def test_a_new_key_of_the_same_talk_keeps_the_uid(
-        self, config: AppConfig, fake_adapter: FakeAdapter
-    ) -> None:
-        fake_adapter.drafts = [draft("sites-a", "1")]
-        run(config, services(FakeEmitters()))
-        uid = by_key(config)["sites-a:1"].uid
-        fake_adapter.drafts = [draft("sites-a", "1b", title="Talk number 1 on protein folding")]
-        run(config, services(FakeEmitters()), days=1)
-        assert list(stored(config)) == [uid]
-        assert by_key(config)["sites-a:1b"].uid == uid
-
-    def test_a_tba_slot_keeps_its_uid_through_title_and_speaker(
-        self, config: AppConfig, fake_adapter: FakeAdapter
-    ) -> None:
-        def slot(title: str, speaker: str | None = None) -> EventDraft:
-            return make_draft(
-                source_id="sites-a",
-                native_id=None,
-                url=None,
-                title=title,
-                speaker_text=speaker,
-                start=MORNING,
-                end=None,
-            )
-
-        fake_adapter.drafts = [slot("TBA")]
-        run(config, services(FakeEmitters()))
-        (uid,) = stored(config)
-        fake_adapter.drafts = [slot("Folding proteins in the cell")]
-        first = run(config, services(FakeEmitters()), days=1)
-        assert list(stored(config)) == [uid]
-        assert stored(config)[uid].title == "Folding proteins in the cell"
-        fake_adapter.drafts = [slot("Folding proteins in the cell", "Ada Lovelace")]
-        second = run(config, services(FakeEmitters()), days=2)
-        (event,) = stored(config).values()
-        assert event.uid == uid
-        assert [speaker.name for speaker in event.speakers] == ["Ada Lovelace"]
-        assert event.sequence == 2
-        uid_map = read_model(config.paths.uid_map_file, UidMap)
-        assert uid_map is not None
-        keys = ["t0800", "folding-proteins-in-the-cell", "ada-lovelace"]
-        assert {uid_map.resolve(f"sites-a:day:2026-11-17:{key}") for key in keys} == {uid}
-        assert (first.counts.added, first.counts.changed) == (0, 1)
-        assert (second.counts.added, second.counts.changed) == (0, 1)
-
-
-class TestAbsence:
-    def test_a_missing_event_is_removed_after_three_healthy_runs(
-        self, config: AppConfig, fake_adapter: FakeAdapter
-    ) -> None:
-        fake_adapter.drafts = [draft("sites-a", "1"), draft("sites-a", "2")]
-        run(config, services(FakeEmitters()))
-        fake_adapter.drafts = [draft("sites-a", "1")]
-        seen = []
-        for day in (1, 2):
-            report = run(config, services(FakeEmitters()), days=day)
-            seen.append((by_key(config)["sites-a:2"].missing_runs, report.counts.missing))
-        assert seen == [(1, 1), (2, 1)]
-        report = run(config, services(FakeEmitters()), days=3)
-        assert "sites-a:2" not in by_key(config)
-        assert report.counts.removed == 1
-
-    def test_an_event_that_returns_starts_counting_again(
-        self, config: AppConfig, fake_adapter: FakeAdapter
-    ) -> None:
-        fake_adapter.drafts = [draft("sites-a", "1"), draft("sites-a", "2")]
-        run(config, services(FakeEmitters()))
-        fake_adapter.drafts = [draft("sites-a", "1")]
-        run(config, services(FakeEmitters()), days=1)
-        fake_adapter.drafts = [draft("sites-a", "1"), draft("sites-a", "2")]
-        run(config, services(FakeEmitters()), days=2)
-        assert by_key(config)["sites-a:2"].missing_runs == 0
-
-    def test_a_failed_or_empty_source_changes_nothing(
-        self, config: AppConfig, fake_adapter: FakeAdapter
-    ) -> None:
-        fake_adapter.drafts = [draft("sites-a", "1"), draft("sites-b", "2")]
-        run(config, services(FakeEmitters()))
-        fake_adapter.drafts = [draft("sites-b", "2")]  # sites-a is empty now
-        run(config, services(FakeEmitters()), days=1)
-        assert by_key(config)["sites-a:1"].missing_runs == 0
-        fake_adapter.fetch_error = HttpStatusError(A_URL, 503)
-        for day in (2, 3, 4):
-            run(config, services(FakeEmitters()), days=day)
-        assert by_key(config)["sites-a:1"].missing_runs == 0
-
-    def test_a_source_left_out_of_the_run_changes_nothing(
-        self, config: AppConfig, fake_adapter: FakeAdapter
-    ) -> None:
-        fake_adapter.drafts = [draft("sites-a", "1"), draft("sites-b", "2")]
-        run(config, services(FakeEmitters()))
-        for day in (1, 2, 3):
-            run(config, services(FakeEmitters()), days=day, source_ids=("sites-b",))
-        assert by_key(config)["sites-a:1"].missing_runs == 0
-
-    def test_a_cancelled_talk_stays_until_its_time_has_passed(
-        self, config: AppConfig, fake_adapter: FakeAdapter
-    ) -> None:
-        fake_adapter.drafts = [
-            draft("sites-a", "1", title="Cancelled: Talk number 1 on protein folding"),
-            draft("sites-a", "2"),
-        ]
-        report = run(config, services(FakeEmitters()))
-        event = by_key(config)["sites-a:1"]
-        assert event.status == "cancelled"
-        assert report.counts.cancelled == 1
-        fake_adapter.drafts = [draft("sites-a", "2")]
-        for day in (1, 2, 3, 4):
-            run(config, services(FakeEmitters()), days=day)
-        assert by_key(config)["sites-a:1"] == event
-        run(config, services(FakeEmitters()), days=30)
-        assert "sites-a:1" not in by_key(config)
-        archive = config.paths.archive_file(event.start.year).read_text(encoding="utf-8")
-        assert event.uid in archive
-
-
 class LeakyFeeds:
     """An ICS writer that puts a credential-shaped value into a feed."""
 
@@ -624,6 +479,57 @@ class TestHealthAndLLM:
         assert report.warnings == ["pruning the LLM cache failed (RuntimeError)"]
         assert [name for name, _ in emitters.calls][-2:] == ["write_ics_feeds", "write_site_data"]
         assert read_model(config.paths.run_report_file, RunReport) == report
+
+
+class BrokenSite:
+    def __call__(self, *args: Any, **kwargs: Any) -> list[Path]:
+        raise OSError("read-only file system")
+
+
+class TestRecordsOfARun:
+    """The rules of the run records that the update workflow relies on."""
+
+    def test_every_run_rewrites_the_record_also_when_nothing_else_changed(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        fake_adapter.drafts = [draft("sites-a", "1")]
+        run(config, services(FakeEmitters()))
+        events = config.paths.events_file.read_bytes()
+        record = config.paths.last_run_file.read_bytes()
+        report = run(config, services(FakeEmitters()), days=1)
+        assert (report.counts.added, report.counts.changed) == (0, 0)
+        assert config.paths.events_file.read_bytes() == events
+        assert config.paths.last_run_file.read_bytes() != record
+        last = read_model(config.paths.last_run_file, LastRun)
+        assert last is not None
+        assert last.started_at == REFERENCE_NOW + timedelta(days=1)
+
+    def test_a_run_whose_sources_all_failed_writes_its_record(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        fake_adapter.drafts = [draft("sites-a", "1")]
+        run(config, services(FakeEmitters()))
+        fake_adapter.fetch_error = HttpStatusError(A_URL, 503)
+        report = run(config, services(FakeEmitters()), days=1)
+        assert exit_status(report) == EXIT_FAILED
+        last = read_model(config.paths.last_run_file, LastRun)
+        assert last is not None
+        assert (last.ok, last.started_at) == (False, REFERENCE_NOW + timedelta(days=1))
+        assert last.failed_sources == ["sites-a", "sites-b"]
+
+    @pytest.mark.parametrize("writer", ["write_ics_feeds", "write_site_data"])
+    def test_a_failing_output_writer_makes_the_run_fail(
+        self, config: AppConfig, fake_adapter: FakeAdapter, writer: str
+    ) -> None:
+        fake_adapter.drafts = [draft("sites-a", "1")]
+        broken = BrokenFeeds() if writer == "write_ics_feeds" else BrokenSite()
+        report = run(config, services(FakeEmitters(), **{writer: broken}))
+        assert report.ok is False
+        assert exit_status(report) == EXIT_FAILED
+        assert report.warnings[-1].startswith("writing the feeds and the site data failed")
+        for path in (config.paths.run_report_file, config.paths.last_run_file):
+            written = json.loads(path.read_text(encoding="utf-8"))
+            assert written["ok"] is False, path
 
 
 class TestDryRun:

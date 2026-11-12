@@ -7,9 +7,14 @@ publishes, so this is where the rules for stored data are applied:
   the window of the run is dropped and counted;
 * every text field is plain text: markup removed, cleaned by
   ``seminars.textrules.clean_text``, whitespace tidied, length bounded;
-* nothing that lets a stranger in is kept. A stream address that carries a
-  credential is dropped (the event only stays marked as online), and
-  links with a meeting password and passcodes are taken out of every text;
+* nothing that lets a stranger in or reaches a person is kept. A stream
+  address that carries a credential is dropped (the event only stays
+  marked as online); every text loses meeting credentials, e-mail
+  addresses and telephone numbers (``seminars.pipeline.privacy``; the
+  names and affiliations of speakers keep no marker), and an address with a
+  credential, a login or an e-mail address in it, also encoded or wrapped
+  in another link, is not used: the event then points at the page of its
+  source and gets a key of its day;
 * nothing credential-shaped is kept either: the secret scanner's
   ``redact`` runs over every text, and an address that looks like it holds
   a token is not used. data/ is public, so all of this happens here and
@@ -52,6 +57,7 @@ from seminars.models import (
     url_has_credential,
 )
 from seminars.pipeline.ids import draft_key, resolve_uid, shared_urls
+from seminars.pipeline.privacy import is_private_link, scrub_private, strip_markers
 from seminars.pipeline.speakers import ParsedSpeaker, split_speakers
 from seminars.pipeline.text import (
     canonical_name,
@@ -59,7 +65,6 @@ from seminars.pipeline.text import (
     is_tba,
     one_line,
     paragraphs,
-    scrub_private_links,
     split_status,
     tidy_name,
     truncate,
@@ -143,7 +148,7 @@ class _Cleaner:
     def _finish(self, text: str | None, limit: int) -> str | None:
         if text is None:
             return None
-        safe = self.context.redact(scrub_private_links(text))
+        safe = self.context.redact(scrub_private(text))
         if safe != text:
             self.redactions += 1
         return truncate(safe, limit).strip() or None
@@ -155,7 +160,11 @@ class _Cleaner:
         return self._finish(paragraphs(text, limit=4 * limit, is_html=is_html), limit)
 
     def url(self, url: str | None) -> HttpUrl | None:
-        """``url`` when it may be published: http(s), no credential, nothing token-shaped."""
+        """``url`` when it may be published: http(s), no credential, login, e-mail or token.
+
+        A credential also counts when it is percent-encoded or inside a
+        link that this one wraps (``seminars.pipeline.privacy.is_private_link``).
+        """
         if not url or len(url) > MAX_URL:
             return None
         try:
@@ -163,7 +172,11 @@ class _Cleaner:
             public = _HTTP_URL.validate_python(candidate)
         except (ValueError, ValidationError):
             return None
-        if url_has_credential(candidate) or self.context.is_secret(candidate):
+        if (
+            url_has_credential(candidate)
+            or is_private_link(candidate)
+            or self.context.is_secret(candidate)
+        ):
             self.redactions += 1
             return None
         return public
@@ -179,27 +192,40 @@ def _title_and_status(draft: EventDraft, cleaner: _Cleaner) -> tuple[str, EventS
     return (TBA_TITLE if is_tba(title) else title), status
 
 
+def _person(name: str | None, affiliation: str | None) -> tuple[str, str | None] | None:
+    """A speaker's name and affiliation without removal markers; ``None`` without a name.
+
+    A name that ends in a colon is a label ("Contact:") whose value was
+    taken out, not a person.
+    """
+    person = tidy_name(strip_markers(name or ""))
+    if not person or person.endswith(":"):
+        return None
+    return person, strip_markers(affiliation or "") or None
+
+
 def _structured_speakers(draft: EventDraft, cleaner: _Cleaner) -> list[Speaker]:
     speakers = []
     for item in draft.speakers:
-        name = tidy_name(cleaner.line(item.name, MAX_NAME) or "")
-        if name:
-            affiliation = cleaner.line(item.affiliation, MAX_AFFILIATION)
+        found = _person(
+            cleaner.line(item.name, MAX_NAME), cleaner.line(item.affiliation, MAX_AFFILIATION)
+        )
+        if found is not None:
+            name, affiliation = found
             speakers.append(Speaker(name=name, affiliation=affiliation, url=cleaner.url(item.url)))
     return speakers
 
 
 def _line_speakers(draft: EventDraft, cleaner: _Cleaner) -> list[Speaker]:
-    line = cleaner.block(draft.speaker_text, MAX_SPEAKER_LINE)
+    line = strip_markers(cleaner.block(draft.speaker_text, MAX_SPEAKER_LINE) or "")
     people: list[ParsedSpeaker] = split_speakers(line) if line else []
+    found = (_person(person.name, person.affiliation) for person in people)
     return [
         Speaker(
-            name=truncate(person.name, MAX_NAME),
-            affiliation=truncate(person.affiliation, MAX_AFFILIATION)
-            if person.affiliation
-            else None,
+            name=truncate(name, MAX_NAME),
+            affiliation=truncate(affiliation, MAX_AFFILIATION) if affiliation else None,
         )
-        for person in people
+        for name, affiliation in (item for item in found if item is not None)
     ]
 
 

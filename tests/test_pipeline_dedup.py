@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import random
 from datetime import datetime, timedelta
 from typing import Any
@@ -12,7 +13,8 @@ from hypothesis import strategies as st
 from factories import PACIFIC, REFERENCE_NOW, events, make_candidate, make_event
 from seminars.config import DedupSettings
 from seminars.models import Candidate, EventHints, Speaker
-from seminars.pipeline.dedup import DedupResult, dedupe
+from seminars.pipeline.dedup import DedupResult, dedupe, separate_listings
+from seminars.pipeline.text import canonical_name
 
 SETTINGS = DedupSettings()
 START = datetime(2026, 11, 17, 16, 0, tzinfo=PACIFIC)
@@ -82,8 +84,35 @@ class TestPairs:
 
     def test_the_same_detail_page_is_enough(self) -> None:
         first = candidate("a", url="https://example.edu/talks/7/")
-        second = candidate("b", url="HTTPS://EXAMPLE.edu/talks/7#abstract")
+        second = candidate("b", sources=("sites-y",), url="HTTPS://EXAMPLE.edu/talks/7#abstract")
         assert uids(run(first, second)) == ["a"]
+
+    def test_a_page_that_two_talks_of_one_source_point_at_is_not_a_detail_page(self) -> None:
+        series = "https://example.edu/colloquium-series"
+        tba = candidate("a", title="TBA", url=series)
+        talk = candidate("b", url=series, speakers=[Speaker(name="Bea Jones")])
+        assert uids(run(tba, talk)) == ["a", "b"]
+        calendar = candidate("c", sources=("sites-y",), title="TBA", url=series)
+        assert uids(run(tba, talk, calendar)) == ["a", "b", "c"]
+        assert uids(run(tba, calendar)) == ["a"]
+
+    def test_a_page_shared_a_week_apart_still_tells_the_talk(self) -> None:
+        series = "https://events.example.edu/event/weekly-colloquium"
+        weekly = [
+            candidate(uid, sources=("localist-stanford",), title="TBA", url=series, start=start)
+            for uid, start in (("a", START), ("b", START + timedelta(days=7)))
+        ]
+        copy = candidate("c", title="Enzymes in motion", url=series, start=START)
+        result = run(*weekly, copy)
+        assert uids(result) == ["a", "b"]
+        assert result.absorbed == {"c": "a"}
+
+    def test_one_listing_seen_twice_still_has_its_page(self) -> None:
+        page = "https://example.edu/talks/7"
+        first = candidate("a", title="TBA", url=page)
+        again = candidate("a", title="TBA", url=page, abstract="The same listing again.")
+        calendar = candidate("c", sources=("sites-y",), title="TBA", url=page)
+        assert uids(run(first, again, calendar)) == ["a"]
 
     def test_a_listing_page_or_a_home_page_is_not_a_detail_page(self) -> None:
         listed = [candidate(uid, url="https://nlp.example.edu/seminar") for uid in "ab"]
@@ -133,6 +162,140 @@ class TestPairs:
         assert uids(result) == ["a"]
         assert result.absorbed == {"b": "a", "c": "a"}
         assert run(*result.candidates).candidates == result.candidates
+
+
+class TestOneSourceTwoSpeakers:
+    """Two listings of one source with different speakers are two talks."""
+
+    COLLOQUIUM = "Astrophysics Colloquium"
+    PAGE = "https://kipac.example.edu/colloquium"
+
+    def talk(
+        self, uid: str, name: str | None, source: str = "bayarea-kipac", **overrides: Any
+    ) -> Candidate:
+        values: dict[str, Any] = {
+            "title": self.COLLOQUIUM,
+            "speakers": [Speaker(name=name)] if name else [],
+            "url": self.PAGE,
+            "source_urls": [self.PAGE],
+        }
+        return candidate(uid, sources=(source,), **{**values, **overrides})
+
+    def test_the_same_title_and_page_do_not_merge_them(self) -> None:
+        result = run(self.talk("x", "Ann Smith"), self.talk("y", "Bea Jones"))
+        assert uids(result) == ["x", "y"]
+
+    def test_a_listing_of_another_source_does_not_join_them(self) -> None:
+        both = self.talk(
+            "agg",
+            None,
+            "localist-stanford",
+            speakers=[Speaker(name="Ann Smith"), Speaker(name="Bea Jones")],
+            url="https://events.example.edu/event/9",
+            source_urls=["https://events.example.edu/event/9"],
+        )
+        talks = [self.talk("x", "Ann Smith"), self.talk("y", "Bea Jones"), both]
+        results = [run(*order) for order in itertools.permutations(talks)]
+        assert all(result == results[0] for result in results)
+        keys = [set(item.event.source_ids) for item in results[0].candidates]
+        assert len(keys) == 2
+        assert not any({"bayarea-kipac:x", "bayarea-kipac:y"} <= group for group in keys)
+        assert run(*results[0].candidates).candidates == results[0].candidates
+
+    def test_a_listing_without_a_speaker_still_joins_one_of_them(self) -> None:
+        assert uids(run(self.talk("x", "Ann Smith"), self.talk("y", None))) == ["x"]
+
+    def test_the_same_speaker_in_other_spellings_is_one_talk(self) -> None:
+        result = run(self.talk("x", "Ann Smith"), self.talk("y", "Dr. Ann SMITH, PhD"))
+        assert uids(result) == ["x"]
+
+    def test_two_listings_with_the_same_two_speakers_stay_apart(self) -> None:
+        pair = [Speaker(name="Ann Smith"), Speaker(name="Bea Jones")]
+        result = run(self.talk("x", None, speakers=pair), self.talk("y", None, speakers=pair))
+        assert uids(result) == ["x", "y"]
+
+    def test_listings_of_different_sources_with_different_speakers_can_merge(self) -> None:
+        other = self.talk("y", "A. Smith", "sites-x")
+        assert uids(run(self.talk("x", "Ann Smith"), other)) == ["x"]
+
+
+class TestSeparation:
+    """Listings of one source that the uid map holds under one uid but name other speakers."""
+
+    def listing(self, key: str, name: str | None, uid: str = "sites-x.1001") -> Candidate:
+        source = key.partition(":")[0]
+        values: dict[str, Any] = {
+            "title": "Astrophysics Colloquium",
+            "speakers": [Speaker(name=name)] if name else [],
+            "source_ids": [key],
+        }
+        return candidate(uid, sources=(source,), **values)
+
+    def test_two_talks_under_one_uid_get_a_uid_each(self) -> None:
+        listings = [self.listing("sites-x:1001", "Ann Smith"), self.listing("sites-x:2002", "Bea")]
+        assert uids_of(separate_listings(listings)) == ["sites-x.1001", "sites-x.2002"]
+        result = run(*separate_listings(listings))
+        assert uids(result) == ["sites-x.1001", "sites-x.2002"]
+        assert result.aliases == {"sites-x:1001": "sites-x.1001", "sites-x:2002": "sites-x.2002"}
+
+    def test_the_key_the_uid_came_from_keeps_it_else_the_smallest_key(self) -> None:
+        derived = [self.listing("sites-x:2002", "Ann Smith", "sites-x.2002")]
+        derived.append(self.listing("sites-x:1001", "Bea Jones", "sites-x.2002"))
+        assert uids_of(separate_listings(derived)) == ["sites-x.2002", "sites-x.1001"]
+        foreign = [self.listing("sites-x:2002", "Ann Smith", "sites-b.3003")]
+        foreign.append(self.listing("sites-x:1001", "Bea Jones", "sites-b.3003"))
+        assert uids_of(separate_listings(foreign)) == ["sites-x.2002", "sites-b.3003"]
+
+    def test_no_speaker_or_the_same_speakers_keep_the_uid(self) -> None:
+        listings = [
+            self.listing("sites-x:1001", "Ann Smith"),
+            self.listing("sites-x:2002", None),
+            self.listing("sites-x:3003", "Dr. Ann SMITH"),
+        ]
+        assert separate_listings(listings) == listings
+
+    def test_listings_of_other_sources_keep_the_uid(self) -> None:
+        listings = [
+            self.listing("sites-x:1001", "Ann Smith"),
+            self.listing("localist-stanford:9", "Bea Jones"),
+        ]
+        assert separate_listings(listings) == listings
+
+    def test_one_listing_seen_twice_moves_as_one(self) -> None:
+        twice = [self.listing("sites-x:2002", "Bea Jones"), self.listing("sites-x:2002", "Bea")]
+        listings = [self.listing("sites-x:1001", "Ann Smith"), *twice]
+        assert uids_of(separate_listings(listings)) == ["sites-x.1001", *["sites-x.2002"] * 2]
+
+    def test_a_listing_that_moves_to_a_held_uid_moves_the_holder_on(self) -> None:
+        listings = [
+            self.listing("sites-x:1001", "Ann Smith"),
+            self.listing("sites-x:2002", "Bea Jones"),
+            self.listing("sites-x:3003", "Carl Diaz", "sites-x.2002"),
+        ]
+        moved = separate_listings(listings)
+        assert uids_of(moved) == ["sites-x.1001", "sites-x.2002", "sites-x.3003"]
+        assert separate_listings(moved) == moved
+
+    def test_the_result_does_not_depend_on_the_order(self) -> None:
+        listings = [
+            self.listing("sites-x:3003", "Ann Smith"),
+            self.listing("sites-x:2002", "Bea Jones"),
+            self.listing("sites-x:4004", None),
+            self.listing("sites-x:5005", "Bea Jones"),
+        ]
+        expected = {
+            "sites-x:2002": "sites-x.1001",
+            "sites-x:3003": "sites-x.3003",
+            "sites-x:4004": "sites-x.1001",
+            "sites-x:5005": "sites-x.1001",
+        }
+        for order in itertools.permutations(listings):
+            moved = separate_listings(list(order))
+            assert {item.event.source_ids[0]: item.event.uid for item in moved} == expected
+
+
+def uids_of(candidates: list[Candidate]) -> list[str]:
+    return [item.event.uid for item in candidates]
 
 
 class TestMerge:
@@ -403,6 +566,30 @@ class TestProperties:
             ]
             assert item.event.first_seen == min(member.first_seen for member in members)
 
+    @given(candidate_lists)
+    @settings(max_examples=300, deadline=None)
+    def test_one_source_never_merges_listings_with_other_speakers(
+        self, candidates: list[Candidate]
+    ) -> None:
+        own = [
+            item.evolve(event=item.event.evolve(uid=f"u{index}"))
+            for index, item in enumerate(own_keys(candidates))
+        ]
+        assert_no_other_speakers_merged(own, run(*own))
+
+    @given(candidate_lists, st.randoms(use_true_random=False))
+    @settings(max_examples=300, deadline=None)
+    def test_separated_listings_that_shared_a_uid_never_merge_other_speakers(
+        self, candidates: list[Candidate], shuffler: random.Random
+    ) -> None:
+        own = own_keys(candidates)
+        separated = separate_listings(own)
+        assert separate_listings(separated) == separated
+        shuffled = list(own)
+        shuffler.shuffle(shuffled)
+        assert uid_by_key(separate_listings(shuffled)) == uid_by_key(separated)
+        assert_no_other_speakers_merged(separated, run(*separated))
+
     @given(arbitrary_candidates(), st.randoms(use_true_random=False))
     @settings(max_examples=150, deadline=None)
     def test_arbitrary_events_keep_the_properties(
@@ -414,3 +601,30 @@ class TestProperties:
         shuffler.shuffle(shuffled)
         assert run(*shuffled) == once
         assert all_urls(once.candidates) == all_urls(candidates)
+
+
+def own_keys(candidates: list[Candidate]) -> list[Candidate]:
+    """The candidates with a key each (their uids stay as drawn, so many share one)."""
+    return [
+        item.evolve(event=item.event.evolve(source_ids=[f"{item.hints.source_ids[0]}:k{index}"]))
+        for index, item in enumerate(candidates)
+    ]
+
+
+def uid_by_key(candidates: list[Candidate]) -> dict[str, str]:
+    return {key: item.event.uid for item in candidates for key in item.event.source_ids}
+
+
+def assert_no_other_speakers_merged(listings: list[Candidate], result: DedupResult) -> None:
+    """No event of ``result`` holds two listings of one source that name other speakers."""
+    groups: dict[str, list[Candidate]] = {}
+    for item in listings:
+        groups.setdefault(result.absorbed.get(item.event.uid, item.event.uid), []).append(item)
+    for members in groups.values():
+        for first, second in itertools.combinations(members, 2):
+            names = [
+                {canonical_name(speaker.name) for speaker in item.event.speakers}
+                for item in (first, second)
+            ]
+            same_source = first.hints.source_ids == second.hints.source_ids
+            assert not (same_source and all(names) and names[0] != names[1])

@@ -12,7 +12,7 @@ import json
 import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +42,7 @@ from seminars.models import (
 )
 from seminars.outputs.health import update_health
 from seminars.pipeline import services as wiring
+from seminars.pipeline.run import LIVE_OVER_OFFLINE
 from seminars.pipeline.secret_scan import build_secret_scanner
 from seminars.sources.base import AdapterRegistry, fetch_urls
 
@@ -286,6 +287,114 @@ class TestRunOffline:
         result = invoke("run", "--offline", "--skip-if-done-today")
         assert result.exit_code == 0
         assert "result: ok" in result.output
+
+
+def snapshot(directory: Path) -> dict[Path, tuple[bytes, int, int]]:
+    """Content, inode and modification time of every file below ``directory``."""
+    return {
+        path: (path.read_bytes(), path.stat().st_ino, path.stat().st_mtime_ns)
+        for path in sorted(directory.rglob("*"))
+        if path.is_file()
+    }
+
+
+def go_live(
+    monkeypatch: pytest.MonkeyPatch, *, at: datetime, pages: Mapping[str, str] | None = None
+) -> None:
+    """Make the next commands live runs at ``at`` that fetch ``pages`` from a fake client."""
+    client = FakeHttpClient()
+    for url, text in (pages or {A_URL: A_LINES, B_URL: B_LINES}).items():
+        client.add(url, text, content_type="text/plain")
+    monkeypatch.setattr(
+        wiring, "_http", lambda config, env, offline: (lambda chosen: client, lambda: None)
+    )
+    monkeypatch.setattr(cli, "run_time", lambda *, offline, fixtures_dir: at)
+
+
+class TestRunRules:
+    """The two rules of ``seminars run`` that the update workflow relies on, and offline data."""
+
+    def test_a_skipped_offline_run_writes_nothing_below_data(
+        self, project: Path, fakes: Fakes
+    ) -> None:
+        assert invoke("run", "--offline").exit_code == 0
+        before = snapshot(project / "data")
+        result = invoke("run", "--offline", "--skip-if-done-today")
+        assert result.exit_code == 0
+        assert result.output.startswith("skipped: ")
+        assert snapshot(project / "data") == before
+
+    def test_a_skipped_live_run_writes_nothing_below_data(
+        self, project: Path, fakes: Fakes, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        go_live(monkeypatch, at=REFERENCE_NOW)
+        assert invoke("run").exit_code == 0
+        before = snapshot(project / "data")
+        go_live(monkeypatch, at=REFERENCE_NOW + timedelta(hours=2))
+        result = invoke("run", "--skip-if-done-today")
+        assert result.exit_code == 0
+        assert result.output == "skipped: a live run already succeeded today\n"
+        assert snapshot(project / "data") == before
+
+    def test_a_live_run_rewrites_the_record_when_nothing_else_changed(
+        self, project: Path, fakes: Fakes, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        go_live(monkeypatch, at=REFERENCE_NOW)
+        assert invoke("run").exit_code == 0
+        events = (project / "data" / "events.json").read_bytes()
+        record = (project / "data" / "last_run.json").read_bytes()
+        go_live(monkeypatch, at=REFERENCE_NOW + timedelta(hours=2))
+        result = invoke("run")
+        assert result.exit_code == 0, result.output
+        assert "events: 3 stored, 0 new, 0 changed" in result.output
+        assert (project / "data" / "events.json").read_bytes() == events
+        assert (project / "data" / "last_run.json").read_bytes() != record
+
+    def test_a_dry_run_writes_no_record(
+        self, project: Path, fakes: Fakes, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        go_live(monkeypatch, at=REFERENCE_NOW)
+        assert invoke("run").exit_code == 0
+        before = snapshot(project / "data")
+        go_live(monkeypatch, at=REFERENCE_NOW + timedelta(hours=2))
+        assert invoke("run", "--dry-run").exit_code == 0
+        assert snapshot(project / "data") == before
+
+    def test_a_failing_output_writer_ends_with_status_one(
+        self, project: Path, fakes: Fakes, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def broken(*args: Any, **kwargs: Any) -> list[Path]:
+            raise OSError("read-only file system")
+
+        monkeypatch.setattr(fakes.emitters, "write_site_data", broken)
+        result = invoke("run", "--offline")
+        assert result.exit_code == 1, result.output
+        assert "warning: writing the feeds and the site data failed (OSError)" in result.output
+        assert result.output.splitlines()[-1] == "result: failed: see the warnings"
+        record = read_model(project / "data" / "last_run.json", LastRun)
+        assert record is not None
+        assert record.ok is False
+
+    def test_a_live_run_over_offline_data_starts_from_nothing_and_says_so(
+        self, project: Path, fakes: Fakes, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        assert invoke("run", "--offline").exit_code == 0
+        pages = {
+            A_URL: "9|Live talk|2026-11-20T16:00:00-08:00\n",
+            B_URL: "8|Live talk|2026-11-21T16:00:00-08:00\n",
+        }
+        go_live(monkeypatch, at=REFERENCE_NOW, pages=pages)
+        result = invoke("run")
+        assert result.exit_code == 0, result.output
+        assert f"warning: {LIVE_OVER_OFFLINE}" in result.output.splitlines()
+        assert "events: 2 stored, 2 new, 0 changed, 0 missing, 0 removed" in result.output
+        assert sorted(event["title"] for event in events_of(project)) == ["Live talk"] * 2
+        report = read_model(project / "data" / "run_report.json", RunReport)
+        assert report is not None
+        assert (report.mode, report.warnings[0]) == ("live", LIVE_OVER_OFFLINE)
+        again = invoke("run")
+        assert again.exit_code == 0
+        assert LIVE_OVER_OFFLINE not in again.output
 
 
 class TestRunProblems:

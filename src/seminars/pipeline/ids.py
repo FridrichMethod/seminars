@@ -24,6 +24,10 @@ that hold:
 
 When several sources list one talk, de-duplication keeps the uid that was
 seen first and binds the keys of the others to it (``seminars.pipeline.dedup``).
+A binding yields to later evidence: when two listings of one source that
+share a uid turn out to be two talks (they name different speakers), one
+keeps the uid and the other gets the uid of its own key
+(``seminars.pipeline.dedup.separate_listings``).
 A key of the third kind changes when the talk gains its title or a speaker;
 ``seminars.pipeline.dedup.adopt_stored_uids`` then hands the stored uid on to
 the new key, so the uid stays.
@@ -52,6 +56,10 @@ DIGEST_LENGTH: Final = 24
 URL_KEY_PREFIX: Final = "url:"
 DAY_KEY_PREFIX: Final = "day:"
 HASHED_ID_PREFIX: Final = "sha256:"
+TIME_OF_DAY_FORMAT: Final = "t%H%M"
+"""How the time of day of the start is written in a day key without a speaker or title."""
+
+_TIME_OF_DAY_KEY: Final = re.compile(rf"{DAY_KEY_PREFIX}\d{{4}}-\d{{2}}-\d{{2}}:t\d{{4}}")
 
 _READABLE: Final = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}")
 _SLUG_CHARACTERS: Final = re.compile(r"[^a-z0-9]+")
@@ -118,8 +126,26 @@ def draft_key(
         return source_key(draft.source_id, native)
     if draft.url and canonical_url(draft.url) not in shared and not is_secret(draft.url):
         return source_key(draft.source_id, URL_KEY_PREFIX + canonical_url(draft.url))
-    words = slug(speaker or "") or slug(title or "") or start.strftime("t%H%M")
+    words = slug(speaker or "") or slug(title or "") or start.strftime(TIME_OF_DAY_FORMAT)
     return source_key(draft.source_id, f"{DAY_KEY_PREFIX}{start.date().isoformat()}:{words}")
+
+
+def is_time_of_day_key(key: str) -> bool:
+    """Whether ``key`` is a day key that names only the time of day of the start.
+
+    That is ``<source id>:day:<date>:t<HHMM>``, the key of a draft with
+    neither a native id nor a page of its own, no speaker and no title. It
+    is the only key that changes when the title or a speaker is announced:
+    a native id or the address of a page stays what it was.
+    """
+    _, native = split_source_key(key)
+    return _TIME_OF_DAY_KEY.fullmatch(native) is not None
+
+
+def is_native_key(key: str) -> bool:
+    """Whether ``key`` is built from the native id of its source, not from a page or a day."""
+    native = key.partition(":")[2]
+    return not native.startswith((URL_KEY_PREFIX, DAY_KEY_PREFIX))
 
 
 def uid_for_key(key: str) -> str:

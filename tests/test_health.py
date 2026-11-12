@@ -179,9 +179,37 @@ class TestHistory:
         runs.source("failed", "failed", "failed")
         assert runs.health.sources[SOURCE].trailing("failed") == 3
 
+    def test_a_source_that_parsed_events_outside_the_window_is_healthy(self) -> None:
+        quiet = source_result("empty", drafts=4, outside_window=4)
+        health = record_run(HealthFile(), report(1, quiet))
+        (entry,) = health.sources[SOURCE].history
+        assert (entry.status, entry.events) == ("ok", 0)
+        assert health.sources[SOURCE].last_success_at == REFERENCE_NOW + timedelta(days=1)
+
+    @pytest.mark.parametrize(
+        "extra", [{}, {"drafts": 2, "invalid": 2}], ids=["nothing-parsed", "all-invalid"]
+    )
+    def test_a_source_that_parsed_no_usable_draft_is_empty(self, extra: dict[str, Any]) -> None:
+        health = record_run(HealthFile(), report(1, source_result("empty", **extra)))
+        assert health.sources[SOURCE].history[0].status == "empty"
+
     def test_it_is_the_registered_implementation(self) -> None:
         updater: HealthUpdater = load_implementation("health_update")
         assert updater is update_health
+
+
+class TestQuietSources:
+    def test_a_page_without_talks_in_the_window_is_never_reported(self, runs: Runs) -> None:
+        runs.source("ok")
+        for _ in range(6):
+            runs.run(source_result("empty", drafts=3, outside_window=3))
+        assert runs.open_titles() == []
+        verdict = source_verdict(runs.health.sources[SOURCE], runs.config.settings.health)
+        assert verdict == "ok"
+
+    def test_a_page_that_parses_nothing_is_reported(self, runs: Runs) -> None:
+        runs.source("ok", "empty", "empty", "empty")
+        assert runs.open_titles() == [TITLE]
 
 
 class TestSourceVerdict:
@@ -229,7 +257,7 @@ class TestSourceIssues:
         assert issue.labels == ["source-broken"]
         assert fake_issues.labels == {"source-broken": LABEL_SOURCE_BROKEN}
         assert "`sites-x` has failed or delivered nothing in its last 3 runs" in issue.body
-        assert "- Last run with events: never" in issue.body
+        assert "- Last healthy run: never" in issue.body
         assert "- Name: Example Department" in issue.body
         assert "- Page: <https://x.example.edu/events>" in issue.body
         assert "    HttpStatusError: HTTP 500" in issue.body
@@ -262,8 +290,8 @@ class TestSourceIssues:
         runs.source("empty")
         assert runs.open_titles() == [TITLE]
         body = fake_issues.get(1).body
-        assert "has delivered no events in its last 3 runs" in body
-        assert "- Last run with events: 2026-11-11 20:00 UTC" in body
+        assert "has parsed no events in its last 3 runs" in body
+        assert "- Last healthy run: 2026-11-11 20:00 UTC" in body
         assert "Error of the last run" not in body
 
     def test_a_source_that_never_had_events_is_not_reported_for_being_empty(

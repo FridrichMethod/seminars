@@ -35,8 +35,16 @@ What a run guarantees:
   are checked too, before they are written. When they hold something the
   check finds (a warning, an error or an excluded title can quote a
   site or an LLM), that becomes a finding as well, and the records are
-  written without any of that text: errors, warnings, excluded events and
-  the details of the LLM providers are left out.
+  written without any of that text: errors, warnings (but for
+  ``LIVE_OVER_OFFLINE``), excluded events and the details of the LLM
+  providers are left out.
+* A live run never builds on fixture data. When data/last_run.json
+  records an offline run, everything below data/ came from the recorded
+  fixtures, so the live run starts from no stored events, no uid map and
+  no health history, says so in a warning (``LIVE_OVER_OFFLINE``), and
+  removes the files of that state (``state_files``) before it writes its
+  own, even when the output check keeps it from writing them. The next
+  live run builds on what this one stored.
 * A dry run does all of this in a scratch directory that is thrown away:
   nothing below the project changes, no issue is touched, and the LLM
   works on a copy of its cache. Its report is returned, not stored.
@@ -79,12 +87,20 @@ from seminars.pipeline.checks import (
     sync_check_issue,
 )
 from seminars.pipeline.collect import Timer, collect_sources
-from seminars.pipeline.dedup import adopt_stored_uids, dedupe
+from seminars.pipeline.dedup import adopt_stored_uids, dedupe, separate_listings
 from seminars.pipeline.diff import Reconciled, reconcile
 from seminars.pipeline.ids import canonical_url
 from seminars.pipeline.normalize import NormalizeContext
 from seminars.pipeline.services import Services, redaction
-from seminars.pipeline.store import State, data_files, load_state, report_files, write_files
+from seminars.pipeline.store import (
+    State,
+    data_files,
+    load_state,
+    remove_files,
+    report_files,
+    state_files,
+    write_files,
+)
 from seminars.pipeline.tagging import tag_candidates
 
 logger = logging.getLogger(__name__)
@@ -96,6 +112,10 @@ NOT_PUBLISHABLE = "output check failed: nothing of this run may be committed or 
 REPORT_WITHHELD = (
     "the run report held text that the output check found; errors, warnings, excluded "
     "events and LLM details were left out of it"
+)
+LIVE_OVER_OFFLINE = (
+    "data/ held the result of an offline run, made from the recorded fixtures; this live run "
+    "started from no stored events, uid map or health history"
 )
 
 
@@ -136,6 +156,17 @@ class _Processed:
     aliases: Mapping[str, str]
     merged: int
     warnings: tuple[str, ...]
+
+
+def starting_state(stored: State, mode: RunMode) -> tuple[State, bool]:
+    """The state a run of ``mode`` builds on, and whether it had to start from nothing.
+
+    A live run over the result of an offline run starts from an empty state
+    (see the module docstring); every other run uses what is stored.
+    """
+    if mode == "live" and stored.last_run is not None and stored.last_run.mode == "offline":
+        return State(), True
+    return stored, False
 
 
 def select_sources(config: AppConfig, source_ids: Sequence[str] = ()) -> tuple[SourceConfig, ...]:
@@ -211,9 +242,12 @@ def _gather(
     outcomes = collect_sources(
         sources, services.http_for, context=context, extractor=services.page_extractor, timer=timer
     )
+    # Before anything else looks at the uids: two talks of one source that
+    # the uid map holds under one uid get a uid each.
+    candidates = separate_listings([c for outcome in outcomes for c in outcome.candidates])
     return _Gathered(
         results=tuple(outcome.result for outcome in outcomes),
-        candidates=tuple(c for outcome in outcomes for c in outcome.candidates),
+        candidates=tuple(candidates),
         invalid=tuple(item for outcome in outcomes for item in outcome.invalid),
     )
 
@@ -388,8 +422,16 @@ def _publish(
     state: State,
     health: HealthFile,
     report: RunReport,
+    *,
+    fresh: bool,
 ) -> _Published:
-    """Check and write the data files, write the outputs, check what is on disk."""
+    """Check and write the data files, write the outputs, check what is on disk.
+
+    With ``fresh`` the files of the stored state are removed first (see
+    ``starting_state``).
+    """
+    if fresh:
+        remove_files(state_files(target))
     uid_map = state.uid_map.with_aliases(processed.aliases)
     planned = data_files(
         config.paths,
@@ -426,9 +468,11 @@ def _first_report(
     *,
     now: datetime,
     finished_at: datetime,
+    fresh: bool,
 ) -> RunReport:
     """The report of a run before its outputs are written (what health is updated with)."""
     usage, llm_warnings = _llm_usage(services)
+    started_fresh = [LIVE_OVER_OFFLINE] if fresh else []
     return RunReport(
         started_at=now,
         finished_at=finished_at,
@@ -439,7 +483,7 @@ def _first_report(
         excluded=sorted(processed.excluded, key=_excluded_order),
         counts=_counts(gathered, processed, reconciled, services.picks_scorer.threshold),
         llm=usage,
-        warnings=[*services.warnings, *processed.warnings, *llm_warnings],
+        warnings=[*started_fresh, *services.warnings, *processed.warnings, *llm_warnings],
     )
 
 
@@ -470,15 +514,21 @@ def _findings(report: RunReport) -> CheckResult:
 
 
 def _without_free_text(report: RunReport) -> RunReport:
-    """``report`` without any text that may quote a site or an LLM (see the module docstring)."""
+    """``report`` without any text that may quote a site or an LLM (see the module docstring).
+
+    Of the warnings only ``LIVE_OVER_OFFLINE`` stays, a text of this
+    module that quotes nothing; ``REPORT_WITHHELD`` takes the place of the
+    rest. ``NOT_PUBLISHABLE`` comes back with the findings (``_with_checks``).
+    """
     providers = [
         provider.evolve(model=None, error=None, warnings=[]) for provider in report.llm.providers
     ]
+    kept = [warning for warning in report.warnings if warning == LIVE_OVER_OFFLINE]
     return report.evolve(
         sources=[result.evolve(error=None, warnings=[]) for result in report.sources],
         excluded=[],
         llm=report.llm.evolve(provider=None, providers=providers),
-        warnings=[REPORT_WITHHELD],
+        warnings=[*kept, REPORT_WITHHELD],
     )
 
 
@@ -519,7 +569,9 @@ def run_pipeline(
 
     sources = select_sources(config, options.source_ids)
     destination = target or config.paths
-    state = load_state(config.paths)
+    state, fresh = starting_state(load_state(config.paths), options.mode)
+    if fresh:
+        logger.warning("data/ holds an offline run; the live run starts from no stored state")
     gathered = _gather(config, services, sources, state, now, timer)
     processed = _process(config, services, gathered, state)
     reconciled = reconcile(
@@ -534,11 +586,18 @@ def run_pipeline(
     )
     issues: IssueClient | None = None if options.dry_run else services.issues
     report = _first_report(
-        services, options, gathered, processed, reconciled, now=now, finished_at=elapsed()
+        services,
+        options,
+        gathered,
+        processed,
+        reconciled,
+        now=now,
+        finished_at=elapsed(),
+        fresh=fresh,
     )
     health = services.update_health(state.health, report, issues, config=config)
     published = _publish(
-        config, services, destination, reconciled, processed, state, health, report
+        config, services, destination, reconciled, processed, state, health, report, fresh=fresh
     )
     final = _store_report(
         _final_report(report, published, elapsed()), destination, services.secret_scanner

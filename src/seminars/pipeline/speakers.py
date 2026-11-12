@@ -11,7 +11,8 @@ Sources write speakers in many ways::
 A comma can separate two people or a person from an affiliation, and rules
 cannot always tell which. The choice made here is conservative:
 
-1. A leading label ("Speaker:", "Presented by:") is dropped.
+1. A leading label ("Speaker:", "Presented by:") is dropped, and so is a
+   part that is nothing but a label ("Contact:").
 2. When every part between separators (``;``, ``|``, a line break, "and",
    ``&`` and the comma) reads like a person, optionally followed by an
    affiliation in parentheses, the line is a list of people.
@@ -158,7 +159,7 @@ def split_speakers(text: str) -> list[ParsedSpeaker]:
         return [person for person in people if person is not None]
     speakers: list[ParsedSpeaker] = []
     for chunk in _split(line, _HARD_SEPARATOR):
-        person = _person_with_commas(chunk)
+        person = None if chunk.endswith(":") else _person_with_commas(chunk)
         if person is None:
             continue
         if speakers and not looks_like_name(person.name):

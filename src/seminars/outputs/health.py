@@ -10,10 +10,19 @@
    lasted long enough, updated by every further run, closed when it is
    over.
 
+What a run of a source counts as: ``failed`` when it failed, ``empty`` when
+normalization accepted none of its drafts, and ``ok`` otherwise. That is
+counted before the time window is applied: a seminar page that works but
+has no talk in the window (a series between terms) is healthy, not empty.
+Drafts that normalization rejected do not count, so a source whose every
+draft is broken is empty. The run report keeps the status of the run
+itself (``ok`` only with an event in the window), which is what the stored
+events of the source are judged by.
+
 When a source counts as broken (``settings.health``):
 
 * its last ``source_failure_threshold`` runs all failed, or
-* it delivered events at some time and its last ``source_empty_threshold``
+* it was healthy at some time and its last ``source_empty_threshold``
   runs all came back empty, or
 * its last runs, as many as the larger of the two thresholds, were all
   failed or empty and at least one of them failed.
@@ -57,6 +66,8 @@ from seminars.models import (
     SourceConfig,
     SourceHealth,
     SourceHealthEntry,
+    SourceRunResult,
+    SourceStatus,
 )
 from seminars.textrules import ascii_printable
 
@@ -95,11 +106,21 @@ def llm_issue_title(provider: str) -> str:
 # --- history -------------------------------------------------------------------------------
 
 
+def health_status(result: SourceRunResult) -> SourceStatus:
+    """What one run of a source counts as for health (see the module docstring)."""
+    if result.status == "empty" and result.drafts > result.invalid:
+        return "ok"
+    return result.status
+
+
 def record_run(health: HealthFile, report: RunReport) -> HealthFile:
     """``health`` with the sources and LLM providers of ``report`` appended to the history."""
     for result in report.sources:
         entry = SourceHealthEntry(
-            at=report.started_at, status=result.status, events=result.events, error=result.error
+            at=report.started_at,
+            status=health_status(result),
+            events=result.events,
+            error=result.error,
         )
         health = health.with_source_entry(result.source_id, entry)
     for provider in report.llm.providers:
@@ -174,12 +195,12 @@ def source_issue_body(
 ) -> str:
     """Markdown body of the ``source-broken`` issue of one source."""
     bad = history.trailing("failed", "empty")
-    what = "failed or delivered nothing" if verdict == "failing" else "delivered no events"
+    what = "failed or delivered nothing" if verdict == "failing" else "parsed no events"
     last = history.last
     lines = [
         f"The source `{source_id}` has {what} in its last {bad} runs.",
         "",
-        f"- Last run with events: {_moment(history.last_success_at)}",
+        f"- Last healthy run: {_moment(history.last_success_at)}",
     ]
     if source is not None:
         page = ascii_printable(source.homepage or source.all_urls[0])

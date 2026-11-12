@@ -17,7 +17,6 @@ from seminars.pipeline.text import (
     is_tba,
     one_line,
     paragraphs,
-    scrub_private_links,
     split_status,
     strip_markup,
     tidy_name,
@@ -148,22 +147,6 @@ class TestTruncate:
         assert len(paragraphs("y" * 9000, limit=4000) or "") == 4000
 
 
-class TestPrivateLinks:
-    def test_links_with_a_password_and_passcodes_are_removed(self) -> None:
-        text = (
-            "Join https://stanford.zoom.us/j/123?pwd=abc. Passcode: 123456 or see "
-            "https://example.edu/a?b=1, password is: hunter2"
-        )
-        assert scrub_private_links(text) == (
-            "Join [link removed]. Passcode: [removed] or see "
-            "https://example.edu/a?b=1, password is: [removed]"
-        )
-
-    def test_ordinary_text_is_untouched(self) -> None:
-        text = "A talk about password hashing at https://example.edu/talk"
-        assert scrub_private_links(text) == text
-
-
 class TestTitles:
     @pytest.mark.parametrize(
         "title",
@@ -264,6 +247,9 @@ class TestSpeakerLines:
             ("Dr. Jos\u00e9 Garc\u00eda-L\u00f3pez", [("Jos\u00e9 Garc\u00eda-L\u00f3pez", None)]),
             ("", []),
             ("Speaker:", []),
+            ("Contact:", []),
+            ("Jane Doe (MIT); Contact:", [("Jane Doe", "MIT")]),
+            ("Contact:\nJohn Roe, MIT", [("John Roe", "MIT")]),
         ],
     )
     def test_split(self, line: str, people: list[tuple[str, str | None]]) -> None:
