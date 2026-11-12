@@ -1,0 +1,145 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//seminars.fridrichmethod.github.io//seminars//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALDESC:Every academic talk collected from Stanford\, SLAC\, Arc Inst
+ itute and CZ Biohub.
+X-WR-CALNAME:Seminars - All
+REFRESH-INTERVAL;VALUE=DURATION:PT6H
+X-PUBLISHED-TTL:PT6H
+X-WR-TIMEZONE:America/Los_Angeles
+BEGIN:VTIMEZONE
+TZID:America/Los_Angeles
+BEGIN:STANDARD
+DTSTART:20260101T000000
+TZNAME:PST
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0800
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:20260308T020000
+TZNAME:PDT
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0700
+END:DAYLIGHT
+BEGIN:STANDARD
+DTSTART:20261101T020000
+TZNAME:PST
+TZOFFSETFROM:-0700
+TZOFFSETTO:-0800
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+SUMMARY:Cancelled: Random matrices and number theory - Wei Zhang
+DTSTART;TZID=America/Los_Angeles:20261113T160000
+DTEND;TZID=America/Los_Angeles:20261113T170000
+DTSTAMP:20261110T200000Z
+UID:golden-cancelled@seminars.fridrichmethod.github.io
+SEQUENCE:1
+CATEGORIES:Math
+DESCRIPTION:Speaker: Wei Zhang (MIT)\nMath Colloquium\nStanford Mathematic
+ s\n\nDetails: https://example.stanford.edu/events/golden-cancelled
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Building 380\, Room 380-C
+STATUS:CANCELLED
+URL:https://example.stanford.edu/events/golden-cancelled
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Serving large models\; cheap\, fast \\ robust - Priya Raman
+DTSTART;TZID=America/Los_Angeles:20261114T153000
+DTEND;TZID=America/Los_Angeles:20261114T163000
+DTSTAMP:20261110T200000Z
+UID:golden-online@seminars.fridrichmethod.github.io
+SEQUENCE:0
+CATEGORIES:AI / ML
+DESCRIPTION:Speaker: Priya Raman (Example Labs\, Inc.)\nMLSys Seminar\nSta
+ nford MLSys\nOnline: https://stanford.zoom.us/j/1234567890\n\nOnline only.
+ \n\nFirst: batching\; second: caching.\nThird\, xxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxx...\n\nDetails: https://example.stanford.edu/e
+ vents/golden-online
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Online
+STATUS:TENTATIVE
+URL:https://example.stanford.edu/events/golden-online
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Protein design with diffusion models - Jane Doe\, Li Wu
+DTSTART;TZID=America/Los_Angeles:20261117T160000
+DTEND;TZID=America/Los_Angeles:20261117T170000
+DTSTAMP:20261110T200000Z
+UID:golden-pick@seminars.fridrichmethod.github.io
+SEQUENCE:2
+CATEGORIES:AI / ML,Biology
+DESCRIPTION:Speaker: Jane Doe (Stanford University)\; Li Wu\nBioengineerin
+ g Seminar\nStanford Bioengineering\nWhy picked: title: protein design\; ti
+ tle: diffusion model\n\nA talk about generative models for de novo protein
+  design.\n\nDetails: https://bioengineering.stanford.edu/events/protein-de
+ sign-seminar\nSource: https://events.stanford.edu/event/protein-design
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Shriram Center\, Room 104
+STATUS:CONFIRMED
+URL:https://bioengineering.stanford.edu/events/protein-design-seminar
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Physical Chemistry Seminar: Zoe Muller
+DTSTART;TZID=America/Los_Angeles:20261118T163000
+DTEND;TZID=America/Los_Angeles:20261118T173000
+DTSTAMP:20261110T200000Z
+UID:golden-tba@seminars.fridrichmethod.github.io
+SEQUENCE:0
+CATEGORIES:Chemistry
+DESCRIPTION:Speaker: Zoe Muller (ETH Zurich)\nPhysical Chemistry Seminar\n
+ Stanford Chemistry\n\nDetails: https://example.stanford.edu/events/golden-
+ tba
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Sapp Center Lecture Hall
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/golden-tba
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Grand Rounds: cell therapies for solid tumors - Maria Chen\, Omar 
+ Haddad\, Ana Diaz\, ...
+DTSTART;TZID=America/Los_Angeles:20261119T080000
+DTEND;TZID=America/Los_Angeles:20261119T090000
+DTSTAMP:20261110T200000Z
+UID:golden-hybrid@seminars.fridrichmethod.github.io
+SEQUENCE:0
+CATEGORIES:Biology,Medicine
+DESCRIPTION:Speaker: Maria Chen\; Omar Haddad\; Ana Diaz\; Bo Li\nStanford
+  Medicine\nOnline\n\nHybrid event.\n\nDetails: https://example.stanford.ed
+ u/events/golden-hybrid
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Li Ka Shing Center\, Berg Hall
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/golden-hybrid
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Bay Area Symposium on Structural Biology
+DTSTART;VALUE=DATE:20261120
+DTEND;VALUE=DATE:20261122
+DTSTAMP:20261110T200000Z
+UID:golden-all-day@seminars.fridrichmethod.github.io
+SEQUENCE:0
+CATEGORIES:Chemistry,Biology,Physics
+DESCRIPTION:SLAC\nWhy picked: abstract: cryo-EM\n\nTwo days of talks\; cry
+ o-EM\, crystallography\, and structure prediction.\n\nDetails: https://exa
+ mple.stanford.edu/events/golden-all-day
+LAST-MODIFIED:20261110T200000Z
+LOCATION:SLAC\, Kavli Auditorium
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/golden-all-day
+END:VEVENT
+END:VCALENDAR

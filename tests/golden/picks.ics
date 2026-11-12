@@ -1,0 +1,66 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//seminars.fridrichmethod.github.io//seminars//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALDESC:Talks that match the personal interest rules.
+X-WR-CALNAME:Seminars - Picks
+REFRESH-INTERVAL;VALUE=DURATION:PT6H
+X-PUBLISHED-TTL:PT6H
+X-WR-TIMEZONE:America/Los_Angeles
+BEGIN:VTIMEZONE
+TZID:America/Los_Angeles
+BEGIN:STANDARD
+DTSTART:20260101T000000
+TZNAME:PST
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0800
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:20260308T020000
+TZNAME:PDT
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0700
+END:DAYLIGHT
+BEGIN:STANDARD
+DTSTART:20261101T020000
+TZNAME:PST
+TZOFFSETFROM:-0700
+TZOFFSETTO:-0800
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+SUMMARY:Protein design with diffusion models - Jane Doe\, Li Wu
+DTSTART;TZID=America/Los_Angeles:20261117T160000
+DTEND;TZID=America/Los_Angeles:20261117T170000
+DTSTAMP:20261110T200000Z
+UID:golden-pick@seminars.fridrichmethod.github.io
+SEQUENCE:2
+CATEGORIES:AI / ML,Biology
+DESCRIPTION:Speaker: Jane Doe (Stanford University)\; Li Wu\nBioengineerin
+ g Seminar\nStanford Bioengineering\nWhy picked: title: protein design\; ti
+ tle: diffusion model\n\nA talk about generative models for de novo protein
+  design.\n\nDetails: https://bioengineering.stanford.edu/events/protein-de
+ sign-seminar\nSource: https://events.stanford.edu/event/protein-design
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Shriram Center\, Room 104
+STATUS:CONFIRMED
+URL:https://bioengineering.stanford.edu/events/protein-design-seminar
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Bay Area Symposium on Structural Biology
+DTSTART;VALUE=DATE:20261120
+DTEND;VALUE=DATE:20261122
+DTSTAMP:20261110T200000Z
+UID:golden-all-day@seminars.fridrichmethod.github.io
+SEQUENCE:0
+CATEGORIES:Chemistry,Biology,Physics
+DESCRIPTION:SLAC\nWhy picked: abstract: cryo-EM\n\nTwo days of talks\; cry
+ o-EM\, crystallography\, and structure prediction.\n\nDetails: https://exa
+ mple.stanford.edu/events/golden-all-day
+LAST-MODIFIED:20261110T200000Z
+LOCATION:SLAC\, Kavli Auditorium
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/golden-all-day
+END:VEVENT
+END:VCALENDAR
