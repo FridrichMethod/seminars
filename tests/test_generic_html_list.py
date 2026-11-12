@@ -314,6 +314,10 @@ class TestRows:
         [draft] = run(source, serve(text))
         assert (draft.start, draft.end) == (datetime(2027, 8, 2, 10), datetime(2027, 8, 6, 14))
 
+    def test_a_row_with_one_time_has_no_end(self) -> None:
+        [draft] = run(list_source(), serve(page(row(clock="4:30pm PT"))))
+        assert (draft.start, draft.end) == (datetime(2026, 11, 17, 16, 30), None)
+
     def test_a_time_range_that_crosses_midnight(self) -> None:
         [draft] = run(list_source(), serve(page(row(clock="11pm - 1am"))))
         assert draft.end == datetime(2026, 11, 18, 1)
