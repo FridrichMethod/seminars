@@ -4,6 +4,7 @@ The stages, in order (``seminars.contracts`` has the same list from the
 point of view of the contracts)::
 
     sources   fetch, parse, LLM fallback, normalize     seminars.pipeline.collect
+              and the size of each listing against its history
     filter    EventFilter.filter                        rules of another package
     merge     adopt stored uids, de-duplicate           seminars.pipeline.dedup
     classify  FieldTagger, LLMFieldTagger               seminars.pipeline.tagging
