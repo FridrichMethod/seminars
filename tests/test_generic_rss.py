@@ -90,6 +90,9 @@ class TestRecordedSources:
         )
         assert defense.event_type_hint == "defense"
         assert defense.categories == ["PhD Defense"]
+        # Neither the feed nor the cards name a speaker apart from the title, which
+        # normalization reads; the adapter invents none.
+        assert all(d.speakers == [] and d.speaker_text is None for d in drafts)
 
     def test_cheme_colloquium_fields_and_the_detail_page(self) -> None:
         http = offline_client("sites-cheme")
@@ -134,6 +137,8 @@ class TestRecordedSources:
         assert (talk.url or "").startswith("https://chemsysbio.stanford.edu/events/")
         assert talk.start == datetime(2026, 12, 3, 12, 30, tzinfo=PST)
         assert talk.location is None
+        # The cards carry no speaker; the pages that do are on other hosts.
+        assert (talk.speakers, talk.speaker_text) == ([], None)
 
     def test_cs_without_detail_pages(self) -> None:
         source = with_params(SOURCES["sites-cs"], detail_page={"fetch": "never"})
@@ -146,6 +151,8 @@ class TestRecordedSources:
         )
         assert talk.start == datetime(2026, 12, 9, 12, 0, tzinfo=PST)
         assert talk.location == "Gates Computer Science Building"
+        # The speakers are named in the title only, which normalization reads.
+        assert (talk.speakers, talk.speaker_text) == ([], None)
         sessions = [d for d in drafts if d.title == "CS Program Sheet Workshop & Advising"]
         assert [d.event_type_hint for d in sessions].count(None) == 1  # the card without a type
         assert {d.event_type_hint for d in sessions} == {"other", None}
