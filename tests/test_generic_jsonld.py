@@ -147,6 +147,14 @@ class TestContainers:
     def test_json_ld_without_events_is_no_event(self) -> None:
         assert parse_page({"@type": "Organization", "name": "Lab"}) == []
 
+    def test_control_characters_inside_strings_are_accepted(self) -> None:
+        # A raw tab and a raw line break inside JSON strings (strict JSON forbids them).
+        block = '{"@type": "Event", "name": "A\ttalk", "startDate": "2026-11-17",'
+        block += ' "description": "Line one\nline two"}'
+        [draft] = parse_page(block)
+        assert draft.title == "A talk"
+        assert draft.abstract == "Line one line two"
+
     def test_deep_nesting_is_not_json_here(self) -> None:
         assert decode("[" * 100_000 + "]" * 100_000) is None
 

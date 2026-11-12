@@ -113,9 +113,13 @@ def script_blocks(document: FetchedDocument) -> list[str]:
 
 
 def decode(text: str) -> Any:
-    """A JSON-LD block, or ``None`` when it is not JSON (lone surrogates dropped)."""
+    """A JSON-LD block, or ``None`` when it is not JSON (lone surrogates dropped).
+
+    Raw control characters inside strings (a line break in a description)
+    are accepted; anything else that is not JSON is not.
+    """
     try:
-        return without_surrogates(json.loads(text))
+        return without_surrogates(json.loads(text, strict=False))
     except (ValueError, RecursionError):
         return None
 
