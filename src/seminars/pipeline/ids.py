@@ -32,7 +32,8 @@ under one uid in one run are two listings, so one keeps the uid and the
 other gets the uid of its own key, and de-duplication alone decides
 whether they are one talk (``seminars.pipeline.dedup.separate_listings``).
 Two talks of one source and day that would get one day key get a key each
-(``tell_apart_day_keys``).
+(``tell_apart_day_keys``), and the earlier one keeps its uid when the later
+one leaves (``reclaim_timed_keys``).
 
 Some keys change while the talk stays: a day key when the talk moves to
 another day, gains its title (without a speaker) or a speaker, or the
