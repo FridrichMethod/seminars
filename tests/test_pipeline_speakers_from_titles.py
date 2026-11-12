@@ -213,10 +213,87 @@ def test_a_name_first_title_needs_its_abstract_or_an_affiliation(
         ("Biology Seminar: Winter Quarter", None),
         ("History Lecture: A Closer Look", None),
         ("Book Talk | Living Minerals | Pattern Magic", None),
+        # Topics of common words after a series name, with no abstract or one that does not
+        # repeat them.
+        ("Grand Rounds: Heart Failure", None),
+        ("Grand Rounds: Heart Failure", "We review new treatments for reduced ejection."),
+        ("Grand Rounds: Sickle Cell", None),
+        ("Grand Rounds: Kidney Stones", None),
+        ("Seminar: Public Health", None),
+        ("Seminar: Long Covid", None),
+        ("Geophysics Seminar: Ice Sheets", None),
+        ("Geophysics Seminar: Sea Level Rise", None),
+        ("Colloquium: Elliptic Curves", None),
+        ("Colloquium: Ricci Flow", None),
+        ("Colloquium: Mean Curvature", None),
+        ("Colloquium: Cosmic Rays", None),
+        ("Seminar: Carbon Capture", None),
+        ("Seminar: Carbon Capture - Challenges and Opportunities", None),
+        ("Seminar: Coral Reefs", None),
+        ("Seminar: Urban Heat", None),
+        ("Seminar: Wound Healing", None),
+        ("Seminar: Gravitational Waves", None),
+        ("Seminar: Speech Recognition", None),
+        ("Seminar: Human Rights", None),
+        ("Seminar: Fast Radio Bursts", None),
+        ("Seminar | Ocean Science | Sea Level Rise, Stanford University", None),
     ],
 )
 def test_titles_that_name_no_speaker(title: str, abstract: str | None) -> None:
     assert speakers_from_title(title, abstract) == []
+
+
+@pytest.mark.parametrize(
+    ("title", "abstract", "people"),
+    [
+        # Either part can be the talk title; one that reads like a topic is not the speaker.
+        ("Seminar: Public Health - Jane Roe", None, []),
+        ("Seminar: Dark Matter - Jane Roe", None, []),
+        ("Seminar: Jane Roe - Dark Matter", None, [("Jane Roe", None)]),
+        ("Seminar: Jane Roe - Public Health", None, [("Jane Roe", None)]),
+        ("Seminar: Public Health - Jane Roe, MIT", None, [("Jane Roe", "MIT")]),
+        ("Seminar: Public Health - Jane Roe, PhD", None, [("Jane Roe", None)]),
+        (
+            "Seminar: Public Health - Jane Roe",
+            "Jane Roe is a professor of epidemiology at MIT.",
+            [("Jane Roe", None)],
+        ),
+        # Two parts that both read like a name, and nothing tells which is the speaker.
+        ("Seminar: Salt Marshes - Jane Roe", None, []),
+        ("Seminar: Jane Roe - John Doe", None, []),
+        ("Seminar: Jane Roe - John Doe", "Dr. John Doe studies knots.", [("John Doe", None)]),
+        # A quoted title or a title with small words is no name: the first part is.
+        ('Seminar: Jane Roe - "Public Health"', None, [("Jane Roe", None)]),
+        ("Seminar: Jane Roe - The Future of Public Health", None, [("Jane Roe", None)]),
+    ],
+)
+def test_a_series_followed_by_two_parts_that_read_like_names(
+    title: str, abstract: str | None, people: list[tuple[str, str | None]]
+) -> None:
+    found = speakers_from_title(title, abstract)
+    assert found == [ParsedSpeaker(name, affiliation) for name, affiliation in people]
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # Names with words that are common words of English as well: one word that is not
+        # is enough.
+        "Anthony Green",
+        "Chris Fields",
+        "Emily Fox",
+        "Emma Stone",
+        "Long Chen",
+        "Ion Stoica",
+        "Huan Sun",
+        "Peter Edmunds",
+        "Neil Lawrence",
+        "Hunter Spink",
+        "Bang Nhan",
+    ],
+)
+def test_a_name_with_a_common_word_is_still_a_speaker(name: str) -> None:
+    assert speakers_from_title(f"Seminar: {name}") == [ParsedSpeaker(name, None)]
 
 
 LUNCH_CLUB = (

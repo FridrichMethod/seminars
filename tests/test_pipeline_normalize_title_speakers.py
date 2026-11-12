@@ -61,6 +61,14 @@ class TestDraftsWithoutSpeakers:
         assert people(speaker_text=None, title="Protein design with diffusion models") == []
         assert people(speaker_text=None, title="TBA") == []
 
+    def test_a_topic_after_a_series_is_stored_without_a_speaker(self) -> None:
+        assert people(LOCALIST, speaker_text=None, title="Grand Rounds: Heart Failure") == []
+        abstract = "We review new treatments for patients with reduced ejection fraction."
+        found = people(
+            LOCALIST, speaker_text=None, title="Grand Rounds: Heart Failure", abstract=abstract
+        )
+        assert found == []
+
 
 class TestDraftsWithSpeakers:
     def test_a_speaker_line_wins_over_the_title(self) -> None:

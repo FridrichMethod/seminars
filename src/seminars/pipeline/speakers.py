@@ -62,7 +62,12 @@ names as well. Then the form must vouch for it:
 
 * series first ("<series>: <name>[, <affiliation>][ - "<title>"]"): the
   part in front is a series, or the name is followed by a degree, a quoted
-  title or a further part, or the abstract names the person;
+  title or a further part, or the abstract names the person. When nothing
+  marks the name and the next part reads like a name as well, either one
+  can be the talk title ("Seminar: Public Health - Jane Roe"): the speaker
+  is the one the abstract names, else the second when a degree or an
+  organisation follows it, else the first when the second reads like a
+  topic, else nobody;
 * series, talk title, then the name ("<series> | <title> | <name>,
   <affiliation>"): the part in front is a series and the last part is a
   person followed by a degree or an organisation, or whom the abstract
@@ -84,10 +89,20 @@ names the person, whatever the form: one that holds a word of a field, a
 topic, a place or an event ("Dark Matter", "Deep Learning", "Quantum
 Groups", "Monte Carlo", "Coffee Hour") or an adjective of a field
 ("Topological Insulators"), whose last word ends like a word of a field
-("Floer Homology", "Random Matrices", "Causal Inference"), or that starts
-with "A" or with a verb in "-ing" ("Navigating Heritage"). The endings
+("Floer Homology", "Random Matrices", "Causal Inference"), that starts
+with "A" or with a verb in "-ing" ("Navigating Heritage"), or whose every
+word is a common word of English or of a field ("Heart Failure", "Sea
+Level Rise", "Elliptic Curves", "Wound Healing"). The endings of a field
 leave out the short words that names end in as well ("Lawrence",
-"Clement", "Davies", "de Vries").
+"Clement", "Davies", "de Vries"), and the common words leave out the ones
+that are first names as well ("Grace", "Mark", "Ray"): a person's name
+holds at least one word outside them ("Emily Fox", "Anthony Green").
+
+These tests are word lists and endings, not a general rule, and that is
+their limit: a topic of words they do not hold ("Salt Marshes", "Bird
+Song") still reads like a name after a series, and a name of common words
+only ("Coral Banks") needs its abstract. A wrong speaker is worse than
+none, so the lists err towards topics.
 """
 
 from __future__ import annotations
@@ -353,7 +368,7 @@ often is: "Jane DoeStanford University", "Jane Doe, PhDProfessor of Biology").""
 _GERUND: Final = re.compile(r"[A-Z][a-z]{3,}ing\b")
 """A first word that is a verb in "-ing" of at least seven letters ("Navigating")."""
 _TOPIC_WORDS: Final = word_set(
-    "matter theory theories learning inference model models system systems networks holes"
+    "matter theory theories learning inference model models system systems networks holes flow"
     " chains groups processes process transport matrix graphs graph algorithm algorithms"
     " structure structures materials proteins protein genes genome genomes molecules cells"
     " neurons circuits sensors robots waves particles spaces manifolds surfaces operators"
@@ -417,6 +432,85 @@ _ADJECTIVE_ENDINGS: Final = re.compile(
     r"\w{3,}(?:ical|ular|etic|atic|omic)|\w{3,}(?:ional|istic|astic|ative)"
 )
 """How an adjective of a field ends ("Topological", "Molecular", "Stochastic")."""
+_COMMON_WORDS: Final = word_set(
+    # the body, health and care
+    "heart kidney liver lung brain bone marrow blood skin eye ear gut cell tissue organ muscle"
+    " nerve spine spinal cord joint hip knee breast prostate colon stomach tooth teeth mouth"
+    " throat neck chest womb birth child childhood infant baby mother maternal pregnancy care"
+    " health healthcare surgery pain sleep stroke injury trauma wound valve disorder syndrome"
+    " infection covid flu fever asthma allergy diabetes dementia autism stress apnea sickle"
+    " anemia sepsis malaria vaccine drug dose opioid transplant donor patient nurse doctor"
+    " diet food hunger hearing vision loss gain risk outcome diagnosis treatment recovery scan"
+    " test trial cohort mental chronic acute rare sudden immune viral oral renal vital toxic"
+    # the earth, life and the environment
+    " ice sheet sea level rise coast coastal coral reef fish forest tree plant soil seed root"
+    " leaf flower crop farm water river lake rain wind storm flood drought fire wildfire smoke"
+    " air pollution carbon capture storage emission power grid fuel oil gas coal nuclear"
+    " hydrogen methane ozone earth moon sun space galaxy light rays glacier mountain volcano"
+    " rock mantle plume plate fault desert island polar tropical urban rural city land habitat"
+    " species wildlife bird insect bee animal mammal whale shark frog mouse rat fly worm yeast"
+    " microbe fungus algae plankton permafrost thaw retreat melt weather season sediment"
+    " flare sail burst cluster atom spin plasma metal iron copper gold silver steel glass"
+    " plastic paper cement concrete sand dust salt acid ion ionic liquid solid fluid film"
+    " battery engine motor vehicle car truck ship plane drone rocket satellite bridge road"
+    " rail transit traffic port dam pipe"
+    # computing, media and society
+    " network internet web cloud code software hardware language speech text image video game"
+    " music media news story mind thought emotion decision choice teaching education teacher"
+    " youth family home house housing labor work job market trade money finance bank tax"
+    " price cost wealth poverty justice law right policy politics state nation war peace"
+    " conflict crime prison police vote election democracy race gender culture religion"
+    " ethics privacy trust crisis source search engine smart open free fair safe safety"
+    " private public human civil legal moral political federal global local national"
+    # mathematics and the sciences
+    " number prime curve sphere point line ring field flow map measure mean median average"
+    " variable function equation operator form modular elliptic hyperbolic convex minimal"
+    " harmonic additive tropical toric lattice mirror moduli packing derived body category"
+    " proof logic set sum product rate ratio order chaos noise signal pattern shape scale size"
+    " edge frontier limit origin growth decline change death life age era century time"
+    # common adjectives
+    " big small large little long short high low deep dark early late old young fast slow"
+    " hot cold warm cool wet dry clean dirty hard soft heavy weak strong strange new real true"
+    " false full empty open closed simple complex basic general special common single double"
+    " total partial whole main primary direct indirect inner outer upper lower central red"
+    " blue green white black brown gray yellow ultrafast solar lunar heat radio flight stone"
+    " optic optics dispersal removal survival arrival renewal voting"
+    # general nouns of titles
+    " access agent alert analog answer area array aspect asset attack band barrier base basis"
+    " battle beam benefit bias block board border boundary box branch budget bug burden cable"
+    " capacity capital cause chain channel charge chart check circuit claim class clock color"
+    " copy core corner count country court cover crack cross crowd cure current cut cycle"
+    " damage danger date deal debt decay defect degree delay delivery demand depth design"
+    " detail device disaster discovery distance drift drive drop duty economy effect egg"
+    " element end entry error event exit face fact factor fat fear fee fight firm fit floor"
+    " focus force frame fruit fund gap garden gate goal grain graph grass ground guide habit"
+    " hair half hand harm help hole horizon host idea income index input interest item"
+    " journey key kind layer lead lift link list load loan lock margin mass match matter"
+    " meal meat milk mine mix mode model monitor move mystery net node norm north south east"
+    " west note object office output owner oxygen pace part particle partner party pass path"
+    " peak people phase phone photon piece pitch place plan plot pole pool position post"
+    " powder practice print profit property pulse pump range rank reach record reserve"
+    " resource rest result return reward role room rule sample scene screen seat sector self"
+    " sense service sex share shell shift shock side sign site skill sound speed sport spread"
+    " spring square stage station step stock store stream street strike string style subject"
+    " sugar supply survey switch symbol system table tail talent target task term theme thing"
+    " threat tool top touch tower town trace track trail train trait transfer trap travel"
+    " trend truth tube turn type unit universe use user value vapor vector view voice volume"
+    " wage wall waste watch wave way weight welfare wheel window wing wire word world year"
+    " yield zone history story memory philosophy astronomy anatomy autonomy industry strategy"
+    " society"
+)
+"""Common words of English that topics are made of. A name read from a title whose every
+word is one of them, or a word of a field, reads like a topic ("Heart Failure", "Sea Level
+Rise", "Elliptic Curves"). Words that are also first names ("Grace", "Mark", "Rose",
+"Ray", "Will") are not in it: a person's name holds at least one word outside it."""
+_COMMON_ENDINGS: Final = re.compile(
+    r"\w{2,}(?:tions?|sions?)|\w{3,}(?:ments?|ness|ity|ities|ism|isms|ist|ists|osis|itis)"
+    r"|\w{4,}(?:ures?|ances?|ences?|ive|ives|ous)|\w{3,}(?:ings?|ency|ancy)"
+    r"|\w{4,}(?<!ov)(?<!ev)ics?|\w{2,}(?:ogy|ogies)"
+)
+"""How a common word of English ends ("Failure", "Capture", "Healing", "Cosmic"); "-ovic"
+and "-evic" end surnames ("Popovic")."""
 _COPY_AFTER: Final = re.compile(r"[ \t]{0,3}(?:[:|\"\u201c\u201d]|[-\u2013\u2014]{1,2}\s|$)", re.M)
 """What follows a name where the abstract repeats a part of the title: a separator, a
 quote or the end of the line."""
@@ -494,7 +588,29 @@ def _reads_like_topic(name: str) -> bool:
         return True
     if any(word in _TOPIC_WORDS or _ADJECTIVE_ENDINGS.fullmatch(word) for word in words):
         return True
-    return _TOPIC_ENDINGS.fullmatch(words[-1]) is not None
+    if _TOPIC_ENDINGS.fullmatch(words[-1]) is not None:
+        return True
+    return all(_is_common(word) for word in words)
+
+
+def _singular(word: str) -> str:
+    """``word`` without a plural ending: "curves" -> "curve", "bodies" -> "body"."""
+    if word.endswith("ies") and len(word) > 4:
+        return f"{word[:-3]}y"
+    if word.endswith(("ches", "shes", "sses", "xes")):
+        return word[:-2]
+    return word[:-1] if word.endswith("s") and len(word) > 3 else word
+
+
+def _is_common(word: str) -> bool:
+    """Whether a folded word is a common word of English or of a field (``_COMMON_WORDS``)."""
+    if word in _COMMON_WORDS or _singular(word) in _COMMON_WORDS:
+        return True
+    if word in _TOPIC_WORDS or f"{word}s" in _TOPIC_WORDS:
+        return True
+    return any(
+        pattern.fullmatch(word) for pattern in (_COMMON_ENDINGS, _TOPIC_ENDINGS, _ADJECTIVE_ENDINGS)
+    )
 
 
 def _taken(person: ParsedSpeaker, vouched: bool, abstract: str | None, title: str) -> bool:
@@ -566,6 +682,34 @@ def _leading_person(text: str) -> _Candidate | None:
     return _Candidate(person=person, marked=marked)
 
 
+def _rival(tail: str) -> _Candidate | None:
+    """The person a further part of ``tail`` starts with: "Jane Roe" of "Public Health - Jane
+    Roe"; ``None`` when ``tail`` has one part or the next does not start with a name."""
+    separator = _TITLE_SEPARATOR.search(tail)
+    return None if separator is None else _leading_person(tail[separator.end() :])
+
+
+def _either(
+    first: _Candidate, second: _Candidate, vouched: bool, abstract: str | None, title: str
+) -> list[ParsedSpeaker]:
+    """The speaker of "<series>: <name> - <name>", where the first name is not marked.
+
+    One of the two parts is a talk title, and both read like a name. The
+    one the abstract names is the speaker; else the second when a degree or
+    an organisation marks it; else the first when the second reads like a
+    topic. Otherwise neither: "Seminar: Public Health - Jane Roe" names
+    nobody without more to go on.
+    """
+    for candidate in (first, second):
+        if _mentions(candidate.person.name, abstract, title).as_person:
+            return [candidate.person]
+    if second.marked and _taken(second.person, True, abstract, title):
+        return [second.person]
+    if _reads_like_topic(second.person.name) and _taken(first.person, vouched, abstract, title):
+        return [first.person]
+    return []
+
+
 def _after_separator(title: str, abstract: str | None) -> list[ParsedSpeaker]:
     """People of the series-first and the name-first forms."""
     separator = _TITLE_SEPARATOR.search(title)
@@ -577,6 +721,9 @@ def _after_separator(title: str, abstract: str | None) -> list[ParsedSpeaker]:
         if following is None:
             return _last_part(title, abstract) if _is_series(head) else []
         vouched = _is_series(head) or following.marked
+        rival = None if following.marked else _rival(tail)
+        if rival is not None:
+            return _either(following, rival, vouched, abstract, title)
         return [following.person] if _taken(following.person, vouched, abstract, title) else []
     first = _person(head)
     if first is None or following is not None or not _title_name(first.name):
