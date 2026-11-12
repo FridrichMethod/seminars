@@ -87,8 +87,9 @@ Up to three lines below it are the affiliation, joined with ", ", ending
 before an empty line, a weekday ("Monday," "Thu."), a month and a day
 ("December 3"), a line that starts with a digit (a date or a time), a
 label ("Talk Title:", "Host:"), a heading of at most four words with a
-word such as "Abstract", "Bio" or "Talk", prose (more than 15 words, or a
-lowercase word and a period at the end), an e-mail address or a link, or a
+word such as "Abstract", "Bio" or "Talk" (a whole word: "Stanford Bio-X"
+is no heading), prose (more than 15 words, or a lowercase word and a
+period at the end), an e-mail address or a link, or a
 line that names the speaker again or another speaker of the talk (the
 next one of an announcement of several). The first line that names the
 speaker decides; when the line right after it names them too (a heading
@@ -447,9 +448,9 @@ _NO_AFFILIATION: Final = re.compile(
     r"|[^\W\d][^:]{0,40}:(?:\s|$))",  # a label: "Talk Title:", "Host:"
     re.IGNORECASE,
 )
-_HEADING_WORD: Final = re.compile(
-    r"\b(?:abstract|about|bio|biography|biosketch|description|hosts?|hosted|location"
-    r"|overview|register|registration|rsvp|summary|talk|title|venue|when|where)\b",
+_HEADING_WORD: Final = re.compile(  # a whole word: "Bio", not the start of "Bio-X"
+    r"(?<![\w-])(?:abstract|about|bio|biography|biosketch|description|hosts?|hosted|location"
+    r"|overview|register|registration|rsvp|summary|talk|title|venue|when|where)(?![\w-])",
     re.IGNORECASE,
 )
 _SENTENCE_END: Final = re.compile(r"(?:\b[a-z]{2,}[.!?]|\.\.\.)$")  # "We study things."

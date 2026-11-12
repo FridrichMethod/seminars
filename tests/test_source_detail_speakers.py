@@ -293,6 +293,23 @@ class TestAffiliationsFromTheText:
         [draft] = run(source, serve(list_page("Jane Doe and John Roe"), post))
         assert people(draft)[0] == ("Jane Doe", affiliation)
 
+    @pytest.mark.parametrize(
+        "affiliation",
+        [
+            pytest.param(("Stanford Bio-X",), id="bio-x"),
+            pytest.param(("Bio-Rad Laboratories",), id="bio-rad"),
+            pytest.param(("Department of Bioengineering", "Stanford Bio-X"), id="second-line"),
+        ],
+    )
+    def test_a_heading_word_in_a_hyphenated_name_is_part_of_the_affiliation(
+        self, affiliation: tuple[str, ...]
+    ) -> None:
+        lines = "".join(f"<div>{line}</div>" for line in affiliation)
+        post = f"<html><body><article><div>Jane Doe</div>{lines}</article></body></html>"
+        source = list_source(body="article", required=False)
+        [draft] = run(source, serve(list_page("Jane Doe"), post))
+        assert people(draft) == [("Jane Doe", ", ".join(affiliation))]
+
     def test_each_speaker_of_the_row_takes_the_lines_below_their_own_name(self) -> None:
         lines = ("Jane Doe, PhD", "MIT", "John Roe, PhD", "Harvard", "Monday, November 16")
         speakers = make_speakers("Jane Doe and John Roe", None)
