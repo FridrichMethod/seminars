@@ -8,7 +8,10 @@ department that hosts them. Two candidates are the same talk when
 * their starts are at most ``dedup.max_start_difference_minutes`` apart and
   one of these holds: the titles are similar
   (``rapidfuzz.fuzz.token_set_ratio`` of at least ``dedup.title_similarity``),
-  they share a speaker, or they point at the same detail page.
+  they share a speaker, the title of one names a speaker of the other by a
+  name of at least two words (a campus calendar's "MRC Public Lecture:
+  Tadashi Tokieda" without speakers, against the host's listing of Tadashi
+  Tokieda's talk), or they point at the same detail page.
 
 Four guards keep unrelated talks apart. "TBA" is never similar to "TBA",
 and a title of a single word ("Seminar") is not compared at all, because
@@ -52,7 +55,10 @@ becomes one event:
   models" against "Bioengineering Seminar". Of the rest, a title whose
   words are strictly more than those of another wins ("Diffusion models
   for protein design" over "Diffusion models", any title over the bare
-  name of its series), and otherwise the order below decides. That is the
+  name of its series), and so does, of two titles that both name a
+  speaker, the one with more words ("Tadashi Tokieda: Surprises from
+  rubbing the wrong way" over "MRC Public Lecture: Tadashi Tokieda");
+  otherwise the order below decides. That is the
   one known weak spot: a host's generic title that no series name removes
   ("Applied Physics Colloquium" without a series) shares no word with an
   aggregator's "Protein design with diffusion models - Jane Doe (MIT)",
@@ -146,6 +152,7 @@ class _Profile:
 
     start: datetime
     title: str | None  # folded; None when the title is not compared
+    words: str  # the folded title between spaces, to find names in
     speakers: frozenset[str]
     page: str | None  # canonical address of the detail page, if it is one
     sources: frozenset[str]  # ids of the sources whose keys the event holds
@@ -198,6 +205,7 @@ def _profile(candidate: Candidate, not_pages: Collection[str]) -> _Profile:
     return _Profile(
         start=event.start,
         title=title if comparable else None,
+        words=f" {title} ",
         speakers=frozenset(name for name in names if name),
         page=_detail_page(event, not_pages),
         sources=_sources_of(event),
@@ -206,10 +214,18 @@ def _profile(candidate: Candidate, not_pages: Collection[str]) -> _Profile:
 
 
 def _linked(first: _Profile, second: _Profile) -> bool:
-    """The strong reasons: the same detail page or a shared speaker."""
-    return (first.page is not None and first.page == second.page) or bool(
-        first.speakers & second.speakers
+    """The strong reasons: the same detail page, a shared speaker, a speaker in the title."""
+    return (
+        (first.page is not None and first.page == second.page)
+        or bool(first.speakers & second.speakers)
+        or _names_one_of(first, second.speakers)
+        or _names_one_of(second, first.speakers)
     )
+
+
+def _names_one_of(profile: _Profile, names: Collection[str]) -> bool:
+    """Whether the title of ``profile`` names one of ``names`` that has two words or more."""
+    return any(f" {name} " in profile.words for name in names if " " in name)
 
 
 def _similar_titles(first: _Profile, second: _Profile, threshold: int) -> bool:
@@ -371,11 +387,19 @@ def _title(events: Sequence[Event], speakers: Sequence[Speaker]) -> str:
             for other in range(len(titled))
         )
 
+    def beaten(index: int) -> bool:
+        """Whether a kept title says more than the one at ``index`` (see the module)."""
+        return any(
+            words[other] > words[index]
+            or (naming[index] and naming[other] and len(words[other]) > len(words[index]))
+            for other in kept
+        )
+
     kept = [index for index in range(len(titled)) if not naming[index] or not gives_way(index)]
     for index in kept:
-        if not any(words[other] > words[index] for other in kept):
+        if not beaten(index):
             return titled[index].title
-    return titled[kept[0]].title  # unreachable: a finite family of sets has a maximal one
+    return titled[kept[0]].title  # unreachable: one with the most words is never beaten
 
 
 def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidate:

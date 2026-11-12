@@ -150,3 +150,23 @@ def test_the_sessions_of_a_schedule_name_one_speaker_per_label(
         ("Alison Marsden", "Professor, Pediatrics - Cardiology"),
         ("Emily Fox", "Professor, Statistics and Computer Science"),
     ]
+
+
+def test_a_calendar_title_that_names_the_speaker_joins_the_host_listing(
+    offline_run: tuple[str, Path],
+) -> None:
+    # "MRC Public Lecture: Tadashi Tokieda" on the calendar and Mathematics, without a
+    # speaker; the Mathematics Research Center lists the talk with its speaker.
+    _, root = offline_run
+    (event,) = [
+        event
+        for event in stored(root)
+        if any(key.startswith("sites-mrc:") for key in event.source_ids)
+        and "Tokieda" in event.title
+    ]
+    assert event.title == "Tadashi Tokieda: Surprises from rubbing the wrong way"
+    assert {key.split(":")[0] for key in event.source_ids} == {
+        "localist-stanford",
+        "sites-mathematics",
+        "sites-mrc",
+    }
