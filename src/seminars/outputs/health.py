@@ -1,0 +1,339 @@
+"""Health tracking: the run history in data/health.json and the issues that follow from it.
+
+``update_health`` does two things for every run:
+
+1. It appends the outcome of each source and of each LLM provider of the
+   run report to the history (at most ``HEALTH_HISTORY_LIMIT`` runs each).
+2. With an issue client, it keeps one GitHub issue per broken source
+   (label ``source-broken``) and per failing LLM provider (label
+   ``llm-auth``) in step with that history: opened when the trouble has
+   lasted long enough, updated by every further run, closed when it is
+   over.
+
+When a source counts as broken (``settings.health``):
+
+* its last ``source_failure_threshold`` runs all failed, or
+* it delivered events at some time and its last ``source_empty_threshold``
+  runs all came back empty, or
+* its last runs, as many as the larger of the two thresholds, were all
+  failed or empty and at least one of them failed.
+
+The issue is closed by the first run in which the source delivers events
+again, and also when the source is disabled or removed from the
+configuration. Only the sources of the run are judged, so a run limited
+with ``--source`` leaves the others alone.
+
+An LLM provider is failing when it failed in ``llm_failure_threshold`` runs
+in a row; runs in which it was not used are skipped, because a provider
+further down the chain is only asked when the ones before it fail. The
+issue says which repository secret to replace and with which command, and
+is closed when the provider answers again.
+
+Issue bodies are plain ASCII markdown. The only text in them that this
+project did not write is the error of the last run, which is escaped and
+set as an indented code block, where markdown and mentions are inert.
+
+Issues are best effort. When the GitHub API fails, the problem is logged
+and the history is still returned: a GitHub outage must not fail the
+daily run.
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import Sequence
+from datetime import datetime
+from typing import Final, Literal
+
+from seminars.config import PROVIDER_CREDENTIAL_ENV, AppConfig, HealthSettings
+from seminars.contracts import LABEL_LLM_AUTH, LABEL_SOURCE_BROKEN, IssueClient
+from seminars.models import (
+    HealthFile,
+    Issue,
+    IssueLabel,
+    LLMHealthEntry,
+    LLMProviderHealth,
+    RunReport,
+    SourceConfig,
+    SourceHealth,
+    SourceHealthEntry,
+)
+from seminars.textrules import ascii_printable
+
+logger = logging.getLogger(__name__)
+
+SOURCE_ISSUE_PREFIX: Final = "Source broken: "
+LLM_ISSUE_PREFIX: Final = "LLM provider failing: "
+RECENT_RUNS: Final = 10
+MAX_ERROR_CHARS: Final = 500
+CREDENTIAL_SCRIPT: Final = "scripts/set-llm-credential.sh"
+CREDENTIAL_DOCS: Final = "docs/LLM_CREDENTIALS.md"
+SOURCE_DOCS: Final = "docs/ADDING_A_SOURCE.md"
+
+SourceVerdict = Literal["ok", "failing", "empty", "unsettled"]
+"""``unsettled``: not delivering, but not for long enough to call it broken."""
+
+_KIND_HINTS: Final[dict[str, str]] = {
+    "auth": "The credential is missing, invalid or expired. Replace it.",
+    "quota": "The subscription allowance or the prepaid credit is used up.",
+    "rate_limit": "The provider is throttling requests. This can pass on its own.",
+    "timeout": "The provider did not answer in time. This can pass on its own.",
+    "network": "The provider could not be reached or its command line tool did not start.",
+    "invalid_output": "The provider answered, but not with usable data.",
+    "other": "The provider failed for a reason it did not name.",
+}
+
+
+def source_issue_title(source_id: str) -> str:
+    return f"{SOURCE_ISSUE_PREFIX}{source_id}"
+
+
+def llm_issue_title(provider: str) -> str:
+    return f"{LLM_ISSUE_PREFIX}{provider}"
+
+
+# --- history -------------------------------------------------------------------------------
+
+
+def record_run(health: HealthFile, report: RunReport) -> HealthFile:
+    """``health`` with the sources and LLM providers of ``report`` appended to the history."""
+    for result in report.sources:
+        entry = SourceHealthEntry(
+            at=report.started_at, status=result.status, events=result.events, error=result.error
+        )
+        health = health.with_source_entry(result.source_id, entry)
+    for provider in report.llm.providers:
+        llm_entry = LLMHealthEntry(
+            at=report.started_at,
+            status=provider.status,
+            calls=provider.calls,
+            failure_kind=provider.failure_kind,
+            error=provider.error,
+        )
+        health = health.with_llm_entry(provider.provider, llm_entry)
+    return health
+
+
+def source_verdict(history: SourceHealth, settings: HealthSettings) -> SourceVerdict:
+    """What the history of a source says about it (see the module docstring)."""
+    if history.last is None or history.last.status == "ok":
+        return "ok"
+    bad = history.trailing("failed", "empty")
+    failed = history.trailing("failed")
+    empty = history.trailing("empty")
+    if failed >= settings.source_failure_threshold:
+        return "failing"
+    if history.last_success_at is not None and empty >= settings.source_empty_threshold:
+        return "empty"
+    mixed = max(settings.source_failure_threshold, settings.source_empty_threshold)
+    recent = history.history[-bad:]
+    if bad >= mixed and any(entry.status == "failed" for entry in recent):
+        return "failing"
+    return "unsettled"
+
+
+def llm_failures(history: LLMProviderHealth) -> int:
+    """Consecutive runs in which the provider failed, runs without a call skipped."""
+    count = 0
+    for entry in reversed(history.history):
+        if entry.status == "ok":
+            break
+        if entry.status == "failed":
+            count += 1
+    return count
+
+
+def llm_recovered(history: LLMProviderHealth) -> bool:
+    """Whether the most recent run that used the provider got an answer from it."""
+    used = [entry for entry in history.history if entry.status != "unused"]
+    return bool(used) and used[-1].status == "ok"
+
+
+# --- issue bodies --------------------------------------------------------------------------
+
+
+def _moment(moment: datetime | None) -> str:
+    return "never" if moment is None else moment.strftime("%Y-%m-%d %H:%M UTC")
+
+
+def _code_block(text: str | None) -> str:
+    """One escaped line as an indented code block; nothing in it is markdown."""
+    line = ascii_printable(text or "no error message")[:MAX_ERROR_CHARS]
+    return f"    {line}"
+
+
+def _source_runs(history: SourceHealth) -> list[str]:
+    rows = ["| Run | Status | Events |", "|---|---|---|"]
+    for entry in reversed(history.history[-RECENT_RUNS:]):
+        rows.append(f"| {_moment(entry.at)} | {entry.status} | {entry.events} |")
+    return rows
+
+
+def source_issue_body(
+    source: SourceConfig | None, source_id: str, history: SourceHealth, verdict: SourceVerdict
+) -> str:
+    """Markdown body of the ``source-broken`` issue of one source."""
+    bad = history.trailing("failed", "empty")
+    what = "failed or delivered nothing" if verdict == "failing" else "delivered no events"
+    last = history.last
+    lines = [
+        f"The source `{source_id}` has {what} in its last {bad} runs.",
+        "",
+        f"- Last run with events: {_moment(history.last_success_at)}",
+    ]
+    if source is not None:
+        page = ascii_printable(source.homepage or source.all_urls[0])
+        lines += [f"- Name: {ascii_printable(source.name)}", f"- Adapter: `{source.adapter}`"]
+        lines += [f"- Page: <{page}>"]
+    if last is not None and last.status == "failed":
+        lines += ["", "Error of the last run:", "", _code_block(last.error)]
+    lines += ["", "Recent runs, newest first:", "", *_source_runs(history)]
+    lines += [
+        "",
+        "What to check: open the page, compare it with the recorded fixture of the source "
+        f"and adjust the entry in `config/sources.d/` or its adapter ({SOURCE_DOCS}). "
+        "A source that no longer exists can be disabled with `enabled: false`.",
+        "",
+        "This issue is updated by every run and closed automatically when the source "
+        "delivers events again.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def _credential_lines(provider: str) -> list[str]:
+    secret = next((name for key, name in PROVIDER_CREDENTIAL_ENV.items() if key == provider), None)
+    if secret is None:
+        return [
+            f"- `{provider}` has no repository secret. It is only used on a local machine, "
+            "with the login of its own command line tool.",
+            f"- Check the local state: `{CREDENTIAL_SCRIPT} {provider}`",
+        ]
+    lines = [
+        f"- Credential: repository secret `{secret}`",
+        f"- Replace it: `{CREDENTIAL_SCRIPT} {provider}` (reads the value without showing it; "
+        f"`--from-file PATH` takes it from a file), which runs `gh secret set {secret}`",
+    ]
+    if provider == "claude-cli":
+        lines.insert(1, "- Create a new token first: `claude setup-token`")
+    return lines
+
+
+def llm_issue_body(provider: str, history: LLMProviderHealth) -> str:
+    """Markdown body of the ``llm-auth`` issue of one provider."""
+    failed = [entry for entry in history.history if entry.status == "failed"]
+    last = failed[-1] if failed else None
+    kind = (last.failure_kind if last else None) or "other"
+    lines = [
+        f"The LLM provider `{provider}` failed in {llm_failures(history)} runs in a row "
+        f"(kind of the last failure: {kind}).",
+        "",
+        _KIND_HINTS.get(kind, _KIND_HINTS["other"]),
+        "",
+        f"- Last run with an answer: {_moment(history.last_success_at)}",
+        f"- Last failure: {_moment(last.at if last else None)}",
+        "",
+        "Error of the last failure:",
+        "",
+        _code_block(last.error if last else None),
+        "",
+        "How to fix it:",
+        "",
+        *_credential_lines(provider),
+        "- Then check: run the `update` workflow by hand with mode `llm-smoke`",
+        f"- Details: {CREDENTIAL_DOCS}",
+        "",
+        "The pipeline goes on without this provider: it uses the next one of the chain, or "
+        "rules only when none is left. This issue is updated by every run and closed "
+        "automatically when the provider answers again.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+# --- issues --------------------------------------------------------------------------------
+
+
+def _open_issues(issues: IssueClient, label: IssueLabel, prefix: str) -> dict[str, Issue]:
+    """Open issues with ``label`` whose title starts with ``prefix``, by title (newest wins)."""
+    found = issues.find_by_label(label.name, state="open")
+    return {issue.title: issue for issue in reversed(found) if issue.title.startswith(prefix)}
+
+
+def _report(
+    issues: IssueClient, label: IssueLabel, existing: Issue | None, title: str, body: str
+) -> None:
+    """Open the issue ``title`` or bring its body up to date."""
+    if existing is None:
+        issues.ensure_label(label)
+        issues.open(title, body, labels=[label.name])
+    elif existing.body != body:
+        issues.update(existing.number, body=body)
+
+
+def sync_source_issues(
+    issues: IssueClient, health: HealthFile, report: RunReport, config: AppConfig
+) -> None:
+    """Open, update or close the ``source-broken`` issues after ``report`` was recorded."""
+    existing = _open_issues(issues, LABEL_SOURCE_BROKEN, SOURCE_ISSUE_PREFIX)
+    sources = {source.id: source for source in config.sources}
+    for source_id in sorted({result.source_id for result in report.sources}):
+        history = health.sources[source_id]
+        verdict = source_verdict(history, config.settings.health)
+        title = source_issue_title(source_id)
+        if verdict in ("failing", "empty"):
+            body = source_issue_body(sources.get(source_id), source_id, history, verdict)
+            _report(issues, LABEL_SOURCE_BROKEN, existing.get(title), title, body)
+        elif verdict == "ok" and title in existing:
+            issues.close(existing[title].number, comment="The source delivers events again.")
+    enabled = {source_issue_title(source.id) for source in config.enabled_sources}
+    for title, issue in sorted(existing.items()):
+        if title not in enabled:
+            issues.close(issue.number, comment="The source was disabled or removed.")
+
+
+def sync_llm_issues(
+    issues: IssueClient, health: HealthFile, providers: Sequence[str], settings: HealthSettings
+) -> None:
+    """Open, update or close the ``llm-auth`` issues of the providers of a run."""
+    existing = _open_issues(issues, LABEL_LLM_AUTH, LLM_ISSUE_PREFIX)
+    for provider in sorted(set(providers)):
+        history = health.llm[provider]
+        title = llm_issue_title(provider)
+        if llm_failures(history) >= settings.llm_failure_threshold:
+            _report(
+                issues,
+                LABEL_LLM_AUTH,
+                existing.get(title),
+                title,
+                llm_issue_body(provider, history),
+            )
+        elif llm_recovered(history) and title in existing:
+            issues.close(existing[title].number, comment="The provider answers again.")
+
+
+def update_health(
+    health: HealthFile,
+    report: RunReport,
+    issues: IssueClient | None,
+    *,
+    config: AppConfig,
+) -> HealthFile:
+    """Append the run to the history and open, update or close health issues.
+
+    Nothing is written to disk here; the caller stores the returned
+    history. Without an issue client, and for a dry run, no issue is
+    touched. A failure of the issue client is logged and does not change
+    the result.
+    """
+    updated = record_run(health, report)
+    if issues is None or report.dry_run:
+        return updated
+    try:
+        sync_source_issues(issues, updated, report, config)
+    except Exception as error:  # the API of GitHub is not allowed to fail the run
+        logger.warning("source health issues were not updated (%s)", type(error).__name__)
+    providers = [provider.provider for provider in report.llm.providers]
+    try:
+        sync_llm_issues(issues, updated, providers, config.settings.health)
+    except Exception as error:  # as above
+        logger.warning("LLM health issues were not updated (%s)", type(error).__name__)
+    return updated
