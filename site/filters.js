@@ -20,10 +20,39 @@ export const PARAMS = Object.freeze({
   picks: "picks",
 });
 
+/** The title the pipeline stores for a talk whose title is not announced yet. */
+export const TBA_TITLE = "TBA";
+
+/**
+ * Picks reasons the page can say in every language: what matched and where (see
+ * seminars.models.public.PickReason). Any other reason is shown as its text.
+ */
+export const REASON_KINDS = Object.freeze(["keyword", "series", "speaker", "penalty"]);
+export const REASON_PLACES = Object.freeze(["title", "series", "abstract"]);
+
 const MAX_QUERY_LENGTH = 200;
 const DEFAULT_MINUTES = 60;
 const MINUTE_MS = 60 * 1000;
 const COMBINING_MARKS = /[\u0300-\u036f]/g;
+// Typographic apostrophes and primes, double quotes and dashes (the non-breaking
+// hyphen and the minus sign among them), folded to the ASCII forms a reader types.
+const APOSTROPHES = /[\u2018\u2019\u201a\u201b\u2032\u2035\u02bc]/g;
+const QUOTES = /[\u201c\u201d\u201e\u201f\u2033\u2036\u00ab\u00bb]/g;
+const DASHES = /[\u2010-\u2015\u2212\ufe58\ufe63\uff0d]/g;
+// Lower-case letters without a decomposition, and the letters typed for them.
+const LETTERS = Object.freeze({
+  "\u00df": "ss", // sharp s
+  "\u00e6": "ae",
+  "\u0153": "oe",
+  "\u00f8": "o", // o with stroke
+  "\u0142": "l", // l with stroke
+  "\u0111": "d", // d with stroke
+  "\u00f0": "d", // eth
+  "\u0131": "i", // dotless i
+  "\u00fe": "th", // thorn
+  "\u0127": "h", // h with stroke
+});
+const FOLDED_LETTERS = new RegExp(`[${Object.keys(LETTERS).join("")}]`, "g");
 
 export const NO_FILTERS = Object.freeze({
   query: "",
@@ -47,9 +76,20 @@ function strings(value) {
   return Array.isArray(value) ? value.filter((item) => typeof item === "string" && item) : [];
 }
 
-/** Lower case without accents, so that "zoe muller" finds "Zo\u00e9 M\u00fcller". */
+/**
+ * Lower case without accents, typographic punctuation or letters a keyboard lacks, so
+ * that "zoe muller" finds "Zo\u00e9 M\u00fcller", "Cell's" finds "Cell\u2019s",
+ * "McKeithen-Mead" finds it written with an en dash, and "Lukasz" finds "\u0141ukasz".
+ */
 export function fold(value) {
-  return value.normalize("NFKD").replace(COMBINING_MARKS, "").toLowerCase();
+  return value
+    .normalize("NFKD")
+    .replace(COMBINING_MARKS, "")
+    .toLowerCase()
+    .replace(FOLDED_LETTERS, (letter) => LETTERS[letter])
+    .replace(APOSTROPHES, "'")
+    .replace(QUOTES, '"')
+    .replace(DASHES, "-");
 }
 
 function prepareSpeaker(raw) {
@@ -60,6 +100,39 @@ function prepareSpeaker(raw) {
   return name === null
     ? null
     : Object.freeze({ name, affiliation: optional(raw.affiliation), url: str(raw.url) });
+}
+
+function otherReason(text) {
+  return Object.freeze({ kind: "other", term: text, place: null, points: null });
+}
+
+/**
+ * One picks reason of events.json, or null when it has no text. A reason of an unknown
+ * kind, or whose parts do not fit together, becomes an "other" reason: its text as it is.
+ */
+export function prepareReason(raw) {
+  if (typeof raw === "string") {
+    const text = optional(raw);
+    return text === null ? null : otherReason(text);
+  }
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  const term = optional(raw.term);
+  if (term === null) {
+    return null;
+  }
+  const { kind, place, points } = raw;
+  const keyword = kind === "keyword";
+  const fits =
+    REASON_KINDS.includes(kind) &&
+    typeof points === "number" &&
+    Number.isFinite(points) &&
+    (keyword ? REASON_PLACES.includes(place) : place === null || place === undefined);
+  if (!fits) {
+    return otherReason(term);
+  }
+  return Object.freeze({ kind, term, place: keyword ? place : null, points });
 }
 
 /** The end of a timed talk: its own end, or the default duration after its start. */
@@ -102,9 +175,13 @@ export function prepareEvent(raw, zone, fieldIds) {
   const speakers = (Array.isArray(raw.speakers) ? raw.speakers : [])
     .map(prepareSpeaker)
     .filter((speaker) => speaker !== null);
+  const reasons = (Array.isArray(raw.picks_reasons) ? raw.picks_reasons : [])
+    .map(prepareReason)
+    .filter((reason) => reason !== null);
   const event = {
     uid,
     title,
+    tba: title === TBA_TITLE,
     speakers,
     series: optional(raw.series),
     host: optional(raw.host_org),
@@ -123,7 +200,7 @@ export function prepareEvent(raw, zone, fieldIds) {
     url: str(raw.url),
     fields: fieldIds.filter((field) => strings(raw.fields).includes(field)),
     pick: raw.is_pick === true,
-    reasons: strings(raw.picks_reasons),
+    reasons,
     status: str(raw.status) || "confirmed",
   };
   const haystack = [

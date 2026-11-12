@@ -17,13 +17,16 @@ Terms match like every term of this package (whole words, see
 forms. The score is rounded to four decimals, and an event is a pick when
 it is at least ``threshold``.
 
-Every part that counts is listed in ``PicksResult.reasons``, which the
-feeds and the site show to the reader: ``"protein design" in title (+3)``,
-``series "Math Colloquium" (+3)``, ``speaker "Jane Doe" (+3)``,
-``penalty "undergraduate" (-2)``. They are ordered by how much they count,
-largest first, and in the order of the configuration file between equals.
-The terms are quoted as the configuration spells them, never as the event
-does, so reasons are always plain ASCII text from the configuration.
+Every part that counts is listed in ``PicksResult.reasons``, one line of
+text each: ``"protein design" in title (+3)``, ``series "Math Colloquium"
+(+3)``, ``speaker "Jane Doe" (+3)``, ``penalty "undergraduate" (-2)``. They
+are ordered by how much they count, largest first, and in the order of the
+configuration file between equals. The terms are quoted as the
+configuration spells them, never as the event does, so reasons are always
+plain ASCII text from the configuration. The lines are written by
+``seminars.models.public.PickReason``: the ICS feeds show them as they are,
+and the site and the digest take them apart again with ``PickReason.parse``
+to say them in the reader's language.
 
 ``interests.llm_rerank`` is reserved for an LLM re-ranking step
 (``seminars.contracts.PicksReranker``) that does not exist yet. The rule
@@ -39,18 +42,24 @@ from seminars.classify.rules import EventTexts, TermMatcher, Words
 from seminars.config import Interests
 from seminars.contracts import PicksScorer
 from seminars.models import Event, PicksResult
+from seminars.models.public import PickReason, PickReasonKind, PickReasonPlace
 
 SCORE_DECIMALS: Final = 4
 
 
 @dataclass(frozen=True, slots=True)
 class _Part:
-    points: float
-    reason: str
+    reason: PickReason
+
+    @property
+    def points(self) -> float:
+        return self.reason.points or 0.0
 
 
-def _signed(points: float) -> str:
-    return f"+{points:g}" if points >= 0 else f"-{-points:g}"
+def _part(
+    kind: PickReasonKind, term: str, points: float, *, place: PickReasonPlace | None = None
+) -> _Part:
+    return _Part(PickReason(kind=kind, term=term, place=place, points=points))
 
 
 class RulePicksScorer:
@@ -72,7 +81,7 @@ class RulePicksScorer:
 
     def _keyword_parts(self, texts: EventTexts) -> list[_Part]:
         multipliers = self._interests.multipliers
-        places = (
+        places: tuple[tuple[PickReasonPlace, set[str], float], ...] = (
             ("title", set(self._keywords.matched(texts.title)), multipliers.title),
             ("series", set(self._keywords.matched(texts.series)), multipliers.series),
             ("abstract", set(self._keywords.matched(texts.abstract)), multipliers.abstract),
@@ -82,7 +91,7 @@ class RulePicksScorer:
             for place, found, multiplier in places:
                 if term in found:
                     points = self._interests.keywords[term] * multiplier
-                    parts.append(_Part(points, f'"{term}" in {place} ({_signed(points)})'))
+                    parts.append(_part("keyword", term, points, place=place))
                     break
         return parts
 
@@ -91,19 +100,18 @@ class RulePicksScorer:
         series = self._series.first(texts.series, texts.title)
         bonus = self._interests.series_bonus
         if series is not None and bonus > 0:
-            parts.append(_Part(bonus, f'series "{series}" ({_signed(bonus)})'))
+            parts.append(_part("series", series, bonus))
         names = [Words.of(speaker.name) for speaker in event.speakers]
         speaker = self._speakers.first(*names) or self._speakers.first(texts.title)
         bonus = self._interests.speaker_bonus
         if speaker is not None and bonus > 0:
-            parts.append(_Part(bonus, f'speaker "{speaker}" ({_signed(bonus)})'))
+            parts.append(_part("speaker", speaker, bonus))
         return parts
 
     def _penalty_parts(self, texts: EventTexts) -> list[_Part]:
         parts: list[_Part] = []
         for term in self._penalties.matched(texts.title, texts.series, texts.abstract):
-            points = -self._interests.exclusions[term]
-            parts.append(_Part(points, f'penalty "{term}" ({_signed(points)})'))
+            parts.append(_part("penalty", term, -self._interests.exclusions[term]))
         return parts
 
     def score(self, event: Event) -> PicksResult:
@@ -116,7 +124,7 @@ class RulePicksScorer:
         ]
         ranked = sorted(enumerate(parts), key=lambda item: (-abs(item[1].points), item[0]))
         total = round(sum(part.points for part in parts), SCORE_DECIMALS)
-        return PicksResult(score=float(total), reasons=[part.reason for _, part in ranked])
+        return PicksResult(score=float(total), reasons=[part.reason.text for _, part in ranked])
 
 
 def build_picks_scorer(interests: Interests) -> PicksScorer:

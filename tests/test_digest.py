@@ -168,7 +168,11 @@ def golden_events() -> list[Event]:
             ],
             fields=["bio", "ai-ml"],
             picks_score=9.0,
-            picks_reasons=["title: protein design", "title: diffusion model"],
+            picks_reasons=[
+                '"protein design" in title (+3)',
+                '"diffusion model" in title (+3)',
+                'series "Bioengineering Seminar" (+3)',
+            ],
         ),
         event(
             "tba",
@@ -192,7 +196,7 @@ def golden_events() -> list[Event]:
             location="SLAC, Kavli Auditorium",
             fields=["chem", "bio", "physics"],
             picks_score=4.5,
-            picks_reasons=["abstract: cryo-EM"],
+            picks_reasons=['"cryo-EM" in abstract (+3)', 'penalty "undergraduate" (-0.5)', "x"],
         ),
         event(
             "cancelled",
@@ -394,7 +398,8 @@ class TestTalks:
             both("digest.table.reasons"),
         ]
         (cells,) = rows(table)
-        assert cells[5:] == ["Biology", "title: protein design; series: x", DETAILS]
+        biology = f"Biology<br>{zh('fields.bio')}"
+        assert cells[5:] == [biology, "title: protein design; series: x", DETAILS]
         eager = dataclasses.replace(app_config, interests=Interests(threshold=2.5))
         assert len(rows(section(render(eager, [pick, low]), "Picks")[0])) == 2
 
@@ -518,9 +523,10 @@ class TestNewSinceLastIssue:
         body = render(app_config, events, previous_issue_at=PREVIOUS_ISSUE)
         (table,) = section(body, "New since last issue")
         assert table.split("\n")[0].count("|") == 8
+        biology = f"Biology<br>{zh('fields.bio')}"
         assert [(cells[0], cells[2].split("<br>")[0], cells[5]) for cells in rows(table)] == [
-            ("2026-11-17", "This week", "Biology"),
-            ("2027-03-02", "In March", "Biology"),
+            ("2026-11-17", "This week", biology),
+            ("2027-03-02", "In March", biology),
         ]
 
     def test_nothing_new_and_first_issue(self, app_config: AppConfig) -> None:

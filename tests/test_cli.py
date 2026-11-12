@@ -662,7 +662,7 @@ class TestDigest:
         result = invoke("digest", "--dry-run", env=GITHUB_ENV)
         assert result.exit_code == 0, result.output
         lines = result.output.splitlines()
-        assert lines[0].startswith("# Seminars - week of ")
+        assert lines[0].startswith("Issue title: Seminars - week of ")
         assert "events: 3" in lines
         assert fakes.issues.issues == []
 
@@ -678,7 +678,7 @@ class TestDigest:
     def test_without_github_nothing_is_posted(self, project: Path, fakes: Fakes) -> None:
         result = invoke("digest")
         assert result.exit_code == 0
-        assert result.output.startswith("# Seminars - week of ")
+        assert result.output.startswith("Issue title: Seminars - week of ")
 
     def test_control_characters_are_not_printed(self) -> None:
         assert cli.printable_markdown("a\x1b[31mb\tc\nd\x07") == "a[31mb\tc\nd"

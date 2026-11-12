@@ -8,6 +8,8 @@
 const SPECIAL_SPACES = /[\u00a0\u2007\u2009\u202f]/g;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FALLBACK_ZONE = "UTC";
+// A zone "name" that is only an offset ("GMT+01:00"): a browser has no real name for it.
+const OFFSET_NAME = /^(?:GMT|UTC)[+\-\u2212]/;
 
 /** ``value`` (an ISO 8601 timestamp) as a Date, or null when it is not one. */
 export function parseTimestamp(value) {
@@ -52,6 +54,30 @@ export function zone(timeZone) {
 
   return Object.freeze({
     name,
+    /**
+     * The name of this zone in ``lang``, such as "Pacific Time" (or "Pacific Standard
+     * Time" in a browser without generic names); an offset such as "GMT+01:00" when the
+     * browser knows no name, and the zone id when it knows neither.
+     */
+    label(lang, date = new Date()) {
+      let offset = null;
+      for (const timeZoneName of ["longGeneric", "long"]) {
+        let found;
+        try {
+          found = new Intl.DateTimeFormat(lang, { timeZone: name, timeZoneName })
+            .formatToParts(date)
+            .find((part) => part.type === "timeZoneName");
+        } catch {
+          continue; // a browser without this style of name: try the next one
+        }
+        const value = found === undefined ? "" : plainSpaces(found.value);
+        if (value !== "" && !OFFSET_NAME.test(value)) {
+          return value;
+        }
+        offset = offset ?? (value || null);
+      }
+      return offset ?? name ?? "";
+    },
     /** The calendar day of ``date`` in this zone, as "YYYY-MM-DD". */
     dayKey(date) {
       const parts = Object.fromEntries(

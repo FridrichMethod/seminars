@@ -9,7 +9,10 @@ and uid and sources by id, so the same input gives the same bytes.
 
 Every event that is given is published, past and cancelled ones included;
 the site decides what to show. Internal state (source ids, counters, the
-picks score) is not part of the public schema and never leaves data/.
+picks score) is not part of the public schema and never leaves data/. The
+picks reasons are published taken apart
+(``seminars.models.public.PickReason``), so that the site can say them in
+the reader's language.
 
 The site treats all text as untrusted and escapes it, so nothing is escaped
 here. Text is only passed through ``seminars.textrules.clean_text`` once
@@ -68,7 +71,11 @@ def _public_event(event: Event, picks_threshold: float) -> PublicEvent:
         host_org=_text(public.host_org) or public.institution,
         location=_text(public.location),
         abstract=_text(public.abstract),
-        picks_reasons=[text for reason in public.picks_reasons if (text := _text(reason))],
+        picks_reasons=[
+            reason.evolve(term=term)
+            for reason in public.picks_reasons
+            if (term := _text(reason.term)) is not None
+        ],
     )
 
 

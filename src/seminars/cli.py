@@ -25,7 +25,9 @@ What the commands print is printable ASCII written by this project. Text
 that came from a site (titles, error details) appears only after
 ``seminars.textrules.ascii_printable``. The one exception is the markdown
 of ``digest --dry-run``, which is printed as it would be posted (its
-headings are bilingual), without control characters.
+headings are bilingual), without control characters, and always encoded as
+UTF-8, whatever encoding stdout has (a redirected stdout on Windows is
+cp1252, for example, which cannot hold Chinese text).
 
 ``--offline`` serves every source from its recordings in tests/fixtures/
 and takes the time of the run from them. It sends nothing over the
@@ -145,6 +147,11 @@ class Project:
 def say(line: str = "") -> None:
     """Print one line of output (ASCII written by this project)."""
     typer.echo(line)
+
+
+def say_utf8(text: str) -> None:
+    """Print ``text`` and a line break as UTF-8 bytes, whatever the encoding of stdout."""
+    typer.echo(text.encode("utf-8"))
 
 
 def complain(line: str) -> None:
@@ -499,10 +506,21 @@ def printable_markdown(text: str) -> str:
 @app.command()
 def digest(
     dry_run: Annotated[
-        bool, typer.Option("--dry-run", help="Print the markdown; open no issue.")
+        bool,
+        typer.Option(
+            "--dry-run",
+            help=(
+                "Print the issue title and the markdown (bilingual, UTF-8 whatever the"
+                " terminal uses); open no issue."
+            ),
+        ),
     ] = False,
 ) -> None:
-    """Open this week's digest issue (idempotent per week) and close the previous one."""
+    """Open this week's digest issue (idempotent per week) and close the previous one.
+
+    The dry run is the only output of this program that is not ASCII: the
+    digest is bilingual, and it is written as UTF-8.
+    """
     with failures():
         project = open_project()
         state = load_state(project.config.paths)
@@ -523,7 +541,8 @@ def digest(
     for warning in warnings:
         complain(f"warning: {warning}")
     if outcome.action == "dry_run":
-        say(printable_markdown(f"# {outcome.document.title}\n\n{outcome.document.body}").rstrip())
+        document = outcome.document
+        say_utf8(printable_markdown(f"Issue title: {document.title}\n\n{document.body}").rstrip())
         return
     if outcome.action == "exists":
         say(f"digest: issue #{outcome.issue_number} of this week exists; nothing changed")

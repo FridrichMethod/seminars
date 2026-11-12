@@ -36,7 +36,7 @@ DTEND;TZID=America/Los_Angeles:20261117T170000
 DTSTAMP:20261110T200000Z
 UID:golden-pick@seminars.fridrichmethod.github.io
 SEQUENCE:2
-CATEGORIES:AI / ML,Biology
+CATEGORIES:AI/ML,Biology
 DESCRIPTION:Speaker: Jane Doe (Stanford University)\; Li Wu\nBioengineerin
  g Seminar\nStanford Bioengineering\nWhy picked: title: protein design\; ti
  tle: diffusion model\n\nA talk about generative models for de novo protein

@@ -15,7 +15,7 @@ import {
   toggled,
   withinChoices,
 } from "./filters.js";
-import { children, currentLang, parts, plural, t } from "./i18n.js";
+import { children, currentLang, formatSigned, parts, plural, t } from "./i18n.js";
 import {
   byId,
   debounced,
@@ -44,6 +44,20 @@ const ui = {
   steps: byId("apple-steps"),
   feeds: byId("feeds"),
 };
+
+// The message of each kind of picks reason and of each place a keyword is found in
+// (REASON_KINDS and REASON_PLACES of filters.js).
+const REASON_MESSAGES = Object.freeze({
+  keyword: "site.event.reasons.keyword",
+  series: "site.event.reasons.series",
+  speaker: "site.event.reasons.speaker",
+  penalty: "site.event.reasons.penalty",
+});
+const PLACE_MESSAGES = Object.freeze({
+  title: "site.event.reasons.places.title",
+  series: "site.event.reasons.places.series",
+  abstract: "site.event.reasons.places.abstract",
+});
 
 // Typing in the search box updates the list and the address once the typing pauses
 // for this long, so a long list is not rebuilt on every key.
@@ -261,6 +275,18 @@ function speakers(event) {
   );
 }
 
+/** A picks reason in the active language; the terms stay as the configuration has them. */
+function reasonText(reason) {
+  if (!Object.hasOwn(REASON_MESSAGES, reason.kind)) {
+    return reason.term;
+  }
+  return t(REASON_MESSAGES[reason.kind], {
+    term: reason.term,
+    place: reason.place === null ? "" : t(PLACE_MESSAGES[reason.place]),
+    points: formatSigned(reason.points),
+  });
+}
+
 function reasons(event) {
   if (!event.pick || event.reasons.length === 0) {
     return null;
@@ -269,7 +295,7 @@ function reasons(event) {
     "div",
     { class: "reasons" },
     h("p", { class: "reasons-label" }, t("site.event.picks_reasons")),
-    h("ul", {}, event.reasons.map((reason) => h("li", {}, reason))),
+    h("ul", {}, event.reasons.map((reason) => h("li", {}, reasonText(reason)))),
   );
 }
 
@@ -295,7 +321,11 @@ function renderEvent(event, tz, lang, today) {
     h(
       "div",
       { class: "event-main" },
-      h("h3", { class: "event-title" }, link(event.url, {}, event.title)),
+      h(
+        "h3",
+        { class: "event-title" },
+        link(event.url, {}, event.tba ? t("site.event.tba") : event.title),
+      ),
       lastDay,
       badges(event),
       speakers(event),
@@ -374,7 +404,8 @@ function renderMeta() {
           ),
         }),
   );
-  replaceChildren(ui.timezone, t("site.meta.timezone", { timezone: model.zone.name }));
+  const zoneName = model.zone.label(lang, model.generatedAt ?? new Date());
+  replaceChildren(ui.timezone, t("site.meta.timezone", { timezone: zoneName }));
 }
 
 function render() {

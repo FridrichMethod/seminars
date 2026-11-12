@@ -148,3 +148,17 @@ class TestStatusPage:
             shown = facts[source["id"]][messages["site.status.columns.group"]]
             assert shown == messages[f"site.status.groups.{source['group']}"], source["id"]
         current.assert_clean()
+
+    def test_the_error_of_a_source_is_marked_as_english_diagnostic_text(
+        self, session: Callable[..., Session]
+    ) -> None:
+        """The message comes from the run (HTTP status, error kind, address), not a locale."""
+        current = session().open("status.html?lang=zh")
+        error = current.page.locator('article[data-source="custom-nlp"] dd code')
+        expected = next(
+            source["error"] for source in sample("status.json")["sources"] if source["error"]
+        )
+        assert error.text_content() == expected
+        assert error.get_attribute("lang") == "en"
+        assert error.get_attribute("translate") == "no"
+        current.assert_clean()

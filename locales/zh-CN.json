@@ -2,7 +2,7 @@
   "fields": {
     "math": "数学",
     "cs": "计算机科学",
-    "ai-ml": "AI / 机器学习",
+    "ai-ml": "AI/机器学习",
     "chem": "化学",
     "bio": "生物",
     "physics": "物理",
@@ -11,7 +11,7 @@
   "feeds": {
     "all": {
       "name": "学术报告 - 全部",
-      "description": "从 Stanford、SLAC、Arc Institute 和 CZ Biohub 收集到的全部学术报告。"
+      "description": "从 Stanford、SLAC、CZ Biohub 及周边研究机构收集到的全部学术报告。"
     },
     "picks": {
       "name": "学术报告 - 精选",
@@ -26,7 +26,7 @@
       "description": "计算机科学方向的报告。"
     },
     "ai-ml": {
-      "name": "学术报告 - AI / 机器学习",
+      "name": "学术报告 - AI/机器学习",
       "description": "人工智能和机器学习方向的报告。"
     },
     "chem": {
@@ -75,6 +75,17 @@
       "details": "详情",
       "more": "另有 {count} 场"
     },
+    "reasons": {
+      "keyword": "{place}含\"{term}\"（{points}）",
+      "series": "系列\"{term}\"（{points}）",
+      "speaker": "报告人\"{term}\"（{points}）",
+      "penalty": "扣分词\"{term}\"（{points}）",
+      "places": {
+        "title": "标题",
+        "series": "系列名",
+        "abstract": "摘要"
+      }
+    },
     "empty": {
       "picks": "本周没有精选报告。",
       "field": "本周没有报告。",
@@ -104,7 +115,7 @@
   "site": {
     "app": {
       "name": "斯坦福周边学术报告",
-      "tagline": "每天从公开网页收集的 Stanford、SLAC、Arc Institute 和 CZ Biohub 学术报告。"
+      "tagline": "每天从公开网页收集的 Stanford、SLAC、CZ Biohub 及周边研究机构的学术报告。"
     },
     "page": {
       "index_title": "学术报告 - 近期报告",
@@ -121,7 +132,7 @@
     },
     "meta": {
       "updated": "最后更新：{time}",
-      "timezone": "时间按 {timezone} 时区显示。",
+      "timezone": "所有时间均为{timezone}。",
       "loading": "正在加载..."
     },
     "filters": {
@@ -153,8 +164,20 @@
       "all_day": "全天",
       "time_range": "{start} - {end}",
       "until": "持续到 {date}",
+      "tba": "待公布",
       "pick": "精选",
       "picks_reasons": "入选理由",
+      "reasons": {
+        "keyword": "{place}含\"{term}\"（{points}）",
+        "series": "系列\"{term}\"（{points}）",
+        "speaker": "报告人\"{term}\"（{points}）",
+        "penalty": "扣分词\"{term}\"（{points}）",
+        "places": {
+          "title": "标题",
+          "series": "系列名",
+          "abstract": "摘要"
+        }
+      },
       "cancelled": "已取消",
       "tentative": "待定",
       "online": "线上",
@@ -185,7 +208,7 @@
     },
     "subscribe": {
       "title": "订阅日历",
-      "intro": "每个日历都是一个 ICS 订阅源，每隔几小时自动刷新。订阅一次，之后新的报告会自动出现。",
+      "intro": "每个日历都是一个 ICS 订阅源，每隔几小时自动刷新。订阅一次，之后新的报告会自动出现。属于几个领域的报告会出现在这几个领域的日历里，所以你订阅了几个这样的日历，它就会显示几次。",
       "feeds": "日历",
       "calendar_link": "日历应用链接",
       "web_link": "网页链接",

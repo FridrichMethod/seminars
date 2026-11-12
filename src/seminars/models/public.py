@@ -6,13 +6,22 @@ JavaScript). Both files are pretty-printed JSON produced by
 there is no value), so the site never has to test for missing keys. Anything
 internal (``missing_runs``, ``sequence``, source ids, tagging method) is left
 out on purpose.
+
+Picks reasons. The stored events hold every reason of their picks score as
+one line of plain ASCII text (``Event.picks_reasons``), which is what the
+ICS feeds show. ``PickReason`` is the same reason taken apart, so that the
+site and the digest can say it in the reader's language. The text forms
+are defined here, once, for both directions: the picks scorer
+(``seminars.classify.picks``) builds its lines with ``PickReason.text``, and
+``PickReason.parse`` reads them back.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Final, Literal, Self
 
-from pydantic import HttpUrl
+from pydantic import FiniteFloat, HttpUrl, model_validator
 
 from seminars.models.base import (
     FEED_IDS,
@@ -36,6 +45,85 @@ FEEDS_DIRNAME: Final = "feeds"
 
 PublicSourceState = Literal["ok", "empty", "failed", "disabled", "unknown"]
 """Last known state of a source; ``unknown`` means it has never run."""
+
+
+PickReasonKind = Literal["keyword", "series", "speaker", "penalty", "other"]
+"""What a picks reason is about.
+
+``keyword``: a keyword of the interests found in ``place``; ``series``: a
+series of the allow-list; ``speaker``: a speaker of the watch-list;
+``penalty``: an exclusion term; ``other``: a line in none of these forms
+(written by something other than the rule scorer), kept as it is in ``term``.
+"""
+
+PickReasonPlace = Literal["title", "series", "abstract"]
+"""Where a keyword was found."""
+
+_POINTS: Final = r"\((?P<points>[+-](?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)\)"
+_REASON_LINES: Final = tuple(
+    (kind, re.compile(pattern, re.DOTALL))
+    for kind, pattern in (
+        ("keyword", rf'"(?P<term>.+)" in (?P<place>title|series|abstract) {_POINTS}'),
+        ("series", rf'series "(?P<term>.+)" {_POINTS}'),
+        ("speaker", rf'speaker "(?P<term>.+)" {_POINTS}'),
+        ("penalty", rf'penalty "(?P<term>.+)" {_POINTS}'),
+    )
+)
+"""The line of each kind, as ``PickReason.text`` writes it."""
+
+
+def signed_points(points: float) -> str:
+    """Points as a reason writes them: ``+3``, ``-2``, ``+0.6`` (never ``-0``)."""
+    value = points + 0.0  # turns a negative zero into zero
+    return f"+{value:g}" if value >= 0 else f"-{-value:g}"
+
+
+class PickReason(Model):
+    """One reason of a picks score: what matched, and how many points it gave.
+
+    ``term`` is the keyword, series or speaker name as the configuration
+    spells it, or the whole line for ``kind="other"``. ``place`` is set for
+    keywords only, and ``points`` (negative for a penalty) for every kind
+    but ``other``.
+    """
+
+    kind: PickReasonKind
+    term: NonEmptyStr
+    place: PickReasonPlace | None = None
+    points: FiniteFloat | None = None
+
+    @model_validator(mode="after")
+    def _check_parts(self) -> Self:
+        if (self.place is not None) != (self.kind == "keyword"):
+            raise ValueError("a picks reason has a place exactly when it is a keyword")
+        if (self.points is None) != (self.kind == "other"):
+            raise ValueError("a picks reason has points unless its kind is other")
+        return self
+
+    @property
+    def text(self) -> str:
+        """The line of plain text the stored event and the ICS feeds hold."""
+        if self.kind == "other":
+            return self.term
+        points = signed_points(self.points or 0.0)
+        if self.kind == "keyword":
+            return f'"{self.term}" in {self.place} ({points})'
+        return f'{self.kind} "{self.term}" ({points})'
+
+    @classmethod
+    def parse(cls, text: str) -> Self:
+        """The reason ``text`` is the line of (``other`` for a line of no known form).
+
+        The points are read as the line writes them, with six significant
+        digits. ``text`` must not be empty.
+        """
+        for kind, pattern in _REASON_LINES:
+            found = pattern.fullmatch(text)
+            if found is not None:
+                return cls.model_validate(
+                    {**found.groupdict(), "kind": kind, "points": float(found["points"])}
+                )
+        return cls(kind="other", term=text)
 
 
 def feed_path(feed_id: str) -> str:
@@ -78,7 +166,7 @@ class PublicEvent(Model):
     url: HttpUrl
     fields: FieldList
     is_pick: bool = False
-    picks_reasons: list[str] = []
+    picks_reasons: list[PickReason] = []  # see PickReason
     status: EventStatus = "confirmed"
 
     @classmethod
@@ -102,7 +190,7 @@ class PublicEvent(Model):
             url=event.url,
             fields=event.fields,
             is_pick=event.is_pick(picks_threshold),
-            picks_reasons=event.picks_reasons,
+            picks_reasons=[PickReason.parse(text) for text in event.picks_reasons if text],
             status=event.status,
         )
 

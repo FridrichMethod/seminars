@@ -2,9 +2,9 @@ English | [&#20013;&#25991;](README.zh-CN.md)
 
 # seminars
 
-Academic seminars, talks and colloquia at Stanford and at nearby institutes (SLAC,
-Arc Institute and CZ Biohub), collected every day from public web pages and
-published in three forms:
+Academic seminars, talks and colloquia at Stanford, SLAC, CZ Biohub and other
+nearby institutes, collected every day from public web pages and published in
+three forms:
 
 - **calendar feeds** (ICS) that calendar apps subscribe to: one per field, one of
   personal picks and one with everything;
@@ -24,7 +24,7 @@ to at least one field.
 
 | Feed | Contents | Subscribe |
 |---|---|---|
-| `all` | Every talk collected from Stanford, SLAC, Arc Institute and CZ Biohub | (filled in at release) |
+| `all` | Every talk collected from Stanford, SLAC, CZ Biohub and nearby institutes | (filled in at release) |
 | `picks` | Talks that match the personal interest rules (`config/interests.yaml`) | (filled in at release) |
 | `math` | Pure mathematics, applied mathematics and statistics | (filled in at release) |
 | `cs` | Computer science | (filled in at release) |
@@ -46,14 +46,20 @@ when the last update ran and how each source did.
 
 ### Weekly digest
 
-Every Monday morning a new issue with the label `digest` lists the talks of the coming
-week and what was added since the previous digest; the previous digest issue is
-closed.
+Every Monday morning a new issue with the label `digest` lists the talks of that week
+(Monday to Sunday) and what was added since the previous digest; the previous digest
+issue is closed.
 
 ## Subscribe
 
 Use the address of a feed with `webcal://` in place of `https://`; most calendar apps
 then subscribe instead of importing once.
+
+A talk that belongs to several fields is in the feed of each of them, and a calendar
+app shows a talk once per feed: subscribed to two of those feeds, it shows the talk
+twice. To see every talk once, subscribe to `all` alone (or to `picks` alone). A feed
+keeps a talk until 14 days after it took place and then drops it, so the talk also
+leaves your calendar.
 
 ### Apple Calendar
 

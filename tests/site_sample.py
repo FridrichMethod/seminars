@@ -12,8 +12,9 @@ regenerate them with ``uv run python tests/site_sample.py``.
 The events cover what the site has to cope with: HTML and script injection
 in every text field, an all-day event, a cancelled and a tentative event,
 online and hybrid events, a "TBA" title, a missing end time, several
-speakers, non-ASCII names, picks with reasons, a past event, a far-future
-event, all seven fields and all institutions.
+speakers, non-ASCII names, picks with reasons of every kind the picks scorer
+writes, a past event, a far-future event, all seven fields and all
+institutions.
 """
 
 from __future__ import annotations
@@ -86,7 +87,10 @@ def sample_events() -> list[Event]:
             abstract="A survey of recent results on tropical compactifications.",
             fields=["math"],
             picks_score=3.0,
-            picks_reasons=["abstract: algebraic geometry"],
+            picks_reasons=[
+                'series "Algebraic Geometry Seminar" (+2)',
+                '"algebraic geometry" in abstract (+1)',
+            ],
         ),
         _event(
             "sample-xss",
@@ -140,7 +144,11 @@ def sample_events() -> list[Event]:
             abstract="Generative models for de novo enzyme design, with wet-lab validation.",
             fields=["bio", "ai-ml"],
             picks_score=9.0,
-            picks_reasons=["title: protein design", "title: diffusion model", "series: allow-list"],
+            picks_reasons=[
+                '"protein design" in title (+3)',
+                '"diffusion model" in title (+3)',
+                'series "Bioengineering Seminar" (+3)',
+            ],
         ),
         _event(
             "sample-tba",
@@ -183,7 +191,11 @@ def sample_events() -> list[Event]:
             abstract="A full day of talks on cryo-EM, crystallography and structure prediction.",
             fields=["chem", "bio", "physics"],
             picks_score=4.5,
-            picks_reasons=["abstract: cryo-EM", "abstract: structure prediction"],
+            picks_reasons=[
+                '"cryo-EM" in abstract (+3)',
+                '"structure prediction" in abstract (+3)',
+                'penalty "undergraduate" (-1.5)',
+            ],
         ),
         _event(
             "sample-tentative-physics",
@@ -222,7 +234,7 @@ def sample_events() -> list[Event]:
             location="Arc Institute, Palo Alto",
             fields=["ai-ml", "bio"],
             picks_score=3.5,
-            picks_reasons=["title: language model"],
+            picks_reasons=['"language model" in title (+3)', 'speaker "Sam Okafor" (+0.5)'],
         ),
         _event(
             "sample-defense",

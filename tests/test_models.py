@@ -676,7 +676,7 @@ class TestPublicPayloads:
         event = make_event(picks_score=4.0, picks_reasons=["title: protein design"], missing_runs=2)
         public = PublicEvent.from_event(event, picks_threshold=3.0)
         assert public.is_pick
-        assert public.picks_reasons == ["title: protein design"]
+        assert [reason.text for reason in public.picks_reasons] == ["title: protein design"]
         assert public.uid == event.uid
         assert "missing_runs" not in public.model_dump()
         assert not PublicEvent.from_event(event, picks_threshold=5.0).is_pick

@@ -82,6 +82,14 @@ function summaryLines(status, lang) {
   ];
 }
 
+/**
+ * The error of a failed source as the run wrote it: an HTTP status, an error kind and
+ * an address, in English in every language of the page, and marked as such.
+ */
+function diagnostic(error) {
+  return h("code", { lang: "en", translate: "no" }, error);
+}
+
 function sourceCard(source, lang) {
   const state = stateOf(source);
   const never = t("site.status.never");
@@ -103,7 +111,7 @@ function sourceCard(source, lang) {
       fact("site.status.columns.last_run", moment(source.last_run_at, lang) ?? never),
       fact("site.status.columns.last_success", moment(source.last_success_at, lang) ?? never),
       fact("site.status.columns.failures", formatNumber(count(source.consecutive_failures))),
-      error === null ? null : fact("site.status.columns.error", h("code", {}, error)),
+      error === null ? null : fact("site.status.columns.error", diagnostic(error)),
     ),
   );
 }

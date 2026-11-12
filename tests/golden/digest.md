@@ -10,8 +10,8 @@ Talks from 2026-11-16 to 2026-11-22. All times are Pacific Time.
 
 | Date / \u65e5\u671f | Time / \u65f6\u95f4 | Title / \u6807\u9898 | Speaker / \u62a5\u544a\u4eba | Location / \u5730\u70b9 | Field / \u9886\u57df | Why picked / \u5165\u9009\u7406\u7531 | Link / \u94fe\u63a5 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-11-17 | 16:00-17:00 | Protein design with diffusion models<br>Bioengineering Seminar | Jane Doe (Stanford University); Li Wu | Shriram Center, Room 104 | AI / ML, Biology | title: protein design; title: diffusion model | [Details / \u8be6\u60c5](<https://bioengineering.stanford.edu/events/protein-design-seminar>) |
-| 2026-11-20 - 2026-11-21 | All day / \u5168\u5929 | Bay Area Symposium on Structural Biology<br>SLAC | - | SLAC, Kavli Auditorium | Chemistry, Biology, Physics | abstract: cryo-EM | [Details / \u8be6\u60c5](<https://example.stanford.edu/events/all-day>) |
+| 2026-11-17 | 16:00-17:00 | Protein design with diffusion models<br>Bioengineering Seminar | Jane Doe (Stanford University); Li Wu | Shriram Center, Room 104 | AI/ML, Biology<br>AI/\u673a\u5668\u5b66\u4e60, \u751f\u7269 | "protein design" in title (+3); "diffusion model" in title (+3); series "Bioengineering Seminar" (+3)<br>\u6807\u9898\u542b"protein design"\uff08+3\uff09; \u6807\u9898\u542b"diffusion model"\uff08+3\uff09; \u7cfb\u5217"Bioengineering Seminar"\uff08+3\uff09 | [Details / \u8be6\u60c5](<https://bioengineering.stanford.edu/events/protein-design-seminar>) |
+| 2026-11-20 - 2026-11-21 | All day / \u5168\u5929 | Bay Area Symposium on Structural Biology<br>SLAC | - | SLAC, Kavli Auditorium | Chemistry, Biology, Physics<br>\u5316\u5b66, \u751f\u7269, \u7269\u7406 | "cryo-EM" in abstract (+3); penalty "undergraduate" (-0.5); x<br>\u6458\u8981\u542b"cryo-EM"\uff08+3\uff09; \u6263\u5206\u8bcd"undergraduate"\uff08-0.5\uff09; x | [Details / \u8be6\u60c5](<https://example.stanford.edu/events/all-day>) |
 
 ## Math / \u6570\u5b66
 
@@ -25,7 +25,7 @@ Talks from 2026-11-16 to 2026-11-22. All times are Pacific Time.
 | --- | --- | --- | --- | --- | --- |
 | 2026-11-19 | 15:30-16:30 | **Tentative / \u5f85\u5b9a**: Serving &lt;b&gt;large&lt;/b&gt; models \| cheap &amp; fast, see `https://evil.example` `@octocat`<br>MLSys Seminar | Priya Raman (Example Labs) | Online / \u7ebf\u4e0a | [Details / \u8be6\u60c5](<https://example.stanford.edu/events/online>) |
 
-## AI / ML / AI / \u673a\u5668\u5b66\u4e60
+## AI/ML / AI/\u673a\u5668\u5b66\u4e60
 
 | Date / \u65e5\u671f | Time / \u65f6\u95f4 | Title / \u6807\u9898 | Speaker / \u62a5\u544a\u4eba | Location / \u5730\u70b9 | Link / \u94fe\u63a5 |
 | --- | --- | --- | --- | --- | --- |
@@ -62,8 +62,8 @@ Talks from 2026-11-16 to 2026-11-22. All times are Pacific Time.
 
 | Date / \u65e5\u671f | Time / \u65f6\u95f4 | Title / \u6807\u9898 | Speaker / \u62a5\u544a\u4eba | Location / \u5730\u70b9 | Field / \u9886\u57df | Link / \u94fe\u63a5 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2026-11-18 | 16:30 | TBA / \u5f85\u516c\u5e03<br>Physical Chemistry Seminar | Zo\xe9 M\xfcller (ETH Z\xfcrich) | Shriram Center, Room 104 | Chemistry | [Details / \u8be6\u60c5](<https://example.stanford.edu/events/tba>) |
-| 2026-12-10 | 13:00-14:00 | Language models for genome engineering<br>Bioengineering Seminar | Jane Doe (Stanford University) | Shriram Center, Room 104 | AI / ML, Biology | [Details / \u8be6\u60c5](<https://example.stanford.edu/events/next-month>) |
+| 2026-11-18 | 16:30 | TBA / \u5f85\u516c\u5e03<br>Physical Chemistry Seminar | Zo\xe9 M\xfcller (ETH Z\xfcrich) | Shriram Center, Room 104 | Chemistry<br>\u5316\u5b66 | [Details / \u8be6\u60c5](<https://example.stanford.edu/events/tba>) |
+| 2026-12-10 | 13:00-14:00 | Language models for genome engineering<br>Bioengineering Seminar | Jane Doe (Stanford University) | Shriram Center, Room 104 | AI/ML, Biology<br>AI/\u673a\u5668\u5b66\u4e60, \u751f\u7269 | [Details / \u8be6\u60c5](<https://example.stanford.edu/events/next-month>) |
 
 ## Source health / \u6570\u636e\u6e90\u5065\u5eb7\u72b6\u51b5
 
