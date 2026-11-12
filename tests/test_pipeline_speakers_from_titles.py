@@ -135,6 +135,11 @@ def test_the_titles_of_the_campus_calendar(
             [("Jane Doe", "Stanford University")],
         ),
         ("Seminar: \u5f20\u4e09", None, [("\u5f20\u4e09", None)]),
+        (
+            "Seminar: \u5f20\u4e09\uff0c\u6e05\u534e\u5927\u5b66",
+            None,
+            [("\u5f20\u4e09", "\u6e05\u534e\u5927\u5b66")],
+        ),
         ("Colloquium - Prof. Jane Doe, PhD, MIT", None, [("Jane Doe", "MIT")]),
     ],
 )
@@ -166,6 +171,7 @@ def test_a_name_first_title_needs_its_abstract_or_an_affiliation(
         ("Quantum Seminar: New Frontiers", None),
         ("Deep Learning: Theory And Practice", None),
         ("Topology Seminar: Speaker TBA", None),
+        ("Topology Seminar: Jane D.", None),
         ("Algebra Seminar: TBD", None),
         ("A Conversation with Researchers: Tracking HIV Through Wastewater in South Africa", None),
         (
