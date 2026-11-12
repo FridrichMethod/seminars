@@ -145,8 +145,10 @@ def _first_match(phrases: _Phrases, texts: dict[str, Words]) -> _Verdict | None:
 
 
 class RuleEventFilter:
-    """``EventFilter`` driven by ``taxonomy.exclusions``, ``taxonomy.out_of_scope_categories``
-    and the defense switch."""
+    """``EventFilter`` driven by the taxonomy and the defense switch.
+
+    The taxonomy supplies ``exclusions`` and ``out_of_scope_categories``.
+    """
 
     def __init__(self, taxonomy: Taxonomy, settings: Settings) -> None:
         self._include_defenses = settings.events.include_defenses
