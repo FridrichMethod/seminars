@@ -750,11 +750,15 @@ sources:
         native_id_attribute: href
         native_id_pattern: '[?&]p=(?P<native_id>\d+)'
         # Speakers: the person cards of the section whose heading names speakers
-        # ("Speakers", "Keynote Speaker"). The cards never name a speaker. A conference
-        # page uses the same cards for its "Scientific Organizers", who are no speakers,
-        # so a bare .people-list-item would be wrong.
-        speaker: '.wp-block-group:has(> h2:lexbor-contains("speaker" i)) .people-list-item'
-        speaker_name: '.people-list-item__name'
+        # ("Speakers", "Keynote Speaker"): .people-list-item (name and affiliation) or,
+        # for a keynote, .people-featured (a name and a bio, no affiliation). The list
+        # cards never name a speaker. A conference page uses the same cards for its
+        # "Scientific Organizers", who are no speakers, so a bare .people-list-item
+        # would be wrong.
+        speaker: >-
+          .wp-block-group:has(> h2:lexbor-contains("speaker" i))
+          :is(.people-list-item, .people-featured)
+        speaker_name: '.people-list-item__name, .people-featured__name'
         speaker_affiliation: '.people-list-item__affiliation'
       title_event_types:
         Webinar: seminar

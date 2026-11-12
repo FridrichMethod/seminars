@@ -126,14 +126,15 @@ class TestSpeakersOfTheDetailPage:
             ("Richard Shuai", "Anthropic"),
         ]
 
-    def test_the_scientific_organizers_of_a_biohub_conference_are_no_speakers(self) -> None:
-        # The conference page lists its organizers with the same person cards.
+    def test_a_biohub_conference_names_its_keynote_but_not_its_organizers(self) -> None:
+        # The keynote is a featured person card under "Keynote Speaker"; the
+        # "Scientific Organizers" below it use the person cards of the speakers.
         params = html_list.load_params(html_list.HtmlListParams, SOURCES["bayarea-biohub"])
         assert params.detail_page is not None
         path = FIXTURES / "bayarea-biohub" / "events-physics-of-life-2026-4be4bb80.html"
         document = detail_document(path, "https://biohub.org/events/physics-of-life-2026/")
         detail = html_list.read_detail(params.detail_page, document)
-        assert detail.speakers == ()
+        assert [(s.name, s.affiliation) for s in detail.speakers] == [("Ned Wingreen, Ph.D.", None)]
         assert detail.start is not None
 
     def test_a_row_without_speakers_takes_those_of_its_page(self) -> None:
