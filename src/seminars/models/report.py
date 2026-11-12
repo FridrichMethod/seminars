@@ -139,9 +139,13 @@ class LastRun(Model):
 class RunReport(Model):
     """Full result of ``seminars run``; written to data/run_report.json.
 
-    ``ok`` is false only when every source failed or an output check found
-    something: the secret scan (``secret_findings``) or the charset check of
-    data/ (``charset_findings``). ``excluded`` lists every event that was
+    ``ok`` is false only when every source failed, an output check found
+    something (the secret scan, ``secret_findings``, or the charset check of
+    data/, ``charset_findings``), or an output writer failed (the ICS feeds
+    or the site data could not be written). In each of these cases the
+    command exits non-zero and nothing of the run may be committed or
+    deployed, even though files below data/ may already have been written.
+    ``excluded`` lists every event that was
     filtered out so that false positives can be reviewed.
 
     Like everything below data/, the report must pass the charset rule (see

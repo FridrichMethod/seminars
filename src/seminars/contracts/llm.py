@@ -343,6 +343,15 @@ class PageExtractor(Protocol):
         ungrounded fields are dropped. Dates and all-day events follow the
         conventions of ``EventDraft``. Returns an empty list when the LLM is
         unavailable; never raises ``LLMError``.
+
+        Secrets: data/llm_cache/ stores answers verbatim and is covered by
+        the output scan, so a page that shows a token-shaped string would
+        otherwise make every daily run exit with status 3, and the entry
+        would come back the next day because nothing was committed. The
+        extractor therefore drops every field of an answer for which
+        ``SecretScanner.has_secret`` is true BEFORE the answer is put into
+        the cache, and never caches such a value; the pipeline's own
+        redaction of events cannot reach inside the cache.
         """
         ...
 

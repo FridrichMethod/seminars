@@ -107,7 +107,16 @@ Command line surface that workflows may rely on::
 
 Exit status: 0 success (a skipped run included), 1 failure, 2 usage error,
 3 an output check failed: the secret scan found something or a file below
-data/ breaks the charset rule (nothing may be committed or deployed).
+data/ breaks the charset rule (nothing may be committed or deployed). Any
+non-zero status of ``seminars run`` means: commit and deploy nothing, even
+if files below data/ were written (an output writer can fail after that).
+
+Two rules of ``seminars run`` that the update workflow relies on: a run
+skipped by ``--skip-if-done-today`` writes nothing below data/, not even
+data/last_run.json; every run that is neither skipped nor ``--dry-run``
+rewrites data/last_run.json, also when nothing else changed. The workflow
+decides from a change of that file whether to validate, commit, build and
+deploy, so a skipped run that wrote it would deploy a second time.
 
 Environment read by implementations: the credentials in
 ``seminars.config.PROVIDER_CREDENTIAL_ENV``, plus GITHUB_TOKEN,
