@@ -600,12 +600,8 @@ class TestMerge:
         [
             # (2) A generic title with more words than the talk title wins as an announcement.
             ("Genetics and Genomics Seminar Series", "Jane Doe: CRISPR", "plain"),
-            # (3) A generic title that holds more words than the talk title adds wins.
-            (
-                "Applied Physics Colloquium",
-                "Applied Physics Colloquium: Jane Doe, Materials",
-                "plain",
-            ),
+            # (3) A talk title in front of the name wraps nothing and stays as the longer one.
+            ("Protein design", "Protein design - Jane Doe (MIT)", "naming"),
             # A wrapper that adds as many words as it holds stays.
             ("Diffusion", "Jane Doe (MIT): Diffusion", "naming"),
         ],
