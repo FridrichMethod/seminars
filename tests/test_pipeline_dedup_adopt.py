@@ -238,9 +238,27 @@ class TestTwoTalksOfOneDayKey:
         self,
     ) -> None:
         timed = [f"{self.KEY}:t1200"]
-        hosted = stored("hosted", title="Spectra of graphs", start=self.EARLY, source_ids=timed)
+        hosted = stored(
+            "hosted",
+            title="Spectra of graphs",
+            speakers=people("Bob Jones"),
+            start=self.EARLY,
+            source_ids=timed,
+        )
         derived = fresh("sites-x._derived", title=self.FIRST, start=self.EARLY, source_ids=timed)
         assert adopt([derived], [hosted]) == ["hosted"]
+
+    def test_a_key_with_its_time_that_two_stored_talks_hold_hands_over_no_uid(self) -> None:
+        timed = [f"{self.KEY}:t1200"]
+        holders = [
+            stored(uid, title=title, speakers=people(name), start=self.EARLY, source_ids=timed)
+            for uid, title, name in (
+                ("bob", "Spectra of graphs", "Bob Jones"),
+                ("carol", "Knots and braids", "Carol White"),
+            )
+        ]
+        derived = fresh("sites-x._derived", title=self.FIRST, start=self.EARLY, source_ids=timed)
+        assert adopt([derived], holders) == ["sites-x._derived"]
 
     def test_the_later_talk_alone_keeps_its_uid(self) -> None:
         alone = fresh("two", title=self.SECOND, source_ids=[self.KEY])
