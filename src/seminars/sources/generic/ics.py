@@ -42,7 +42,12 @@ Times, as the draft conventions want them:
   much as many VEVENTs. A series with COUNT is walked from its DTSTART at
   about two steps per period, so long ones add up: a feed holds 170 weekly
   series with COUNT that began in 2000, or 25 daily ones, and more is a
-  ``ParseError``. An occurrence keeps the duration of the first one.
+  ``ParseError``. One such series that began so long ago that its own
+  steps run out before the window gives nothing in it; that is logged as
+  a warning with the source and the UID. A feed with more than
+  ``MAX_FEED_OCCURRENCES`` occurrences in the window (recurring and single
+  events together) is a ``ParseError`` as well. An occurrence keeps the
+  duration of the first one.
 * A VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names (also
   the only one of an event without recurrence, which keeps its native id);
   without ``DTSTART`` it keeps the original times, and one whose times
@@ -95,6 +100,7 @@ the common part of a draft), ``property_texts`` and ``plain_text``.
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -120,6 +126,7 @@ from seminars.models import (
 )
 from seminars.sources.base import ParseError, absolute_url, fetch_urls, register_adapter
 from seminars.sources.generic.ics_rules import (
+    MAX_EXPANSION_STEPS,
     Allowance,
     Expansion,
     Limit,
@@ -129,6 +136,8 @@ from seminars.sources.generic.ics_rules import (
     starts_in,
 )
 from seminars.textrules import ascii_printable
+
+logger = logging.getLogger(__name__)
 
 SHARED_PARAMS: Final = frozenset({"extra_hosts"})
 """Keys of ``params`` that the shared helpers read; they are not checked here."""
@@ -145,6 +154,16 @@ MAX_RECURRING_EVENTS: Final = 500
 The steps bound what the walks cost; this bounds the drafts, up to
 ``MAX_OCCURRENCES`` per line.
 """
+
+MAX_FEED_OCCURRENCES: Final = 5000
+"""Most occurrences of one feed that start inside the window, recurring or not.
+
+Turning an occurrence into a draft costs about 20 us; a feed of talks has
+a few hundred in a window of four months.
+"""
+
+MAX_LOGGED_UID: Final = 80
+"""Characters of a UID that a log line shows."""
 
 MAX_PATTERN_INPUT: Final = 20_000
 """Longest text a configured regular expression is applied to."""
@@ -374,15 +393,20 @@ _Override = tuple[icalendar.Component, Moment]
 """A VEVENT with RECURRENCE-ID and the original start that this property names."""
 
 
-def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> list[IcsOccurrence]:
+def occurrences(
+    calendar: IcsCalendar, window: TimeWindow, *, timezone: str, source_id: str | None = None
+) -> list[IcsOccurrence]:
     """Every occurrence of the calendar's events; recurring ones only inside ``window``.
 
     ``timezone`` is the zone of floating times (``calendar.timezone`` or the
     source's). VEVENTs that cannot be used are left out; see the module
     docstring for the limits of the expansion. Raises ``ParseError`` when
-    the RRULE lines of the feed need more than ``MAX_FEED_STEPS`` steps or
-    when more than ``MAX_RECURRING_EVENTS`` lines are walked: a part of the
-    feed would make the events left out count as gone.
+    the RRULE lines of the feed need more than ``MAX_FEED_STEPS`` steps,
+    when more than ``MAX_RECURRING_EVENTS`` lines are walked, or when more
+    than ``MAX_FEED_OCCURRENCES`` occurrences start inside ``window``: a
+    part of the feed would make the events left out count as gone. A
+    series whose walk ran out of its own steps is logged with
+    ``source_id`` and its UID.
     """
     overrides: dict[tuple[str, str], _Override] = {}
     masters: list[icalendar.Component] = []
@@ -408,6 +432,8 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
             continue
         if expansion.exceeded is not None:
             raise ParseError(_limit_message(expansion.exceeded))
+        if expansion.cut_short:
+            _log_cut_short(source_id, _first_text(vevent, "UID"))
         steps += expansion.steps
         rules += expansion.rules
         found += items
@@ -415,7 +441,24 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
         single = _replacement(vevent, original, None, f"{uid}/{key}")
         if single is not None and starts_in(single.start, window, timezone):
             found.append(single)
+    inside = sum(1 for item in found if starts_in(item.start, window, timezone))
+    if inside > MAX_FEED_OCCURRENCES:
+        raise ParseError(
+            f"the feed has more than {MAX_FEED_OCCURRENCES} occurrences in the run window"
+        )
     return found
+
+
+def _log_cut_short(source_id: str | None, uid: str | None) -> None:
+    """Say that a series gave no occurrence after the point where its walk stopped."""
+    shown = ascii_printable(uid or "(none)")[:MAX_LOGGED_UID]
+    logger.warning(
+        "source %s: the recurrence of UID %s ran out of its %d steps before the end of the"
+        " run window; its later occurrences are missing",
+        source_id or "(unknown)",
+        shown,
+        MAX_EXPANSION_STEPS,
+    )
 
 
 def _limit_message(limit: Limit) -> str:
@@ -735,7 +778,7 @@ def _read_feed(
         raise ParseError(f"source {source.id}: {error}") from error
     zone = calendar.timezone or source.timezone
     try:
-        return calendar, occurrences(calendar, window, timezone=zone)
+        return calendar, occurrences(calendar, window, timezone=zone, source_id=source.id)
     except ParseError as error:
         raise ParseError(f"source {source.id}: {error}: {document.url}") from error
 

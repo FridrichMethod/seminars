@@ -20,7 +20,8 @@ time of day the walk builds. No rule builds the times of day before its
 DTSTART, and a rule without COUNT none before the window (``_skip_before``). One rule takes at most
 ``MAX_EXPANSION_STEPS`` steps (and the rest of a period it has started;
 then its walk stops where it is, so a series with COUNT that began more
-than about 25000 periods before the window gives nothing in it), and the
+than about 25000 periods before the window gives nothing in it, and
+``Expansion.cut_short`` says so for the adapter to log), and the
 caps of a whole feed (``seminars.sources.generic.ics``) count the steps
 and the RRULE lines of all its VEVENTs together.
 
@@ -666,13 +667,18 @@ class Expansion:
     ``rules`` counts its RRULE lines that were walked (all but those whose
     UNTIL lies before the window), ``steps`` the steps they took.
     ``exceeded`` names the allowance of the feed that the expansion needed
-    more of; it stopped there.
+    more of; it stopped there. ``cut_short`` says that the walk of one of
+    its rules ran out of its own ``MAX_EXPANSION_STEPS`` before the end of
+    its effective end (a series with COUNT that began long before the
+    window): the occurrences after that point are missing, and the caller
+    should say so.
     """
 
     starts: tuple[Moment, ...] = ()
     steps: int = 0
     rules: int = 0
     exceeded: Limit | None = None
+    cut_short: bool = False
 
 
 def expand(
@@ -698,6 +704,7 @@ def expand(
     low, high = _window_bounds(window, anchor, timezone)
     found: set[datetime] = set()
     steps = walked = 0
+    cut_short = False
     for rule in rules:
         if rule.until is not None and rule.until < low:
             continue  # ends before the window
@@ -710,12 +717,13 @@ def expand(
         found.update(walk.starts)
         if walk.stopped and left <= MAX_EXPANSION_STEPS:
             return Expansion(steps=steps, rules=walked, exceeded="steps")
+        cut_short = cut_short or walk.stopped
     extra = (anchor, *(_align(moment, anchor, timezone) for moment in recurrence.rdates))
     found.update(moment for moment in extra if low <= moment < high)
     excluded = {_align(moment, anchor, timezone) for moment in recurrence.exdates}
     starts = sorted(found - excluded)[:MAX_OCCURRENCES]
     moments = tuple(moment.date() if is_date else moment for moment in starts)
-    return Expansion(moments, steps, walked)
+    return Expansion(moments, steps, walked, cut_short=cut_short)
 
 
 def _local_naive(moment: datetime, timezone: str) -> datetime:

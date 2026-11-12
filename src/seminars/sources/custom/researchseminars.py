@@ -355,7 +355,9 @@ def _feed_drafts(
 ) -> list[EventDraft]:
     try:
         calendar = read_calendar(document)
-        found = occurrences(calendar, window, timezone=calendar.timezone or source.timezone)
+        found = occurrences(
+            calendar, window, timezone=calendar.timezone or source.timezone, source_id=source.id
+        )
     except ParseError as error:
         raise ParseError(f"source {source.id}: {error}") from error
     except (AttributeError, KeyError, IndexError, TypeError, OSError) as error:
