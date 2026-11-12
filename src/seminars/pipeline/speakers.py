@@ -78,6 +78,16 @@ names as well. Then the form must vouch for it:
 outside a copy of the title, so a talk title that the abstract repeats
 vouches for nothing. A title that is only a name, a series name, and
 everything else give no speaker.
+
+A name that reads like a topic as well is a speaker only when the abstract
+names the person, whatever the form: one that holds a word of a field, a
+topic, a place or an event ("Dark Matter", "Deep Learning", "Quantum
+Groups", "Monte Carlo", "Coffee Hour") or an adjective of a field
+("Topological Insulators"), whose last word ends like a word of a field
+("Floer Homology", "Random Matrices", "Causal Inference"), or that starts
+with "A" or with a verb in "-ing" ("Navigating Heritage"). The endings
+leave out the short words that names end in as well ("Lawrence",
+"Clement", "Davies", "de Vries").
 """
 
 from __future__ import annotations
@@ -336,6 +346,71 @@ possessive, an institution (also run together, as text taken out of HTML
 often is: "Jane DoeStanford University", "Jane Doe, PhDProfessor of Biology")."""
 _GERUND: Final = re.compile(r"[A-Z][a-z]{3,}ing\b")
 """A first word that is a verb in "-ing" of at least seven letters ("Navigating")."""
+_TOPIC_WORDS: Final = word_set(
+    "matter theory theories learning inference model models system systems networks holes"
+    " chains groups processes process transport matrix graphs graph algorithm algorithms"
+    " structure structures materials proteins protein genes genome genomes molecules cells"
+    " neurons circuits sensors robots waves particles spaces manifolds surfaces operators"
+    " numbers invariants symmetry flows fluids turbulence geometry algebra algebras calculus"
+    " analysis synthesis catalysis design designs energy climate disease diseases therapy"
+    " therapies vaccines cancer cancers memory behavior behaviour oceans atmosphere"
+    " earthquakes pathways receptors enzymes catalysts polymers crystals insulators"
+    " semiconductors superconductors lasers magnets galaxies planets exoplanets stars boson"
+    " bosons quarks neutrinos photons electrons fermions qubits computers conjecture"
+    " conjectures hypothesis problem problems method methods approach approaches framework"
+    " frameworks datasets knots loops modules sheaves ecosystem ecosystems microbes"
+    " microbiome bacteria viruses virus tumors tumours drugs"
+    " computing sensing imaging modeling modelling sequencing signaling signalling folding"
+    " processing programming reasoning mining editing scattering tracking planning matching"
+    " sampling clustering testing screening printing manufacturing forecasting monitoring"
+    " mapping coding rendering scheduling routing banking aging ageing warming"
+    " quantum neural causal random dark optimal spectral nonlinear linear bayesian gaussian"
+    " riemannian hamiltonian lagrangian euclidean hermitian abelian laplacian boolean"
+    " markovian newtonian darwinian eulerian cartesian artificial digital global"
+    " africa america americas asia europe antarctica arctic pacific atlantic mediterranean"
+    " caribbean california american african asian european korean chinese japanese russian"
+    " ukrainian mexican indian italian spanish british latin arab arabic jewish indigenous"
+    " electric galactic healthy uncommon unreliable authoritarian documentary"
+    " telescope medium markets machines effects pictures knowledge minerals century worlds"
+    " magic letters hour hours quarter tour tours fair fairs salon class classes week weekend"
+    " evening edition exhibit exhibits sale basics debrief makeover makeovers cancelled"
+    " canceled postponed holiday holidays checks practice presents sense"
+)
+"""Words of a field, a topic, a place or an event that no person's name holds ("Dark
+Matter", "Coffee Hour")."""
+_TOPIC_PHRASES: Final = frozenset(
+    {
+        "monte carlo",
+        "san francisco",
+        "san diego",
+        "san jose",
+        "santa cruz",
+        "santa barbara",
+        "los angeles",
+        "las vegas",
+        "costa rica",
+        "puerto rico",
+        "hong kong",
+        "sri lanka",
+        "el nino",
+        "la nina",
+    }
+)
+"""Names of methods and places that read like a person's name as a whole."""
+_TOPIC_ENDINGS: Final = re.compile(
+    r"\w{2,}(?:tions?|sions?|ogy|ogies|ity|ities|isms?|ices|aries|ories|eries|tries|gies)"
+    r"|\w{3,}(?:[tmnshrpdl]ics|ties|ures)|\w{4,}(?:ness|ments?)|\w{5,}(?:ences?|ances?)"
+)
+"""How the last word of a field ends ("Homology", "Matrices", "Inference").
+
+The shortest such words are left out because names end so as well: "Sion",
+"Ness", "Clement", "Lawrence", "Vance", and so is "-vics" (Markovics) and
+"-ries" after a "v" (de Vries).
+"""
+_ADJECTIVE_ENDINGS: Final = re.compile(
+    r"\w{3,}(?:ical|ular|etic|atic|omic)|\w{3,}(?:ional|istic|astic|ative)"
+)
+"""How an adjective of a field ends ("Topological", "Molecular", "Stochastic")."""
 _COPY_AFTER: Final = re.compile(r"[ \t]{0,3}(?:[:|\"\u201c\u201d]|[-\u2013\u2014]{1,2}\s|$)", re.M)
 """What follows a name where the abstract repeats a part of the title: a separator, a
 quote or the end of the line."""
@@ -404,19 +479,33 @@ def _mentions(name: str, abstract: str | None, title: str) -> _Mentions:
     return _Mentions(as_person=False, as_other=other)
 
 
+def _reads_like_topic(name: str) -> bool:
+    """Whether a name read from a title reads like a topic as well (see the module docstring)."""
+    if _GERUND.match(name) or tidy_name(name).startswith("A "):
+        return True
+    words = fold(name).split()
+    if not words or " ".join(words) in _TOPIC_PHRASES:
+        return True
+    if any(word in _TOPIC_WORDS or _ADJECTIVE_ENDINGS.fullmatch(word) for word in words):
+        return True
+    return _TOPIC_ENDINGS.fullmatch(words[-1]) is not None
+
+
 def _taken(person: ParsedSpeaker, vouched: bool, abstract: str | None, title: str) -> bool:
     """Whether a name read from ``title`` is a speaker.
 
     It is when the abstract names the person, or when the form of the title
     vouches for it (``vouched``) and the abstract does not speak of it as
-    something else. A name that starts with a verb in "-ing" ("Navigating
-    Heritage", "Building Bridges") is far more often the start of a talk
-    title than a first name ("Channing"), so for it only the abstract counts.
+    something else. A name that reads like a topic as well (see the module
+    docstring) is far more often a talk title than a person, so for it only
+    the abstract counts. That includes a name that starts with a verb in
+    "-ing": "Navigating Heritage" and "Building Bridges" are titles, and
+    "Channing Dungey" needs the abstract too.
     """
     said = _mentions(person.name, abstract, title)
     if said.as_person:
         return True
-    return vouched and not said.as_other and _GERUND.match(person.name) is None
+    return vouched and not said.as_other and not _reads_like_topic(person.name)
 
 
 def _bare(text: str) -> str:

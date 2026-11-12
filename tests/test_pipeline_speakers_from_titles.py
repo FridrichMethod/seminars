@@ -181,6 +181,32 @@ def test_a_name_first_title_needs_its_abstract_or_an_affiliation(
         ("Machine Learning - Graph Neural Networks", "Graph Neural Networks are popular."),
         ("", None),
         ("TBA", None),
+        # Topics that read like names after a series name.
+        ("Physics Colloquium: Dark Matter", None),
+        ("Topology Seminar: Floer Homology", None),
+        ("Statistics Seminar: Causal Inference", None),
+        ("Workshop: Deep Learning", None),
+        ("Math Colloquium: Random Matrices", None),
+        ("Seminar: Markov Chains", None),
+        ("Seminar: Monte Carlo, MIT", None),
+        ("Seminar | Earthquake Science | Plate Boundaries, Stanford University", None),
+        ("Analysis Seminar: Riemannian Geometry", None),
+        ("Probability Seminar - Gaussian Processes", None),
+        ("Colloquium: Black Holes", None),
+        ("Algebra Seminar: Quantum Groups", None),
+        ("Seminar: Optimal Transport", None),
+        ("Applied Physics Colloquium: Topological Insulators", None),
+        ("Biology Seminar: Membrane Biophysics", None),
+        ("Seminar: Spectral Theory", None),
+        ("Seminar: Graph Neural Networks, Google", None),
+        ("Seminar: Causal Inference", "We study causal inference in observational data."),
+        ("Seminar: Emergent Properties", None),
+        ("Seminar: Korean Indigenous Futures", None),
+        # Events and titles that read like names after a series name.
+        ("Library Series: Coffee Hour", None),
+        ("Biology Seminar: Winter Quarter", None),
+        ("History Lecture: A Closer Look", None),
+        ("Book Talk | Living Minerals | Pattern Magic", None),
     ],
 )
 def test_titles_that_name_no_speaker(title: str, abstract: str | None) -> None:
@@ -208,6 +234,37 @@ LUNCH_CLUB = (
     ],
 )
 def test_a_name_that_starts_with_a_verb_in_ing_needs_its_abstract(
+    title: str, abstract: str | None, people: list[tuple[str, str | None]]
+) -> None:
+    found = speakers_from_title(title, abstract)
+    assert found == [ParsedSpeaker(name, affiliation) for name, affiliation in people]
+
+
+@pytest.mark.parametrize(
+    ("title", "abstract", "people"),
+    [
+        # Names whose last word ends like a word of a field, but is a name.
+        ("Seminar: Neil Lawrence", None, [("Neil Lawrence", None)]),
+        ("Organic Chemistry Seminar: Huw Davies", None, [("Huw Davies", None)]),
+        ("Seminar: Monte Westerfield", None, [("Monte Westerfield", None)]),
+        ("Seminar: Igor Markov", None, [("Igor Markov", None)]),
+        ("Seminar: Hugo de Vries", None, [("Hugo de Vries", None)]),
+        ("Seminar: Paul Clement", None, [("Paul Clement", None)]),
+        # A name that reads like a topic is a speaker when the abstract names the person.
+        ("Seminar: Jane Matter", None, []),
+        (
+            "Seminar: Jane Matter",
+            "Jane Matter is a professor of physics at MIT.",
+            [("Jane Matter", None)],
+        ),
+        (
+            "Colloquium: Sam Learning",
+            "Dr. Sam Learning studies proteins.",
+            [("Sam Learning", None)],
+        ),
+    ],
+)
+def test_a_name_that_reads_like_a_topic_needs_its_abstract(
     title: str, abstract: str | None, people: list[tuple[str, str | None]]
 ) -> None:
     found = speakers_from_title(title, abstract)
