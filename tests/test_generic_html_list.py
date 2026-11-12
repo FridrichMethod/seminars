@@ -589,8 +589,9 @@ def test_a_shared_meridiem_group() -> None:
 
 
 def test_the_rollover_limit_is_the_one_of_normalization() -> None:
-    # One constant: an end the adapter keeps is one normalization keeps, and the other way round.
-    assert html_list.MAX_ROLLOVER is normalization_times.MAX_ROLLOVER
+    # Sources do not import the pipeline, so the adapter keeps a copy: an end it keeps must
+    # be one normalization keeps, and the other way round.
+    assert html_list.MAX_ROLLOVER == normalization_times.MAX_ROLLOVER
 
 
 def test_parse_clock_with_a_format() -> None:
