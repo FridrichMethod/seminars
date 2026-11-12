@@ -232,6 +232,14 @@ def test_no_series_name_is_stored_as_a_speaker(offline_run: tuple[str, Path]) ->
 def test_no_timed_talk_ends_at_its_own_time_on_a_later_day(
     offline_run: tuple[str, Path],
 ) -> None:
+    """A guard over the whole offline run, not a regression test.
+
+    No recorded page holds a timed instance whose end is at the same wall
+    time on a later day, so this holds without the rule as well. The rule
+    is tested in test_pipeline_times.py (TestLength) and in
+    test_pipeline_normalize.py
+    (test_an_end_at_the_same_time_on_the_next_day_is_not_kept).
+    """
     _, root = offline_run
     timed = [event for event in stored(root) if not event.all_day and event.end is not None]
     assert timed
