@@ -64,6 +64,13 @@ EMOJI_RANGES: tuple[tuple[int, int], ...] = (
     (0x260A, 0x263E),
     (0x2648, 0x266C),
     (0x2670, 0x27BF),
+    # Characters that are text by default but are shown as emoji by most systems:
+    # U+203C double and U+2049 question exclamation mark, U+2139 information source,
+    # U+24C2 circled M.
+    (0x203C, 0x203C),
+    (0x2049, 0x2049),
+    (0x2139, 0x2139),
+    (0x24C2, 0x24C2),
     (0x231A, 0x231B),
     (0x2328, 0x2328),
     (0x23CF, 0x23CF),
@@ -92,20 +99,25 @@ EMOJI_RANGES: tuple[tuple[int, int], ...] = (
 DECORATIVE_RANGES: tuple[tuple[int, int], ...] = (
     (0x00A0, 0x00A0),  # no-break space
     (0x00AD, 0x00AD),  # soft hyphen
+    (0x034F, 0x034F),  # combining grapheme joiner
     (0x061C, 0x061C),  # Arabic letter mark
     (0x115F, 0x1160),  # Hangul initial and medial filler
-    (0x180E, 0x180E),  # Mongolian vowel separator
+    (0x17B4, 0x17B5),  # Khmer inherent vowels, which are not written
+    (0x180B, 0x180F),  # Mongolian free variation selectors and vowel separator
     (0x2000, 0x200F),  # typographic spaces, zero width characters and direction marks
     (0x2028, 0x202F),  # line and paragraph separator, bidi controls, narrow no-break space
     (0x205F, 0x2064),  # medium mathematical space, word joiner and invisible operators
     (0x2066, 0x2069),  # bidi isolates
+    (0x2800, 0x2800),  # Braille pattern blank, a blank filler
     (0x3164, 0x3164),  # Hangul filler
     (0xE000, 0xF8FF),  # private use area (Symbol font bullets pasted from Word, icon fonts)
     (0xFB00, 0xFB06),  # Latin ligatures
-    (0xFE0E, 0xFE0E),  # text variation selector
+    (0xFE00, 0xFE0E),  # variation selectors 1 to 14 and the text variation selector
     (0xFEFF, 0xFEFF),  # zero width no-break space
     (0xFFA0, 0xFFA0),  # halfwidth Hangul filler
     (0xFFF9, 0xFFFC),  # interlinear annotation marks, object replacement character
+    (0xE0001, 0xE0001),  # language tag
+    (0xE0100, 0xE01EF),  # variation selectors supplement
     (0xF0000, 0xFFFFD),  # supplementary private use area A (icon fonts)
     (0x100000, 0x10FFFD),  # supplementary private use area B
 )

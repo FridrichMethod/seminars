@@ -16,17 +16,19 @@ differ; change both together.
 
 "Decorative" means code points that carry no content of their own: ligatures,
 no-break and other typographic spaces, soft hyphens, zero width characters,
-variation selectors, line separators and direction marks. Characters that
-cannot be shown count as well: the blank Hangul fillers, the interlinear
-annotation marks, the object replacement character and the private use
-areas (U+E000-F8FF and the two supplementary ones, U+F0000-FFFFD and
-U+100000-10FFFD), whose characters mean something only in the font of the
-page they came from (the bullet of the Symbol font that Word pastes as
-U+F0B7, icon fonts) and are boxes everywhere else. Accented letters, CJK
-text, Greek and mathematical symbols (including arrows, superscripts and
-double-struck letters) are ordinary text and are neither emoji nor
-decorative; so is the replacement character U+FFFD, which marks a byte that
-could not be decoded.
+the combining grapheme joiner, variation selectors (U+FE00-FE0E, the
+Mongolian ones and the supplement U+E0100-E01EF), the language tag U+E0001,
+line separators and direction marks. Characters that cannot be shown count
+as well: the blank Hangul fillers, the Braille pattern blank U+2800, the
+Khmer inherent vowels U+17B4-17B5, the interlinear annotation marks, the
+object replacement character and the private use areas (U+E000-F8FF and the
+two supplementary ones, U+F0000-FFFFD and U+100000-10FFFD), whose characters
+mean something only in the font of the page they came from (the bullet of
+the Symbol font that Word pastes as U+F0B7, icon fonts) and are boxes
+everywhere else. Accented letters, CJK text, Greek and mathematical symbols
+(including arrows, superscripts and double-struck letters) are ordinary text
+and are neither emoji nor decorative; so is the replacement character
+U+FFFD, which marks a byte that could not be decoded.
 
 "Emoji" covers the pictograph blocks and the whole Miscellaneous Symbols and
 Dingbats blocks (U+2600-27BF: stars, check marks, hearts, warning signs,
@@ -35,6 +37,12 @@ blocks are notation in the sciences and count as ordinary text: the sun
 U+2609 (solar mass and radius), the planet signs U+263F-2647 (planetary
 masses; female U+2640 and male U+2642 in biology) and the musical flat,
 natural and sharp U+266D-266F (the musical isomorphisms of geometry).
+Elsewhere, the characters that are text by default but that most systems
+show as emoji count as emoji too: the double and the question exclamation
+mark U+203C and U+2049, the information source U+2139 and the circled M
+U+24C2. Other characters that the emoji variation selector U+FE0F can
+follow, such as the left right arrow U+2194 and the copyright, registered
+and trade mark signs, stay text; the selector itself goes.
 
 The rule for everything written below data/
 -------------------------------------------
@@ -92,6 +100,13 @@ EMOJI_RANGES: Final[tuple[CodePointRange, ...]] = (
     (0x260A, 0x263E),
     (0x2648, 0x266C),
     (0x2670, 0x27BF),
+    # Characters that are text by default but are shown as emoji by most systems:
+    # U+203C double and U+2049 question exclamation mark, U+2139 information source,
+    # U+24C2 circled M.
+    (0x203C, 0x203C),
+    (0x2049, 0x2049),
+    (0x2139, 0x2139),
+    (0x24C2, 0x24C2),
     (0x231A, 0x231B),
     (0x2328, 0x2328),
     (0x23CF, 0x23CF),
@@ -119,20 +134,25 @@ EMOJI_RANGES: Final[tuple[CodePointRange, ...]] = (
 DECORATIVE_RANGES: Final[tuple[CodePointRange, ...]] = (
     (0x00A0, 0x00A0),  # no-break space
     (0x00AD, 0x00AD),  # soft hyphen
+    (0x034F, 0x034F),  # combining grapheme joiner
     (0x061C, 0x061C),  # Arabic letter mark
     (0x115F, 0x1160),  # Hangul initial and medial filler
-    (0x180E, 0x180E),  # Mongolian vowel separator
+    (0x17B4, 0x17B5),  # Khmer inherent vowels, which are not written
+    (0x180B, 0x180F),  # Mongolian free variation selectors and vowel separator
     (0x2000, 0x200F),  # typographic spaces, zero width characters and direction marks
     (0x2028, 0x202F),  # line and paragraph separator, bidi controls, narrow no-break space
     (0x205F, 0x2064),  # medium mathematical space, word joiner and invisible operators
     (0x2066, 0x2069),  # bidi isolates
+    (0x2800, 0x2800),  # Braille pattern blank, a blank filler
     (0x3164, 0x3164),  # Hangul filler
     (0xE000, 0xF8FF),  # private use area (Symbol font bullets pasted from Word, icon fonts)
     (0xFB00, 0xFB06),  # Latin ligatures
-    (0xFE0E, 0xFE0E),  # text variation selector
+    (0xFE00, 0xFE0E),  # variation selectors 1 to 14 and the text variation selector
     (0xFEFF, 0xFEFF),  # zero width no-break space
     (0xFFA0, 0xFFA0),  # halfwidth Hangul filler
     (0xFFF9, 0xFFFC),  # interlinear annotation marks, object replacement character
+    (0xE0001, 0xE0001),  # language tag
+    (0xE0100, 0xE01EF),  # variation selectors supplement
     (0xF0000, 0xFFFFD),  # supplementary private use area A (icon fonts)
     (0x100000, 0x10FFFD),  # supplementary private use area B
 )
@@ -164,6 +184,7 @@ _CONTROL_ESCAPES: Final = {"\n": "\\n", "\r": "\\r", "\t": "\\t"}
 _LIGATURE_LETTERS: Final = ("ff", "fi", "fl", "ffi", "ffl", "st", "st")  # U+FB00 .. U+FB06
 _SPACES: Final = (0x0009, 0x00A0, *range(0x2000, 0x200B), 0x202F, 0x205F)
 _LINE_BREAKS: Final = (0x000B, 0x000C, 0x000D, 0x001C, 0x001D, 0x001E, 0x0085, 0x2028, 0x2029)
+_NON_BREAKING_HYPHEN: Final = 0x2011
 _EMOJI_GENDER: Final = re.compile("\u200d[\u2640\u2642]")
 """Female or male sign joined to an emoji (a gendered emoji); alone they are ordinary text."""
 
@@ -177,6 +198,7 @@ def _cleaning_table() -> dict[int, str | None]:
     table.update({0xFB00 + offset: letters for offset, letters in enumerate(_LIGATURE_LETTERS)})
     table.update(dict.fromkeys(_SPACES, " "))
     table.update(dict.fromkeys(_LINE_BREAKS, "\n"))
+    table[_NON_BREAKING_HYPHEN] = "-"
     return table
 
 
@@ -213,7 +235,9 @@ def clean_text(text: str) -> str:
       double-struck letters, superscripts and other mathematical notation);
     * the Latin ligatures U+FB00 to U+FB06 become their letters;
     * no-break spaces, the typographic spaces U+2000 to U+200A, U+202F and
-      U+205F and the tab become an ordinary space;
+      U+205F and the tab become an ordinary space, and the non-breaking
+      hyphen U+2011 becomes "-" (the other hyphens and dashes are text
+      and stay);
     * every kind of line break (CR LF, CR, vertical tab, form feed, NEL,
       U+2028, U+2029) becomes a newline;
     * emoji, the other decorative and invisible characters (private use
