@@ -19,8 +19,8 @@ class SourceHealthEntry(Model):
     """One run of one source.
 
     ``accepted`` is ``None`` in entries of failed runs and of runs recorded
-    before it was kept. ``skipped_pages`` and ``shrank_from`` are those of
-    ``SourceRunResult``.
+    before it was kept. ``skipped_pages``, ``shrank_from`` and
+    ``resized_from`` are those of ``SourceRunResult``.
     """
 
     at: Timestamp  # start time of the run
@@ -29,6 +29,7 @@ class SourceHealthEntry(Model):
     accepted: Count | None = None  # drafts that normalization accepted, before the window
     skipped_pages: Count = 0
     shrank_from: Count | None = None
+    resized_from: Count | None = None
     error: str | None = None
 
     @property

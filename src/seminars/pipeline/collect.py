@@ -39,19 +39,28 @@ the run report.
   ``skipped_pages``: one URL once.
 * A shrunk listing (``compare_with_history``). The measure is the median
   number of drafts that normalization accepted (``accepted``, before the
-  window) in the runs of the source that were read in full, among its
-  last ``SHRINK_LOOKBACK_RUNS`` runs; at least ``SHRINK_MIN_RUNS`` of them
+  window) in the runs of the source that were read in full: the last
+  ``SHRINK_LOOKBACK_RUNS`` of them that its history holds (the last
+  ``HEALTH_HISTORY_LIMIT`` runs); at least ``SHRINK_MIN_RUNS`` of them
   are needed. A run that delivers fewer than ``SHRINK_FRACTION`` of that,
   and at least ``SHRINK_MIN_DROP`` fewer, has lost part of its listing
   (pages that came back empty, items an adapter skipped after a field was
   renamed): ``shrank_from`` is the measure. The fraction catches a
   listing that lost half of itself; the minimum keeps a small source that
   has one talk less from counting (four talks are not judged by their
-  number: a detail page that failed is caught as a skipped page). Shrunk
-  runs are no measure themselves, so a lasting outage stays an outage;
-  once fewer than ``SHRINK_MIN_RUNS`` full reads are left among the last
-  runs, after ``SHRINK_LOOKBACK_RUNS - SHRINK_MIN_RUNS + 1`` shrunk runs,
-  the new size is taken as the size of the listing.
+  number: a detail page that failed is caught as a skipped page).
+
+  Shrunk runs are no measure themselves, so a lasting shortfall stays one
+  for as long as the history holds the full reads from before it: when
+  the listing stays short from one run on, for
+  ``HEALTH_HISTORY_LIMIT - SHRINK_MIN_RUNS + 1`` runs. A run read in full
+  ends it (its size counts again). When the measure runs out first, the
+  run that is still as short against the last measure (``carried_size``)
+  takes its size as the new usual one: ``resized_from`` is the measure it
+  gives up, it counts as read in full, so the stored events the source
+  does not list count as missing again, and the result and the run
+  report say so in a warning. The full reads from before that run are no
+  measure any more.
 
 Error messages go into the run report, the health history, the status page,
 the source-broken issue, the weekly digest and the job log. They are one
@@ -95,6 +104,7 @@ from seminars.models import (
     SourceConfig,
     SourceErrorKind,
     SourceHealth,
+    SourceHealthEntry,
     SourceRunResult,
     TimeWindow,
 )
@@ -376,35 +386,77 @@ def digest_source(
     return SourceOutcome(result, normalized.candidates, normalized.invalid)
 
 
+def _full_read(entry: SourceHealthEntry) -> bool:
+    return entry.status == "ok" and entry.read_in_full
+
+
+def _since_resize(history: SourceHealth) -> list[SourceHealthEntry]:
+    """The runs since the listing was last taken at a new size, that run first."""
+    entries = history.history
+    resized = [index for index, entry in enumerate(entries) if entry.resized_from is not None]
+    return entries[resized[-1] :] if resized else entries
+
+
 def usual_size(history: SourceHealth | None) -> int | None:
     """The measure of the size of a listing (see the module docstring), or ``None``."""
     if history is None:
         return None
     counts = [
         entry.accepted
-        for entry in history.history[-SHRINK_LOOKBACK_RUNS:]
-        if entry.status == "ok" and entry.read_in_full and entry.accepted is not None
-    ]
+        for entry in _since_resize(history)
+        if _full_read(entry) and entry.accepted is not None
+    ][-SHRINK_LOOKBACK_RUNS:]
     return int(median(counts)) if len(counts) >= SHRINK_MIN_RUNS else None
+
+
+def carried_size(history: SourceHealth | None) -> int | None:
+    """The measure of the shortfall that the last runs of a source are in, or ``None``.
+
+    That is the measure of the latest shrunk run after the last full read.
+    """
+    if history is None:
+        return None
+    for entry in reversed(_since_resize(history)):
+        if _full_read(entry):
+            return None
+        if entry.shrank_from is not None:
+            return entry.shrank_from
+    return None
+
+
+def _short(accepted: int, usual: int) -> bool:
+    return accepted < usual * SHRINK_FRACTION and usual - accepted >= SHRINK_MIN_DROP
 
 
 def compare_with_history(result: SourceRunResult, history: SourceHealth | None) -> SourceRunResult:
     """``result``, marked as shrunk when its listing is far smaller than usual.
 
-    A run that failed or accepted nothing is left to the rules of failed
-    and empty runs.
+    When the measure ran out while the listing was still short, the run
+    takes the new size instead (see the module docstring). A run that
+    failed or accepted nothing is left to the rules of failed and empty
+    runs.
     """
-    usual = usual_size(history)
     accepted = result.accepted
-    if result.status == "failed" or accepted == 0 or usual is None:
+    if result.status == "failed" or accepted == 0:
         return result
-    if accepted >= usual * SHRINK_FRACTION or usual - accepted < SHRINK_MIN_DROP:
+    usual = usual_size(history)
+    if usual is not None:
+        if not _short(accepted, usual):
+            return result
+        warning = (
+            f"the source parsed {accepted} usable draft(s) where it usually has {usual}: "
+            "the listing is taken as incomplete"
+        )
+        return result.evolve(shrank_from=usual, warnings=[*result.warnings, warning])
+    carried = carried_size(history)
+    if carried is None or not _short(accepted, carried):
         return result
     warning = (
-        f"the source parsed {accepted} usable draft(s) where it usually has {usual}: "
-        "the listing is taken as incomplete"
+        f"the source parsed {accepted} usable draft(s) where it used to have {carried}, "
+        "for so long that this is now taken as the usual size of its listing: the stored "
+        "events it does not list count as missing"
     )
-    return result.evolve(shrank_from=usual, warnings=[*result.warnings, warning])
+    return result.evolve(resized_from=carried, warnings=[*result.warnings, warning])
 
 
 def collect_sources(

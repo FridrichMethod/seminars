@@ -274,6 +274,17 @@ def partial_reads(results: Sequence[SourceRunResult]) -> list[str]:
     ]
 
 
+def resized_listings(results: Sequence[SourceRunResult]) -> list[str]:
+    """One warning per source whose smaller listing this run takes as its usual size."""
+    return [
+        f"source {result.source_id} has listed far fewer events than usual for so long that "
+        "its smaller listing is now taken as its usual size; the stored events it does not "
+        "list count as missing"
+        for result in results
+        if result.resized_from is not None
+    ]
+
+
 def _scored(event: Event, scorer: PicksScorer) -> Event:
     result = scorer.score(event)
     score = result.score if math.isfinite(result.score) else 0.0
@@ -509,6 +520,7 @@ def _first_report(
             *started_fresh,
             *services.warnings,
             *partial_reads(gathered.results),
+            *resized_listings(gathered.results),
             *processed.warnings,
             *llm_warnings,
         ],

@@ -40,6 +40,11 @@ class SourceRunResult(Model):
     shrunk sharply against its recent history (``shrank_from``, see
     ``seminars.pipeline.collect``). Its status stays what it is, but the
     run says nothing about the events it did not deliver.
+
+    A listing that stays that small is taken at its new size in the end:
+    ``resized_from`` holds the usual size that the run gave up. Such a run
+    counts as read in full, so the events it does not deliver count as
+    missing again.
     """
 
     source_id: SourceId
@@ -52,6 +57,7 @@ class SourceRunResult(Model):
     outside_window: Count = 0  # events dropped because they start outside the window
     skipped_pages: Count = 0  # pages that failed and that the adapter went on without
     shrank_from: Count | None = None  # the usual number of accepted drafts, when far fewer came
+    resized_from: Count | None = None  # the usual size given up in this run, see above
     extraction: ExtractionMethod | None = None
     llm_fallback_used: bool = False
     error_kind: SourceErrorKind | None = None

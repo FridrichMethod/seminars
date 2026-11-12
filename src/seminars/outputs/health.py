@@ -41,7 +41,12 @@ The issue is closed by the first run in which the source delivers events
 again and was read in full, and also when the source is disabled or
 removed from the configuration. A run that delivered events but was not
 read in full neither closes an issue nor, before enough of them follow
-each other, opens one. Only the sources of the run are judged, so a run
+each other, opens one. A listing that stays far smaller than usual is in
+the end taken at its new size (``SourceRunResult.resized_from``, see
+``seminars.pipeline.collect``): that run counts as read in full and
+closes the issue with a comment of its own (``SOURCE_RESIZED``), which
+says that the stored events the source does not list count as missing
+from then on. Only the sources of the run are judged, so a run
 limited with ``--source`` leaves the others alone.
 
 An LLM provider is failing when it failed in ``llm_failure_threshold`` runs
@@ -76,6 +81,7 @@ from typing import Final, Literal
 from seminars.config import PROVIDER_CREDENTIAL_ENV, AppConfig, HealthSettings
 from seminars.contracts import LABEL_LLM_AUTH, LABEL_SOURCE_BROKEN, IssueClient
 from seminars.models import (
+    HEALTH_HISTORY_LIMIT,
     HealthFile,
     Issue,
     IssueLabel,
@@ -107,6 +113,12 @@ SourceVerdict = Literal["ok", "failing", "empty", "incomplete", "unsettled"]
 SOURCE_BACK: Final = "The source delivers events again."
 SOURCE_COMPLETE_AGAIN: Final = "The source is read in full again."
 SOURCE_GONE: Final = "The source was disabled or removed."
+SOURCE_RESIZED: Final = (
+    "The listing has stayed far smaller than usual for so long that its smaller size is now "
+    "taken as the usual one. From this run on, the stored events it does not list count as "
+    "missing, and they are deleted when they stay missing. If the smaller listing is not "
+    "right, fix the source now."
+)
 INCOMPLETE_PHRASE: Final = "delivered events but was not read in full"
 
 _KIND_HINTS: Final[dict[str, str]] = {
@@ -164,6 +176,7 @@ def record_run(
             accepted=None if result.status == "failed" else result.accepted,
             skipped_pages=result.skipped_pages,
             shrank_from=result.shrank_from,
+            resized_from=result.resized_from,
             error=result.error,
         )
         health = health.with_source_entry(result.source_id, entry)
@@ -300,6 +313,14 @@ def _shortfall(last: SourceHealthEntry) -> list[str]:
         "While the source is not read in full, the events it does not deliver are kept: "
         "they are not counted as missing, and the events it lists are updated as usual.",
     ]
+    if last.shrank_from is not None:
+        lines += [
+            "",
+            "A listing that stays this small is in the end taken at its new size, once the "
+            f"history of the source (its last {HEALTH_HISTORY_LIMIT} runs) no longer holds "
+            "enough full reads from before. From then on the events it does not list count "
+            "as missing, and this issue is closed with a comment that says so.",
+        ]
     return lines
 
 
@@ -387,15 +408,18 @@ def sync_source_issues(
             body = source_issue_body(sources.get(source_id), source_id, history, verdict)
             _report(issues, LABEL_SOURCE_BROKEN, existing.get(title), title, body)
         elif verdict == "ok" and title in existing:
-            issues.close(existing[title].number, comment=_closing(existing[title]))
+            issues.close(existing[title].number, comment=_closing(existing[title], history))
     enabled = {source_issue_title(source.id) for source in config.enabled_sources}
     for title, issue in sorted(existing.items()):
         if title not in enabled:
             issues.close(issue.number, comment=SOURCE_GONE)
 
 
-def _closing(issue: Issue) -> str:
-    """The comment that closes ``issue``, by what it was opened for."""
+def _closing(issue: Issue, history: SourceHealth) -> str:
+    """The comment that closes ``issue``, by the run that closes it and what it was opened for."""
+    last = history.last
+    if last is not None and last.resized_from is not None:
+        return SOURCE_RESIZED
     return SOURCE_COMPLETE_AGAIN if INCOMPLETE_PHRASE in issue.body else SOURCE_BACK
 
 

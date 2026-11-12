@@ -18,6 +18,7 @@ from fakes import FakeAdapter, FakeClock, FakeHttpClient
 from seminars.config import AppConfig
 from seminars.http import HttpClient
 from seminars.models import (
+    HEALTH_HISTORY_LIMIT,
     EventDraft,
     RawPayload,
     SourceConfig,
@@ -162,22 +163,70 @@ class TestShrunkListings:
         old = SourceHealthEntry(at=REFERENCE_NOW, status="ok", events=188)
         assert compare_with_history(outcome(7), history(old, old, old)).read_in_full
 
-    def test_a_lasting_new_size_becomes_the_measure(self) -> None:
-        entries = [full(188), full(188), full(188)]
-        flagged = 0
-        for _ in range(2 * SHRINK_LOOKBACK_RUNS):
-            judged = compare_with_history(outcome(20), history(*entries[-30:]))
-            flagged += not judged.read_in_full
-            entries.append(
-                full(20, shrank_from=judged.shrank_from)
-                if judged.shrank_from is not None
-                else full(20)
-            )
-        assert flagged == SHRINK_LOOKBACK_RUNS - SHRINK_MIN_RUNS + 1
-
     def test_an_empty_or_failed_run_is_left_to_the_other_rules(self) -> None:
         past = history(full(188), full(188), full(188))
         empty = SourceRunResult(source_id="localist-stanford", status="empty")
         failed = SourceRunResult(source_id="localist-stanford", status="failed", error="x")
         assert compare_with_history(empty, past) == empty
         assert compare_with_history(failed, past) == failed
+
+
+def shrunk(accepted: int, usual: int) -> SourceHealthEntry:
+    return full(accepted, shrank_from=usual)
+
+
+def failed() -> SourceHealthEntry:
+    return SourceHealthEntry(at=REFERENCE_NOW, status="failed", error="HttpStatusError: HTTP 500")
+
+
+def recorded(entries: list[SourceHealthEntry], judged: SourceRunResult) -> list[SourceHealthEntry]:
+    """``entries`` with the run ``judged``, as the health history keeps it."""
+    entry = full(judged.accepted, shrank_from=judged.shrank_from, resized_from=judged.resized_from)
+    return [*entries, entry][-HEALTH_HISTORY_LIMIT:]
+
+
+class TestALastingShortfall:
+    def test_it_lasts_until_the_history_holds_too_few_full_reads(self) -> None:
+        entries = [full(188), full(188), full(188)]
+        judged: list[SourceRunResult] = []
+        for _ in range(HEALTH_HISTORY_LIMIT + 5):
+            judged.append(compare_with_history(outcome(20), history(*entries)))
+            entries = recorded(entries, judged[-1])
+        alarm = HEALTH_HISTORY_LIMIT - SHRINK_MIN_RUNS + 1
+        assert [run.shrank_from for run in judged[:alarm]] == [188] * alarm
+        taken = judged[alarm]
+        assert (taken.shrank_from, taken.resized_from, taken.read_in_full) == (None, 188, True)
+        assert taken.warnings == [
+            "the source parsed 20 usable draft(s) where it used to have 188, for so long that "
+            "this is now taken as the usual size of its listing: the stored events it does not "
+            "list count as missing"
+        ]
+        assert all(run == outcome(20) for run in judged[alarm + 1 :])
+
+    def test_one_run_back_in_size_does_not_end_the_measure(self) -> None:
+        streak = [shrunk(20, 188) for _ in range(SHRINK_LOOKBACK_RUNS)]
+        past = history(full(188), full(188), full(188), *streak, full(150), shrunk(20, 188))
+        assert compare_with_history(outcome(20), past).shrank_from == 188
+
+    def test_failed_runs_do_not_end_the_measure(self) -> None:
+        past = history(full(188), full(188), full(188), *[failed() for _ in range(12)])
+        assert compare_with_history(outcome(20), past).shrank_from == 188
+
+    def test_a_run_back_in_size_when_the_measure_ran_out_is_a_full_read(self) -> None:
+        past = history(*[shrunk(20, 188) for _ in range(HEALTH_HISTORY_LIMIT)])
+        assert compare_with_history(outcome(150), past) == outcome(150)
+        assert compare_with_history(outcome(20), past).resized_from == 188
+
+    def test_the_full_reads_before_a_new_size_are_no_measure(self) -> None:
+        resized = full(20, resized_from=188)
+        past = history(full(188), full(188), shrunk(20, 188), resized)
+        assert compare_with_history(outcome(20), past) == outcome(20)
+
+    def test_the_new_size_is_the_measure_once_it_was_read_in_full_often_enough(self) -> None:
+        resized = full(20, resized_from=188)
+        past = history(full(188), full(188), resized, full(20), full(20))
+        assert compare_with_history(outcome(5), past).shrank_from == 20
+
+    def test_without_an_earlier_shortfall_a_short_history_judges_nothing(self) -> None:
+        past = history(full(188), full(188), *[failed() for _ in range(HEALTH_HISTORY_LIMIT - 2)])
+        assert compare_with_history(outcome(20), past) == outcome(20)

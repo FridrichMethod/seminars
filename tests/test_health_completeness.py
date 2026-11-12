@@ -19,6 +19,7 @@ from fakes import FakeIssueClient
 from seminars.config import AppConfig
 from seminars.models import HealthFile, LLMUsage, RunReport, SourceRunResult, SourceStatus
 from seminars.outputs.health import (
+    SOURCE_RESIZED,
     record_run,
     source_issue_title,
     source_verdict,
@@ -127,7 +128,23 @@ class TestIncompleteSources:
     def test_a_shrunk_listing_is_described(self, runs: Runs, fake_issues: FakeIssueClient) -> None:
         for _ in range(3):
             runs.run(result(**SHRUNK))
-        assert "- Last run: 7 usable draft(s) where it usually has 56" in fake_issues.get(1).body
+        body = fake_issues.get(1).body
+        assert "- Last run: 7 usable draft(s) where it usually has 56" in body
+        assert "A listing that stays this small is in the end taken at its new size" in body
+        assert body.isascii()
+
+    def test_a_listing_taken_at_its_new_size_closes_with_its_own_comment(
+        self, runs: Runs, fake_issues: FakeIssueClient
+    ) -> None:
+        for _ in range(3):
+            runs.run(result(**SHRUNK))
+        runs.run(result(drafts=7, resized_from=56))
+        assert runs.open_titles() == []
+        assert fake_issues.comments == {1: [SOURCE_RESIZED]}
+        assert "read in full again" not in SOURCE_RESIZED
+        assert "count as missing" in SOURCE_RESIZED
+        (entry,) = runs.health.sources[SOURCE].history[-1:]
+        assert (entry.resized_from, entry.shrank_from, entry.read_in_full) == (56, None, True)
 
     def test_a_full_read_closes_the_issue(self, runs: Runs, fake_issues: FakeIssueClient) -> None:
         for _ in range(3):

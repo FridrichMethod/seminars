@@ -3,7 +3,8 @@
 A detail page that fails drops its talk at some adapters, and a listing can
 lose most of its items (pages that come back empty, a renamed field). The
 talks that are missing for that reason are real: three such runs must not
-delete them.
+delete them. A listing that stays short is taken at its new size in the
+end, and that run says so before a talk it does not list can be deleted.
 """
 
 from __future__ import annotations
@@ -27,8 +28,16 @@ from fakes import (
 from fakes_outputs import FakeEmitters
 from seminars.config import AppConfig
 from seminars.http import HttpClient
-from seminars.models import EventDraft, RawPayload, RunReport, SourceConfig, TimeWindow
+from seminars.models import (
+    HEALTH_HISTORY_LIMIT,
+    EventDraft,
+    RawPayload,
+    RunReport,
+    SourceConfig,
+    TimeWindow,
+)
 from seminars.outputs.health import source_issue_title, update_health
+from seminars.pipeline.collect import SHRINK_MIN_RUNS
 from seminars.pipeline.run import RunOptions, healthy_sources, run_pipeline
 from seminars.pipeline.secret_scan import build_secret_scanner
 from seminars.pipeline.services import Services
@@ -38,6 +47,7 @@ from seminars.sources.generic.common import fetch_optional, get_document
 
 URL = "https://slac.example.org/events"
 START = datetime(2026, 12, 7, 16, 0, tzinfo=PACIFIC)
+LATER = START + timedelta(days=70)  # still ahead after weeks of daily runs
 TALKS = ("1", "2", "3", "4")
 
 
@@ -161,35 +171,90 @@ class TestADetailPageThatFails:
         assert healthy_sources(whole.sources) == {"bayarea-slac"}
 
 
+def listing(count: int, start: datetime = START) -> list[EventDraft]:
+    return [
+        make_draft(
+            source_id="localist-stanford",
+            native_id=str(number),
+            url=f"{URL}/{number}",
+            title=f"Seminar number {number} on protein design",
+            speaker_text=f"Speaker {number}",
+            start=start + timedelta(hours=number),
+            end=None,
+        )
+        for number in range(count)
+    ]
+
+
+@pytest.fixture
+def localist(app_config: AppConfig, fake_adapter: FakeAdapter) -> AppConfig:
+    source = make_source(id="localist-stanford", group="localist", adapter="fake", url=URL)
+    return dataclasses.replace(app_config, sources=(source,))
+
+
 class TestAListingThatShrinks:
-    @pytest.fixture
-    def config(self, app_config: AppConfig, fake_adapter: FakeAdapter) -> AppConfig:
-        source = make_source(id="localist-stanford", group="localist", adapter="fake", url=URL)
-        return dataclasses.replace(app_config, sources=(source,))
-
-    def drafts(self, count: int) -> list[EventDraft]:
-        return [
-            make_draft(
-                source_id="localist-stanford",
-                native_id=str(number),
-                url=f"{URL}/{number}",
-                title=f"Seminar number {number} on protein design",
-                speaker_text=f"Speaker {number}",
-                start=START + timedelta(hours=number),
-                end=None,
-            )
-            for number in range(count)
-        ]
-
-    def test_its_missing_talks_are_kept(self, config: AppConfig, fake_adapter: FakeAdapter) -> None:
+    def test_its_missing_talks_are_kept(
+        self, localist: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
         bundle = services(Site())
-        fake_adapter.drafts = self.drafts(20)
+        fake_adapter.drafts = listing(20)
         for day in (0, 1, 2):
-            run(config, bundle, day)
-        assert len(stored_keys(config)) == 20
-        fake_adapter.drafts = self.drafts(5)
-        reports: list[Any] = [run(config, bundle, day) for day in (3, 4, 5, 6)]
-        assert len(stored_keys(config)) == 20
+            run(localist, bundle, day)
+        assert len(stored_keys(localist)) == 20
+        fake_adapter.drafts = listing(5)
+        reports: list[Any] = [run(localist, bundle, day) for day in (3, 4, 5, 6)]
+        assert len(stored_keys(localist)) == 20
         assert reports[-1].sources[0].shrank_from == 20
         assert reports[-1].counts.removed == 0
         assert any("was not read in full" in warning for warning in reports[-1].warnings)
+
+
+ALARM = HEALTH_HISTORY_LIMIT - SHRINK_MIN_RUNS + 1
+"""Runs in a row that a listing which stays short is taken as incomplete."""
+
+
+class TestAListingThatStaysShort:
+    """A listing that does not come back is taken at its new size, and the run says so."""
+
+    def short_runs(self, config: AppConfig, adapter: FakeAdapter, bundle: Services) -> list[Any]:
+        """Three full reads of 20 talks, then ``ALARM`` runs that list 5 of them."""
+        adapter.drafts = listing(20, LATER)
+        for day in (0, 1, 2):
+            run(config, bundle, day)
+        adapter.drafts = listing(5, LATER)
+        return [run(config, bundle, day) for day in range(3, 3 + ALARM)]
+
+    def test_its_talks_are_kept_while_the_alarm_lasts(
+        self, localist: AppConfig, fake_adapter: FakeAdapter, fake_issues: FakeIssueClient
+    ) -> None:
+        short = self.short_runs(localist, fake_adapter, services(Site(), fake_issues))
+        assert [report.sources[0].shrank_from for report in short] == [20] * ALARM
+        assert sum(report.counts.removed for report in short) == 0
+        assert len(stored_keys(localist)) == 20
+        assert [issue.state for issue in fake_issues.issues] == ["open"]
+        assert fake_issues.comments == {}
+
+    def test_the_new_size_is_taken_with_a_warning_and_its_own_comment(
+        self, localist: AppConfig, fake_adapter: FakeAdapter, fake_issues: FakeIssueClient
+    ) -> None:
+        bundle = services(Site(), fake_issues)
+        self.short_runs(localist, fake_adapter, bundle)
+        taken = run(localist, bundle, 3 + ALARM)
+        result = taken.sources[0]
+        assert (result.shrank_from, result.resized_from, result.read_in_full) == (None, 20, True)
+        assert (
+            "source localist-stanford has listed far fewer events than usual for so long that "
+            "its smaller listing is now taken as its usual size; the stored events it does not "
+            "list count as missing"
+        ) in taken.warnings
+        assert [issue.state for issue in fake_issues.issues] == ["closed"]
+        (comment,) = fake_issues.comments[1]
+        assert "smaller size is now taken as the usual one" in comment
+        assert "read in full again" not in comment
+        after = [run(localist, bundle, day) for day in range(4 + ALARM, 7 + ALARM)]
+        assert all(report.sources[0].read_in_full for report in after)
+        assert all(report.sources[0].resized_from is None for report in after)
+        assert all(report.warnings == [] for report in after)
+        assert sum(report.counts.removed for report in [taken, *after]) == 15
+        assert len(stored_keys(localist)) == 5
+        assert len(fake_issues.issues) == 1
