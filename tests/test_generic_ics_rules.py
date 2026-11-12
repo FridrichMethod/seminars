@@ -327,6 +327,18 @@ def test_a_repeated_position_is_one_position() -> None:
     assert (again.starts, again.steps) == (once.starts, once.steps)
 
 
+def test_days_and_ordinals_a_period_does_not_have_cost_steps_too() -> None:
+    # The fifth weekdays of February: one of them in a leap year, none in the others. Every
+    # ordinal tried is a step, so the work of a period is never more than its steps.
+    fifth = ",".join(f"{sign}5{day}" for sign in ("", "-") for day in WEEKDAYS)
+    start = datetime(1900, 2, 1, 23, tzinfo=UTC)
+    expansion = run(f"FREQ=YEARLY;BYMONTH=2;BYDAY={fifth};COUNT=1000", start=start)
+    assert expansion.starts == ()
+    assert expansion.steps >= len(WEEKDAYS) * 2 * (2026 - 1900 + 1)
+    late = run("FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29,30,31;COUNT=1000", start=start)
+    assert late.steps >= 3 * (2026 - 1900 + 1)  # three days tried every year, one at most found
+
+
 EVERY_SECOND = "FREQ=DAILY;BYHOUR={};BYMINUTE={};BYSECOND={}".format(
     *(",".join(map(str, range(n))) for n in (24, 60, 60))
 )
