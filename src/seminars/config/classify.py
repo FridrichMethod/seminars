@@ -7,7 +7,7 @@ from typing import Annotated, Any, Self
 from pydantic import AfterValidator, BeforeValidator, Field, model_validator
 
 from seminars.models import FIELD_IDS, FieldId, Model, RuleExclusionReason
-from seminars.models.base import FieldList, SourceId
+from seminars.models.base import FieldList, NonEmptyStr, SourceId
 
 
 def _list_to_weights(value: Any) -> Any:
@@ -65,6 +65,7 @@ class Taxonomy(Model):
           Chemical Engineering: [chem]
         exclusions:
           office_hours: [office hours, drop-in hours]
+        out_of_scope_categories: [Stanford Center for Continuing Medical Education]
 
     * ``fields``: rules per field id; ids that are left out get empty rules,
       unknown ids are an error. The mapping always holds all seven fields in
@@ -74,6 +75,13 @@ class Taxonomy(Model):
     * ``departments``: department or category label (matched
       case-insensitively against ``EventHints.categories``) -> fields.
     * ``exclusions``: phrases per rule-based exclusion reason for the filter.
+    * ``out_of_scope_categories``: category labels (matched case-insensitively
+      against ``EventHints.categories``, like ``departments``) whose events are
+      out of scope whatever their other categories, keywords or source fields
+      say. Such an event gets no fields and is excluded with reason
+      ``out_of_scope``, without an LLM call. For units whose events are never
+      academic talks although they share a school with ones that are (the
+      continuing medical education courses of the School of Medicine).
     """
 
     fields: Annotated[
@@ -82,6 +90,7 @@ class Taxonomy(Model):
     source_defaults: dict[SourceId, FieldList] = {}
     departments: dict[str, FieldList] = {}
     exclusions: dict[RuleExclusionReason, list[str]] = {}
+    out_of_scope_categories: list[NonEmptyStr] = []
 
 
 class PicksMultipliers(Model):

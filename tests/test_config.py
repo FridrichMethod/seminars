@@ -375,6 +375,7 @@ class TestTaxonomyAndInterests:
             "  Chemical Engineering: [chem]\n"
             "exclusions:\n"
             "  office_hours: [office hours]\n"
+            "out_of_scope_categories: [Stanford Center for Continuing Medical Education]\n"
         )
         taxonomy = load_taxonomy(write(project / "config" / "taxonomy.yaml", text))
         assert list(taxonomy.fields) == list(FIELD_IDS)
@@ -385,6 +386,12 @@ class TestTaxonomyAndInterests:
         assert taxonomy.source_defaults == {"sites-chemistry": ["chem"]}
         assert taxonomy.departments == {"Chemical Engineering": ["chem"]}
         assert taxonomy.exclusions == {"office_hours": ["office hours"]}
+        assert taxonomy.out_of_scope_categories == [
+            "Stanford Center for Continuing Medical Education"
+        ]
+
+    def test_out_of_scope_categories_default_to_none(self) -> None:
+        assert Taxonomy().out_of_scope_categories == []
 
     @pytest.mark.parametrize(
         "data",
@@ -397,6 +404,8 @@ class TestTaxonomyAndInterests:
             {"source_defaults": {"Not An Id": ["chem"]}},
             {"exclusions": {"out_of_scope": ["x"]}},
             {"exclusions": {"defense": ["x"]}},
+            {"out_of_scope_categories": [""]},
+            {"out_of_scope_categories": "Stanford Center for Continuing Medical Education"},
             {"unknown": 1},
         ],
     )
