@@ -404,14 +404,23 @@ class TestFeedOnly:
     [
         ("Mon, 16 Nov 2026 16:30:00 -0800", datetime(2026, 11, 16, 16, 30, tzinfo=PST)),
         ("2026-11-16T16:30:00-08:00", datetime(2026, 11, 16, 16, 30, tzinfo=PST)),
+        # -0000 is UTC with no local zone known; no zone at all is the source's local time.
+        ("Mon, 16 Nov 2026 16:30:00 -0000", datetime(2026, 11, 16, 16, 30, tzinfo=UTC)),
+        ("Mon, 16 Nov 2026 16:30:00 GMT", datetime(2026, 11, 16, 16, 30, tzinfo=UTC)),
+        ("Mon, 16 Nov 2026 16:30:00", datetime(2026, 11, 16, 16, 30)),
         ("2026-11-16", date(2026, 11, 16)),
+        ("20261116", date(2026, 11, 16)),
         ("next week", "next week"),
         ("", None),
         (None, None),
     ],
 )
 def test_feed_moments(text: str | None, expected: object) -> None:
-    assert feed_moment(text) == expected
+    moment = feed_moment(text)
+    assert moment == expected
+    assert type(moment) is type(expected)
+    if isinstance(moment, datetime) and isinstance(expected, datetime):
+        assert moment.utcoffset() == expected.utcoffset()
 
 
 # --- hand-written list pages ---------------------------------------------------------------

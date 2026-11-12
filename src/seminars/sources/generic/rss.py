@@ -257,7 +257,7 @@ class FeedItem:
 
 
 def feed_moment(text: str | None) -> Moment | str | None:
-    """A feed date: ISO 8601 or RFC 822 with its offset; other text stays text."""
+    """A feed date: ISO 8601 or RFC 822 with its offset (-0000 is UTC); other text stays text."""
     value = collapse(text)
     if value is None:
         return None
@@ -265,9 +265,10 @@ def feed_moment(text: str | None) -> Moment | str | None:
     if moment is not None:
         return moment
     try:
-        return parsedate_to_datetime(value)
+        moment = parsedate_to_datetime(value)
     except (TypeError, ValueError, IndexError):
         return value
+    return moment.replace(tzinfo=UTC) if value.endswith(" -0000") else moment
 
 
 def markup_text(text: str | None) -> str | None:
