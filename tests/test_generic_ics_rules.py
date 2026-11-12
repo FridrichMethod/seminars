@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import datetime as datetime_module
+import inspect
 import random
+import types
+from collections import Counter
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from zoneinfo import ZoneInfo
 
 import icalendar
 import pytest
+from dateutil import rrule as dateutil_rrule
 from dateutil.rrule import rrule, rruleset, rrulestr
 
 from seminars.models import TimeWindow
@@ -53,9 +58,6 @@ def days_of(window: TimeWindow) -> int:
 # --- what the walk gives: the same occurrences as dateutil ---------------------------------
 
 WEEKDAYS = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
-LONG_WINDOW = TimeWindow(
-    start=datetime(2026, 10, 1, 7, 0, tzinfo=UTC), end=datetime(2027, 4, 1, 7, 0, tzinfo=UTC)
-)
 
 
 def _pick(rng: random.Random, values: list[int], most: int) -> str:
@@ -102,7 +104,7 @@ def random_rule(rng: random.Random, start: datetime) -> str:
     if rng.random() < 0.25:
         parts.append(f"COUNT={rng.randint(1, 60)}")
     elif rng.random() < 0.25:
-        until = datetime(2026, 11, 1, tzinfo=UTC) + timedelta(days=rng.randint(0, 120))
+        until = start.replace(tzinfo=None) + timedelta(hours=rng.randint(0, 1000 * 24))
         stamp = until.strftime("%Y%m%dT%H%M%S")
         parts.append(f"UNTIL={stamp}Z" if start.tzinfo is not None else f"UNTIL={stamp}")
     return ";".join(parts)
@@ -110,10 +112,47 @@ def random_rule(rng: random.Random, start: datetime) -> str:
 
 def random_start(rng: random.Random) -> datetime:
     zone: tzinfo | None = rng.choice([UTC, PACIFIC, None])
-    day = date(2024, 1, 1) + timedelta(days=rng.randint(0, 1050))
+    day = FIRST_START + timedelta(days=rng.randint(0, 1050))
     return datetime(
         day.year, day.month, day.day, rng.randint(0, 23), rng.choice([0, 30]), 0, 0, zone
     )
+
+
+def random_window(rng: random.Random, start: datetime) -> TimeWindow:
+    """A window from 200 days before DTSTART to 900 after, of 30 minutes to 400 days."""
+    begin = start.replace(tzinfo=UTC) + timedelta(minutes=rng.randint(-200, 900) * 1440)
+    begin += timedelta(minutes=rng.randint(0, 1439))
+    return TimeWindow(start=begin, end=begin + timedelta(minutes=rng.randint(30, 400 * 1440)))
+
+
+FIRST_START = date(2024, 1, 1)
+LAST_YEAR = 2031  # after every window that random_window builds from random_start
+
+
+@pytest.fixture
+def bounded_dateutil(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make dateutil stop after LAST_YEAR instead of the year 9999.
+
+    dateutil looks at UNTIL and COUNT only when it finds an occurrence, so a
+    rule that has none after the window would step through every period up
+    to ``datetime.MAXYEAR``, which its loop reads from the module ``datetime``.
+    """
+    assert "datetime.MAXYEAR" in inspect.getsource(dateutil_rrule)
+    calendar = types.SimpleNamespace(**vars(datetime_module))
+    calendar.MAXYEAR = LAST_YEAR
+    monkeypatch.setattr(dateutil_rrule, "datetime", calendar)
+    # The cap of one rule would stop some of the long walks; this test is about results.
+    monkeypatch.setattr(ics_rules, "MAX_EXPANSION_STEPS", 10**8)
+
+
+def bounds(window: TimeWindow, start: datetime) -> tuple[datetime, datetime]:
+    """The window in the terms of ``start``: aware, or wall time of the floating zone."""
+    if start.tzinfo is not None:
+        return window.start, window.end
+    low, high = (
+        moment.astimezone(PACIFIC).replace(tzinfo=None) for moment in (window.start, window.end)
+    )
+    return low, high
 
 
 def reference(text: str, start: datetime, low: datetime, high: datetime) -> list[datetime]:
@@ -132,38 +171,54 @@ def reference(text: str, start: datetime, low: datetime, high: datetime) -> list
     return found
 
 
-def continues(text: str, start: datetime, after: datetime) -> bool:
-    """Whether the rule without COUNT and UNTIL has an occurrence in the 6 years after ``after``.
-
-    dateutil looks at UNTIL and COUNT only when it finds an occurrence, so
-    without one after the window it would step through every period until
-    the year 9999; such rules are left out of the comparison.
-    """
-    plain = ";".join(part for part in text.split(";") if not part.startswith(("COUNT", "UNTIL")))
-    begin = after if after.tzinfo is not None else after.replace(tzinfo=PACIFIC)
-    later = TimeWindow(start=begin, end=begin + timedelta(days=6 * 366))
-    return bool(run(plain, start=start, window=later).starts)
-
-
+@pytest.mark.usefixtures("bounded_dateutil")
 def test_the_walk_gives_what_dateutil_gives() -> None:
+    # Every rule is compared, the ones that never match included, each in a window of its own.
     rng = random.Random(20261111)
-    compared = refused = 0
-    for _ in range(600):
+    compared, kinds = 0, Counter[str]()
+    for _ in range(700):
         start = random_start(rng)
         text = random_rule(rng, start)
+        window = random_window(rng, start)
         try:
-            got = run(text, start=start, window=LONG_WINDOW).starts
+            got = run(text, start=start, window=window).starts
         except ValueError:
-            refused += 1
             continue
-        low, high = ics_rules._window_bounds(LONG_WINDOW, start, "America/Los_Angeles")
-        until = icalendar.vRecur.from_ical(text).get("UNTIL")
-        last = max(high, until[0]) if until else high
-        if not continues(text, start, last):
-            continue
-        assert list(got) == reference(text, start, low, high)[:MAX_OCCURRENCES], (text, start)
+        expected = reference(text, start, *bounds(window, start))[:MAX_OCCURRENCES]
+        assert list(got) == expected, (text, start, window)
         compared += 1
-    assert compared >= 300, (compared, refused)
+        if len(expected) > (start in expected):
+            parts = dict(part.split("=") for part in text.split(";"))
+            kinds[parts["FREQ"] + (" BYSETPOS" if "BYSETPOS" in parts else "")] += 1
+    assert compared >= 450, compared
+    # Rules of every kind gave occurrences besides DTSTART: the comparison saw them.
+    assert min(kinds[kind] for kind in ("DAILY", "WEEKLY", "MONTHLY", "YEARLY")) >= 30, kinds
+    assert min(kinds["MONTHLY BYSETPOS"], kinds["YEARLY BYSETPOS"]) >= 8, kinds
+
+
+@pytest.mark.usefixtures("bounded_dateutil")
+def test_the_reference_is_bounded_by_the_patched_year() -> None:
+    # A rule that never matches: dateutil itself stops after LAST_YEAR, without the walk.
+    assert reference(f"{NEVER};BYSETPOS=2", START, START, datetime(2027, 1, 1, tzinfo=UTC)) == [
+        START
+    ]
+
+
+def test_a_yearly_rule_with_a_set_position() -> None:
+    two_years = TimeWindow(start=WINDOW.start, end=datetime(2028, 1, 1, tzinfo=UTC))
+    expansion = run("FREQ=YEARLY;BYMONTH=11;BYDAY=TU;BYSETPOS=-1", window=two_years)
+    assert expansion.starts == (
+        START,
+        datetime(2026, 11, 24, 23, tzinfo=UTC),
+        datetime(2027, 11, 30, 23, tzinfo=UTC),
+    )
+    first = run("FREQ=YEARLY;BYDAY=TU;BYSETPOS=1,-1", window=two_years)
+    assert first.starts == (
+        START,
+        datetime(2026, 12, 29, 23, tzinfo=UTC),
+        datetime(2027, 1, 5, 23, tzinfo=UTC),
+        datetime(2027, 12, 28, 23, tzinfo=UTC),
+    )
 
 
 # --- what the walk costs -------------------------------------------------------------------
@@ -228,6 +283,15 @@ def test_until_before_the_end_of_the_window_ends_the_walk() -> None:
     assert expansion.steps <= 2 * 7
     ended = run("FREQ=DAILY;UNTIL=20261019T000000Z", start=datetime(1990, 1, 1, 23, tzinfo=UTC))
     assert (ended.starts, ended.steps, ended.rules) == ((), 0, 0)
+
+
+def test_an_until_before_the_end_of_the_window_bounds_a_rule_that_never_matches() -> None:
+    two_years = TimeWindow(start=WINDOW.start, end=WINDOW.start + timedelta(days=730))
+    unbounded = run(f"{NEVER};BYSETPOS=2", window=two_years)
+    bounded = run(f"{NEVER};BYSETPOS=2;UNTIL=20261101T000000Z", window=two_years)
+    assert unbounded.starts == bounded.starts == (START,)
+    # Only October and November are walked, not the 25 months of the window.
+    assert bounded.steps * 10 < unbounded.steps
 
 
 def test_a_repeated_position_is_one_position() -> None:
