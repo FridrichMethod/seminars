@@ -11,7 +11,7 @@
   "feeds": {
     "all": {
       "name": "Seminars - All",
-      "description": "Every academic talk collected from Stanford, SLAC, Arc Institute and CZ Biohub."
+      "description": "Every academic talk collected from Stanford, SLAC, CZ Biohub and nearby institutes."
     },
     "picks": {
       "name": "Seminars - Picks",
@@ -115,7 +115,7 @@
   "site": {
     "app": {
       "name": "Stanford-area seminars",
-      "tagline": "Academic talks at Stanford, SLAC, Arc Institute and CZ Biohub, collected every day from their public pages."
+      "tagline": "Academic talks at Stanford, SLAC, CZ Biohub and nearby institutes, collected every day from their public pages."
     },
     "page": {
       "index_title": "Seminars - upcoming talks",
@@ -208,7 +208,7 @@
     },
     "subscribe": {
       "title": "Subscribe to a calendar",
-      "intro": "Each calendar is an ICS feed that refreshes itself every few hours. Subscribe once and new talks appear on their own.",
+      "intro": "Each calendar is an ICS feed that refreshes itself every few hours. Subscribe once and new talks appear on their own. A talk in several fields is in each of their calendars, so it appears once per calendar you subscribe to.",
       "feeds": "Calendars",
       "calendar_link": "Calendar app link",
       "web_link": "Web link",

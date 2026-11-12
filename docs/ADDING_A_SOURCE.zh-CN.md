@@ -47,7 +47,7 @@ uv run python -m seminars.fixtures fetch --save-dir .scratch/example \
 | `localist` | `localist.yaml` | `localist-` | Stanford Events，学校的 Localist 日历 |
 | `stanford-sites` | `stanford-sites.yaml` | `sites-` | 建在 Stanford Sites（Drupal）上的院系网站 |
 | `stanford-custom` | `stanford-custom.yaml` | `custom-` | 有自己页面的 Stanford 实验室和中心 |
-| `bayarea` | `bayarea.yaml` | `bayarea-` | SLAC、Arc Institute 和 CZ Biohub |
+| `bayarea` | `bayarea.yaml` | `bayarea-` | SLAC、CZ Biohub 和其他湾区研究机构 |
 | `researchseminars` | `researchseminars.yaml` | `rsorg-` | researchseminars.org 上的系列报告 |
 
 使用通用 adapter 的一条记录：
@@ -80,6 +80,8 @@ sources:
 - 其他 key：`homepage`、`series`、`default_event_type`、`timezone`、`aggregator`、
   `llm_fallback`、`enabled`。完整的 schema 和每个 key 的说明在
   `src/seminars/models/source.py` 的 `SourceConfig` 里；未知的 key 会报错。
+- `enabled: false` 停用一个数据源，但保留它的条目。停用数据源或删除它的条目之后，下一次运行时
+  它的未来报告会从 feed 和网站上一并去掉。
 
 ## 3. 选择 adapter
 
@@ -163,7 +165,7 @@ class ExampleLabAdapter:
 - `parse` 是 payload 和数据源配置的纯函数。它照抄数据源的内容，清理文本是 pipeline 的事。
   需要"现在"的时候（例如推断缺失的年份）用 `payload.fetched_at`。
 - 时间和链接由 adapter 负责，因为只有它知道格式。不带时区的时间是数据源所在时区的当地时间；
-  只有日期、没有时间的是全\u5929事件，它的 `end` 是最后一\u5929（包含这一\u5929）。每个链接都用
+  只有日期、没有时间的是全天事件，它的 `end` 是最后一天（包含这一天）。每个链接都用
   `absolute_url(document.final_url, link)` 变成绝对地址。
 - 响应完全看不懂时抛 `ParseError`；单条格式错误的条目跳过即可。违反规则的 draft 在构造时会抛
   `pydantic.ValidationError`，也算单条格式错误。

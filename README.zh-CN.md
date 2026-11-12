@@ -2,7 +2,7 @@
 
 # seminars
 
-每天从公开网页收集 Stanford 及周边机构（SLAC、Arc Institute、CZ Biohub）的学术
+每天从公开网页收集 Stanford、SLAC、CZ Biohub 及周边其他研究机构的学术
 seminar、talk 和 colloquium，以三种形式发布：
 
 - **日历订阅**（ICS），可以在日历应用里订阅：每个领域一个、个人精选一个、全部一个；
@@ -20,7 +20,7 @@ seminar、talk 和 colloquium，以三种形式发布：
 
 | Feed | 内容 | 订阅 |
 |---|---|---|
-| `all` | 从 Stanford、SLAC、Arc Institute 和 CZ Biohub 收集到的全部报告 | （发布时填写） |
+| `all` | 从 Stanford、SLAC、CZ Biohub 及周边研究机构收集到的全部报告 | （发布时填写） |
 | `picks` | 符合个人兴趣规则（`config/interests.yaml`）的报告 | （发布时填写） |
 | `math` | 纯数学、应用数学和统计 | （发布时填写） |
 | `cs` | 计算机科学 | （发布时填写） |
@@ -40,12 +40,16 @@ seminar、talk 和 colloquium，以三种形式发布：
 
 ### 每周摘要
 
-每周一早上开一个带 `digest` 标签的新 issue，列出下一周的报告和上一期以来新增的报告，
+每周一早上开一个带 `digest` 标签的新 issue，列出本周（周一到周日）的报告和上一期以来新增的报告，
 并关闭上一期摘要。
 
 ## 订阅
 
 把 feed 地址开头的 `https://` 换成 `webcal://`，大多数日历应用就会订阅它，而不是只导入一次。
+
+一个报告属于几个领域，就会出现在这几个领域各自的 feed 里，而日历应用按 feed 显示事件，每个 feed 一次：
+同时订阅其中两个 feed，这个报告就会显示两次。想让每个报告只出现一次，就只订阅 `all`（或者只订阅 `picks`）。
+报告结束 14 天后，feed 会把它删掉，它也会随之从你的日历里消失。
 
 ### Apple Calendar
 

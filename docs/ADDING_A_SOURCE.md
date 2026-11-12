@@ -56,7 +56,7 @@ names its fixture directory `tests/fixtures/<id>/`.
 | `localist` | `localist.yaml` | `localist-` | Stanford Events, the Localist calendar of the university |
 | `stanford-sites` | `stanford-sites.yaml` | `sites-` | department sites built on Stanford Sites (Drupal) |
 | `stanford-custom` | `stanford-custom.yaml` | `custom-` | Stanford labs and centers with pages of their own |
-| `bayarea` | `bayarea.yaml` | `bayarea-` | SLAC, Arc Institute and CZ Biohub |
+| `bayarea` | `bayarea.yaml` | `bayarea-` | SLAC, CZ Biohub and other Bay Area institutes |
 | `researchseminars` | `researchseminars.yaml` | `rsorg-` | series listed on researchseminars.org |
 
 An entry for a generic adapter:
@@ -92,6 +92,9 @@ sources:
 - Other keys: `homepage`, `series`, `default_event_type`, `timezone`, `aggregator`,
   `llm_fallback`, `enabled`. The schema, with every key explained, is `SourceConfig`
   in `src/seminars/models/source.py`; unknown keys are an error.
+- `enabled: false` turns a source off and keeps its entry. Turning a source off, or
+  removing its entry, removes its future talks at the next run, from the feeds and
+  the site alike.
 
 ## 3. Choose the adapter
 
