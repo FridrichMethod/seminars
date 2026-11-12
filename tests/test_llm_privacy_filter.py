@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from seminars.llm.grounding import Grounding
 from seminars.llm.privacy_filter import (
     MAX_DECODING_PASSES,
     PrivacyFilter,
@@ -102,3 +103,17 @@ class TestTheProjectFilter:
     def test_it_uses_the_scrubber_of_normalization(self) -> None:
         assert project_privacy_filter().scrub is scrub_private
         assert project_scrubber() is scrub_private
+
+
+class TestGroundingHas:
+    PAGE = "Talk: How keys leak [[1]] from public code\nRoom 104"
+
+    @pytest.mark.parametrize("value", ["how KEYS leak", "leak from  public", "Room 104"])
+    def test_a_part_of_the_page_up_to_case_spacing_and_link_markers(self, value: str) -> None:
+        for similarity in (0, 90, 100):
+            assert Grounding(self.PAGE, min_similarity=similarity).has(value)
+
+    @pytest.mark.parametrize("value", ["How keys leek from public code", "", "   ", "Room 105"])
+    def test_anything_else_whatever_the_similarity(self, value: str) -> None:
+        grounding = Grounding(self.PAGE, min_similarity=0)
+        assert not grounding.has(value)

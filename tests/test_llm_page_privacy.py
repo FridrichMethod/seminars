@@ -242,12 +242,28 @@ class TestGroundingOfAHit:
     STRICT: Final = LLMConfig(grounding_min_similarity=100)
 
     def cached(self, directory: Path, values: dict[str, str]) -> str:
-        """The page of ``values``, read once with a title the model got one letter wrong."""
+        """The page of ``values`` and an entry with a title the model got one letter wrong.
+
+        A new answer is stored in the words of the page where the model's
+        differ, so only an entry from before has such a title.
+        """
         text = page_with(values)
         talk = {**talk_with(values), "title": self.TYPO}
-        [draft] = extract(FakeLLMClient(answer(talk)), text, file_cache(directory))
+        file_cache(directory).put(key_of(text), cache_value(date(2026, 11, 9), answer(talk)))
+        [draft] = extract(FakeLLMClient(), text, file_cache(directory))
         assert draft.title == BASE["title"]
         return text
+
+    def test_a_new_answer_is_cached_in_the_words_of_the_page(self, tmp_path: Path) -> None:
+        directory = tmp_path / "llm_cache"
+        text = page_with(BASE)
+        talk = {**talk_with(BASE), "title": self.TYPO}
+        [draft] = extract(FakeLLMClient(answer(talk)), text, file_cache(directory))
+        assert draft.title == BASE["title"]
+        [item] = stored_items(directory)
+        assert item["title"] == BASE["title"]
+        [strict] = extract(FakeLLMClient(), text, file_cache(directory, days_later=1), self.STRICT)
+        assert strict.title == BASE["title"], "page text is grounded by any threshold"
 
     def test_a_stricter_grounding_never_rewrites_an_entry(self, tmp_path: Path) -> None:
         directory = tmp_path / "llm_cache"

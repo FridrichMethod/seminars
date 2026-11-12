@@ -5,29 +5,36 @@ one item per talk and caches the answer by the piece of page text it sent.
 data/llm_cache/ is committed to a public repository, so every text value of
 an answer (title, speaker name and affiliation, series, location, abstract)
 is checked before the answer is stored. The checks compare a value with the
-piece as normalization reads text before it scrubs it
-(``seminars.llm.privacy_filter.readable``), with its meeting codes, e-mail
-addresses and phone numbers scrubbed in the context of the whole page
-(``PieceForms``). Values are taken from that text, which is also the
-``source_text`` of the drafts.
+piece in two forms (``PieceForms``): as normalization reads text before it
+scrubs it (``seminars.llm.privacy_filter.readable``), and that text with its
+meeting codes, e-mail addresses and phone numbers scrubbed, in the context
+of the whole page. Values are taken from the scrubbed form, which is also
+the ``source_text`` of the drafts.
 
 A new answer (``grounded_answer``). A value is read and scrubbed the way
 normalization does it (``PrivacyFilter.clean``) and must be grounded in the
-scrubbed piece; otherwise it is dropped. So a value that is private only in
-the words around it (an address spelled "jdoe at stanford.edu" after an
-"E-mail:" that the value leaves out) is not grounded at all, and what a
-hostile page made the model write beyond the page text never reaches the
-cache.
+scrubbed piece; otherwise it is dropped. What is kept is the value in the
+words of the model only when the scrubbed piece has exactly these words (up
+to case, spacing and typography); a value the model changed beyond that is
+kept in the words of the page, the part of the scrubbed piece it stands for.
+So a value the model copied with a slip ("Zoom pascode: 482913", which the
+scrubber does not recognize) is stored as the page has it, with the code
+scrubbed, and a value that is private only in the words around it (an
+address spelled "jdoe at stanford.edu" after an "E-mail:" that the value
+leaves out) is not grounded at all. What a hostile page made the model
+write beyond the page text never reaches the cache.
 
 An entry that is read (``filtered_answer``). Grounding depends on the
 configuration (``grounding_min_similarity``) as well as on the page, so it
 is applied to a new answer and to every draft, but it never drops a value
 of a hit. A value of a hit is scrubbed as it is, and that is the only way it
-is ever rewritten; it is dropped only when it shows a secret or hides
-private data. A hit is therefore stored again only when the scrubber or the
-secret filter changed it (an entry written before they knew a case), and a
-change of the configuration never rewrites the cache: lowering a threshold
-that was raised gives back what the stricter grounding left out.
+is ever rewritten; it is dropped only for privacy: when it shows a secret,
+or when it is not page text and the part of the page it stands for (found
+with the fixed ``CHECK_SIMILARITY``) was changed by the scrubber. A hit is
+therefore stored again only when the scrubber or the secret filter changed
+it (an entry written before they knew a case), and a change of the
+configuration never rewrites the cache: lowering a threshold that was raised
+gives back what the stricter grounding left out.
 
 Both kinds of values are dropped when some form of them that normalization
 may read still shows private data (``PrivacyFilter.hides``), or when they,
@@ -42,6 +49,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
+from functools import cached_property
 from typing import Final
 
 from seminars.llm.grounding import Grounding
@@ -51,6 +59,13 @@ from seminars.models import Model
 
 MAX_EVENTS_PER_CHUNK: Final = 100
 """Items of one answer that are read and cached; the rest is left out."""
+
+CHECK_SIMILARITY: Final = 90
+"""How alike a cached value and the part of the page it stands for must be, for its checks.
+
+The default of ``grounding_min_similarity``, but fixed: what a hit keeps
+must not depend on the configuration.
+"""
 
 
 class ExtractedSpeaker(Model):
@@ -106,6 +121,11 @@ class PieceForms:
     grounding: Grounding
     """Over ``scrubbed``, with the configured similarity."""
 
+    @cached_property
+    def unscrubbed(self) -> Grounding:
+        """Over ``readable``, with ``CHECK_SIMILARITY``; built when a hit first needs it."""
+        return Grounding(self.readable, min_similarity=CHECK_SIMILARITY)
+
 
 def piece_forms(chunk: str, privacy: PrivacyFilter, *, min_similarity: int) -> PieceForms:
     """``chunk`` in the forms of ``PieceForms``; grounding with ``min_similarity``."""
@@ -136,7 +156,8 @@ class AnswerFilter:
         """A value of a new answer as it is cached; ``None`` when it may not be cached.
 
         See the module docstring: read and scrubbed as normalization does
-        it, and grounded in the scrubbed piece.
+        it, grounded in the scrubbed piece, in the words of the model only
+        when the scrubbed piece has them.
         """
         if value is None:
             return None
@@ -144,21 +165,30 @@ class AnswerFilter:
         found = piece.grounding.text(cleaned)
         if found is None:
             return None
-        return cleaned if self._safe(cleaned, found) else None
+        kept = cleaned if piece.grounding.has(cleaned) else found
+        return kept if self._safe(kept, found) else None
 
     def kept_value(self, value: str | None, piece: PieceForms) -> str | None:
         """A value of a cached answer as it may stay in the cache; ``None`` when it may not.
 
         It is scrubbed as it is. A value that was nothing but private data
         goes; one that was empty already stays as it is, so that it is not
-        stored again.
+        stored again. A value that is not a part of the scrubbed piece goes
+        when the part of the page it stands for is not one either: the
+        scrubber changed that part, and the value may still show what it
+        took out. A value without such a part stays (see the module
+        docstring: grounding never drops a value of a hit).
         """
         if value is None:
             return None
         scrubbed = self.privacy.scrub(value)
         if scrubbed != value and not scrubbed.strip():
             return None
-        part = piece.grounding.text(scrubbed)
+        part: str | None = scrubbed
+        if not piece.grounding.has(scrubbed):
+            part = piece.unscrubbed.text(scrubbed)
+            if part is not None and not piece.grounding.has(part):
+                return None
         return scrubbed if self._safe(scrubbed, part) else None
 
 

@@ -56,9 +56,10 @@ way normalization reads text before it scrubs it (entities decoded,
 characters cleaned) and scrubbed by the scrubber of normalization
 (``seminars.llm.privacy_filter``). That is the text every value is
 grounded in and taken from, and the ``source_text`` of the drafts. A value
-of an answer is read and scrubbed the same way before it is grounded. A
-value that still hides private data in a form normalization reads (behind
-markup, say), or that
+of a new answer is cached in the words of the model only where that text
+has them, and otherwise in the words of the page, so a slip of the model
+cannot bring back what the scrubber took out. A value that still hides
+private data in a form normalization reads (behind markup, say), or that
 shows a secret, or whose part of the page does
 (``seminars.llm.secret_filter``), is dropped like an ungrounded one, and
 the rest of the talk is kept. The model still gets the piece as it is, and
@@ -68,8 +69,8 @@ is not cached at all; the next run asks again.
 A hit is checked for privacy and secrets, but not grounded: grounding
 depends on ``grounding_min_similarity`` as well, and is applied when the
 drafts are made. Its values are scrubbed as they are, and a value goes when
-it shows a secret or hides private data; ``seminars.llm.extraction`` has
-the rules. An entry is
+it shows a secret, hides private data, or stands for a part of the page that
+the scrubber changed; ``seminars.llm.extraction`` has the rules. An entry is
 stored again only when that changes it, so the cache never brings private
 data or a secret back (also one stored before the rules knew its shape),
 and a change of the configuration never rewrites it. An entry that cannot be
