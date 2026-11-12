@@ -292,8 +292,9 @@ def embedded_vevent(document: FetchedDocument, uri: str | None) -> icalendar.Com
     )
     try:
         vevents = read_calendar(embedded).vevents
-    except (ParseError, AttributeError, KeyError, IndexError, TypeError):
-        # icalendar 7 can fail on a broken VTIMEZONE with an AttributeError; one
+    except (ParseError, AttributeError, KeyError, IndexError, TypeError, OSError):
+        # icalendar 7 can fail on a broken VTIMEZONE with an AttributeError, and on
+        # a TZID too long for a file name with an OSError from the zone lookup; one
         # embedded calendar must not take the other cards of the list down.
         return None
     return vevents[0] if vevents else None
@@ -329,13 +330,14 @@ def _zoned(moment: DraftTime, tzid: str | None) -> DraftTime:
     """``moment`` as wall time in the zone ``tzid`` names, looked up with ``zoneinfo``.
 
     The VTIMEZONE of the URI is never used: a TZID that ``zoneinfo`` does not
-    know leaves a floating wall time (in the source's timezone).
+    know, or cannot look up (a name too long for a file name), leaves a
+    floating wall time (in the source's timezone).
     """
     if not isinstance(moment, datetime) or tzid is None:
         return moment
     try:
         zone: ZoneInfo | None = ZoneInfo(tzid)
-    except (ZoneInfoNotFoundError, ValueError):
+    except (ZoneInfoNotFoundError, ValueError, OSError):
         zone = None
     return moment.replace(tzinfo=zone)
 

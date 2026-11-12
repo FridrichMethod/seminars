@@ -284,6 +284,11 @@ BROKEN_VTIMEZONE = (
     .replace("BEGIN:VTIMEZONE", "BEGIN:VTIMEZO;E")
     .replace("TZID:America/Los_Angeles\r\nBEGIN:STANDARD", "TZID:Custom/Zone\r\nBEGIN:STANDARD")
 )
+# A zone name too long for a file name: the zone lookup raises OSError. icalendar
+# caches the VTIMEZONEs it has read by TZID for the whole process, so the zone a
+# test defines has a name of its own.
+LONG_TZID = "Z" * 300
+DEFINED_LONG_TZID = "Y" * 300
 
 
 COLLOQUIUM_PARAMS: dict[str, Any] = {
@@ -373,6 +378,19 @@ class TestTimes:
         assert isinstance(draft.end, datetime)
         assert draft.end.utcoffset() == timedelta(0)
 
+    def test_an_over_long_tzid_defined_in_the_calendar_is_floating(self) -> None:
+        calendar = (
+            vcalendar(
+                start=f"DTSTART;TZID={DEFINED_LONG_TZID}:20261116T160000",
+                end=f"DTEND;TZID={DEFINED_LONG_TZID}:20261116T170000",
+            )
+            .replace("TZID:America/Los_Angeles", f"TZID:{DEFINED_LONG_TZID}")
+            .replace("BEGIN:STANDARD", "BEGIN:STANDARD\r\nDTSTART:19701101T020000")
+        )
+        draft = one(list_page(card()), {"/events/a-talk": detail_page(calendar=calendar)})
+        assert draft.start == datetime(2026, 11, 16, 16, 0)  # floating: the source's zone
+        assert draft.end == datetime(2026, 11, 16, 17, 0)
+
     def test_no_dtend_means_no_end(self) -> None:
         draft = one(
             list_page(card()), {"/events/a-talk": detail_page(calendar=vcalendar(end=None))}
@@ -454,6 +472,10 @@ class TestIdentityAndDropping:
             pytest.param(detail_page(href="data:text/calendar;base64,@@@"), id="bad-base64"),
             pytest.param(detail_page(href="data:text/calendar;base64,abc"), id="bad-padding"),
             pytest.param(detail_page(calendar=BROKEN_VTIMEZONE), id="broken-vtimezone"),
+            pytest.param(
+                detail_page(calendar=vcalendar(start=f"DTSTART;TZID={LONG_TZID}:20261116T160000")),
+                id="over-long-tzid",
+            ),
             pytest.param(detail_page(calendar=vcalendar(uid=None)), id="no-uid"),
             pytest.param(
                 detail_page(calendar=vcalendar(start="DTSTART:garbage")), id="broken-start"

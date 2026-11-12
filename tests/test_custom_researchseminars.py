@@ -480,6 +480,9 @@ def vevent(*lines: str, uid: str | None = "S1/7", start: str | None = "20261117T
     return "BEGIN:VEVENT\n" + "".join(f"{line}\n" for line in body) + "END:VEVENT\n"
 
 
+# A zone name too long for a file name: the zone lookup raises OSError.
+LONG_ZONE = "Z" * 300
+
 DESCRIPTION = (
     'DESCRIPTION:Title: <a href="https://researchseminars.org/talk/S1/7/">A talk</a>\\n'
     "by Jane Doe (MIT) as part of Example series\\n\\n\\nAbstract\\nText"
@@ -582,13 +585,29 @@ class TestHandWrittenFeeds:
         with pytest.raises(ParseError, match="source rsorg-example"):
             parse("<html><body>Not found</body></html>\n")
 
-    def test_a_feed_that_breaks_the_calendar_library_is_a_parse_error(self) -> None:
-        broken = (
-            "BEGIN:VCALENDAR\nBEGIN:VTIMEZO;E\nTZID:Custom/Zone\nBEGIN:STANDARD\n"
-            "TZOFFSETFROM:-0800\nTZOFFSETTO:-0800\nEND:STANDARD\nEND:VTIMEZONE\n"
-            + vevent()
-            + "END:VCALENDAR\n"
-        )
+    @pytest.mark.parametrize(
+        "broken",
+        [
+            pytest.param(
+                "BEGIN:VCALENDAR\nBEGIN:VTIMEZO;E\nTZID:Custom/Zone\nBEGIN:STANDARD\n"
+                "TZOFFSETFROM:-0800\nTZOFFSETTO:-0800\nEND:STANDARD\nEND:VTIMEZONE\n"
+                + vevent()
+                + "END:VCALENDAR\n",
+                id="broken-vtimezone",
+            ),
+            pytest.param(
+                calendar(vevent(f"DTSTART;TZID={LONG_ZONE}:20261117T090000", start=None)),
+                id="over-long-tzid",
+            ),
+            pytest.param(
+                calendar(vevent()).replace(
+                    "VERSION:2.0", f"VERSION:2.0\nX-WR-TIMEZONE:{LONG_ZONE}"
+                ),
+                id="over-long-calendar-zone",
+            ),
+        ],
+    )
+    def test_a_feed_that_breaks_the_calendar_library_is_a_parse_error(self, broken: str) -> None:
         with pytest.raises(ParseError, match="source rsorg-example: the iCalendar feed"):
             parse(broken)
 
