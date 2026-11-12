@@ -267,7 +267,7 @@ class TestOneSourceTwoSpeakers:
 
 
 class TestSeparation:
-    """Listings of one source that the uid map holds under one uid but name other speakers."""
+    """Listings of one source that the uid map holds under one uid."""
 
     def listing(self, key: str, name: str | None, uid: str = "sites-x.1001") -> Candidate:
         source = key.partition(":")[0]
@@ -293,13 +293,17 @@ class TestSeparation:
         foreign.append(self.listing("sites-x:1001", "Bea Jones", "sites-b.3003"))
         assert uids_of(separate_listings(foreign)) == ["sites-x.2002", "sites-b.3003"]
 
-    def test_no_speaker_or_the_same_speakers_keep_the_uid(self) -> None:
+    def test_other_listings_of_the_source_leave_and_dedup_decides(self) -> None:
         listings = [
             self.listing("sites-x:1001", "Ann Smith"),
             self.listing("sites-x:2002", None),
             self.listing("sites-x:3003", "Dr. Ann SMITH"),
         ]
-        assert separate_listings(listings) == listings
+        moved = separate_listings(listings)
+        assert uids_of(moved) == ["sites-x.1001", "sites-x.2002", "sites-x.3003"]
+        result = run(*moved)
+        assert uids(result) == ["sites-x.1001"]
+        assert set(result.absorbed) == {"sites-x.2002", "sites-x.3003"}
 
     def test_listings_of_other_sources_keep_the_uid(self) -> None:
         listings = [
@@ -333,8 +337,8 @@ class TestSeparation:
         expected = {
             "sites-x:2002": "sites-x.1001",
             "sites-x:3003": "sites-x.3003",
-            "sites-x:4004": "sites-x.1001",
-            "sites-x:5005": "sites-x.1001",
+            "sites-x:4004": "sites-x.4004",
+            "sites-x:5005": "sites-x.5005",
         }
         for order in itertools.permutations(listings):
             moved = separate_listings(list(order))

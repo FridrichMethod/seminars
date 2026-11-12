@@ -33,11 +33,11 @@ speakers) is similar to both.
 
 The uid map does not get the last word on that guard: before a run
 looks at the uids, ``separate_listings`` gives a listing a uid of its own
-when its uid also holds a listing of its source that names other
-speakers, so a merge that later evidence refutes is undone. That is the
-one known gap of the guard: two talks of one source at one time, one of
-which names no speaker yet, can be one event for a run; once both name
-their speakers, the next run takes them apart again.
+when its uid also holds another listing of its source, so the rules above
+decide again in every run and a merge that later evidence refutes is
+undone. That is the one known gap of the guard: two talks of one source
+at one time, one of which names no speaker yet, can be one event for a
+run; once both name their speakers, the next run takes them apart again.
 
 Everything that is connected by such pairs forms one group, and each group
 becomes one event:
@@ -117,8 +117,9 @@ from seminars.models import (
 )
 from seminars.pipeline.ids import (
     canonical_url,
+    follow_changed_keys,
     is_native_key,
-    is_time_of_day_key,
+    same_people,
     tell_apart_day_keys,
     uid_for_key,
 )
@@ -128,6 +129,7 @@ from seminars.pipeline.text import canonical_name, fold, word_set
 
 MIN_TITLE_WORDS: Final = 2
 """Titles with fewer words are not compared: "Seminar" is part of too many titles."""
+
 
 _TITLE_FILLER: Final = word_set(
     "a an and at by for from in of on the to with seminar seminars talk talks lecture "
@@ -488,39 +490,26 @@ def _keys(members: Sequence[Candidate], unit: Iterable[int]) -> list[str]:
     return sorted(key for position in unit for key in members[position].event.source_ids)
 
 
-def _other_speakers(first: _Profile, second: _Profile) -> bool:
-    """Whether two listings of one source name speakers, and not the same ones."""
-    return bool(
-        first.sources & second.sources
-        and first.speakers
-        and second.speakers
-        and first.speakers != second.speakers
-    )
-
-
 def _leaving(uid: str, members: Sequence[Candidate]) -> list[list[int]]:
     """The units of ``members`` (listings that all have ``uid``) that must leave the uid.
 
     The unit that holds the key ``uid`` was derived from comes first, then
     the others by their smallest key, the same order in every run. A unit
-    stays unless it names other speakers than a unit of its source that
-    stayed (``_other_speakers``).
+    leaves when a unit of one of its sources stayed.
     """
-    profiles = [_profile(member, ()) for member in members]
 
     def rank(unit: list[int]) -> tuple[bool, str]:
         keys = _keys(members, unit)
         return all(uid_for_key(key) != uid for key in keys), keys[0]
 
-    staying: list[int] = []
+    staying: set[str] = set()
     leaving: list[list[int]] = []
     for unit in sorted(_units(members), key=rank):
-        if any(
-            _other_speakers(profiles[one], profiles[other]) for one in unit for other in staying
-        ):
+        sources = {split_source_key(key)[0] for key in _keys(members, unit)}
+        if sources & staying:
             leaving.append(unit)
         else:
-            staying += unit
+            staying |= sources
     return leaving
 
 
@@ -545,25 +534,27 @@ def _separated_once(candidates: Sequence[Candidate]) -> list[Candidate]:
 
 
 def separate_listings(candidates: Sequence[Candidate]) -> list[Candidate]:
-    """Give a listing a uid of its own when the uid it has also holds another talk of its source.
+    """Give a listing a uid of its own when the uid it has also holds a listing of its source.
 
     The uid map binds every key that was ever part of an event to its
-    uid. Two listings of one source can end up bound to one uid: one of
-    them named no speaker yet and joined the other by its title, or one
-    took over the uid of the other while that was away. Once both name
-    speakers, and not the same ones, they are two talks, and the uid must
-    not hold them together, or de-duplication would merge them for good
-    (the same uid always joins).
+    uid, so two listings of one source can arrive under one uid: one of
+    them joined the other by its title before it named a speaker, or one
+    took over the uid of the other while that was away (``adopt_stored_uids``).
+    One source lists a talk once, so two listings of it in one run are one
+    talk only when de-duplication finds them to be by its rules; the uid
+    must not hold them together, or they would be merged for good (the
+    same uid always joins).
 
     Of the listings that have one uid, the one that holds the key the uid
     was derived from (``seminars.pipeline.ids.uid_for_key``) keeps it, or
     else the one with the smallest key; listings that share a key go
-    together. The others follow in the order of their smallest key, and
-    one that names other speakers than a listing of its source that kept
-    the uid gets the uid of its smallest key; the uid map then binds its
-    keys to that uid (``DedupResult.aliases``). Its new uid may hold a
-    third listing, so this repeats until nothing moves; a listing that
-    moved holds the key its uid was derived from, so it never moves again.
+    together, and listings of other sources keep the uid as well. Every
+    other listing of a source that kept the uid gets the uid of its
+    smallest key; the uid map then binds its keys to that uid
+    (``DedupResult.aliases``) unless de-duplication merges it back. Its new
+    uid may hold a third listing, so this repeats until nothing moves; a
+    listing that moved holds the key its uid was derived from, so it never
+    moves again.
 
     Before that, talks of one source that share a day key but start at
     different times get a key each (``seminars.pipeline.ids.tell_apart_day_keys``).
@@ -581,7 +572,8 @@ def _adoptable(orphan: _Profile, candidate: _Profile, threshold: int) -> bool:
     """Whether ``candidate`` is the stored ``orphan`` under a new key (step 1 of adoption).
 
     Within one source, two listings that both name speakers are the same
-    talk exactly when they name the same people, however many; a page is
+    talk exactly when they name the same people, however many and in
+    whatever spelling (``seminars.pipeline.ids.same_people``); a page is
     no link there, because a listing that comes back under a new key has
     a new page or a page that is not its own. An orphan that this source
     knows by its native id needs the same people on both sides: a native
@@ -591,7 +583,7 @@ def _adoptable(orphan: _Profile, candidate: _Profile, threshold: int) -> bool:
     """
     shared = orphan.sources & candidate.sources
     if shared and orphan.speakers and candidate.speakers:
-        return orphan.speakers == candidate.speakers
+        return same_people(orphan.speakers, candidate.speakers)
     if shared & orphan.native:
         return False
     same_page = orphan.page is not None and orphan.page == candidate.page
@@ -629,55 +621,6 @@ def _adopt_similar(
     return adopted
 
 
-def _slot_sources(event: Event) -> frozenset[str]:
-    """The sources that know ``event`` only by the time of day of its start.
-
-    For such a source every key of the event is a time-of-day day key
-    (``seminars.pipeline.ids.is_time_of_day_key``). A native id or the
-    address of a page of its own never changes when a title or a speaker
-    is announced, so an event with such a key comes back under it.
-    """
-    stable = {split_source_key(key)[0] for key in event.source_ids if not is_time_of_day_key(key)}
-    return _sources_of(event) - stable
-
-
-def _placeholders(orphans: Iterable[Event]) -> dict[tuple[str, datetime], Event]:
-    """Orphans that are TBA, without a speaker and known by a time key, by source and start.
-
-    A source and start that more than one TBA orphan without a speaker
-    shares is left out, whatever their keys: it would be a guess which of
-    them a talk is.
-    """
-    found: dict[tuple[str, datetime], list[Event]] = defaultdict(list)
-    for event in orphans:
-        if event.is_tba and not event.speakers:
-            for source_id in _sources_of(event):
-                found[(source_id, event.start)].append(event)
-    return {
-        slot: events[0]
-        for slot, events in found.items()
-        if len(events) == 1 and slot[0] in _slot_sources(events[0])
-    }
-
-
-def _adopt_placeholders(
-    candidates: Sequence[Candidate], positions: Sequence[int], orphans: Sequence[Event]
-) -> dict[int, str]:
-    """Candidate positions with the uid of a placeholder of their source and start."""
-    slots = _placeholders(orphans)
-    adopted: dict[int, str] = {}
-    taken: set[str] = set()
-    for position in positions:
-        event = candidates[position].event
-        for source_id in sorted(_sources_of(event)):
-            placeholder = slots.get((source_id, event.start))
-            if placeholder is not None and placeholder.uid not in taken:
-                adopted[position] = placeholder.uid
-                taken.add(placeholder.uid)
-                break
-    return adopted
-
-
 def adopt_stored_uids(
     candidates: Sequence[Candidate],
     stored: Sequence[Event],
@@ -688,45 +631,56 @@ def adopt_stored_uids(
     """Let a new candidate take over the uid of a stored event that is the same talk.
 
     A source sometimes changes the key of an event: a page gets a new
-    address, a talk gains a speaker or its title. The event then arrives
-    under a uid that was never seen, while its stored self is no longer
-    delivered, and a subscriber would see the talk twice until the old
-    entry expires.
+    address, a talk gains a speaker or its title, a talk known by its day
+    moves to another day or its speaker's name is spelled anew. The event
+    then arrives under a uid that was never seen, while its stored self is
+    no longer delivered, and a subscriber would see the talk twice until
+    the old entry expires (and for good after importing an older and then
+    a newer file).
 
     A candidate whose uid is not stored therefore takes the uid of a stored
-    event that no candidate of this run claims (an orphan), in two steps:
+    event that no candidate of this run claims (an orphan), in four steps:
 
     1. an orphan that is the same talk by the rules of de-duplication
        (start within the limit and a similar title, a shared speaker or the
        same detail page), with three differences for a listing of a source
-       the orphan has a key of. The same people make it the same talk and
-       other people another talk, whatever their number; and the same
-       page is no reason, because a listing of that source whose key
-       changed has a new page or one that is not its own: a TBA talk with
-       a native id on a series page would otherwise hand its uid to the
-       next talk on that page, and both would be one event once it is
-       back. An orphan that source knows by its native id is taken only
-       by the same people, never by a similar title alone: its key does
-       not change, so a listing under a new key with the series title is
-       the next talk of the series. A page that two talks of one source
-       point at about the same time, in this run or among the stored
-       events, is no detail page at all. Step 1 covers a page whose
-       address changed when its title was announced: same source, same
-       start, same speakers;
-    2. otherwise a placeholder of its source: an orphan of the same source
-       that starts at exactly the same moment, is still "TBA", names no
-       speaker, is known to that source only by the time of day of its
-       start (``<source>:day:<date>:t<HHMM>``), and is the only TBA orphan
-       without a speaker of that source and start. Such a talk has nothing
-       the rules of step 1 could compare, and its key changes as soon as
-       the title or a speaker is announced. An orphan with a native id or
-       a page of its own is never a placeholder: its key does not change,
-       so a new key at its start is another talk, and taking its uid would
-       bind both keys to one uid and merge two talks when it comes back.
+       the orphan has a key of (``_adoptable``). The same people in any
+       spelling make it the same talk and other people another talk; the
+       same page is no reason, because a listing of that source whose key
+       changed has a new page or one that is not its own; and an orphan
+       that source knows by its native id is taken only by the same
+       people, never by a similar title alone, because its key does not
+       change. A page that two talks of one source point at about the
+       same time, in this run or among the stored events, is no detail
+       page at all;
+    2. an orphan moved to another day: a source knows both only by day
+       keys, both start after the time of the run (which normalization
+       stamps on every candidate as ``last_changed``; a talk that is over
+       and left its page is no talk that moved) and at most
+       ``seminars.pipeline.ids.MAX_MOVE`` apart, they name the same people,
+       and their titles are similar unless one is "TBA". Only a pair of
+       which neither side matches anything else counts, so two speakers
+       who swap their days keep their uids;
+    3. a slot of its source: an orphan of the same source that starts at
+       exactly the same moment, names no speaker, is known to that source
+       only by day keys, and is the only orphan without a speaker of that
+       source and start. Its key changes with its title ("TBA", or a
+       generic "Theory Lunch" that gives way to the title of the talk) and
+       with a speaker that is announced;
+    4. a page of its own with a new address: the orphan is still "TBA",
+       neither names a speaker, the same source knows both only by their
+       pages, the two pages lie in one directory
+       (``seminars.pipeline.ids.renamed_page``) and the starts are the same
+       moment; again only a pair that is alone. A page with a title of its
+       own that gives way to another page is another talk.
 
-    In each step the orphan seen first is taken, and each orphan is taken
-    once. The candidates come back in their order; the choice does not
-    depend on it.
+    Steps 2 to 4 are ``seminars.pipeline.ids.follow_changed_keys``. An
+    orphan with a native id is never taken there: its key does not change,
+    so a new key is another talk. Should an orphan come
+    back after its uid was taken, both listings arrive under one uid and
+    ``separate_listings`` gives them a uid each again. In steps 1 and 3 the
+    orphan seen first is taken; each orphan is taken once. The candidates
+    come back in their order; the choice does not depend on it.
     """
     claimed = {candidate.event.uid for candidate in candidates}
     known = {event.uid for event in stored}
@@ -745,12 +699,14 @@ def adopt_stored_uids(
         | _shared_pages(((event.uid, event) for event in stored), limit)
     )
     adopted = _adopt_similar(candidates, unknown, orphans, settings, not_pages)
-    taken = set(adopted.values())
-    adopted |= _adopt_placeholders(
-        candidates,
-        [position for position in unknown if position not in adopted],
-        [event for event in orphans if event.uid not in taken],
+    left = [position for position in unknown if position not in adopted]
+    later = follow_changed_keys(
+        [candidates[position].event for position in left],
+        [event for event in orphans if event.uid not in set(adopted.values())],
+        now=max((c.event.last_changed for c in candidates), default=None),
+        title_similarity=settings.title_similarity,
     )
+    adopted |= {left[index]: uid for index, uid in later.items()}
     return [
         candidate.evolve(event=candidate.event.evolve(uid=adopted[position]))
         if position in adopted

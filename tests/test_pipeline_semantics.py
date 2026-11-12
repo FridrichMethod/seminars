@@ -302,7 +302,7 @@ class TestRenamedPage:
         assert after.uid == before.uid
         assert (report.counts.added, report.counts.missing) == (0, 0)
 
-    def test_without_a_speaker_the_new_address_is_a_new_talk(
+    def test_without_a_speaker_a_tba_page_with_a_new_address_keeps_the_uid(
         self, config: AppConfig, fake_adapter: FakeAdapter
     ) -> None:
         fake_adapter.drafts = [draft("sites-physics", None, url=f"{DEPT_URL}/tba", title="TBA")]
@@ -311,4 +311,4 @@ class TestRenamedPage:
             draft("sites-physics", None, url=f"{DEPT_URL}/knots", title="Knots and braids")
         ]
         report = run(config, at=REFERENCE_NOW + timedelta(days=1))
-        assert (report.counts.added, report.counts.missing) == (1, 1)
+        assert (report.counts.added, report.counts.missing) == (0, 0)

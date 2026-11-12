@@ -16,6 +16,8 @@ from seminars.pipeline.ids import (
     is_day_key,
     is_time_of_day_key,
     latin_fold,
+    renamed_page,
+    same_people,
     slug,
     tell_apart_day_keys,
     uid_for_key,
@@ -171,3 +173,40 @@ class TestOneDayKeyForTwoTalks:
         assert sorted(result[0].event.source_ids) == ["localist-stanford:9", f"{DAY_KEY}:t1000"]
         assert result[1] == later
         assert timedelta(0) < later.event.start - merged.event.start
+
+
+class TestSamePeople:
+    @pytest.mark.parametrize(
+        ("first", "second", "expected"),
+        [
+            ({"emily b fox"}, {"emily fox"}, True),
+            ({"vincent cohen adad"}, {"vincent cohen addad"}, True),
+            ({"\u0142ukasz debowski"}, {"lukasz debowski"}, True),
+            ({"ann smith", "bea jones"}, {"bea jones", "ann smith"}, True),
+            ({"ann smith", "bea jones"}, {"ann smith"}, False),
+            ({"jia li"}, {"jian li"}, False),
+            ({"ann smith"}, {"bob jones"}, False),
+            (set(), set(), False),
+        ],
+    )
+    def test_spellings_of_one_person_are_one_person(
+        self, first: set[str], second: set[str], expected: bool
+    ) -> None:
+        assert same_people(first, second) is expected
+        assert same_people(second, first) is expected
+
+
+class TestRenamedPages:
+    @pytest.mark.parametrize(
+        ("new", "expected"),
+        [
+            ("sites-x:url:https://example.edu/events/knots", True),
+            ("sites-x:url:https://example.edu/talks/knots", False),
+            ("sites-x:url:https://other.edu/events/knots", False),
+            ("sites-x:url:https://example.edu/events/knots?id=2", False),
+            ("sites-x:url:https://example.edu/events/coming-soon", False),
+            ("sites-y:url:https://example.edu/events/knots", False),
+        ],
+    )
+    def test_two_pages_of_one_directory(self, new: str, expected: bool) -> None:
+        assert renamed_page("sites-x:url:https://example.edu/events/coming-soon", new) is expected

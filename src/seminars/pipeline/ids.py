@@ -27,13 +27,19 @@ that hold:
 
 When several sources list one talk, de-duplication keeps the uid that was
 seen first and binds the keys of the others to it (``seminars.pipeline.dedup``).
-A binding yields to later evidence: when two listings of one source that
-share a uid turn out to be two talks (they name different speakers), one
-keeps the uid and the other gets the uid of its own key
-(``seminars.pipeline.dedup.separate_listings``).
-A key of the third kind changes when the talk gains its title or a speaker;
-``seminars.pipeline.dedup.adopt_stored_uids`` then hands the stored uid on to
-the new key, so the uid stays.
+A binding yields to later evidence: two listings of one source that arrive
+under one uid in one run are two listings, so one keeps the uid and the
+other gets the uid of its own key, and de-duplication alone decides
+whether they are one talk (``seminars.pipeline.dedup.separate_listings``).
+Two talks of one source and day that would get one day key get a key each
+(``tell_apart_day_keys``).
+
+Some keys change while the talk stays: a day key when the talk moves to
+another day, gains its title (without a speaker) or a speaker, or the
+speaker's name is spelled anew; the address of a page when the site
+renames it. ``seminars.pipeline.dedup.adopt_stored_uids`` then hands the
+stored uid on to the new key (with ``same_people`` and
+``follow_changed_keys``), so the uid stays.
 
 A native id is whatever a site sent. One that is very long, or that looks
 like a credential, is replaced by its SHA-256 digest before it becomes
@@ -46,26 +52,34 @@ from __future__ import annotations
 import hashlib
 import re
 from collections import Counter, defaultdict
-from collections.abc import Callable, Iterable, Sequence
-from datetime import datetime
+from collections.abc import Callable, Collection, Iterable, Sequence
+from datetime import datetime, timedelta
 from typing import Final
 from urllib.parse import urlsplit, urlunsplit
 
+from rapidfuzz import fuzz
+
 from seminars.models import (
     Candidate,
+    Event,
     EventDraft,
     SourceConfig,
     UidMap,
     source_key,
     split_source_key,
 )
-from seminars.pipeline.text import fold
+from seminars.pipeline.text import canonical_name, fold
 
 MAX_NATIVE_ID_LENGTH: Final = 200
 DIGEST_LENGTH: Final = 24
 URL_KEY_PREFIX: Final = "url:"
 DAY_KEY_PREFIX: Final = "day:"
 HASHED_ID_PREFIX: Final = "sha256:"
+MIN_FUZZY_NAME_LENGTH: Final = 8
+NAME_SIMILARITY: Final = 90
+"""Two names of at least this length and ``fuzz.ratio`` are one name spelled two ways."""
+MAX_MOVE: Final = timedelta(days=60)
+"""How far a talk known by its day may move and keep its uid (``follow_changed_keys``)."""
 TIME_OF_DAY_FORMAT: Final = "t%H%M"
 """How the time of day of the start is written in a day key without a speaker or title."""
 
@@ -183,9 +197,7 @@ def is_time_of_day_key(key: str) -> bool:
     """Whether ``key`` is a day key that names only the time of day of the start.
 
     That is ``<source id>:day:<date>:t<HHMM>``, the key of a draft with
-    neither a native id nor a page of its own, no speaker and no title. It
-    is the only key that changes when the title or a speaker is announced:
-    a native id or the address of a page stays what it was.
+    neither a native id nor a page of its own, no speaker and no title.
     """
     _, native = split_source_key(key)
     return _TIME_OF_DAY_KEY.fullmatch(native) is not None
@@ -242,6 +254,67 @@ def is_native_key(key: str) -> bool:
     return not native.startswith((URL_KEY_PREFIX, DAY_KEY_PREFIX))
 
 
+def is_url_key(key: str) -> bool:
+    """Whether ``key`` is built from the address of the talk's own page."""
+    return split_source_key(key)[1].startswith(URL_KEY_PREFIX)
+
+
+def sources_known_by(event: Event, kind: Callable[[str], bool]) -> frozenset[str]:
+    """The sources every key of which in ``event`` is of one kind (``is_day_key``, ...)."""
+    every: dict[str, bool] = {}
+    for key in event.source_ids:
+        source_id = split_source_key(key)[0]
+        every[source_id] = every.get(source_id, True) and kind(key)
+    return frozenset(source_id for source_id, found in every.items() if found)
+
+
+def renamed_page(old: str, new: str) -> bool:
+    """Whether two url keys of one source name two pages of one directory, without a query.
+
+    A site that derives the address of a page from its title gives a TBA
+    talk a new address once the title is announced, next to the old one:
+    ``/events/coming-soon-3`` becomes ``/events/knots-and-braids``.
+    """
+    first, second = (
+        urlsplit(split_source_key(key)[1][len(URL_KEY_PREFIX) :]) for key in (old, new)
+    )
+    return (
+        split_source_key(old)[0] == split_source_key(new)[0]
+        and (first.scheme, first.netloc) == (second.scheme, second.netloc)
+        and not (first.query or second.query)
+        and first.path != second.path
+        and first.path.rpartition("/")[0] == second.path.rpartition("/")[0]
+    )
+
+
+def _same_person(first: str, second: str) -> bool:
+    one, other = latin_fold(first), latin_fold(second)
+    if one == other:
+        return True
+    words = [word for word in one.split() if len(word) > 1]
+    if words and words == [word for word in other.split() if len(word) > 1]:
+        return True  # a middle initial more or less
+    short = min(len(one), len(other)) < MIN_FUZZY_NAME_LENGTH
+    return not short and fuzz.ratio(one, other) >= NAME_SIMILARITY
+
+
+def same_people(first: Collection[str], second: Collection[str]) -> bool:
+    """Whether two sets of folded speaker names name the same people, each in its own spelling.
+
+    Two spellings are one name when they fold to the same letters (an L with
+    stroke as "l", see ``latin_fold``), differ only by initials ("Emily B.
+    Fox", "Emily Fox") or are long and nearly equal ("Cohen-Adad",
+    "Cohen-Addad"). Meant for listings of one source, which do not list two
+    people of almost one name for one talk. A side without speakers never
+    names the same people.
+    """
+    if not first or len(first) != len(second):
+        return False
+    return all(any(_same_person(one, other) for other in second) for one in first) and all(
+        any(_same_person(one, other) for one in first) for other in second
+    )
+
+
 def uid_for_key(key: str) -> str:
     """The uid a new source key gets: ``<source id>.<native id>``, or a digest of the key.
 
@@ -259,3 +332,126 @@ def uid_for_key(key: str) -> str:
 def resolve_uid(key: str, uid_map: UidMap) -> str:
     """The uid of ``key``: the one it is bound to, or the one a new key gets."""
     return uid_map.resolve(key) or uid_for_key(key)
+
+
+def _one_to_one(pairs: Iterable[tuple[int, str]]) -> dict[int, str]:
+    """The pairs of an event and an orphan uid of which neither is in another pair."""
+    found = list(pairs)
+    events = Counter(index for index, _ in found)
+    uids = Counter(uid for _, uid in found)
+    return {index: uid for index, uid in found if events[index] == uids[uid] == 1}
+
+
+def _names(event: Event) -> frozenset[str]:
+    return frozenset(name for speaker in event.speakers if (name := canonical_name(speaker.name)))
+
+
+def _moved(orphan: Event, event: Event, now: datetime, title_similarity: int) -> bool:
+    """Whether ``event`` is ``orphan`` moved to another day (see ``follow_changed_keys``)."""
+    if not sources_known_by(orphan, is_day_key) & sources_known_by(event, is_day_key):
+        return False
+    if min(orphan.start, event.start) <= now or abs(event.start - orphan.start) > MAX_MOVE:
+        return False
+    titled = [fold(item.title) for item in (orphan, event) if not item.is_tba]
+    agree = len(titled) < 2 or fuzz.ratio(titled[0], titled[1]) >= title_similarity
+    return agree and same_people(_names(orphan), _names(event))
+
+
+def _sources(event: Event) -> list[str]:
+    return sorted({split_source_key(key)[0] for key in event.source_ids})
+
+
+def _slots(orphans: Iterable[Event]) -> dict[tuple[str, datetime], Event]:
+    """Orphans without a speaker that a source knows only by day keys, by that source and start.
+
+    A source and start that more than one orphan without a speaker shares
+    is left out, whatever their keys: it would be a guess which of them a
+    talk is.
+    """
+    found: dict[tuple[str, datetime], list[Event]] = defaultdict(list)
+    for event in orphans:
+        if not event.speakers:
+            for source_id in _sources(event):
+                found[(source_id, event.start)].append(event)
+    return {
+        slot: events[0]
+        for slot, events in found.items()
+        if len(events) == 1 and slot[0] in sources_known_by(events[0], is_day_key)
+    }
+
+
+def _slotted(events: Sequence[Event], orphans: Sequence[Event]) -> dict[int, str]:
+    slots = _slots(orphans)
+    adopted: dict[int, str] = {}
+    for index, event in enumerate(events):
+        for source_id in _sources(event):
+            slot = slots.get((source_id, event.start))
+            if slot is not None and slot.uid not in adopted.values():
+                adopted[index] = slot.uid
+                break
+    return adopted
+
+
+def _renamed(orphan: Event, event: Event) -> bool:
+    """Whether ``event`` is the TBA ``orphan`` on a page with a new address."""
+    if not orphan.is_tba or orphan.speakers or event.speakers or orphan.start != event.start:
+        return False
+    known = sources_known_by(orphan, is_url_key) & sources_known_by(event, is_url_key)
+    return any(
+        renamed_page(old, new)
+        for old in orphan.source_ids
+        for new in event.source_ids
+        if split_source_key(old)[0] in known
+    )
+
+
+def follow_changed_keys(
+    events: Sequence[Event],
+    orphans: Sequence[Event],
+    *,
+    now: datetime | None,
+    title_similarity: int,
+) -> dict[int, str]:
+    """Which of ``events`` (new keys) are ``orphans`` (stored, not delivered) under a new key.
+
+    Steps 2 to 4 of ``seminars.pipeline.dedup.adopt_stored_uids``, for keys
+    that change while the talk stays: a day key when the talk moves to
+    another day, a day key without a speaker when the title changes, the
+    address of a TBA page when it is renamed. ``orphans`` are in the order
+    in which they were first seen, ``now`` is the time of the run and
+    ``title_similarity`` the ``fuzz.ratio`` that makes two titles one. The
+    result maps positions in ``events`` to the uid of an orphan; each
+    orphan is taken once, and the result does not depend on the order of
+    ``events``. ``events`` must come in a fixed order for step 3, where the
+    first event of a slot takes it.
+    """
+    adopted: dict[int, str] = {}
+
+    def step(found: Callable[[list[int], list[Event]], dict[int, str]]) -> None:
+        left = [index for index in range(len(events)) if index not in adopted]
+        free = [orphan for orphan in orphans if orphan.uid not in adopted.values()]
+        adopted.update(found(left, free))
+
+    if now is not None:
+        step(
+            lambda left, free: _one_to_one(
+                (index, orphan.uid)
+                for index in left
+                for orphan in free
+                if _moved(orphan, events[index], now, title_similarity)
+            )
+        )
+    step(
+        lambda left, free: {
+            left[index]: uid for index, uid in _slotted([events[i] for i in left], free).items()
+        }
+    )
+    step(
+        lambda left, free: _one_to_one(
+            (index, orphan.uid)
+            for index in left
+            for orphan in free
+            if _renamed(orphan, events[index])
+        )
+    )
+    return adopted

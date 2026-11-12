@@ -59,6 +59,136 @@ def two_runs(
     return first, events(cfg)
 
 
+class TestOneEntryPerTalk:
+    def test_a_talk_that_moves_to_another_day_keeps_its_uid(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        moved = MORNING + timedelta(days=7)
+        first, second = two_runs(
+            config,
+            fake_adapter,
+            [slot(MORNING, "Quantum codes", "Ann Smith")],
+            [slot(moved, "Quantum codes", "Ann Smith")],
+        )
+        assert [event.uid for event in second] == [first[0].uid]
+        assert second[0].start == moved
+        assert second[0].sequence == 1
+
+    def test_a_tba_talk_that_moves_to_another_day_keeps_its_uid(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        moved = MORNING + timedelta(days=14)
+        first, second = two_runs(
+            config,
+            fake_adapter,
+            [
+                slot(MORNING, "TBA", "Ann Smith"),
+                slot(MORNING + timedelta(days=7), "TBA", "Bob Jones"),
+            ],
+            [
+                slot(moved, "TBA", "Ann Smith"),
+                slot(MORNING + timedelta(days=7), "TBA", "Bob Jones"),
+            ],
+        )
+        assert [event.uid for event in second] == [first[1].uid, first[0].uid]
+
+    def test_two_speakers_who_swap_their_days_keep_their_uids(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        later = MORNING + timedelta(days=7)
+        first, second = two_runs(
+            config,
+            fake_adapter,
+            [slot(MORNING, "TBA", "Ann Smith"), slot(later, "TBA", "Bob Jones")],
+            [slot(MORNING, "TBA", "Bob Jones"), slot(later, "TBA", "Ann Smith")],
+        )
+        uid_of = {event.speakers[0].name: event.uid for event in first}
+        assert len(second) == 2
+        assert {event.speakers[0].name: event.uid for event in second} == uid_of
+
+    def test_a_generic_title_that_gives_way_to_the_real_one_keeps_the_uid(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        first, second = two_runs(
+            config,
+            fake_adapter,
+            [slot(MORNING, "Theory Lunch")],
+            [slot(MORNING, "Locally testable quantum codes")],
+        )
+        assert [event.uid for event in second] == [first[0].uid]
+        assert second[0].title == "Locally testable quantum codes"
+
+    def test_a_tba_page_that_moves_to_a_new_address_keeps_the_uid(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        first, second = two_runs(
+            config,
+            fake_adapter,
+            [slot(MORNING, "TBA", url=f"{A_URL}/coming-soon-3")],
+            [slot(MORNING, "Knots and braids", url=f"{A_URL}/knots-and-braids")],
+        )
+        assert [event.uid for event in second] == [first[0].uid]
+
+    def test_a_speaker_spelled_differently_keeps_the_uid(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        for old, new in [
+            ("Emily B. Fox", "Emily Fox"),
+            ("Vincent Cohen-Adad", "Vincent Cohen-Addad"),
+            (f"{L_STROKE}ukasz D\u0119bowski", "Lukasz Debowski"),
+        ]:
+            config.paths.events_file.unlink(missing_ok=True)
+            config.paths.uid_map_file.unlink(missing_ok=True)
+            first, second = two_runs(
+                config, fake_adapter, [slot(MORNING, "TBA", old)], [slot(MORNING, "TBA", new)]
+            )
+            assert [event.uid for event in second] == [first[0].uid], (old, new)
+            assert [speaker.name for speaker in second[0].speakers] == [new]
+
+    def test_another_speaker_in_the_same_slot_is_another_talk(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        first, second = two_runs(
+            config,
+            fake_adapter,
+            [slot(MORNING, "TBA", "Ann Smith")],
+            [slot(MORNING, "TBA", "Bob Jones")],
+        )
+        assert first[0].uid in {event.uid for event in second}
+        assert len(second) == 2
+
+
+class TestATalkThatComesBack:
+    def test_a_talk_whose_uid_moved_on_gets_it_back_and_the_other_a_uid_of_its_own(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        first = slot(MORNING, "Quantum codes", "Ann Smith")
+        later = slot(MORNING + timedelta(days=7), "Quantum codes", "Ann Smith")
+        before, moved = two_runs(config, fake_adapter, [first], [later])
+        assert [event.uid for event in moved] == [before[0].uid]
+        fake_adapter.drafts = [first, later]  # the first listing was only away for a run
+        report = run(config, services(FakeEmitters()), days=2)
+        back = events(config)
+        assert [event.start for event in back] == [first.start, later.start]
+        assert back[0].uid == before[0].uid
+        assert back[1].uid != before[0].uid
+        assert (report.counts.events, report.counts.merged) == (2, 0)
+
+    def test_a_tba_page_that_comes_back_next_to_its_new_address_is_two_events(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        old = slot(MORNING, "TBA", url=f"{A_URL}/coming-soon-3")
+        new = slot(MORNING, "Knots and braids", url=f"{A_URL}/knots-and-braids")
+        before, _ = two_runs(config, fake_adapter, [old], [new])
+        fake_adapter.drafts = [old, new]
+        run(config, services(FakeEmitters()), days=2)
+        back = events(config)
+        assert len(back) == 2
+        assert len({event.uid for event in back}) == 2
+        by_title = {event.title: event.uid for event in back}
+        assert by_title["TBA"] == before[0].uid
+
+
 class TestTwoTalksOfOneDay:
     def test_two_talks_of_one_speaker_on_one_day_stay_two_events(
         self, config: AppConfig, fake_adapter: FakeAdapter
