@@ -51,10 +51,16 @@ The field tagger (``build_field_tagger``) decides the fields of a candidate:
    on its line, or followed by a colon and text; an "About ..." heading
    also when its first sentence follows without a break, "About the
    SeriesThe ...") opens such a section, and it runs to the next heading of
-   the talk ("Abstract", "Title", "About the seminar", ...) or to the end.
-   A speaker who holds a degree in physics, or a series that "bridges
-   neuroscience and data science", says nothing about the field of the
-   talk. A biography without a heading is read like the talk.
+   the talk ("Abstract", "Title", "About the seminar", ..., also "Talk:",
+   "Topic:", "Abstract - We ..." and "AbstractWe ...") or to the end. A
+   line that opens such a section and holds an "Abstract" heading further
+   on (a page flattened into one line: "About the SpeakerJane ...
+   AbstractWe ...") keeps the text from that heading on. A speaker who
+   holds a degree in physics, or a series that "bridges neuroscience and
+   data science", says nothing about the field of the talk. A biography
+   without a heading is read like the talk, and a talk that follows a
+   biography without a heading of its own (a title in quotes, then the
+   text) is left out with it.
 3. The abstract alone never decides for an event without source fields:
    there, the series name or the keywords of title and series must reach
    ``min_score`` without it. Abstracts on calendar-wide sources (humanities,
@@ -123,12 +129,25 @@ _RUN_ON: Final = r"(?-i:[A-Z]).*"
 """What may also follow an "About ..." heading: its first sentence without a break, as a page
 reads once flattened that sets the heading apart by style alone ("About the SeriesThe ...").
 Never after "Bio", which begins words of its own ("BioE", "BioX")."""
+_DASH: Final = r"(?:\s*[\u2013\u2014]|\s+-{1,2}|-{1,2}(?=\s))"
+"""A dash after a heading, before the first text of the section ("Abstract - We ..."); a
+hyphen needs white space on one side, so "Abstract-level" stays a word."""
+_ABSTRACT_RUN_ON: Final = r"(?-i:Abstract[A-Z]).*"
+""""Abstract" run into its first sentence ("AbstractWe ..."), written as a heading is."""
 _ASIDE_HEADING: Final = re.compile(
     rf"\s*(?:(?:{_BIO}){_REST}|(?:{_ABOUT})(?:{_REST}|{_RUN_ON}))", re.IGNORECASE | re.DOTALL
 )
 """A line that opens a section on the speaker or the series, which the field rules skip."""
-_TALK_HEADING: Final = re.compile(rf"\s*(?:{_TALK}){_REST}", re.IGNORECASE | re.DOTALL)
-"""A line that opens a section on the talk, which ends a section on the speaker or the series."""
+_TALK_HEADING: Final = re.compile(
+    rf"\s*(?:(?:{_TALK}){_REST}|(?:talk|topic)\s*:.*|abstract{_DASH}.*|{_ABSTRACT_RUN_ON})",
+    re.IGNORECASE | re.DOTALL,
+)
+"""A line that opens a section on the talk, which ends a section on the speaker or the series:
+a heading of ``_TALK``, "Talk:" or "Topic:", or "Abstract" followed by a dash or run into its
+first sentence."""
+_EMBEDDED_ABSTRACT: Final = re.compile(rf"Abstract(?=[A-Z]|\s*:|{_DASH})")
+"""An "Abstract" heading inside a line that opened a section on the speaker, where a page
+was flattened into one line ("About the SpeakerJane ... AbstractWe ...")."""
 
 
 def _fold(text: str) -> str:
@@ -160,8 +179,12 @@ def talk_text(abstract: str | None) -> str | None:
     aside = False
     for line in abstract.split("\n"):
         if _ASIDE_HEADING.fullmatch(line):
-            aside = True
-        elif _TALK_HEADING.fullmatch(line):
+            embedded = _EMBEDDED_ABSTRACT.search(line)
+            aside = embedded is None
+            if embedded is not None:
+                kept.append(line[embedded.start() :])
+            continue
+        if _TALK_HEADING.fullmatch(line):
             aside = False
         if not aside:
             kept.append(line)
