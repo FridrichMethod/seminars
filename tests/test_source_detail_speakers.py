@@ -352,6 +352,13 @@ class TestRowsWithoutTheirPage:
             caplog.text
         )
 
+    def test_a_native_id_of_the_page_needs_the_page(self) -> None:
+        # A row kept without its page would be keyed by its url in that run and by
+        # the native id in the next: the same talk under two keys.
+        source = list_source(times="time", native_id="link[rel=shortlink]", required=False)
+        with pytest.raises(AdapterConfigError, match="native_id needs required: true"):
+            run(source, serve(list_page("Ada Lovelace")))
+
     def test_keep_tags_still_drops_a_row_without_its_page(self) -> None:
         source = list_source(tag=".tag", required=False)
         source = source.evolve(params={**source.params, "keep_tags": ["Seminars"]})

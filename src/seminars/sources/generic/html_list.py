@@ -62,7 +62,8 @@ Keys of ``params`` (an unknown key is an error that names it;
   default 10). ``times``: elements whose ``datetime`` attributes (or texts)
   are the start and the end, replacing the row's times; ``location``;
   ``native_id`` with ``native_id_attribute`` and ``native_id_pattern``
-  (group ``native_id``); ``tag``: the texts of all matches become
+  (group ``native_id``; needs ``required: true``, so that a talk never changes
+  its key between runs); ``tag``: the texts of all matches become
   categories. ``speaker``: every match is one speaker (or a list of
   names), named by the text of ``speaker_name`` inside it (default: the
   text of the match) with the text of ``speaker_affiliation`` inside it;
@@ -211,10 +212,15 @@ class DetailParams(Model):
     max_pages: Annotated[int, Field(ge=1, le=20)] = 10
 
     @model_validator(mode="after")
-    def _check_speaker_parts(self) -> DetailParams:
+    def _check_parts(self) -> DetailParams:
         for name in ("speaker_name", "speaker_affiliation"):
             if getattr(self, name) is not None and self.speaker is None:
                 raise ValueError(f"{name} needs detail_page.speaker")
+        if self.native_id is not None and not self.required:
+            raise ValueError(
+                "native_id needs required: true: a row kept without its page would"
+                " change its key between runs"
+            )
         return self
 
 
