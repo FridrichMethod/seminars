@@ -19,14 +19,16 @@ Scans every git-tracked file and enforces the charset rules of the project:
 * ``tests/fixtures/**`` holds verbatim snapshots of real pages. They are test
   input and are never published, and the cleaning code has to be tested
   against exactly what the sites serve, so anything that is valid UTF-8 is
-  accepted there.
+  accepted there, a stray NUL byte included.
 
 Binary files are skipped; a file is binary when its name ends in one of
 ``BINARY_SUFFIXES`` (images, fonts, archives, PDF). Every other file is text
 and must be UTF-8: a byte order mark of UTF-16 or UTF-32 is reported with the
-name of the encoding, and a NUL byte (which UTF-16 text without a byte order
-mark is full of) as not UTF-8 text. A binary file of another kind fails the
-gate until its suffix is added to the list. Violations are printed as
+name of the encoding, and a NUL byte as not UTF-8 text. In ``tests/fixtures/**``
+a NUL byte is reported only when the file reads like UTF-16 or UTF-32 text
+without a byte order mark, which has a NUL at every second or every fourth
+byte (``WIDE_NUL_SHARE``). A binary file of another kind fails the gate until
+its suffix is added to the list. Violations are printed as
 ``path:line:col U+XXXX NAME`` and the exit status is non-zero.
 
 ``--commit-msg FILE`` checks a commit message instead of the tree, which is
@@ -99,6 +101,8 @@ BINARY_SUFFIXES = (
     ".ogg",
     ".wav",
 )
+WIDE_SAMPLE_BYTES = 4096
+WIDE_NUL_SHARE = 0.5  # of the even or of the odd bytes of the sample
 MAX_REPORTS_PER_FILE = 20
 COMMENT_PREFIX = "#"
 SCISSORS = ">8"
@@ -206,13 +210,20 @@ def is_binary(path: str) -> bool:
     return path.lower().endswith(BINARY_SUFFIXES)
 
 
-def _encoding_problem(path: str, data: bytes) -> str | None:
+def reads_like_wide_text(data: bytes) -> bool:
+    """Whether ``data`` reads like UTF-16 or UTF-32 text: NUL is half its even or odd bytes."""
+    sample = data[:WIDE_SAMPLE_BYTES]
+    halves = [half for half in (sample[0::2], sample[1::2]) if half]
+    return any(half.count(0) >= WIDE_NUL_SHARE * len(half) for half in halves)
+
+
+def _encoding_problem(path: str, data: bytes, mode: str) -> str | None:
     """Why ``data`` is no UTF-8 text at all (another encoding, a NUL byte); else ``None``."""
     for mark, name in OTHER_BOMS:
         if data.startswith(mark):
             return f"{path}: not UTF-8 ({name} byte order mark)"
     nul = data.find(b"\0")
-    if nul >= 0:
+    if nul >= 0 and (mode != MODE_FREE or reads_like_wide_text(data)):
         return f"{path}: NUL byte at byte offset {nul}: not UTF-8 text"
     return None
 
@@ -251,7 +262,8 @@ def check_bytes(path: str, data: bytes) -> list[str]:
     """Return the list of violation messages for one file."""
     if not data or is_binary(path):
         return []
-    problem = _encoding_problem(path, data)
+    mode = classify(path)
+    problem = _encoding_problem(path, data, mode)
     if problem is not None:
         return [problem]
     messages: list[str] = []
@@ -269,7 +281,6 @@ def check_bytes(path: str, data: bytes) -> list[str]:
         messages.append(f"{path}:{crlf_lines[0]}: CRLF line ending ({count} line(s) in total)")
     if not text.endswith("\n"):
         messages.append(f"{path}: missing final newline")
-    mode = classify(path)
     if mode != MODE_FREE:
         messages.extend(_scan_chars(path, text, mode))
     return messages

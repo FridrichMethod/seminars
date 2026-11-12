@@ -352,6 +352,22 @@ class TestEncodingsOtherThanUtf8:
     def test_files_with_a_binary_extension_are_skipped(self, path: str) -> None:
         assert check_ascii.check_bytes(path, b"\x89PNG\r\n\x1a\n\x00\x00\xff\xfe") == []
 
+    @pytest.mark.parametrize("codec", ["utf-16-le", "utf-16-be", "utf-32-le", "utf-32-be"])
+    def test_wide_text_in_a_fixture_is_reported(self, codec: str) -> None:
+        data = ("<p>Kn" + E_ACUTE + "ts</p>\n").encode(codec)
+        (message,) = check_ascii.check_bytes("tests/fixtures/x/page.html", data)
+        assert message.startswith("tests/fixtures/x/page.html: NUL byte at byte offset ")
+
+    def test_a_stray_nul_byte_in_a_fixture_is_part_of_the_snapshot(self) -> None:
+        data = b"<html><body><p>Knots\x00 and links</p></body></html>\n"
+        assert check_ascii.check_bytes("tests/fixtures/x/page.html", data) == []
+
+    def test_a_stray_nul_byte_elsewhere_is_reported(self) -> None:
+        data = b"<html><body><p>Knots\x00 and links</p></body></html>\n"
+        assert check_ascii.check_bytes("site/page.html", data) == [
+            "site/page.html: NUL byte at byte offset 20: not UTF-8 text"
+        ]
+
     def test_a_binary_extension_is_not_a_name_that_ends_in_its_letters(self) -> None:
         assert check_ascii.check_bytes("notpng", b"a\x00\n") == [
             "notpng: NUL byte at byte offset 1: not UTF-8 text"
