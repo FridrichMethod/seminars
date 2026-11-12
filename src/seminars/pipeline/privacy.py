@@ -56,12 +56,21 @@ let a stranger into a meeting or reach a person:
   genentech.com") for such a joined name. A host whose labels have a
   digit or start with a word of a web site ("events.stanford.edu",
   "cs229.stanford.edu", "www.ethz.ch"), a time, a number, an abbreviation
-  and the name of a file or a package are no address, so "Recordings of
+  and a file or package name with a known ending (".pdf", ".mp4", ".js",
+  ".py" and the others of ``_MAILBOX``) are no address, so "Recordings of
   CS224N at youtube.com", "CS224N at cs.stanford.edu", "closes at 5pm at
   eventbrite.com", "posted on Nov. 12 at stanford.edu", "e.g. at
   stanford.edu", "talk.mp4 at youtu.be" and "node.js at github.com" stay.
   A plain "jdoe at stanford.edu" stays too: "Register at
-  events.stanford.edu" reads the same.
+  events.stanford.edu" reads the same. The boundary is drawn on the side
+  of removing too much. Known removals of text that is no address: a
+  module path or a joined name at a ".org" or ".com" host ("torch.nn at
+  pytorch.org", "sklearn.svm at scikit-learn.org", "research.google at
+  google.com") and a lower-case course code or "Ph.D" at a department
+  ("cs229 at cs.stanford.edu", "Ph.D at cs.stanford.edu"). Known keeps of
+  what may be one: a local part with a capital and a digit at a department
+  ("Jdoe2 at cs.stanford.edu") and a host with more than three labels
+  before the university ("jane.doe at a.b.c.d.stanford.edu").
   One in brackets after a name ("Jane Doe (jdoe@stanford.edu)") is
   removed with its brackets, so that the line still splits into a name
   and nothing else. File names ("photo@2x.png") and the ids of shared
@@ -162,8 +171,9 @@ _MAILBOX: Final = (
 )
 """A local part with a letter and a dot, an underscore, a digit, "%" or "+".
 
-A time ("5pm") and the name of a file or a software package ("talk.mp4",
-"node.js") are no local part.
+A time ("5pm") and a file or package name with one of the endings listed
+here ("talk.mp4", "node.js") are no local part. Any other dotted name is
+one: "torch.nn" and "numpy.linalg" read like "jane.doe".
 """
 _PERSON: Final = r"(?=[\w.%+-]{0,61}[^\W\d_][._+][^\W\d_])"
 """A local part with two letters joined by a dot, "_" or "+" ("jane.doe", "j_doe")."""

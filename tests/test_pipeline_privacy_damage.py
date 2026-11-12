@@ -95,6 +95,32 @@ class TestSpelledAddresses:
         assert scrub_private(text) == expected
 
     @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("Docs of torch.nn at pytorch.org", f"Docs of {EMAIL_REMOVED}"),
+            ("See numpy.linalg at numpy.org", f"See {EMAIL_REMOVED}"),
+            ("Try research.google at google.com", f"Try {EMAIL_REMOVED}"),
+            ("Notes of cs229 at cs.stanford.edu", f"Notes of {EMAIL_REMOVED}"),
+            ("A Ph.D at cs.stanford.edu", f"A {EMAIL_REMOVED}"),
+        ],
+    )
+    def test_known_removals_of_text_that_is_no_address(self, text: str, expected: str) -> None:
+        # The boundary errs on the side of removing too much; a change here is deliberate.
+        assert scrub_private(text) == expected
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Write Jdoe2 at cs.stanford.edu",
+            "Write JDOE2 at cs.stanford.edu",
+            "Write jane.doe at a.b.c.d.stanford.edu",
+        ],
+    )
+    def test_known_keeps_of_what_may_be_an_address(self, text: str) -> None:
+        # A capital with a digit at a department, and a host of four labels, stay.
+        assert scrub_private(text) == text
+
+    @pytest.mark.parametrize(
         "text",
         [
             "12 at " * 40_000,
