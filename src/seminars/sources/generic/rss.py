@@ -623,7 +623,10 @@ def card_fields(params: RssParams, entry: Entry, detail: Detail, location: str |
     return Fields(title, series, speakers, "\n".join(leftover) or None, type_name)
 
 
-def entry_times(entry: Entry, detail: Detail) -> tuple[Moment | str | None, Moment | str | None]:
+def entry_times(
+    entry: Entry, detail: Detail, zone: ZoneInfo
+) -> tuple[Moment | str | None, Moment | str | None]:
+    """Start and end; the end of a detail page's time text is local wall time in ``zone``."""
     card, item = entry.card, entry.item
     start: Moment | str | None = card.start if card else None
     end: Moment | str | None = card.end if card else None
@@ -631,9 +634,11 @@ def entry_times(entry: Entry, detail: Detail) -> tuple[Moment | str | None, Mome
         start, end = item.start, feed_moment(item.fields.get("end"))
     if end is None and isinstance(start, datetime):
         end = detail.end
-        if end is None and "time_text" in detail.texts:
-            finish = time_range(*split_range(detail.texts["time_text"]))[1]
-            end = datetime.combine(start.date(), finish) if finish else None
+        finish = time_range(*split_range(detail.texts.get("time_text")))[1]
+        if end is None and finish is not None:
+            local = start.astimezone(zone) if start.tzinfo else start
+            end = datetime.combine(local.date(), finish, tzinfo=local.tzinfo)
+            end = end if end > local else None
     return start, end
 
 
@@ -644,7 +649,7 @@ def build_drafts(
     location = (entry.card.location if entry.card else None) or detail.texts.get("location")
     location = location or (item.fields.get("location") if item else None)
     fields = card_fields(params, entry, detail, location)
-    start, end = entry_times(entry, detail)
+    start, end = entry_times(entry, detail, ZoneInfo(source.timezone))
     url = (entry.card.href if entry.card else None) or (item.link if item else None)
     feed_abstract = item.fields.get("abstract") if item else None
     common: dict[str, Any] = {

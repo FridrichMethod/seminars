@@ -7,6 +7,7 @@ import logging
 from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -587,6 +588,31 @@ class TestListPages:
         )
         [draft] = run(source, http)
         assert draft.categories == ["Seminar", "Students"]
+
+    @pytest.mark.parametrize(
+        ("start", "text", "end"),
+        [
+            ("2026-11-16T16:30:00-08:00", "4:30 - 5:30pm", datetime(2026, 11, 16, 17, 30)),
+            # A start in UTC falls on the next day there; the end is on the local day.
+            ("2026-11-17T00:30:00Z", "4:30 - 5:30pm PT", datetime(2026, 11, 16, 17, 30)),
+            ("2026-11-16T16:30:00-08:00", "4:30pm", None),
+            ("2026-11-16T16:30:00-08:00", "4:30 - 3:00pm", None),
+        ],
+    )
+    def test_the_end_from_the_time_text_of_a_detail_page(
+        self, start: str, text: str, end: datetime | None
+    ) -> None:
+        source = list_source(detail_page={"fetch": "native_only", "time_text": ".when"})
+        page = listing(card("A talk", start, href="/events/a"))
+        detail = f'<html><body><p class="when">{text}</p></body></html>'
+        http = serve(
+            **{FEED_URL: rss(item()), LIST_URL: page, "https://dept.example.edu/events/a": detail}
+        )
+        [draft] = run(source, http)
+        expected = end.replace(tzinfo=ZoneInfo("America/Los_Angeles")) if end else None
+        assert draft.end == expected
+        if isinstance(draft.end, datetime):
+            assert draft.end.utcoffset() == timedelta(hours=-8)
 
     def test_a_card_at_the_end_of_the_calendar_does_not_fail_the_source(self) -> None:
         source = list_source(list_page={"primary": True}, detail_page={"fetch": "native_only"})
