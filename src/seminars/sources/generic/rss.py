@@ -49,7 +49,8 @@ Keys of ``params`` (an unknown key is an error that names it;
 * ``expand_schedule``: one draft per session of the detail page's schedule
   instead of one draft for the whole series (the series title becomes the
   series, the description the speaker text); sessions whose headline
-  matches one of ``skip_session_patterns`` ("No class") are left out.
+  matches one of ``skip_session_patterns`` ("No class") are left out. A
+  session's native id is the series id and its day (``<guid>/2026-11-17``).
 * ``max_list_pages`` (default 1), ``exclude_types`` (card types dropped),
   ``event_type_names`` (card type -> event type), ``series_from: type`` (the
   card type is the series).
@@ -76,6 +77,7 @@ from __future__ import annotations
 
 import io
 import logging
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -683,19 +685,31 @@ def session_drafts(
     detail: Detail,
     native_id: str | None,
 ) -> list[EventDraft]:
-    """One draft per session of the schedule; skipped headlines and dateless sessions drop."""
+    """One draft per session of the schedule; skipped headlines and dateless sessions drop.
+
+    A session's native id is the series id with the session's day, plus its
+    start time when the day has several sessions (and a counter when even
+    that repeats): adding or removing another session changes no other id.
+    """
+    kept = [
+        (day, session, *time_range(*split_range(session.time)))
+        for session in detail.sessions
+        if (day := session.day) and not any_match(params.skip_session_patterns, session.headline)
+    ]
+    per_day = Counter(day for day, *_ in kept)
+    seen: Counter[str] = Counter()
     drafts = []
-    for index, session in enumerate(detail.sessions, start=1):
-        if session.day is None or any_match(params.skip_session_patterns, session.headline):
-            continue
-        begin, finish = time_range(*split_range(session.time))
-        start = datetime.combine(session.day, begin) if begin else session.day
-        end = datetime.combine(session.day, finish) if begin and finish else None
+    for day, session, begin, finish in kept:
+        key = day.isoformat() + (f"T{begin:%H%M}" if begin and per_day[day] > 1 else "")
+        seen[key] += 1
+        key += f"-{seen[key]}" if seen[key] > 1 else ""
+        start = datetime.combine(day, begin) if begin else day
+        end = datetime.combine(day, finish) if begin and finish else None
         drafts.append(
             EventDraft.model_validate(
                 {
                     **common,
-                    "native_id": f"{native_id}/{index}" if native_id else None,
+                    "native_id": f"{native_id}/{key}" if native_id else None,
                     "title": session.headline,
                     "series": fields.series
                     or (fields.title if fields.title != TBA_TITLE else None),

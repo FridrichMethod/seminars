@@ -159,11 +159,14 @@ class TestRecordedSources:
         drafts = run(source.evolve(enabled=True))
         sessions = [d for d in drafts if d.series == "First Year Seminar Series 2026 (CME 300)"]
         assert len(sessions) == 9
+        unexpanded = run(with_params(SOURCES["sites-icme"], expand_schedule=False))
+        series_id = by_title(unexpanded, "First Year Seminar Series 2026 (CME 300)").native_id
+        assert series_id
         [session] = at(sessions, datetime(2026, 11, 17, 13, 30))
         assert session.end == datetime(2026, 11, 17, 14, 45)
         assert session.title == "Seminar Session 8"
         assert "Alison Marsden" in (session.speaker_text or "")
-        assert (session.native_id or "").endswith("/9")
+        assert session.native_id == f"{series_id}/2026-11-17"
         symposium = by_title(drafts, "ICME Research Symposium 2027")
         assert symposium.start == datetime(2027, 5, 18, 9, 0, tzinfo=timezone(timedelta(hours=-7)))
 
@@ -659,6 +662,54 @@ class TestListPages:
         page = listing(card("Workshop", "2026-11-19"))
         [draft] = run(list_source(), serve(**{FEED_URL: feed, LIST_URL: page}))
         assert (draft.native_id, draft.start) == ("w", date(2026, 11, 19))
+
+
+SERIES_DETAIL = "https://dept.example.edu/events/seminar-series"
+SESSIONS = (
+    ("Tuesday, November 10, 2026", "1:30pm - 2:45pm", "Session 1"),
+    ("Tuesday, November 17, 2026", "1:30pm - 2:45pm", "Session 2"),
+    ("Tuesday, November 17, 2026", "3:00pm - 4:00pm", "Session 3"),
+    ("Tuesday, November 24, 2026", "1:30pm - 2:45pm", "No class - Thanksgiving"),
+    ("Tuesday, December 1, 2026", "TBA", "Session 4"),
+    ("Tuesday, December 1, 2026", "TBA", "Session 5"),
+)
+
+
+def session_ids(sessions: tuple[tuple[str, str, str], ...]) -> dict[str | None, str | None]:
+    """Title -> native id of the sessions of a hand-written series with a schedule."""
+    schedule = {"date": "h3.day", "item": "div.s", "time": ".t", "headline": ".h"}
+    source = list_source(
+        detail_page={"fetch": "native_only", "schedule": schedule},
+        expand_schedule=True,
+        skip_session_patterns=[r"^No class\b"],
+    )
+    feed = rss(item(title="Seminar Series", when="Tue, 22 Sep 2026 00:00:00 -0700", guid="g1"))
+    page = listing(card("Seminar Series", "2026-09-22", "2026-12-01"))
+    blocks = "".join(
+        f'<h3 class="day">{day}</h3><div class="s"><span class="t">{clock}</span>'
+        f'<span class="h">{headline}</span></div>'
+        for day, clock, headline in sessions
+    )
+    detail = f'<html><body><section class="event">{blocks}</section></body></html>'
+    http = serve(**{FEED_URL: feed, LIST_URL: page, SERIES_DETAIL: detail})
+    return {draft.title: draft.native_id for draft in run(source, http)}
+
+
+class TestSchedules:
+    def test_a_session_id_is_the_series_id_and_the_session_day(self) -> None:
+        assert session_ids(SESSIONS) == {
+            "Session 1": "g1/2026-11-10",
+            "Session 2": "g1/2026-11-17T1330",
+            "Session 3": "g1/2026-11-17T1500",
+            "Session 4": "g1/2026-12-01",
+            "Session 5": "g1/2026-12-01-2",
+        }
+
+    def test_removing_or_adding_a_session_keeps_the_ids_of_the_others(self) -> None:
+        full = session_ids(SESSIONS)
+        assert session_ids(SESSIONS[1:]) == {k: v for k, v in full.items() if k != "Session 1"}
+        extra = ("Tuesday, November 3, 2026", "1:30pm - 2:45pm", "Session 0")
+        assert session_ids((extra, *SESSIONS)) == {"Session 0": "g1/2026-11-03", **full}
 
 
 class TestParams:
