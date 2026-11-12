@@ -121,7 +121,7 @@
     },
     "meta": {
       "updated": "最后更新：{time}",
-      "timezone": "时间按 {timezone} 时区显示。",
+      "timezone": "所有时间均为{timezone}。",
       "loading": "正在加载..."
     },
     "filters": {
@@ -153,8 +153,20 @@
       "all_day": "全天",
       "time_range": "{start} - {end}",
       "until": "持续到 {date}",
+      "tba": "待公布",
       "pick": "精选",
       "picks_reasons": "入选理由",
+      "reasons": {
+        "keyword": "{place}含\"{term}\"（{points}）",
+        "series": "系列\"{term}\"（{points}）",
+        "speaker": "报告人\"{term}\"（{points}）",
+        "penalty": "扣分词\"{term}\"（{points}）",
+        "places": {
+          "title": "标题",
+          "series": "系列名",
+          "abstract": "摘要"
+        }
+      },
       "cancelled": "已取消",
       "tentative": "待定",
       "online": "线上",

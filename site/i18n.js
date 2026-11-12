@@ -140,6 +140,12 @@ export function formatNumber(value) {
   return new Intl.NumberFormat(active).format(value);
 }
 
+/** ``value`` with its sign, such as "+3" or "-1.5" (never "-0"). */
+export function formatSigned(value) {
+  const options = { signDisplay: "always", maximumSignificantDigits: 6 };
+  return new Intl.NumberFormat(active, options).format(value + 0);
+}
+
 /** ``<base>_one`` or ``<base>_other``, chosen by the plural rules of the language. */
 export function plural(base, count, params = {}) {
   const category = new Intl.PluralRules(active).select(count);

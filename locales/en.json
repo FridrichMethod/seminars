@@ -121,7 +121,7 @@
     },
     "meta": {
       "updated": "Last updated {time}",
-      "timezone": "Times are shown in the {timezone} time zone.",
+      "timezone": "All times are {timezone}.",
       "loading": "Loading..."
     },
     "filters": {
@@ -153,8 +153,20 @@
       "all_day": "All day",
       "time_range": "{start} - {end}",
       "until": "Until {date}",
+      "tba": "TBA",
       "pick": "Pick",
       "picks_reasons": "Why picked",
+      "reasons": {
+        "keyword": "\"{term}\" in {place} ({points})",
+        "series": "series \"{term}\" ({points})",
+        "speaker": "speaker \"{term}\" ({points})",
+        "penalty": "penalty \"{term}\" ({points})",
+        "places": {
+          "title": "title",
+          "series": "series",
+          "abstract": "abstract"
+        }
+      },
       "cancelled": "Cancelled",
       "tentative": "Tentative",
       "online": "Online",

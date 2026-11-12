@@ -20,6 +20,16 @@ export const PARAMS = Object.freeze({
   picks: "picks",
 });
 
+/** The title the pipeline stores for a talk whose title is not announced yet. */
+export const TBA_TITLE = "TBA";
+
+/**
+ * Picks reasons the page can say in every language: what matched and where (see
+ * seminars.models.public.PickReason). Any other reason is shown as its text.
+ */
+export const REASON_KINDS = Object.freeze(["keyword", "series", "speaker", "penalty"]);
+export const REASON_PLACES = Object.freeze(["title", "series", "abstract"]);
+
 const MAX_QUERY_LENGTH = 200;
 const DEFAULT_MINUTES = 60;
 const MINUTE_MS = 60 * 1000;
@@ -62,6 +72,39 @@ function prepareSpeaker(raw) {
     : Object.freeze({ name, affiliation: optional(raw.affiliation), url: str(raw.url) });
 }
 
+function otherReason(text) {
+  return Object.freeze({ kind: "other", term: text, place: null, points: null });
+}
+
+/**
+ * One picks reason of events.json, or null when it has no text. A reason of an unknown
+ * kind, or whose parts do not fit together, becomes an "other" reason: its text as it is.
+ */
+export function prepareReason(raw) {
+  if (typeof raw === "string") {
+    const text = optional(raw);
+    return text === null ? null : otherReason(text);
+  }
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  const term = optional(raw.term);
+  if (term === null) {
+    return null;
+  }
+  const { kind, place, points } = raw;
+  const keyword = kind === "keyword";
+  const fits =
+    REASON_KINDS.includes(kind) &&
+    typeof points === "number" &&
+    Number.isFinite(points) &&
+    (keyword ? REASON_PLACES.includes(place) : place === null || place === undefined);
+  if (!fits) {
+    return otherReason(term);
+  }
+  return Object.freeze({ kind, term, place: keyword ? place : null, points });
+}
+
 /** The end of a timed talk: its own end, or the default duration after its start. */
 function timedEnd(start, end) {
   return end !== null && end > start
@@ -102,9 +145,13 @@ export function prepareEvent(raw, zone, fieldIds) {
   const speakers = (Array.isArray(raw.speakers) ? raw.speakers : [])
     .map(prepareSpeaker)
     .filter((speaker) => speaker !== null);
+  const reasons = (Array.isArray(raw.picks_reasons) ? raw.picks_reasons : [])
+    .map(prepareReason)
+    .filter((reason) => reason !== null);
   const event = {
     uid,
     title,
+    tba: title === TBA_TITLE,
     speakers,
     series: optional(raw.series),
     host: optional(raw.host_org),
@@ -123,7 +170,7 @@ export function prepareEvent(raw, zone, fieldIds) {
     url: str(raw.url),
     fields: fieldIds.filter((field) => strings(raw.fields).includes(field)),
     pick: raw.is_pick === true,
-    reasons: strings(raw.picks_reasons),
+    reasons,
     status: str(raw.status) || "confirmed",
   };
   const haystack = [

@@ -28,6 +28,7 @@ from seminars.models import (
     dump_json,
     read_model,
 )
+from seminars.models.public import PickReason
 from seminars.outputs.site_data import write_site_data
 from seminars.textio import read_text
 from seminars.textrules import decorative_characters
@@ -317,7 +318,7 @@ class TestCharset:
         assert [(speaker.name, speaker.affiliation) for speaker in public.speakers] == [
             (clean, clean)
         ]
-        assert public.picks_reasons == [clean]
+        assert public.picks_reasons == [PickReason(kind="other", term=clean)]
         assert (status.sources[0].name, status.sources[0].error) == (clean, clean)
 
     def test_text_that_is_nothing_but_decoration_gets_a_stand_in(

@@ -77,7 +77,18 @@
       ],
       "is_pick": true,
       "picks_reasons": [
-        "abstract: algebraic geometry"
+        {
+          "kind": "series",
+          "term": "Algebraic Geometry Seminar",
+          "place": null,
+          "points": 2.0
+        },
+        {
+          "kind": "keyword",
+          "term": "algebraic geometry",
+          "place": "abstract",
+          "points": 1.0
+        }
       ],
       "status": "confirmed"
     },
@@ -198,9 +209,24 @@
       ],
       "is_pick": true,
       "picks_reasons": [
-        "title: protein design",
-        "title: diffusion model",
-        "series: allow-list"
+        {
+          "kind": "keyword",
+          "term": "protein design",
+          "place": "title",
+          "points": 3.0
+        },
+        {
+          "kind": "keyword",
+          "term": "diffusion model",
+          "place": "title",
+          "points": 3.0
+        },
+        {
+          "kind": "series",
+          "term": "Bioengineering Seminar",
+          "place": null,
+          "points": 3.0
+        }
       ],
       "status": "confirmed"
     },
@@ -291,8 +317,24 @@
       ],
       "is_pick": true,
       "picks_reasons": [
-        "abstract: cryo-EM",
-        "abstract: structure prediction"
+        {
+          "kind": "keyword",
+          "term": "cryo-EM",
+          "place": "abstract",
+          "points": 3.0
+        },
+        {
+          "kind": "keyword",
+          "term": "structure prediction",
+          "place": "abstract",
+          "points": 3.0
+        },
+        {
+          "kind": "penalty",
+          "term": "undergraduate",
+          "place": null,
+          "points": -1.5
+        }
       ],
       "status": "confirmed"
     },
@@ -383,7 +425,18 @@
       ],
       "is_pick": true,
       "picks_reasons": [
-        "title: language model"
+        {
+          "kind": "keyword",
+          "term": "language model",
+          "place": "title",
+          "points": 3.0
+        },
+        {
+          "kind": "speaker",
+          "term": "Sam Okafor",
+          "place": null,
+          "points": 0.5
+        }
       ],
       "status": "confirmed"
     },
