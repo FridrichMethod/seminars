@@ -610,14 +610,15 @@ class TestFields:
             ("Abstract. Link to event page: https://x.example/a", "Abstract."),
             ("Abstract.Link to event page:https://x.example/a", "Abstract."),
             ("Link to event page: https://x.example/a", None),
-            ("Mentions Link to event page: twice and more words", None),
+            (
+                "Mentions Link to event page: twice and more words",
+                "Mentions Link to event page: twice and more words",
+            ),
             ("No link at all", "No link at all"),
             (None, None),
         ],
     )
     def test_without_page_link(self, text: str | None, expected: str | None) -> None:
-        if text == "Mentions Link to event page: twice and more words":
-            expected = text
         assert without_page_link(text) == expected
 
     @pytest.mark.parametrize(
