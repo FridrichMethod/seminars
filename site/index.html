@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<title data-i18n="site.page.index_title"></title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <p class="site-name" data-i18n="site.app.name"></p>
+    <div class="lang-switch" id="lang-switch" role="group" data-i18n-attr="aria-label:site.lang.label"></div>
+  </div>
+  <nav class="wrap page-nav" data-i18n-attr="aria-label:site.nav.label">
+    <a href="index.html" aria-current="page" data-keep-lang data-i18n="site.nav.talks"></a>
+    <a href="status.html" data-keep-lang data-i18n="site.nav.status"></a>
+  </nav>
+</header>
+<main class="wrap layout">
+  <section class="talks" aria-labelledby="talks-heading">
+    <h1 id="talks-heading" data-i18n="site.results.heading"></h1>
+    <p class="tagline" data-i18n="site.app.tagline"></p>
+    <p class="meta"><span id="updated"></span> <span id="timezone"></span></p>
+    <div class="filters" role="search" data-i18n-attr="aria-label:site.filters.label">
+      <div class="filter search">
+        <label for="search" data-i18n="site.filters.search_label"></label>
+        <input id="search" type="search" autocomplete="off" spellcheck="false" data-i18n-attr="placeholder:site.filters.search_placeholder">
+      </div>
+      <fieldset class="filter">
+        <legend data-i18n="site.filters.fields"></legend>
+        <div class="chips" id="field-chips"></div>
+      </fieldset>
+      <fieldset class="filter">
+        <legend data-i18n="site.filters.institutions"></legend>
+        <div class="chips" id="institution-chips"></div>
+      </fieldset>
+      <div class="filter-row">
+        <div class="filter">
+          <label for="host" data-i18n="site.filters.host"></label>
+          <select id="host"></select>
+        </div>
+        <div class="filter">
+          <label for="range" data-i18n="site.filters.range"></label>
+          <select id="range"></select>
+        </div>
+        <div class="filter toggle">
+          <input id="picks" type="checkbox">
+          <label for="picks" data-i18n="site.filters.picks_only"></label>
+        </div>
+        <div class="filter">
+          <button id="clear" class="secondary" type="button" data-i18n="site.filters.clear"></button>
+        </div>
+      </div>
+    </div>
+    <p class="count" id="count" role="status" aria-live="polite"></p>
+    <div class="events" id="events"></div>
+  </section>
+  <aside class="subscribe" aria-labelledby="subscribe-heading">
+    <h2 id="subscribe-heading" data-i18n="site.subscribe.title"></h2>
+    <p data-i18n="site.subscribe.intro"></p>
+    <h3 data-i18n="site.subscribe.apple.title"></h3>
+    <ol class="steps" id="apple-steps"></ol>
+    <h3 data-i18n="site.subscribe.feeds"></h3>
+    <ul class="feeds" id="feeds"></ul>
+  </aside>
+</main>
+<footer class="wrap site-footer">
+  <p data-i18n="site.footer.note"></p>
+</footer>
+</body>
+</html>

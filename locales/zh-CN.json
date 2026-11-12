@@ -101,5 +101,149 @@
       "notify": "抄送 {mention}"
     }
   },
-  "site": {}
+  "site": {
+    "app": {
+      "name": "斯坦福周边学术报告",
+      "tagline": "每天从公开网页收集的 Stanford、SLAC、Arc Institute 和 CZ Biohub 学术报告。"
+    },
+    "page": {
+      "index_title": "学术报告 - 近期报告",
+      "status_title": "学术报告 - 数据源状态"
+    },
+    "nav": {
+      "label": "页面",
+      "talks": "报告",
+      "status": "数据源状态"
+    },
+    "lang": {
+      "label": "语言",
+      "name": "中文"
+    },
+    "meta": {
+      "updated": "最后更新：{time}",
+      "timezone": "时间按 {timezone} 时区显示。",
+      "loading": "正在加载..."
+    },
+    "filters": {
+      "label": "筛选报告",
+      "search_label": "搜索",
+      "search_placeholder": "标题、报告人、单位、系列或摘要",
+      "fields": "领域",
+      "institutions": "机构",
+      "host": "主办方",
+      "host_all": "全部主办方",
+      "range": "时间",
+      "range_options": {
+        "today": "今天",
+        "week": "未来 7 天",
+        "two_weeks": "未来 14 天",
+        "all": "全部"
+      },
+      "picks_only": "只看精选",
+      "clear": "清除筛选"
+    },
+    "results": {
+      "heading": "近期报告",
+      "count_one": "{count} 场即将举行的报告",
+      "count_other": "{count} 场即将举行的报告",
+      "empty": "没有符合筛选条件的报告。",
+      "load_error": "无法加载报告列表，请稍后再试。"
+    },
+    "event": {
+      "all_day": "全天",
+      "time_range": "{start} - {end}",
+      "until": "持续到 {date}",
+      "pick": "精选",
+      "picks_reasons": "入选理由",
+      "cancelled": "已取消",
+      "tentative": "待定",
+      "online": "线上",
+      "livestream": "直播链接",
+      "speakers": "报告人",
+      "speaker_affiliation": "{name}（{affiliation}）",
+      "labels": "标签",
+      "series": "系列",
+      "host": "主办方",
+      "location": "地点",
+      "abstract": "摘要"
+    },
+    "institutions": {
+      "stanford": "斯坦福",
+      "slac": "SLAC",
+      "arc": "Arc 研究所",
+      "biohub": "CZ Biohub",
+      "other": "其他"
+    },
+    "event_types": {
+      "seminar": "研讨会",
+      "colloquium": "学术讲座",
+      "lecture": "讲座",
+      "conference": "会议",
+      "workshop": "工作坊",
+      "defense": "论文答辩",
+      "other": "报告"
+    },
+    "subscribe": {
+      "title": "订阅日历",
+      "intro": "每个日历都是一个 ICS 订阅源，每隔几小时自动刷新。订阅一次，之后新的报告会自动出现。",
+      "feeds": "日历",
+      "calendar_link": "日历应用链接",
+      "web_link": "网页链接",
+      "copy": "复制",
+      "copy_label": "复制{kind}：{feed}",
+      "copied": "已复制",
+      "copy_failed": "复制失败，请手动选中链接并复制。",
+      "apple": {
+        "title": "Apple 日历",
+        "steps": {
+          "step_1": "在 Mac 上打开日历应用，从文件菜单中选择新建日历订阅。",
+          "step_2": "粘贴下方某个日历的日历应用链接，然后点击订阅。",
+          "step_3": "位置选择 iCloud，这样 iPhone 和 iPad 也会同步这个日历。",
+          "step_4": "设置自动刷新频率（例如每天），然后点击好。",
+          "step_5": "在 iPhone 或 iPad 上，也可以直接点按日历应用链接，再点订阅确认。"
+        }
+      }
+    },
+    "status": {
+      "heading": "数据源状态",
+      "intro": "每个数据源及其最近一次运行的结果。",
+      "last_run": "上次运行：{time}",
+      "last_run_ok": "上次运行成功。",
+      "last_run_failed": "上次运行失败。",
+      "no_run": "还没有完成过运行。",
+      "events_one": "网站上共有 {count} 场报告",
+      "events_other": "网站上共有 {count} 场报告",
+      "summary": "{total} 个启用的数据源中有 {ok} 个运行正常。",
+      "llm": "领域标签使用了 LLM 提供方 {provider}。",
+      "llm_none": "领域标签只使用了规则。",
+      "columns": {
+        "group": "分组",
+        "events": "事件数",
+        "last_run": "上次运行",
+        "last_success": "上次成功",
+        "failures": "连续失败次数",
+        "error": "错误"
+      },
+      "groups": {
+        "localist": "斯坦福活动日历",
+        "stanford-sites": "斯坦福院系网站",
+        "stanford-custom": "斯坦福实验室与中心网页",
+        "bayarea": "湾区研究机构",
+        "researchseminars": "researchseminars.org"
+      },
+      "states": {
+        "ok": "正常",
+        "empty": "没有事件",
+        "failed": "失败",
+        "disabled": "已停用",
+        "unknown": "尚未运行"
+      },
+      "never": "从未",
+      "empty": "没有配置任何数据源。",
+      "load_error": "无法加载数据源状态，请稍后再试。"
+    },
+    "footer": {
+      "note": "报告信息来自各主办方的公开网页，可能会有变动；出发前请以主办方页面为准。"
+    }
+  }
 }
