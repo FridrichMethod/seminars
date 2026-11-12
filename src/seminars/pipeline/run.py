@@ -60,7 +60,7 @@ import math
 import shutil
 import tempfile
 import time
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -291,6 +291,18 @@ def _scored(event: Event, scorer: PicksScorer) -> Event:
     return event.evolve(picks_score=score, picks_reasons=result.reasons)
 
 
+def _renamed_away(
+    renamed: Mapping[str, str], final: Callable[[str], str], stored: Mapping[str, Event]
+) -> dict[str, str]:
+    """The uids that the run gave up for another one and that no stored event holds.
+
+    A stored uid that a candidate gave up (adoption handed the candidate
+    the uid of another stored event) still belongs to its stored event:
+    that event is judged like any other one the run did not deliver.
+    """
+    return {uid: final(uid) for uid in renamed if final(uid) != uid and uid not in stored}
+
+
 def _process(
     config: AppConfig, services: Services, gathered: _Gathered, state: State
 ) -> _Processed:
@@ -341,7 +353,7 @@ def _process(
         excluded_uids=frozenset(
             uid_of[key] for item in left_out for key in item.source_ids if key in uid_of
         ),
-        absorbed={**{uid: final(uid) for uid in renamed if final(uid) != uid}, **deduped.absorbed},
+        absorbed={**_renamed_away(renamed, final, stored), **deduped.absorbed},
         aliases=deduped.aliases,
         merged=len(filtered.kept) - len(deduped.candidates),
         warnings=tagged.warnings,
