@@ -55,14 +55,41 @@ _TBA_WORDS: Final = (
     "tba|tbd|tbc|to be announced|to be determined|to be confirmed|to come|forthcoming"
     "|coming soon|pending|untitled|no title|no title yet"
 )
-_TBA: Final = re.compile(
+_CJK_TBA_WORDS: Final = (
+    "\u5f85\u5b9a|\u672a\u5b9a|\u5f85\u516c\u5e03|\u5f85\u786e\u5b9a|\u5f85\u78ba\u5b9a"
+    "|\u53e6\u884c\u901a\u77e5|\ubbf8\uc815"
+)
+"""Chinese and Japanese for "to be determined", "undetermined", "to be announced", "to be
+confirmed" (simplified and traditional) and "to be notified separately"; Korean for
+"undecided"."""
+_CJK_TITLE_WORDS: Final = (
+    "\u9898\u76ee|\u984c\u76ee|\u6807\u9898|\u6a19\u984c|\u62a5\u544a\u9898\u76ee"
+    "|\u5831\u544a\u984c\u76ee|\u30bf\u30a4\u30c8\u30eb|\uc81c\ubaa9"
+)
+"""Chinese, Japanese and Korean for "title" and "title of the talk"."""
+_ENGLISH_TBA: Final = (
     rf"(?:(?:talk|seminar|lecture|colloquium) )?(?:title (?:is |and abstract )?)?(?:{_TBA_WORDS})"
     r"|title"
 )
-_ABSTRACT_HEADING: Final = re.compile(r"^(?:abstract|summary|description)(?: and title)?\b\s*")
+_CJK_TBA: Final = rf"(?:(?:{_CJK_TITLE_WORDS}) ?)?(?:{_CJK_TBA_WORDS})"
+_TBA: Final = re.compile(
+    rf"(?:{_ENGLISH_TBA})(?: (?:{_CJK_TBA}))?|(?:{_CJK_TBA})(?: (?:{_ENGLISH_TBA}))?"
+)
+"""A placeholder in English or in CJK, or one of each side by side ("TBA (to be
+determined)" with the second in Chinese)."""
+_ABSTRACT_HEADING: Final = re.compile(
+    r"^(?:(?:abstract|summary|description)(?: and title)?\b"
+    "|\u6458\u8981|\u7b80\u4ecb|\u7c21\u4ecb|\u6982\u8981|\u8981\u65e8|\ucd08\ub85d|\uc694\uc57d"
+    r")\s*"
+)
+"""A heading in English, or Chinese, Japanese or Korean for "abstract" and "summary"."""
 _NO_ABSTRACT: Final = re.compile(
     r"n a|na|none|nil|no abstract(?: (?:yet|available|provided))?|not available"
+    "|(?:\u6682\u65e0|\u66ab\u7121|\u65e0|\u7121)(?:\u6458\u8981|\u7b80\u4ecb|\u7c21\u4ecb)?"
+    "|\u306a\u3057|\uc5c6\uc74c"
 )
+"""Placeholders of an abstract; the last are Chinese for "none (yet)", optionally with
+"abstract" or "summary", and Japanese and Korean for "none"."""
 _HONORIFIC: Final = re.compile(
     r"^(?:(?:dr|prof|professor|mr|mrs|ms|mx|sir|dame)\b\.?\s*)+", re.IGNORECASE
 )
@@ -191,11 +218,12 @@ def paragraphs(text: str | None, *, limit: int, is_html: bool = False) -> str | 
 def _phrase(text: str) -> str:
     """``text`` as the words the phrases of this module are written in.
 
-    That is ``fold``, with the dots of "T.B.A." removed first. Letters of
-    every script are words, so a title or an abstract in Chinese or Greek,
-    or one that is a single accented letter, is never empty.
+    That is ``fold``, with the dots of "T.B.A." removed first and Korean
+    syllables, which ``fold`` takes apart into letters, put together again.
+    Letters of every script are words, so a title or an abstract in Chinese
+    or Greek, or one that is a single accented letter, is never empty.
     """
-    return fold(text.replace(".", ""))
+    return unicodedata.normalize("NFC", fold(text.replace(".", "")))
 
 
 def is_tba(title: str | None) -> bool:
@@ -203,6 +231,9 @@ def is_tba(title: str | None) -> bool:
 
     Nothing is said by a title without a letter or a digit of any script
     ("--", "?!"); a title in Chinese, or the Greek letter pi alone, is one.
+    The placeholders are English ("TBA", "Title to come") and Chinese,
+    Japanese or Korean (for "to be determined", alone or after the word
+    for "title"), also one of each side by side.
     """
     if title is None:
         return True
@@ -214,8 +245,9 @@ def is_empty_abstract(text: str | None) -> bool:
     """Whether an abstract is only a heading or says that there is none yet.
 
     "Abstract", "Abstract: TBA", "Summary", "TBD", "N/A" and "No abstract"
-    say nothing about the talk; "Abstract: we study knots", "More
-    information forthcoming" and an abstract in any other script do.
+    say nothing about the talk, and neither do the same in Chinese,
+    Japanese or Korean; "Abstract: we study knots", "More information
+    forthcoming" and any other abstract in any script do.
     """
     if text is None:
         return True

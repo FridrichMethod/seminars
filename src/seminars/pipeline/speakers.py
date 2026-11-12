@@ -101,11 +101,17 @@ from seminars.pipeline.text import fold, is_degree, tidy_name, word_set
 MAX_NAME_LENGTH: Final = 80
 
 _LABEL: Final = re.compile(
-    r"^\s*(?:(?:guest|invited|keynote|featured)\s+)?"
+    r"^\s*(?:(?:(?:guest|invited|keynote|featured)\s+)?"
     r"(?:speakers?|presenters?|presented\s+by|lecturers?|panelists?|featuring|with|by)"
-    r"\s*[:\-]\s*",
+    r"\s*[:\-\uff1a]"
+    "|(?:\u8bb2\u8005|\u8b1b\u8005|\u4e3b\u8bb2\u4eba|\u4e3b\u8b1b\u4eba|\u62a5\u544a\u4eba"
+    "|\u5831\u544a\u4eba|\u6f14\u8bb2\u8005|\u6f14\u8b1b\u8005|\u8bb2\u5e08|\u8b1b\u5e2b"
+    "|\u8b1b\u6f14\u8005|\ubc1c\ud45c\uc790|\uc5f0\uc0ac)"
+    r"\s*[:\uff1a])\s*",
     re.IGNORECASE,
 )
+"""A label in front of the speakers, in English or in Chinese, Japanese or Korean (for
+"speaker", "lecturer" and "presenter"); one in CJK needs a colon."""
 _NUMBERED_LABEL: Final = re.compile(
     r"(?:\b|(?-i:(?<=[a-z0-9])(?=[A-Z][a-z])))"
     r"(?:speaker|presenter|panelist|lecturer)\s{0,3}#?\d{1,2}\s{0,3}(?:\([^()\n]{0,60}\))?"
