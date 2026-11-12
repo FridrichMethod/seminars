@@ -580,6 +580,7 @@ def run_pipeline(
         now=now,
         window=config.settings.window_at(now),
         healthy_sources={result.source_id for result in gathered.results if result.status == "ok"},
+        enabled_sources={source.id for source in config.enabled_sources},
         delete_after_missing_runs=config.settings.events.delete_after_missing_runs,
         excluded_uids=processed.excluded_uids,
         absorbed=processed.absorbed,
