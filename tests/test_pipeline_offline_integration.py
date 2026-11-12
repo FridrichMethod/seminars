@@ -170,6 +170,12 @@ def test_the_sessions_of_a_schedule_name_one_speaker_per_label(
         ("Alison Marsden", "Professor, Pediatrics - Cardiology"),
         ("Emily Fox", "Professor, Statistics and Computer Science"),
     ]
+    # Session 7's paragraphs run together: "..., GeophysicsSpeaker 2 (2:10 PM ...".
+    (event,) = [event for event in stored(root) if event.title == "Seminar Session 7"]
+    assert [(person.name, person.affiliation) for person in event.speakers] == [
+        ("Ching-Yao Lai", "Assistant Professor, Geophysics"),
+        ("Simona Onori", "Associate Professor, Energy Science and Engineering"),
+    ]
 
 
 def test_a_calendar_title_that_names_the_speaker_joins_the_host_listing(

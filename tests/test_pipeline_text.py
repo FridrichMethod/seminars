@@ -298,6 +298,20 @@ class TestSpeakerLines:
                 "Speaker 1: Jane Doe, loudspeaker 2 - design",
                 [("Jane Doe", "loudspeaker 2 - design")],
             ),
+            (
+                "Speaker 1: Jane Doe, LOUDSPEAKER 2 - design",
+                [("Jane Doe", "LOUDSPEAKER 2 - design")],
+            ),
+            (
+                # Two paragraphs ran together: a capital starts the label right after a word.
+                "Speaker 1 (1:30 PM \u2013 2:05 PM) - Ching-Yao Lai, Assistant Professor,"
+                " GeophysicsSpeaker 2 (2:10 PM \u2013 2:45 PM) - Simona Onori, Associate"
+                " Professor, Energy Science and Engineering",
+                [
+                    ("Ching-Yao Lai", "Assistant Professor, Geophysics"),
+                    ("Simona Onori", "Associate Professor, Energy Science and Engineering"),
+                ],
+            ),
             ("Jane Doe, Computer Science", [("Jane Doe", "Computer Science")]),
         ],
     )

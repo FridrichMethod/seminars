@@ -54,14 +54,17 @@ _LABEL: Final = re.compile(
     re.IGNORECASE,
 )
 _NUMBERED_LABEL: Final = re.compile(
-    r"\b(?:speaker|presenter|panelist|lecturer)\s{0,3}#?\d{1,2}\s{0,3}(?:\([^()\n]{0,60}\))?"
+    r"(?:\b|(?-i:(?<=[a-z0-9])(?=[A-Z][a-z])))"
+    r"(?:speaker|presenter|panelist|lecturer)\s{0,3}#?\d{1,2}\s{0,3}(?:\([^()\n]{0,60}\))?"
     r"\s{0,3}[:\-\u2013\u2014]\s*",
     re.IGNORECASE,
 )
 """A numbered label in front of the speakers of one slot.
 
-It may follow a bracket or a stop without a space ("(OTL)Speaker 2"),
-never a letter or a digit ("loudspeaker 2").
+It may follow a bracket or a stop without a space ("(OTL)Speaker 2"), and
+a word when it starts with a capital ("GeophysicsSpeaker 2", where two
+paragraphs ran together), but it is never the lower-case end of a word
+("loudspeaker 2").
 """
 _HARD_SEPARATOR: Final = re.compile(r"[;|\n]|\s+(?:and|&)\s+|,\s+(?:and|&)\s+", re.IGNORECASE)
 _ANY_SEPARATOR: Final = re.compile(r"[;|\n,]|\s+(?:and|&)\s+", re.IGNORECASE)
