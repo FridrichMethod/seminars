@@ -59,11 +59,29 @@ Keys of ``params`` (an unknown key is an error that names it;
   are the start and the end, replacing the row's times; ``location``;
   ``native_id`` with ``native_id_attribute`` and ``native_id_pattern``
   (group ``native_id``); ``tag``: the texts of all matches become
-  categories. A row whose detail page is missing (not fetched, or failed)
-  is dropped: its detail page holds what the list lacks. Links to other
-  hosts are never fetched; a list page that was redirected to a host the
-  source does not name raises ``ForeignHostError``.
+  categories. ``speaker``: every match is one speaker (or a list of
+  names), named by the text of ``speaker_name`` inside it (default: the
+  text of the match) with the text of ``speaker_affiliation`` inside it;
+  a row without speakers of its own takes these. ``body``: the elements
+  whose text announces the talk; a speaker without an affiliation takes
+  the lines below the line of the page that names them (see "Affiliations
+  from the text" below). ``required`` (default true): a row whose detail
+  page is missing (not fetched, or failed) is dropped, because its page
+  holds what the list lacks; with false the row keeps what the list says.
+  Links to other hosts are never fetched; a list page that was redirected
+  to a host the source does not name raises ``ForeignHostError``.
 * ``keep_tags``: with ``detail_page.tag``, keep only rows with one of these tags.
+
+Affiliations from the text: the lines of ``detail_page.body`` are its
+matches, each split at ``<br>`` and at the start of a nested block element;
+a match without text is an empty line. The line of a speaker holds their
+name (the first and the last word of it, at most two words between them,
+such as a middle initial) and at most four other words ("Prof. Dr.",
+"PhD"), so a sentence that mentions the speaker is not it. Up to three
+lines below it are the affiliation, joined with ", ", ending before an
+empty line, a weekday ("Monday," "Thu."), a month and a day ("December
+3"), a line that starts with a digit (a date or a time) or a label ("Talk
+Title:", "Host:"). The first line that names the speaker decides.
 
 Times are naive local wall times (the pipeline applies the source's
 timezone) unless the page states an offset. A row without a link has no
@@ -109,6 +127,7 @@ from seminars.sources.base import (
     register_adapter,
 )
 from seminars.sources.generic.common import (
+    PATTERN_INPUT_LIMIT,
     Pattern,
     Selector,
     any_match,
@@ -175,7 +194,19 @@ class DetailParams(Model):
     native_id_attribute: str | None = None
     native_id_pattern: Pattern | None = None
     tag: Selector | None = None
+    speaker: Selector | None = None
+    speaker_name: Selector | None = None
+    speaker_affiliation: Selector | None = None
+    body: Selector | None = None
+    required: bool = True
     max_pages: Annotated[int, Field(ge=1, le=20)] = 10
+
+    @model_validator(mode="after")
+    def _check_speaker_parts(self) -> DetailParams:
+        for name in ("speaker_name", "speaker_affiliation"):
+            if getattr(self, name) is not None and self.speaker is None:
+                raise ValueError(f"{name} needs detail_page.speaker")
+        return self
 
 
 class HtmlListParams(Model):
@@ -365,6 +396,99 @@ class Detail:
     location: str | None = None
     native_id: str | None = None
     tags: tuple[str, ...] = ()
+    speakers: tuple[SpeakerDraft, ...] = ()
+    lines: tuple[str, ...] = ()  # of detail_page.body; "" is an empty line
+
+
+_BLOCK_TAGS: Final = frozenset(
+    {
+        *("address", "article", "blockquote", "br", "dd", "div", "dl", "dt", "figcaption"),
+        *("footer", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "ol", "p"),
+        *("section", "table", "td", "th", "tr", "ul"),
+    }
+)
+MAX_AFFILIATION_LINES: Final = 3
+MAX_OTHER_WORDS: Final = 4  # on the line of a name: titles and degrees ("Prof. Dr.", "PhD")
+_WEEKDAYS: Final = "monday|tuesday|wednesday|thursday|friday|saturday|sunday"
+_NO_AFFILIATION: Final = re.compile(
+    r"\s*(?:\d"  # a date or a time: "12/3/26", "11:00 AM"
+    rf"|(?:{_WEEKDAYS})\b|(?:mon|tues?|wed|thu|thurs|fri|sat|sun)[.,]"
+    r"|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d"
+    r"|[^\W\d][^:]{0,40}:(?:\s|$))",  # a label: "Talk Title:", "Host:"
+    re.IGNORECASE,
+)
+
+
+def text_lines(node: LexborNode) -> list[str]:
+    """The non-empty lines below ``node``: ``<br>`` and the start of a block element end one."""
+    lines: list[list[str]] = [[]]
+    for child in node.traverse(include_text=True):
+        if child.is_text_node:
+            lines[-1].append(child.text_content or "")
+        elif child.tag in _BLOCK_TAGS:
+            lines.append([])
+    return [text for line in lines if (text := collapse("".join(line)))]
+
+
+def names_line(line: str, name: str) -> bool:
+    """True when ``line`` is the line of ``name``: the name and at most a few other words."""
+    words = name.split()
+    if not words:
+        return False
+    middle = r"(?:\s+\S+){0,2}?\s+" + re.escape(words[-1]) if len(words) > 1 else ""
+    pattern = rf"(?<!\w){re.escape(words[0])}{middle}(?!\w)"
+    match = re.search(pattern, line[:PATTERN_INPUT_LIMIT], re.IGNORECASE)
+    if match is None:
+        return False
+    rest = line[: match.start()] + " " + line[match.end() :]
+    return len(re.findall(r"\w+", rest)) <= MAX_OTHER_WORDS
+
+
+def affiliation_after(lines: Sequence[str], name: str) -> str | None:
+    """The lines below the first line that names ``name``; see the module docstring."""
+    for index, line in enumerate(lines):
+        if not names_line(line, name):
+            continue
+        found: list[str] = []
+        for following in lines[index + 1 : index + 1 + MAX_AFFILIATION_LINES]:
+            if not following or _NO_AFFILIATION.match(following):
+                break
+            found.append(following)
+        return ", ".join(found) or None
+    return None
+
+
+def with_affiliations(speakers: Sequence[SpeakerDraft], lines: Sequence[str]) -> list[SpeakerDraft]:
+    """``speakers``, each without an affiliation given the one the text has for them."""
+    if not lines:
+        return list(speakers)
+    completed: list[SpeakerDraft] = []
+    for speaker in speakers:
+        found = None if speaker.affiliation else affiliation_after(lines, speaker.name)
+        completed.append(speaker.evolve(affiliation=found) if found else speaker)
+    return completed
+
+
+def detail_speakers(params: DetailParams, tree: LexborHTMLParser) -> tuple[SpeakerDraft, ...]:
+    """One speaker per match of ``params.speaker`` (a list of names is split)."""
+    if params.speaker is None:
+        return ()
+    found: list[SpeakerDraft] = []
+    for node in tree.css(params.speaker):
+        name = node_text(node.css_first(params.speaker_name)) if params.speaker_name else None
+        affiliation = (
+            node_text(node.css_first(params.speaker_affiliation))
+            if params.speaker_affiliation
+            else None
+        )
+        found.extend(make_speakers(name if params.speaker_name else node_text(node), affiliation))
+    return tuple(found)
+
+
+def body_lines(params: DetailParams, tree: LexborHTMLParser) -> tuple[str, ...]:
+    if params.body is None:
+        return ()
+    return tuple(line for node in tree.css(params.body) for line in text_lines(node) or [""])
 
 
 def read_detail(params: DetailParams, document: FetchedDocument) -> Detail:
@@ -385,6 +509,8 @@ def read_detail(params: DetailParams, document: FetchedDocument) -> Detail:
         location=node_lines(tree.css_first(params.location)) if params.location else None,
         native_id=native_id,
         tags=tags,
+        speakers=detail_speakers(params, tree),
+        lines=body_lines(params, tree),
     )
 
 
@@ -490,9 +616,10 @@ class HtmlListAdapter:
         detail = Detail()
         if params.detail_page is not None:
             page = details.get(url) if url is not None else None
-            if page is None:
+            if page is None and params.detail_page.required:
                 return None
-            detail = read_detail(params.detail_page, page)
+            if page is not None:
+                detail = read_detail(params.detail_page, page)
             if params.keep_tags and not set(detail.tags) & set(params.keep_tags):
                 return None
         start, end = row_times(params, row, reference)
@@ -509,7 +636,7 @@ class HtmlListAdapter:
             title=title,
             start=start,
             end=end,
-            speakers=row_speakers(row),
+            speakers=with_affiliations(row_speakers(row) or detail.speakers, detail.lines),
             location=row.get("location") or detail.location,
             stream_url=absolute_url(document.final_url, row.get("stream_link")),
             abstract=None if row.abstract_html else row.get("summary"),

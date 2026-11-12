@@ -127,7 +127,7 @@ class TestRecordedSources:
         names = {s.name for draft in drafts for s in draft.speakers}
         assert {"Xinyu Hu", "Olcay Cirit"} <= names
 
-    def test_biohub_takes_times_and_place_from_the_detail_page(self) -> None:
+    def test_biohub_takes_times_place_and_speakers_from_the_detail_page(self) -> None:
         http = offline_client("bayarea-biohub")
         drafts = run(SOURCES["bayarea-biohub"], http)
         detail = "https://biohub.org/events/webinar-esmfold2-structure-prediction-long-context/"
@@ -140,7 +140,7 @@ class TestRecordedSources:
         assert webinar.native_id == "52744"
         assert webinar.url == detail
         assert webinar.event_type_hint == "seminar"
-        assert webinar.speakers == []
+        assert [s.name for s in webinar.speakers][:2] == ["Allan dos Santos Costa", "Simon Chu"]
         assert (webinar.abstract or "").startswith("Watch our webinar on long-context")
 
     def test_biohub_without_upcoming_events_gives_no_drafts(self) -> None:
