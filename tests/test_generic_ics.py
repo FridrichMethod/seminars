@@ -21,12 +21,10 @@ from seminars.sources import base
 from seminars.sources.base import ParseError
 from seminars.sources.generic import ics
 from seminars.sources.generic.ics import (
-    MAX_OCCURRENCES,
     MAX_PATTERN_INPUT,
     IcsAdapter,
     IcsCalendar,
     IcsOccurrence,
-    check_rule,
     ics_params,
     instance_key,
     occurrence_draft,
@@ -36,6 +34,7 @@ from seminars.sources.generic.ics import (
     read_calendar,
     vevent_draft,
 )
+from seminars.sources.generic.ics_rules import MAX_OCCURRENCES, check_rule
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PACIFIC = ZoneInfo("America/Los_Angeles")
@@ -1160,4 +1159,3 @@ class TestParams:
 
 def test_the_adapter_keeps_no_state() -> None:
     assert vars(IcsAdapter()) == {}
-    assert ics.MAX_OCCURRENCES == MAX_OCCURRENCES
