@@ -715,6 +715,12 @@ sources:
       <<: *su-event-params
       detail_page:
         fetch: never  # the detail page of this site has no body, only what the card has
+      # The room is only in the free-text subheadline, "12/9/26, @MUNZER Auditorium,
+      # 4PM" (the room changes from week to week, so no fixed default). The part is
+      # then not the abstract.
+      card_fields:
+        location: subheadline
+      location_pattern: '@\s*(?P<location>[^,]+?)\s*(?:,|$)'
       # Optional hint, matches all 4 titles of the fixture.
       title_patterns:
         - '^(?P<series>Frontiers in Biology):\s*(?P<speaker>[^,|]+),\s*(?P<affiliation>[^|]+?)\s*\|\s*"(?P<title>.+?)"\s*$'

@@ -41,10 +41,13 @@ that names it, ``extra_hosts`` excepted):
   ``exclude_type_ids`` (repeated ``exclude_type[]``) and ``group_ids``
   (repeated ``group_id[]``: department or group ids; several are
   alternatives, and together with ``type[]`` both must hold).
-* ``event_types`` (list of ``{id, name, event_type}``): an event type id of
-  the calendar and the ``EventType`` it stands for. A record carries
-  several types; the first entry of this list that it carries gives
-  ``event_type_hint``. ``name`` is a note for readers.
+* ``event_types`` (list of ``{id, name, event_type, min_hours}``): an event
+  type id of the calendar and the ``EventType`` it stands for. A record
+  carries several types; the first entry of this list that it carries gives
+  ``event_type_hint``. An entry with ``min_hours`` (a positive number) only
+  counts for an instance that lasts at least that many hours, is all day or
+  has no end: a one-hour seminar that its organizer also tagged as a
+  conference takes the next entry it carries. ``name`` is a note for readers.
 * ``department_fields`` / ``group_fields`` (mapping of a name to a list of
   field ids): ``departments[].name`` / ``groups[].name`` of a record, as
   the API writes them (both sides compared after stripping surrounding
@@ -71,8 +74,10 @@ How a record (``events[].event``) becomes a draft:
   ``virtual`` true. ``stream_url``: ``stream_url`` (it may carry a meeting
   password, which normalization removes). ``stream_info`` holds joining
   instructions with passcodes and is never read.
-* ``abstract``: ``description_text``; ``abstract_html``: ``description``
-  when there is no plain text.
+* ``abstract_html``: ``description``, which keeps its headings and
+  paragraphs apart (``description_text`` runs them together: "OverviewThis
+  activity"); ``abstract``: ``description_text`` only when the HTML has no
+  text.
 * ``categories``: the names of the record's event types, subjects,
   audiences, departments and groups. ``tags``: its tags, which whoever
   posts an event chooses freely ("mathematics" on a talk on the history
@@ -86,6 +91,7 @@ How a record (``events[].event``) becomes a draft:
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Iterator
 from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Final
@@ -128,6 +134,7 @@ _STATUS_HINTS: Final[dict[str, EventStatus]] = {
     "postponed": "cancelled",
 }
 _CATEGORY_FILTERS: Final = ("event_types", "event_subject", "event_audience")
+_TAG: Final = re.compile(r"<[^>]*>")
 
 FieldList = Annotated[list[str], AfterValidator(canonical_fields)]
 """Field ids, validated and in canonical order."""
@@ -148,6 +155,7 @@ class LocalistEventType(Model):
     id: int
     name: str | None = None
     event_type: EventType
+    min_hours: Annotated[float, Field(gt=0)] | None = None
 
 
 class LocalistParams(Model):
@@ -325,6 +333,7 @@ def _draft(
     start, end, all_day = _times(instance, source.timezone)
     departments = _names(record.get("departments"))
     groups = _names(record.get("groups"))
+    abstract, abstract_html = _abstracts(record)
     return EventDraft(
         source_id=source.id,
         extraction="api",
@@ -337,15 +346,13 @@ def _draft(
         location=_location(record),
         is_online=_ONLINE.get(str(record.get("experience"))),
         stream_url=absolute_url(document.final_url, _text(record.get("stream_url"))),
-        abstract=_text(record.get("description_text")),
-        abstract_html=None
-        if _text(record.get("description_text"))
-        else _text(record.get("description")),
+        abstract=abstract,
+        abstract_html=abstract_html,
         field_hints=_field_hints(departments, params.department_fields)
         + _field_hints(groups, params.group_fields),
         categories=_categories(record, departments, groups),
         tags=_tags(record),
-        event_type_hint=_event_type(record, params),
+        event_type_hint=_event_type(record, params, _hours(start, end, all_day)),
         status_hint=_STATUS_HINTS.get(str(record.get("status")).strip().lower()),
     )
 
@@ -388,6 +395,14 @@ def _text(value: object) -> str | None:
     return value.strip()
 
 
+def _abstracts(record: dict[str, Any]) -> tuple[str | None, str | None]:
+    """``(abstract, abstract_html)``: the HTML description when it has text, else the plain one."""
+    markup = _text(record.get("description"))
+    if markup is not None and _TAG.sub("", markup).strip():
+        return None, markup
+    return _text(record.get("description_text")), None
+
+
 def _names(items: object) -> list[str]:
     """The stripped ``name`` of every ``{id, name}`` object of a list, in order."""
     if not isinstance(items, list):
@@ -425,7 +440,18 @@ def _tags(record: dict[str, Any]) -> list[str]:
     return list(dict.fromkeys(tag.strip() for tag in tags if isinstance(tag, str) and tag.strip()))
 
 
-def _event_type(record: dict[str, Any], params: LocalistParams) -> EventType | None:
+def _hours(start: date | datetime, end: date | datetime | None, all_day: bool) -> float | None:
+    """How long a timed instance lasts; ``None`` when all day or without a comparable end."""
+    if all_day or not isinstance(start, datetime) or not isinstance(end, datetime):
+        return None
+    if (start.tzinfo is None) != (end.tzinfo is None):
+        return None
+    return (end - start).total_seconds() / 3600
+
+
+def _event_type(
+    record: dict[str, Any], params: LocalistParams, hours: float | None
+) -> EventType | None:
     types = _filters(record).get("event_types")
     carried = (
         {item.get("id") for item in types if isinstance(item, dict)}
@@ -433,6 +459,9 @@ def _event_type(record: dict[str, Any], params: LocalistParams) -> EventType | N
         else set()
     )
     for entry in params.event_types:
-        if entry.id in carried:
-            return entry.event_type
+        if entry.id not in carried:
+            continue
+        if entry.min_hours is not None and hours is not None and hours < entry.min_hours:
+            continue
+        return entry.event_type
     return None

@@ -98,7 +98,8 @@ class TestCsbEvents:
 
     def test_one_request_and_four_talks(self) -> None:
         requests, drafts = run("custom-csb-events")
-        assert requests == ["https://chemsysbio.stanford.edu/events/"]
+        assert requests[0] == "https://chemsysbio.stanford.edu/events/"
+        assert len(requests) == 3  # and the posts of the two talks in the window
         assert len(drafts) == 4
 
     def test_the_special_seminar_with_its_post(self) -> None:

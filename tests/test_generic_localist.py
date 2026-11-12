@@ -281,10 +281,10 @@ class TestRecordedRun:
             texts = [value for value in dumped.values() if isinstance(value, str)]
             assert all(info not in text for text in texts)
 
-    def test_abstract_is_the_plain_text(self, drafts_by_id: dict[str, EventDraft]) -> None:
+    def test_abstract_is_the_html_description(self, drafts_by_id: dict[str, EventDraft]) -> None:
         draft = drafts_by_id["51288621937120"]
-        assert draft.abstract is not None
-        assert draft.abstract_html is None
+        assert draft.abstract is None
+        assert (draft.abstract_html or "").startswith("<p>The <a href=")
 
 
 # --- the source entry and the reference lists of the calendar ------------------------------
@@ -586,8 +586,8 @@ class TestRecordMapping:
             description="<p>Abstract</p>",
         )
         assert draft.title == "Ren&#039;s seminar &amp; reception"
-        assert draft.abstract == "Abstract by Fran\u00e7ois"
-        assert draft.abstract_html is None
+        assert draft.abstract is None
+        assert draft.abstract_html == "<p>Abstract</p>"
 
     def test_html_description_when_there_is_no_plain_text(self) -> None:
         draft = parse_one(description_text="  ", description="<p>Abstract &amp; more</p>")

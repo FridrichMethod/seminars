@@ -180,9 +180,11 @@ sources:
       #
       # Identity: the VEVENT UID (a UUID) is the native id of every event. A card whose
       # detail page cannot be fetched, has no VEVENT, or lies beyond max_detail_pages
-      # is dropped for this run (and counted in health), never emitted under a fallback
-      # key: the slug of the detail URL contains the title ("2026-10-22-talk-phil-
-      # bucksbaum"), so a URL key would change when a TBA talk gets its title.
+      # is dropped for this run, never emitted under a fallback key: the slug of the
+      # detail URL contains the title ("2026-10-22-talk-phil-bucksbaum"), so a URL key
+      # would change when a TBA talk gets its title. When its detail page could not be
+      # fetched, the run counts the source as not read in full (like a refused
+      # request), so the dropped talk is not counted as missing from the source.
       #
       # Times: DTSTART and DTEND of the VEVENT. Resolve TZID=America/Los_Angeles with
       # zoneinfo and ignore the embedded VTIMEZONE: it has a STANDARD component only
@@ -202,9 +204,17 @@ sources:
         affiliation: .slac-speaker .speaker-affiliation
         abstract: .c-field--name-field-body
         date_text: .c-card__date
+        # "Kavli Auditorium" or "Kavli Auditorium and zoom" on past cards (after an icon
+        # titled "Location"); the upcoming cards leave it out.
+        location: .c-card__location
         # "No items to display." when no talk is scheduled (seen on the Theory Group
         # site, which runs the same theme): the list is empty, not broken.
         empty: div.c-view__empty
+      # The home page: "Currently, the talks are in the hybrid format ... The in-person
+      # part takes place at the Kavli Auditorium". A card that names no place gets
+      # that, in the words of the past cards, which normalization reads as hybrid (in
+      # the room and online).
+      default_location: Kavli Auditorium and Zoom
       detail:
         # Below the event, every detail page shows the cards of 3 OTHER events in this
         # block (div.c-card with .c-card__date and .c-field--name-field-body, the same
@@ -244,7 +254,11 @@ sources:
         - 5 cards on the list, one of them the "No SLAC Colloquium 11/23" placeholder.
         - /jsonapi is 404 (JSON error document); no RSS link in the page head.
         - The VEVENT is embedded per detail page, there is no ICS feed URL.
-        - No location anywhere on the site; do not invent one.
+        - The upcoming cards and the detail pages name no place. Past cards have one in
+          .c-card__location ("Kavli Auditorium", "Kavli Auditorium and zoom"; 6 of the 9
+          cards on /past-events), and the home page says that the talks are hybrid and
+          that their in-person part takes place at the Kavli Auditorium, hence
+          default_location.
         - Card date text looks like "Monday, November 16, 2026", a middle dot,
           "4:00 p.m.", an en dash, "5:00 p.m.", two no-break spaces, "PT"; the text of
           .c-card__date also starts with "Date", the title of its SVG icon.
@@ -704,8 +718,11 @@ sources:
       # item selector takes only the upcoming block; the page lists past events below
       # it (ul.content-type-past_events, 12 cards).
       # The upcoming block is often empty between events: that is a page without
-      # items, not a broken page (html_list allow_empty).
+      # items, not a broken page (html_list allow_empty), as long as the past events
+      # are still listed with the same cards. A page without any card of either block
+      # was redesigned or replaced, and that is a parse error.
       allow_empty: true
+      empty_marker: 'ul.content-type-past_events li.multisite-query-loop-item'
       selectors:
         item: 'ul.content-type-events li.multisite-query-loop-item'
         title: 'h3.card-title'
@@ -725,7 +742,8 @@ sources:
       skip_summary_patterns: ['will be at booth']
       require: [title, link]
       # Times are only on the detail page; a card whose detail page fails is dropped
-      # for this run.
+      # for this run, and the run counts the source as not read in full (like a
+      # refused request), so the talk is not counted as missing from the source.
       detail_page:
         times: '.event-meta--date-time-location time[datetime]'  # first = start, second = end
         location: '.event-meta__value--location'  # "Zoom", "San Francisco, CA (...)"
@@ -734,6 +752,19 @@ sources:
         native_id: 'link[rel="shortlink"]'
         native_id_attribute: href
         native_id_pattern: '[?&]p=(?P<native_id>\d+)'
+        # Speakers: the person cards of the section whose heading names speakers
+        # ("Speakers", "Keynote Speaker"): .people-list-item (name and affiliation) or,
+        # for a keynote, .people-featured (a name and a bio). The recorded keynote card
+        # has no affiliation element, but the theme's stylesheet in that page styles
+        # .people-featured__affiliation, so a card that has one is read. The list
+        # cards never name a speaker. A conference page uses the same cards for its
+        # "Scientific Organizers", who are no speakers, so a bare .people-list-item
+        # would be wrong.
+        speaker: >-
+          .wp-block-group:has(> h2:lexbor-contains("speaker" i))
+          :is(.people-list-item, .people-featured)
+        speaker_name: '.people-list-item__name, .people-featured__name'
+        speaker_affiliation: '.people-list-item__affiliation, .people-featured__affiliation'
       title_event_types:
         Webinar: seminar
         Symposium: conference

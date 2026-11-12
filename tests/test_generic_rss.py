@@ -154,7 +154,8 @@ class TestRecordedSources:
         assert names(talk) == [("Steve Blacklow", "Harvard")]
         assert talk.series == "Frontiers in Biology"
         assert talk.start == datetime(2026, 11, 18, 16, 0, tzinfo=PST)
-        assert talk.abstract == "11/18/26, @Clark Auditorium, 4PM"
+        assert talk.location == "Clark Auditorium"  # from the subheadline, not the abstract
+        assert talk.abstract is None
 
     def test_chemh_events_point_elsewhere(self) -> None:
         drafts = run(SOURCES["sites-chemh"])
