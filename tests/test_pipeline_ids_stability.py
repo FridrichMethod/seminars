@@ -105,6 +105,27 @@ class TestOneEntryPerTalk:
         )
         assert [event.uid for event in second] == [first[1].uid, first[0].uid]
 
+    def test_a_talk_without_speakers_that_moves_to_another_day_keeps_its_uid(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        moved = MORNING + timedelta(days=7)
+        first, second = two_runs(
+            config,
+            fake_adapter,
+            [slot(MORNING, "Locally testable codes")],
+            [slot(moved, "Locally testable codes")],
+        )
+        assert [event.uid for event in second] == [first[0].uid]
+        assert second[0].start == moved
+
+    def test_a_tba_talk_without_speakers_that_moves_by_an_hour_keeps_its_uid(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        moved = MORNING + timedelta(hours=1)
+        first, second = two_runs(config, fake_adapter, [slot(MORNING, "TBA")], [slot(moved, "TBA")])
+        assert [event.uid for event in second] == [first[0].uid]
+        assert second[0].start == moved
+
     def test_two_speakers_who_swap_their_days_keep_their_uids(
         self, config: AppConfig, fake_adapter: FakeAdapter
     ) -> None:

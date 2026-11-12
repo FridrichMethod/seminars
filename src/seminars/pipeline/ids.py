@@ -346,15 +346,38 @@ def _names(event: Event) -> frozenset[str]:
     return frozenset(name for speaker in event.speakers if (name := canonical_name(speaker.name)))
 
 
-def _moved(orphan: Event, event: Event, now: datetime, title_similarity: int) -> bool:
-    """Whether ``event`` is ``orphan`` moved to another day (see ``follow_changed_keys``)."""
+def _may_have_moved(orphan: Event, event: Event, now: datetime) -> bool:
+    """Whether one source knows both by day keys, both lie ahead and at most ``MAX_MOVE`` apart."""
     if not sources_known_by(orphan, is_day_key) & sources_known_by(event, is_day_key):
         return False
-    if min(orphan.start, event.start) <= now or abs(event.start - orphan.start) > MAX_MOVE:
+    return min(orphan.start, event.start) > now and abs(event.start - orphan.start) <= MAX_MOVE
+
+
+def _similar_titles(first: Event, second: Event, title_similarity: int) -> bool:
+    return fuzz.token_set_ratio(fold(first.title), fold(second.title)) >= title_similarity
+
+
+def _moved(orphan: Event, event: Event, now: datetime, title_similarity: int) -> bool:
+    """Whether ``event`` is ``orphan`` moved to another day (step 2 of ``follow_changed_keys``)."""
+    if not _may_have_moved(orphan, event, now):
         return False
-    titled = [fold(item.title) for item in (orphan, event) if not item.is_tba]
-    agree = len(titled) < 2 or fuzz.token_set_ratio(titled[0], titled[1]) >= title_similarity
+    agree = orphan.is_tba or event.is_tba or _similar_titles(orphan, event, title_similarity)
     return agree and same_people(_names(orphan), _names(event))
+
+
+def _moved_without_speakers(
+    orphan: Event, event: Event, now: datetime, title_similarity: int
+) -> bool:
+    """Whether ``event`` is ``orphan`` moved, neither naming a speaker (step 5).
+
+    The title is all that tells such talks apart, so both must be "TBA" or
+    neither, and two titles must be similar.
+    """
+    if orphan.speakers or event.speakers or not _may_have_moved(orphan, event, now):
+        return False
+    if orphan.is_tba or event.is_tba:
+        return orphan.is_tba and event.is_tba
+    return _similar_titles(orphan, event, title_similarity)
 
 
 def _sources(event: Event) -> list[str]:
@@ -414,11 +437,15 @@ def follow_changed_keys(
 ) -> dict[int, str]:
     """Which of ``events`` (new keys) are ``orphans`` (stored, not delivered) under a new key.
 
-    Steps 2 to 4 of ``seminars.pipeline.dedup.adopt_stored_uids``, for keys
+    Steps 2 to 5 of ``seminars.pipeline.dedup.adopt_stored_uids``, for keys
     that change while the talk stays: a day key when the talk moves to
     another day, a day key without a speaker when the title changes, the
-    address of a TBA page when it is renamed. ``orphans`` are in the order
-    in which they were first seen, ``now`` is the time of the run and
+    address of a TBA page when it is renamed, and a day key without a
+    speaker when the talk moves. That step comes last because its only
+    evidence is the title: a TBA slot that gains its talk keeps its uid
+    even when a new TBA slot appears in another week of the same run.
+    ``orphans`` are in the order in which they were first seen, ``now`` is
+    the time of the run (no talk moved without it) and
     ``title_similarity`` the ``fuzz.token_set_ratio`` of two folded titles
     that makes them one, as in de-duplication ("RESCHEDULED: Quantum
     codes" is "Quantum codes"). The result maps positions in ``events`` to
@@ -434,26 +461,24 @@ def follow_changed_keys(
         free = [orphan for orphan in orphans if orphan.uid not in adopted.values()]
         adopted.update(found(left, free))
 
-    if now is not None:
+    def pairs(same: Callable[[Event, Event], bool]) -> None:
         step(
             lambda left, free: _one_to_one(
                 (index, orphan.uid)
                 for index in left
                 for orphan in free
-                if _moved(orphan, events[index], now, title_similarity)
+                if same(orphan, events[index])
             )
         )
+
+    if now is not None:
+        pairs(lambda orphan, event: _moved(orphan, event, now, title_similarity))
     step(
         lambda left, free: {
             left[index]: uid for index, uid in _slotted([events[i] for i in left], free).items()
         }
     )
-    step(
-        lambda left, free: _one_to_one(
-            (index, orphan.uid)
-            for index in left
-            for orphan in free
-            if _renamed(orphan, events[index])
-        )
-    )
+    pairs(_renamed)
+    if now is not None:
+        pairs(lambda orphan, event: _moved_without_speakers(orphan, event, now, title_similarity))
     return adopted

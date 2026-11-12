@@ -161,6 +161,54 @@ class TestMovedToAnotherDay:
         assert adopt([fresh("new", start=START + WEEK)], [orphan]) == ["new"]
 
 
+class TestMovedWithoutSpeakers:
+    def test_the_same_title_a_week_later_keeps_the_uid(self) -> None:
+        orphan = stored("old", title="Locally testable codes", speakers=[])
+        moved = fresh("new", title="Locally testable codes", speakers=[], start=START + WEEK)
+        assert adopt([moved], [orphan]) == ["old"]
+
+    def test_a_tba_slot_an_hour_later_keeps_the_uid(self) -> None:
+        orphan = stored("old", title="TBA", speakers=[])
+        moved = fresh("new", title="TBA", speakers=[], start=START + timedelta(hours=1))
+        assert adopt([moved], [orphan]) == ["old"]
+
+    @pytest.mark.parametrize(
+        ("old", "new"),
+        [("Locally testable codes", "Knots and braids"), ("TBA", "Knots"), ("Knots", "TBA")],
+    )
+    def test_another_title_is_another_talk(self, old: str, new: str) -> None:
+        orphan = stored("old", title=old, speakers=[])
+        other = fresh("new", title=new, speakers=[], start=START + WEEK)
+        assert adopt([other], [orphan]) == ["new"]
+
+    def test_a_speaker_on_one_side_only_is_another_talk(self) -> None:
+        orphan = stored("old", title="TBA", speakers=[])
+        assert adopt([fresh("new", title="TBA", start=START + WEEK)], [orphan]) == ["new"]
+
+    def test_a_talk_that_is_over_did_not_move(self) -> None:
+        past = REFERENCE_NOW - timedelta(days=1)
+        orphan = stored("old", title="TBA", speakers=[], start=past)
+        assert adopt([fresh("new", title="TBA", speakers=[])], [orphan]) == ["new"]
+
+    def test_a_slot_that_gains_its_talk_keeps_its_uid_next_to_a_new_placeholder(self) -> None:
+        orphan = stored("old", title="TBA", speakers=[])
+        talk = fresh("talk", title="Quantum codes")
+        placeholder = fresh("next", title="TBA", speakers=[], start=START + WEEK)
+        for order in itertools.permutations([talk, placeholder]):
+            taken = dict(
+                zip((c.event.uid for c in order), adopt(list(order), [orphan]), strict=True)
+            )
+            assert taken == {"talk": "old", "next": "next"}
+
+    def test_a_guess_between_two_placeholders_is_not_made(self) -> None:
+        orphan = stored("old", title="TBA", speakers=[])
+        twice = [
+            fresh("new", title="TBA", speakers=[], start=START + WEEK),
+            fresh("next", title="TBA", speakers=[], start=START + 2 * WEEK),
+        ]
+        assert adopt(twice, [orphan]) == ["new", "next"]
+
+
 class TestSlots:
     def test_a_generic_title_gives_way_to_the_title_of_the_talk(self) -> None:
         lunch = stored("theory-lunch", title="Theory Lunch", speakers=[])

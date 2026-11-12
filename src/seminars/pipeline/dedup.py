@@ -692,7 +692,7 @@ def adopt_stored_uids(
     a newer file).
 
     A candidate whose uid is not stored therefore takes the uid of a stored
-    event that no candidate of this run claims (an orphan), in four steps:
+    event that no candidate of this run claims (an orphan), in five steps:
 
     1. an orphan that is the same talk by the rules of de-duplication
        (start within the limit and a similar title, a shared speaker or the
@@ -711,9 +711,10 @@ def adopt_stored_uids(
        stamps on every candidate as ``last_changed``; a talk that is over
        and left its page is no talk that moved) and at most
        ``seminars.pipeline.ids.MAX_MOVE`` apart, they name the same people,
-       and their titles are similar unless one is "TBA". Only a pair of
-       which neither side matches anything else counts, so two speakers
-       who swap their days keep their uids;
+       and their titles are similar unless one is "TBA" ("RESCHEDULED:
+       Quantum codes" is "Quantum codes"). Only a pair of which neither
+       side matches anything else counts, so two speakers who swap their
+       days keep their uids;
     3. a slot of its source: an orphan of the same source that starts at
        exactly the same moment, names no speaker, is known to that source
        only by day keys, and is the only orphan without a speaker of that
@@ -725,9 +726,12 @@ def adopt_stored_uids(
        pages, the two pages lie in one directory
        (``seminars.pipeline.ids.renamed_page``) and the starts are the same
        moment; again only a pair that is alone. A page with a title of its
-       own that gives way to another page is another talk.
+       own that gives way to another page is another talk;
+    5. an orphan moved as in step 2 when neither names a speaker: both
+       titles are "TBA", or neither is and they are similar. The title is
+       all there is to go by, so this comes after the slots of step 3.
 
-    Steps 2 to 4 are ``seminars.pipeline.ids.follow_changed_keys``. An
+    Steps 2 to 5 are ``seminars.pipeline.ids.follow_changed_keys``. An
     orphan with a native id is never taken there: its key does not change,
     so a new key is another talk. Should an orphan come
     back after its uid was taken, both listings arrive under one uid and
