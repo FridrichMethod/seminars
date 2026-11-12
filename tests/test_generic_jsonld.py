@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Any
 
@@ -13,6 +14,7 @@ from fakes import FakeHttpClient
 from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig
 from seminars.sources.base import ParseError, get_adapter
+from seminars.sources.generic import jsonld
 from seminars.sources.generic.html_list import AdapterConfigError
 from seminars.sources.generic.jsonld import JsonLdAdapter, decode, find_events
 
@@ -169,6 +171,18 @@ class TestContainers:
         assert drafts[1].abstract is None
         assert drafts[1].location is None
         assert drafts[1].speakers == []
+
+    def test_an_event_the_model_rejects_is_skipped(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        def speakers(value: Any, ids: Any, base: str) -> list[Any]:
+            return [{"name": ""}] if value == "Bad" else []
+
+        monkeypatch.setattr(jsonld, "read_speakers", speakers)
+        with caplog.at_level(logging.WARNING, logger=jsonld.__name__):
+            drafts = parse_page([event(name="Bad", performer="Bad"), event(name="Good")])
+        assert [draft.title for draft in drafts] == ["Good"]
+        assert "a malformed Event was skipped (ValidationError)" in caplog.text
 
     def test_wide_and_moderately_deep_values(self) -> None:
         wide = [*([{}] * 50), "Too late"]
