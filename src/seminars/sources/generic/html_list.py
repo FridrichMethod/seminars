@@ -384,10 +384,14 @@ def parse_moment(text: str | None) -> datetime | date | None:
 
 
 def local_day(moment: datetime | date, zone: ZoneInfo) -> date:
-    """The local calendar day of ``moment`` (a naive datetime is local already)."""
-    if isinstance(moment, datetime):
-        return moment.astimezone(zone).date() if moment.tzinfo else moment.date()
-    return moment
+    """The local calendar day of ``moment`` (a naive datetime is local already).
+
+    A moment at the very end of the calendar, which has no local day, keeps its own date.
+    """
+    if isinstance(moment, datetime) and moment.tzinfo is not None:
+        with contextlib.suppress(OverflowError):
+            return moment.astimezone(zone).date()
+    return moment.date() if isinstance(moment, datetime) else moment
 
 
 def outside_window(
@@ -422,10 +426,6 @@ def fetch_optional(
         except HttpError as error:
             logger.warning("source %s: %s page skipped: %s", source.id, label, error)
     return documents
-
-
-def payload_zone(source: SourceConfig) -> ZoneInfo:
-    return ZoneInfo(source.timezone)
 
 
 # --- the adapter -------------------------------------------------------------------------
@@ -611,7 +611,9 @@ def row_times(
     if finish is None:
         return start, None
     end = datetime.combine(last or day, finish)
-    return start, end if end > start else end + timedelta(days=1)
+    if end <= start and end.date() < date.max:  # "11pm - 1am" ends the next day
+        end += timedelta(days=1)
+    return start, end if end > start else None
 
 
 def row_speakers(row: Row) -> list[SpeakerDraft]:
@@ -643,12 +645,8 @@ class Detail:
 
 def read_detail(params: DetailParams, document: FetchedDocument) -> Detail:
     tree = LexborHTMLParser(document.text)
-    moments = []
-    if params.times is not None:
-        nodes = tree.css(params.times)
-        moments = [
-            parse_moment(node.attributes.get("datetime") or node_text(node)) for node in nodes
-        ]
+    nodes = tree.css(params.times) if params.times else []
+    moments = [parse_moment(node.attributes.get("datetime") or node_text(node)) for node in nodes]
     native_id = None
     if params.native_id is not None:
         native_id = node_value(tree.css_first(params.native_id), params.native_id_attribute)
@@ -680,7 +678,7 @@ def detail_targets(
     itself was redirected to a host the source does not name, every link on
     it is foreign, and that is ``ForeignHostError``.
     """
-    zone = payload_zone(source)
+    zone = ZoneInfo(source.timezone)
     wanted: list[str] = []
     foreign = 0
     for document in documents:
@@ -726,13 +724,18 @@ class HtmlListAdapter:
         if not lists:
             raise ParseError(f"source {source.id}: the payload has no list page")
         details = {document.url: document for document in payload.labelled("detail")}
-        reference = local_day(payload.fetched_at, payload_zone(source))
+        reference = local_day(payload.fetched_at, ZoneInfo(source.timezone))
         drafts: list[EventDraft] = []
         for document in lists:
             rows = read_rows(params, document)
             self._check_page(params, source, document, rows)
             for row in rows:
-                draft = self._draft(params, source, document, row, details, reference)
+                try:
+                    draft = self._draft(params, source, document, row, details, reference)
+                except (ValidationError, OverflowError) as error:
+                    kind = type(error).__name__
+                    logger.warning("source %s: a malformed row was skipped (%s)", source.id, kind)
+                    continue
                 if draft is not None:
                     drafts.append(draft)
         return drafts
@@ -777,23 +780,19 @@ class HtmlListAdapter:
         if start is None:
             return None
         title = row.get("title")
-        try:
-            return EventDraft(
-                source_id=source.id,
-                extraction="html",
-                native_id=detail.native_id,
-                url=url,
-                title=title,
-                start=start,
-                end=end,
-                speakers=row_speakers(row),
-                location=row.get("location") or detail.location,
-                stream_url=absolute_url(document.final_url, row.get("stream_link")),
-                abstract=None if row.abstract_html else row.get("summary"),
-                abstract_html=row.abstract_html,
-                categories=list(detail.tags),
-                event_type_hint=row_event_type(params, title),
-            )
-        except ValidationError:
-            logger.debug("source %s: a malformed row was skipped", source.id)
-            return None
+        return EventDraft(
+            source_id=source.id,
+            extraction="html",
+            native_id=detail.native_id,
+            url=url,
+            title=title,
+            start=start,
+            end=end,
+            speakers=row_speakers(row),
+            location=row.get("location") or detail.location,
+            stream_url=absolute_url(document.final_url, row.get("stream_link")),
+            abstract=None if row.abstract_html else row.get("summary"),
+            abstract_html=row.abstract_html,
+            categories=list(detail.tags),
+            event_type_hint=row_event_type(params, title),
+        )

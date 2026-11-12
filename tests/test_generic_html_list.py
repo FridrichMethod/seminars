@@ -251,6 +251,28 @@ class TestRows:
         drafts = run(list_source(require=["title"]), serve(text))
         assert [draft.title for draft in drafts] == ["Good"]
 
+    def test_a_row_at_the_end_of_the_calendar_does_not_fail_the_page(self) -> None:
+        text = page(row(title="Good"), row(title="Far", day="9999-12-31", clock="11pm - 1am"))
+        http = serve(text)
+        source = list_source(detail_page={"times": "time"})
+        get_adapter("html_list").fetch(http, source, window=WINDOW)
+        assert http.requests == [LIST_URL, talk_url("Good")]  # "Far" is outside the window
+        good, far = run(list_source(), serve(text))
+        assert (good.title, far.title) == ("Good", "Far")
+        assert (far.start, far.end) == (datetime(9999, 12, 31, 23, 0), None)
+
+    def test_a_draft_the_model_rejects_is_skipped(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        def speakers(row: Any) -> list[Any]:
+            return [{"name": ""}] if row.get("title") == "Bad" else []
+
+        monkeypatch.setattr(html_list, "row_speakers", speakers)
+        with caplog.at_level(logging.WARNING, logger=html_list.__name__):
+            drafts = run(list_source(), serve(page(row(title="Bad"), row(title="Good"))))
+        assert [draft.title for draft in drafts] == ["Good"]
+        assert "a malformed row was skipped (ValidationError)" in caplog.text
+
     def test_a_row_without_a_time_is_an_all_day_talk(self) -> None:
         [draft] = run(list_source(), serve(page(row(clock=None))))
         assert draft.start == date(2026, 11, 17)

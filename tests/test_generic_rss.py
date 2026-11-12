@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+import logging
 from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -14,6 +16,7 @@ from seminars.config import load_sources
 from seminars.http import offline_client
 from seminars.models import TBA_TITLE, EventDraft, SourceConfig
 from seminars.sources.base import ForeignHostError, ParseError, get_adapter
+from seminars.sources.generic import rss as rss_module
 from seminars.sources.generic.html_list import AdapterConfigError
 from seminars.sources.generic.rss import RssAdapter, RssParams, feed_moment, load_params
 
@@ -584,6 +587,31 @@ class TestListPages:
         )
         [draft] = run(source, http)
         assert draft.categories == ["Seminar", "Students"]
+
+    def test_a_card_at_the_end_of_the_calendar_does_not_fail_the_source(self) -> None:
+        source = list_source(list_page={"primary": True}, detail_page={"fetch": "native_only"})
+        page = listing(card("Far", "9999-12-31T23:00:00-08:00"), card("A", "2026-11-17"))
+        http = serve(**{FEED_URL: rss(), LIST_URL: page})
+        assert [d.title for d in run(source, http)] == ["Far", "A"]
+        assert http.requests[2:] == ["https://dept.example.edu/events/a"]
+
+    def test_a_draft_the_model_rejects_is_skipped(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        original = rss_module.card_fields
+
+        def fields(params: Any, entry: Any, detail: Any, location: str | None) -> Any:
+            found = original(params, entry, detail, location)
+            bad = [{"name": ""}] if found.title == "Bad" else found.speakers
+            return dataclasses.replace(found, speakers=bad)
+
+        monkeypatch.setattr(rss_module, "card_fields", fields)
+        page = listing(card("Bad", "2026-11-17"), card("Good", "2026-11-17"))
+        http = serve(**{FEED_URL: rss(), LIST_URL: page})
+        with caplog.at_level(logging.WARNING, logger=rss_module.__name__):
+            drafts = run(list_source(list_page={"primary": True}), http)
+        assert [d.title for d in drafts] == ["Good"]
+        assert "a malformed feed item was skipped (ValidationError)" in caplog.text
 
     def test_native_cards_on_other_hosts_keep_their_draft(self) -> None:
         source = list_source(detail_page={"fetch": "native_only"})

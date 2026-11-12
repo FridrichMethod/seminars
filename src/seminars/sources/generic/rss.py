@@ -788,6 +788,7 @@ class RssAdapter:
             detail = details.get(href or "", Detail(texts={}))
             try:
                 drafts.extend(build_drafts(params, source, entry, detail))
-            except ValidationError:
-                logger.debug("source %s: a malformed feed item was skipped", source.id)
+            except (ValidationError, OverflowError) as error:
+                kind = type(error).__name__
+                logger.warning("source %s: a malformed feed item was skipped (%s)", source.id, kind)
         return drafts
