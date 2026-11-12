@@ -569,6 +569,22 @@ class TestListPages:
         assert there.url == "https://other.org/t"
         assert gone.abstract_html is None  # its detail page failed; the event stays
 
+    def test_excluded_blocks_are_skipped_in_one_pass(self) -> None:
+        # Matches deep inside an excluded block cost one set lookup each, not a walk
+        # up the tree: 4000 nested matches would otherwise take seconds. The root
+        # itself is never excluded.
+        detail_page = {"fetch": "native_only", "root": ".page", "exclude": ".more"}
+        source = list_source(detail_page={**detail_page, "audience": ".aud"})
+        nested = '<div class="aud">x' * 4000 + "</div>" * 4000
+        body = f'<p class="aud">Students</p><div class="more">{nested}</div>'
+        page = listing(card("A talk", "2026-11-16T16:30:00-08:00", href="/events/a"))
+        detail = f'<html><body><div class="page more">{body}</div></body></html>'
+        http = serve(
+            **{FEED_URL: rss(item()), LIST_URL: page, "https://dept.example.edu/events/a": detail}
+        )
+        [draft] = run(source, http)
+        assert draft.categories == ["Seminar", "Students"]
+
     def test_native_cards_on_other_hosts_keep_their_draft(self) -> None:
         source = list_source(detail_page={"fetch": "native_only"})
         page = listing(card("A talk", "2026-11-16T16:30:00-08:00", href="https://other.org/a"))

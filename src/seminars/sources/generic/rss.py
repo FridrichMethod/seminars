@@ -468,18 +468,14 @@ def read_detail(params: DetailPageParams, document: FetchedDocument, reference: 
     root = tree.css_first(params.root) if params.root else tree.body
     if root is None:
         return Detail(texts={})
-    hidden = {node.mem_id for node in root.css(params.exclude)} if params.exclude else set()
-
-    def visible(node: LexborNode) -> bool:
-        current: LexborNode | None = node
-        while current is not None and current.mem_id != root.mem_id:
-            if current.mem_id in hidden:
-                return False
-            current = current.parent
-        return True
+    hidden: set[int] = set()  # the nodes inside matches of exclude, collected in one pass
+    for excluded in root.css(params.exclude) if params.exclude else []:
+        if excluded.mem_id != root.mem_id and excluded.mem_id not in hidden:
+            hidden.update(node.mem_id for node in excluded.traverse())
 
     def matches(selector: str | None) -> list[LexborNode]:
-        return [node for node in root.css(selector) if visible(node)] if selector else []
+        found = root.css(selector) if selector else []
+        return [node for node in found if node.mem_id not in hidden]
 
     texts = {}
     for name in ("type", "title", "subheadline", "dek", "location", "date_text", "time_text"):
