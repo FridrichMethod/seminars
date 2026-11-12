@@ -27,10 +27,11 @@ Times, as the draft conventions want them:
   ``MAX_OCCURRENCES`` per event and ``MAX_EXPANSION_STEPS`` steps from
   ``DTSTART``; a rule the expansion cannot bound is skipped (``check_rule``),
   and one whose ``UNTIL`` lies before the window is not expanded. A feed
-  that needs more than ``MAX_FEED_STEPS`` steps, or has more than
-  ``MAX_FILTERED_EVENTS`` other events whose rules filter (``_filters``),
-  is a ``ParseError``: a part of it would make the events left out count
-  as gone. An occurrence keeps the duration of the first one.
+  that needs more than ``MAX_FEED_STEPS`` steps, or expands more than
+  ``MAX_RECURRING_EVENTS`` recurring events, or more than
+  ``MAX_FILTERED_EVENTS`` whose rules filter (``_filters``), is a
+  ``ParseError``: a part of it would make the events left out count as
+  gone. An occurrence keeps the duration of the first one.
 * A VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names (also
   the only one of an event without recurrence, which keeps its native id);
   without ``DTSTART`` it keeps the original times, and one whose times
@@ -127,6 +128,9 @@ MAX_FEED_STEPS: Final = 500_000
 
 MAX_FILTERED_EVENTS: Final = 100
 """Most recurring VEVENTs of one feed whose rules filter and do not end before the window."""
+
+MAX_RECURRING_EVENTS: Final = 500
+"""Most recurring VEVENTs of one feed whose rules do not all end before the window."""
 
 MAX_PATTERN_INPUT: Final = 20_000
 """Longest text a configured regular expression is applied to."""
@@ -350,8 +354,9 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
     ``timezone`` is the zone of floating times (``calendar.timezone`` or the
     source's). VEVENTs that cannot be used are left out; see the module
     docstring for the limits of the expansion. Raises ``ParseError`` when
-    the recurrences need more than ``MAX_FEED_STEPS`` steps or more than
-    ``MAX_FILTERED_EVENTS`` of them filter: a part of the feed would make
+    the recurrences need more than ``MAX_FEED_STEPS`` steps, when more than
+    ``MAX_RECURRING_EVENTS`` of them are expanded or when more than
+    ``MAX_FILTERED_EVENTS`` of those filter: a part of the feed would make
     the events left out count as gone.
     """
     overrides: dict[tuple[str, str], _Override] = {}
@@ -367,7 +372,7 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
         else:
             masters.append(vevent)
     found: list[IcsOccurrence] = []
-    steps = filtered = 0
+    steps = expanded = filtered = 0
     for vevent in masters:
         try:
             items, expansion = _occurrences_of(
@@ -376,18 +381,33 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
         except (ValueError, TypeError, OverflowError):
             continue
         steps += expansion.steps
+        expanded += expansion.expanded
         filtered += expansion.filtered
-        if filtered > MAX_FILTERED_EVENTS:
-            raise ParseError(
-                f"the feed has more than {MAX_FILTERED_EVENTS} recurring events whose rules"
-                " filter and that do not end before the run window"
-            )
+        _check_expanded(expanded, filtered)
         found += items
     for (uid, key), (vevent, original) in overrides.items():
         single = _replacement(vevent, original, None, f"{uid}/{key}")
         if single is not None and _starts_in(single.start, window, timezone):
             found.append(single)
     return found
+
+
+def _check_expanded(expanded: int, filtered: int) -> None:
+    """Raise ``ParseError`` when a feed expands more recurring events than the caps allow.
+
+    Each expansion may step through every period until the year 9999 before
+    its first occurrence (``check_rule``); the caps bound what a feed costs.
+    """
+    if expanded > MAX_RECURRING_EVENTS:
+        raise ParseError(
+            f"the feed has more than {MAX_RECURRING_EVENTS} recurring events"
+            " that do not end before the run window"
+        )
+    if filtered > MAX_FILTERED_EVENTS:
+        raise ParseError(
+            f"the feed has more than {MAX_FILTERED_EVENTS} recurring events whose rules"
+            " filter and that do not end before the run window"
+        )
 
 
 def _replacement(
@@ -485,11 +505,12 @@ def check_rule(parts: dict[str, list[Any]], start: date | None = None) -> None:
     period: up to 3 s for a daily rule). So only what calendars of talks use
     is accepted: ``FREQ`` ``DAILY``, ``WEEKLY``, ``MONTHLY`` or ``YEARLY``;
     no ``BYYEARDAY``, ``BYWEEKNO``, ``BYEASTER``; days and months that exist
-    (``_check_calendar_days``); ``BYDAY`` ordinals and ``BYSETPOS`` only
-    where a period has them; and, with ``start`` (the DTSTART), an
-    ``INTERVAL`` that lands on periods the filters accept. Of some 7000
-    accepted combinations, the slowest without any occurrence took 0.03 s
-    (and the number of such rules in a feed is bounded, ``_filters``).
+    (``_check_calendar_days``); a ``BYDAY`` of weekdays or of ordinals, not
+    both (``_check_ordinals``); ordinals and ``BYSETPOS`` only where a
+    period has them; and, with ``start`` (the DTSTART), an ``INTERVAL`` that
+    lands on periods the filters accept. Of some 7000 accepted combinations,
+    the slowest without any occurrence took 0.03 s (and the number of such
+    rules in a feed is bounded, ``_filters``).
     """
     keys = {str(key).upper(): value for key, value in parts.items()}
     frequency = [str(value).upper() for value in keys.get("FREQ", [])]
@@ -525,13 +546,33 @@ def _check_calendar_days(keys: dict[str, list[Any]], frequency: str) -> None:
             raise ValueError("BYMONTHDAY names no day of the months in BYMONTH")
 
 
+def _weekdays(keys: dict[str, list[Any]]) -> tuple[set[str], list[int]]:
+    """The BYDAY weekdays without an ordinal (``MO``), and the ordinals of the others (abs)."""
+    plain: set[str] = set()
+    ordinals: list[int] = []
+    for day in (str(value).upper() for value in keys.get("BYDAY", [])):
+        if day[:-2]:
+            ordinals.append(abs(int(day[:-2])))
+        else:
+            plain.add(day)
+    return plain, ordinals
+
+
 def _check_ordinals(keys: dict[str, list[Any]], frequency: str) -> None:
-    """BYDAY with an ordinal (``2MO``, ``-1FR``) only where a period has that many weekdays."""
-    ordinals = [abs(int(day[:-2])) for day in map(str, keys.get("BYDAY", [])) if day[:-2]]
+    """BYDAY with an ordinal (``2MO``, ``-1FR``) only where a period has that many weekdays.
+
+    A BYDAY that mixes weekdays with and without an ordinal (``TH,1FR``) is
+    refused: RFC 5545 takes the union of the two kinds, the recurrence
+    library requires a day to be of both, which no day is when the weekdays
+    differ, so it would step through every period until the year 9999.
+    """
+    plain, ordinals = _weekdays(keys)
     if not ordinals:
         return
     if frequency in ("DAILY", "WEEKLY"):
         raise ValueError("BYDAY with an ordinal is only valid in a monthly or yearly rule")
+    if plain:
+        raise ValueError("BYDAY mixes weekdays with and without an ordinal")
     if "BYMONTHDAY" in keys:
         # The ordinal already fixes the day; the two together rarely meet, if ever.
         raise ValueError("BYDAY with an ordinal is not supported together with BYMONTHDAY")
@@ -619,12 +660,14 @@ def _list_values(vevent: icalendar.Component, name: str) -> list[Moment]:
 class _Expansion:
     """The starts that the recurrence of a VEVENT gives inside the window, and their cost.
 
-    ``filtered`` is true when a rule of the event filters (``_filters``) and
-    the event was expanded (its rules do not all end before the window).
+    ``expanded`` is true when the recurrence was stepped through (its rules
+    do not all end before the window), ``filtered`` when a rule of the event
+    filters (``_filters``).
     """
 
     starts: tuple[Moment, ...] = ()
     steps: int = 0
+    expanded: bool = False
     filtered: bool = False
 
 
@@ -647,11 +690,13 @@ def _filters(parts: dict[str, list[Any]]) -> bool:
 
     It may when it filters by month, day of the month or set position, or
     asks for the fifth (or a later) weekday of a period. Every other rule
-    that ``check_rule`` accepts has an occurrence every few periods, so its
-    cost is in its steps.
+    that ``check_rule`` accepts has an occurrence in every period (in one of
+    every seven for a daily rule with an INTERVAL and BYDAY): its BYDAY is
+    either plain weekdays or ordinals up to 4, never a mix of the two, so
+    its cost is in its steps.
     """
     keys = {str(key).upper(): value for key, value in parts.items()}
-    ordinals = [abs(int(day[:-2])) for day in map(str, keys.get("BYDAY", [])) if day[:-2]]
+    _, ordinals = _weekdays(keys)
     return bool(set(keys) & _FILTER_PARTS) or any(ordinal >= 5 for ordinal in ordinals)
 
 
@@ -704,7 +749,7 @@ def _expand(
         steps += 1
         if moment >= low:
             starts.append(moment.date() if is_date else moment)
-    return _Expansion(tuple(starts), steps, recurrence.filtered)
+    return _Expansion(tuple(starts), steps, expanded=True, filtered=recurrence.filtered)
 
 
 def _window_bounds(

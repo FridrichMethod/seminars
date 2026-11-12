@@ -810,6 +810,21 @@ class TestRecurrence:
         with pytest.raises(ParseError, match=r"more than 12 steps: https://calendar\.example"):
             expand(expired, current, more)
 
+    def test_a_feed_with_too_many_recurring_events_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Every expanded series counts, also one that ends by COUNT or starts after the window,
+        # because the expansion may walk to the year 9999 before it knows; one ended by UNTIL
+        # before the window is not expanded.
+        monkeypatch.setattr(ics, "MAX_RECURRING_EVENTS", 2)
+        ended = vevent("RRULE:FREQ=WEEKLY;UNTIL=20200101", uid="u", start="DTSTART:20191001")
+        counted = vevent("RRULE:FREQ=WEEKLY;COUNT=5", uid="c", start="DTSTART:20200107T230000Z")
+        later = vevent("RRULE:FREQ=WEEKLY", uid="later", start="DTSTART:20270105T230000Z")
+        assert expand(ended, counted, later) == []
+        current = vevent("RRULE:FREQ=WEEKLY;COUNT=2", uid="now", start="DTSTART:20261020T230000Z")
+        with pytest.raises(ParseError, match=r"more than 2 recurring events that do not end"):
+            expand(ended, counted, later, current)
+
     @pytest.mark.parametrize(
         "rule",
         [
@@ -834,6 +849,12 @@ class TestRecurrence:
             "FREQ=MONTHLY;BYMONTHDAY=0",
             "FREQ=MONTHLY;BYDAY=-1FR;BYMONTHDAY=13",
             "FREQ=YEARLY;BYDAY=5MO;BYMONTHDAY=13",
+            # RFC 5545 takes the union of plain and ordinal weekdays, the library the
+            # intersection: no day at all when the weekdays differ
+            "FREQ=MONTHLY;BYDAY=TH,1FR",
+            "FREQ=YEARLY;BYDAY=TU,4WE",
+            "FREQ=YEARLY;BYMONTH=3;BYDAY=-1MO,FR",
+            "FREQ=MONTHLY;BYDAY=TH,1TH;COUNT=5",
         ],
     )
     def test_rules_the_expansion_cannot_bound_are_skipped(self, rule: str) -> None:
