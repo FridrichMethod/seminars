@@ -797,12 +797,14 @@ class HaiEventsAdapter:
         if not lists:
             raise ParseError(f"source {source.id}: the payload has no list page")
         pages = {document.url: document for document in payload.labelled("detail")}
+        details: dict[str, Detail | None] = {}  # a page that several events share is read once
         drafts: list[EventDraft] = []
         for document in lists:
             for item in read_list(params, source, document):
-                url = item.detail_url
-                page = pages.get(url) if url is not None else None
-                detail = read_detail(params, page) if page is not None else None
+                url = item.detail_url or ""
+                if url in pages and url not in details:
+                    details[url] = read_detail(params, pages[url])
+                detail = details.get(url)
                 try:
                     drafts.append(make_draft(source, params, item, detail))
                 except ValidationError:

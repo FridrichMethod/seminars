@@ -502,11 +502,13 @@ class NlpSeminarAdapter:
         pages: Mapping[str, FetchedDocument] = {
             document.url: document for document in payload.labelled("details")
         }
+        read: dict[str, Details] = {}  # a page that several talks share is read once
         drafts: list[EventDraft] = []
         for document in schedules:
             for talk in read_schedule(params, source, document):
-                page = pages.get(talk.url)
-                details = read_details(params, page) if page is not None else Details()
+                if talk.url in pages and talk.url not in read:
+                    read[talk.url] = read_details(params, pages[talk.url])
+                details = read.get(talk.url, Details())
                 try:
                     drafts.append(make_draft(source, talk, details))
                 except ValidationError:

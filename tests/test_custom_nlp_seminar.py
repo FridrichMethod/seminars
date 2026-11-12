@@ -15,6 +15,7 @@ from seminars.config import load_sources
 from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig
 from seminars.sources.base import ParseError, get_adapter
+from seminars.sources.custom import nlp_seminar
 from seminars.sources.custom.nlp_seminar import NlpParams, NlpSeminarAdapter, text_lines
 from seminars.sources.generic.html_list import AdapterConfigError, load_params
 
@@ -372,15 +373,26 @@ class TestDetailsPages:
         assert len(drafts) == 4
         assert "1 details page(s) on a host the source does not name" in caplog.text
 
-    def test_a_details_page_that_two_rows_share_is_requested_once(self) -> None:
+    def test_a_details_page_that_two_rows_share_is_requested_and_read_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         rows = [
             row("Nov 12", "A B", "Part one", "details/a"),
             row("Nov 19", "A B", "Part two", "details/a"),
         ]
         details = f"{SCHEDULE_URL}details/a"
         http = serve({SCHEDULE_URL: schedule((heading(), rows)), details: DETAILS}, self.NOW)
+        read: list[str] = []
+        original = nlp_seminar.read_details
+
+        def counted(params: NlpParams, document: Any) -> Any:
+            read.append(document.url)
+            return original(params, document)
+
+        monkeypatch.setattr(nlp_seminar, "read_details", counted)
         drafts = run(SOURCE, http, self.NOW)
         assert http.requests == [SCHEDULE_URL, details]
+        assert read == [details]  # many rows may share a large page
         assert [(d.title, d.location) for d in drafts] == [
             ("Part one", "Room 104"),
             ("Part two", "Room 104"),

@@ -17,6 +17,7 @@ from seminars.config import load_sources
 from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig, SpeakerDraft
 from seminars.sources.base import ParseError, get_adapter
+from seminars.sources.custom import hai_events
 from seminars.sources.custom.hai_events import (
     MAX_EVENTS,
     MAX_LIST_ITEMS,
@@ -556,15 +557,26 @@ class TestDetailPages:
         titles = ["Past", "Promo", "Own promo", "Elsewhere", "Far", "Soon", "Later"]
         assert [d.title for d in drafts] == titles
 
-    def test_a_page_that_two_events_share_is_requested_once(self) -> None:
+    def test_a_page_that_two_events_share_is_requested_and_read_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         upcoming = [
             event("Part one", "2026-11-17T12:00:00Z", href="/events/twice"),
             event("Part two", "2026-11-18T12:00:00Z", href="/events/twice"),
         ]
         detail = f"{SITE}/events/twice"
         http = serve({LIST_URL: payload_page([events_row(upcoming, [])]), detail: DETAIL})
+        read: list[str] = []
+        original = hai_events.read_detail
+
+        def counted(params: HaiParams, document: Any) -> Any:
+            read.append(document.url)
+            return original(params, document)
+
+        monkeypatch.setattr(hai_events, "read_detail", counted)
         drafts = run(SOURCE, http)
         assert http.requests == [LIST_URL, detail]
+        assert read == [detail]  # many events may share a large page
         assert [(d.title, d.location) for d in drafts] == [
             ("Part one", "Gates 104"),
             ("Part two", "Gates 104"),
