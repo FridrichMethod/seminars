@@ -258,3 +258,56 @@ class TestAListingThatStaysShort:
         assert sum(report.counts.removed for report in [taken, *after]) == 15
         assert len(stored_keys(localist)) == 5
         assert len(fake_issues.issues) == 1
+
+    def test_a_drop_after_a_partial_recovery_as_the_measure_ran_out_is_taken_with_a_warning(
+        self, localist: AppConfig, fake_adapter: FakeAdapter, fake_issues: FakeIssueClient
+    ) -> None:
+        bundle = services(Site(), fake_issues)
+        self.short_runs(localist, fake_adapter, bundle)
+        fake_adapter.drafts = listing(11, LATER)  # half the usual size or more: read in full
+        back = run(localist, bundle, 3 + ALARM)
+        assert (back.sources[0].read_in_full, back.sources[0].resized_from) == (True, None)
+        assert [issue.state for issue in fake_issues.issues] == ["closed"]
+        fake_adapter.drafts = listing(5, LATER)
+        dropped = run(localist, bundle, 4 + ALARM)
+        assert dropped.sources[0].resized_from == 20
+        assert any("now taken as its usual size" in warning for warning in dropped.warnings)
+        assert dropped.counts.removed == 0
+
+
+class SkippingAdapter(FakeAdapter):
+    """``FakeAdapter`` that also asks for a detail page, which it goes on without."""
+
+    def fetch(self, http: HttpClient, source: SourceConfig, *, window: TimeWindow) -> RawPayload:
+        fetch_optional(http, source, [f"{URL}/1"], "detail")
+        return super().fetch(http, source, window=window)
+
+
+class TestANewSizeInARunThatSkippedAPage:
+    def test_the_new_size_waits_for_a_run_read_in_full_and_closes_with_its_comment(
+        self,
+        app_config: AppConfig,
+        fake_registry: AdapterRegistry,
+        fake_clock: FakeClock,
+        fake_issues: FakeIssueClient,
+    ) -> None:
+        adapter = SkippingAdapter(clock=fake_clock).register(fake_registry, "skipping")
+        source = make_source(id="localist-stanford", group="localist", adapter="skipping", url=URL)
+        config = dataclasses.replace(app_config, sources=(source,))
+        site = Site()
+        bundle = services(site, fake_issues)
+        TestAListingThatStaysShort().short_runs(config, adapter, bundle)
+        site.broken = {"1"}
+        skipping = run(config, bundle, 3 + ALARM).sources[0]
+        assert (skipping.skipped_pages, skipping.shrank_from, skipping.resized_from) == (
+            1,
+            20,
+            None,
+        )
+        assert [issue.state for issue in fake_issues.issues] == ["open"]
+        site.broken = set()
+        taken = run(config, bundle, 4 + ALARM)
+        assert (taken.sources[0].resized_from, taken.sources[0].read_in_full) == (20, True)
+        assert [issue.state for issue in fake_issues.issues] == ["closed"]
+        (comment,) = fake_issues.comments[1]
+        assert "smaller size is now taken as the usual one" in comment

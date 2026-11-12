@@ -217,6 +217,24 @@ class TestALastingShortfall:
         assert compare_with_history(outcome(150), past) == outcome(150)
         assert compare_with_history(outcome(20), past).resized_from == 188
 
+    def test_a_partial_recovery_as_the_measure_runs_out_keeps_the_measure(self) -> None:
+        streak = [shrunk(20, 188) for _ in range(HEALTH_HISTORY_LIMIT - SHRINK_MIN_RUNS)]
+        past = history(full(188), *streak, full(100))
+        assert compare_with_history(outcome(100), past) == outcome(100)
+        taken = compare_with_history(outcome(20), past)
+        assert (taken.shrank_from, taken.resized_from, taken.read_in_full) == (None, 188, True)
+
+    def test_a_run_that_skipped_a_page_does_not_take_the_new_size(self) -> None:
+        entries = [shrunk(20, 188) for _ in range(HEALTH_HISTORY_LIMIT)]
+        skipping = compare_with_history(outcome(20, skipped_pages=1), history(*entries))
+        assert (skipping.shrank_from, skipping.resized_from) == (188, None)
+        assert skipping.warnings == [
+            "the source parsed 20 usable draft(s) where it usually has 188: "
+            "the listing is taken as incomplete"
+        ]
+        taken = compare_with_history(outcome(20), history(*recorded(entries, skipping)))
+        assert (taken.shrank_from, taken.resized_from, taken.read_in_full) == (None, 188, True)
+
     def test_the_full_reads_before_a_new_size_are_no_measure(self) -> None:
         resized = full(20, resized_from=188)
         past = history(full(188), full(188), shrunk(20, 188), resized)
