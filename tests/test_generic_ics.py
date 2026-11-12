@@ -746,12 +746,11 @@ class TestRecurrence:
     def test_series_that_ended_before_the_window_are_not_expanded(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(ics, "MAX_RECURRING_EVENTS", 2)
+        monkeypatch.setattr(ics, "MAX_FILTERED_EVENTS", 1)
         monkeypatch.setattr(ics, "MAX_FEED_STEPS", 20)
+        old = "DTSTART:19990101"
         ended = [
-            vevent(
-                f"RRULE:FREQ=DAILY;UNTIL={2000 + n}1231", uid=f"old{n}", start="DTSTART:19990101"
-            )
+            vevent(f"RRULE:FREQ=DAILY;BYMONTH=1;UNTIL={2000 + n}1231", uid=f"o{n}", start=old)
             for n in range(5)
         ]
         again = vevent(
@@ -760,18 +759,45 @@ class TestRecurrence:
             uid="again",
             start="DTSTART:20191201T230000Z",
         )
-        current = vevent("RRULE:FREQ=WEEKLY;COUNT=3", uid="now", start="DTSTART:20261020T230000Z")
-        drafts = expand(*ended, again, current)
+        weekly = vevent("RRULE:FREQ=WEEKLY;COUNT=3", uid="now", start="DTSTART:20261020T230000Z")
+        monthly = vevent(
+            "RRULE:FREQ=MONTHLY;BYMONTHDAY=20;COUNT=2", uid="day", start="DTSTART:20261020T230000Z"
+        )
+        drafts = expand(*ended, again, weekly, monthly)
         assert [draft.native_id for draft in drafts] == [
             "again/20261021T230000Z",
             "now/20261020T230000Z",
             "now/20261027T230000Z",
             "now/20261103T230000Z",
+            "day/20261020T230000Z",
         ]
-        with pytest.raises(
-            ParseError, match=r"custom-example-talks: .*more than 2 recurring events"
-        ):
-            expand(*ended, again, current, current.replace("UID:now", "UID:third"))
+        second = monthly.replace("UID:day", "UID:other")
+        with pytest.raises(ParseError, match=r"example-talks: .*more than 1 recurring events"):
+            expand(*ended, again, weekly, monthly, second)
+
+    @pytest.mark.parametrize(
+        ("rule", "filtered"),
+        [
+            ("FREQ=WEEKLY;BYDAY=TU,TH", False),
+            ("FREQ=MONTHLY;BYDAY=-1FR", False),
+            ("FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR", False),
+            ("FREQ=YEARLY", False),
+            ("FREQ=MONTHLY;BYMONTHDAY=15", True),
+            ("FREQ=YEARLY;BYMONTH=6", True),
+            ("FREQ=MONTHLY;BYDAY=MO;BYSETPOS=-1", True),
+            ("FREQ=MONTHLY;BYDAY=5TU", True),
+        ],
+    )
+    def test_only_rules_that_filter_are_counted(
+        self, monkeypatch: pytest.MonkeyPatch, rule: str, filtered: bool
+    ) -> None:
+        monkeypatch.setattr(ics, "MAX_FILTERED_EVENTS", 0)
+        event = vevent(f"RRULE:{rule}", start="DTSTART:20261020T230000Z")
+        if filtered:
+            with pytest.raises(ParseError, match="more than 0 recurring events"):
+                expand(event)
+        else:
+            assert expand(event)
 
     def test_a_feed_whose_recurrences_need_too_many_steps_fails(
         self, monkeypatch: pytest.MonkeyPatch

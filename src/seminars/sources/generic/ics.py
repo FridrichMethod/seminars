@@ -27,10 +27,10 @@ Times, as the draft conventions want them:
   ``MAX_OCCURRENCES`` per event and ``MAX_EXPANSION_STEPS`` steps from
   ``DTSTART``; a rule the expansion cannot bound is skipped (``check_rule``),
   and one whose ``UNTIL`` lies before the window is not expanded. A feed
-  with more than ``MAX_RECURRING_EVENTS`` other recurring events, or that
-  needs more than ``MAX_FEED_STEPS`` steps, is a ``ParseError``: a part of
-  it would make the events left out count as gone. An occurrence keeps the
-  duration of the first one.
+  that needs more than ``MAX_FEED_STEPS`` steps, or has more than
+  ``MAX_FILTERED_EVENTS`` other events whose rules filter (``_filters``),
+  is a ``ParseError``: a part of it would make the events left out count
+  as gone. An occurrence keeps the duration of the first one.
 * A VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names (also
   the only one of an event without recurrence, which keeps its native id);
   without ``DTSTART`` it keeps the original times, and one whose times
@@ -122,11 +122,11 @@ MAX_OCCURRENCES: Final = 500
 MAX_EXPANSION_STEPS: Final = 10_000
 """Most steps through the recurrence of one event, counted from its DTSTART."""
 
-MAX_FEED_STEPS: Final = 200_000
-"""Most steps through the recurrences of one feed (well under a second in all)."""
+MAX_FEED_STEPS: Final = 500_000
+"""Most steps through the recurrences of one feed (about a second in all)."""
 
-MAX_RECURRING_EVENTS: Final = 1_000
-"""Most recurring VEVENTs of one feed that are expanded (not counting those that ended)."""
+MAX_FILTERED_EVENTS: Final = 100
+"""Most recurring VEVENTs of one feed whose rules filter and do not end before the window."""
 
 MAX_PATTERN_INPUT: Final = 20_000
 """Longest text a configured regular expression is applied to."""
@@ -159,6 +159,7 @@ _HTML_TAGS: Final = frozenset(
 )
 _LINK_TARGETS: Final[tuple[Target, ...]] = ("url", "stream_url")
 _UNSUPPORTED_RULE_PARTS: Final = frozenset({"BYYEARDAY", "BYWEEKNO", "BYEASTER"})
+_FILTER_PARTS: Final = frozenset({"BYMONTH", "BYMONTHDAY", "BYSETPOS"})
 _DAYS_IN_MONTH: Final = {
     month: 29 if month == 2 else 30 if month in (4, 6, 9, 11) else 31 for month in range(1, 13)
 }
@@ -349,9 +350,9 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
     ``timezone`` is the zone of floating times (``calendar.timezone`` or the
     source's). VEVENTs that cannot be used are left out; see the module
     docstring for the limits of the expansion. Raises ``ParseError`` when
-    the feed has more than ``MAX_RECURRING_EVENTS`` recurring events that
-    have to be expanded or when they need more than ``MAX_FEED_STEPS``
-    steps: a part of the feed would make the events left out count as gone.
+    the recurrences need more than ``MAX_FEED_STEPS`` steps or more than
+    ``MAX_FILTERED_EVENTS`` of them filter: a part of the feed would make
+    the events left out count as gone.
     """
     overrides: dict[tuple[str, str], _Override] = {}
     masters: list[icalendar.Component] = []
@@ -366,7 +367,7 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
         else:
             masters.append(vevent)
     found: list[IcsOccurrence] = []
-    steps = expanded = 0
+    steps = filtered = 0
     for vevent in masters:
         try:
             items, expansion = _occurrences_of(
@@ -375,11 +376,11 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
         except (ValueError, TypeError, OverflowError):
             continue
         steps += expansion.steps
-        expanded += expansion.expanded
-        if expanded > MAX_RECURRING_EVENTS:
+        filtered += expansion.filtered
+        if filtered > MAX_FILTERED_EVENTS:
             raise ParseError(
-                f"the feed has more than {MAX_RECURRING_EVENTS} recurring events"
-                " that do not end before the run window"
+                f"the feed has more than {MAX_FILTERED_EVENTS} recurring events whose rules"
+                " filter and that do not end before the run window"
             )
         found += items
     for (uid, key), (vevent, original) in overrides.items():
@@ -487,7 +488,8 @@ def check_rule(parts: dict[str, list[Any]], start: date | None = None) -> None:
     (``_check_calendar_days``); ``BYDAY`` ordinals and ``BYSETPOS`` only
     where a period has them; and, with ``start`` (the DTSTART), an
     ``INTERVAL`` that lands on periods the filters accept. Of some 7000
-    accepted combinations, the slowest without any occurrence took 0.03 s.
+    accepted combinations, the slowest without any occurrence took 0.03 s
+    (and the number of such rules in a feed is bounded, ``_filters``).
     """
     keys = {str(key).upper(): value for key, value in parts.items()}
     frequency = [str(value).upper() for value in keys.get("FREQ", [])]
@@ -617,30 +619,53 @@ def _list_values(vevent: icalendar.Component, name: str) -> list[Moment]:
 class _Expansion:
     """The starts that the recurrence of a VEVENT gives inside the window, and their cost.
 
-    ``expanded`` is false when nothing was expanded: the event does not
-    recur, or all its rules end before the window.
+    ``filtered`` is true when a rule of the event filters (``_filters``) and
+    the event was expanded (its rules do not all end before the window).
     """
 
     starts: tuple[Moment, ...] = ()
     steps: int = 0
-    expanded: bool = False
+    filtered: bool = False
 
 
-def _recurrence(
-    vevent: icalendar.Component, anchor: datetime, timezone: str
-) -> tuple[rruleset, datetime | None]:
-    """The rule set of a recurring VEVENT and the latest start it can give.
+@dataclass(frozen=True)
+class _Recurrence:
+    """The rule set of a recurring VEVENT.
 
-    That bound is known (else ``None``) when every RRULE has an UNTIL: it is
-    the latest of those, of the RDATEs and of DTSTART (``anchor``).
+    ``last`` is the latest start it can give, known (else ``None``) when
+    every RRULE has an UNTIL: the latest of those, of the RDATEs and of
+    DTSTART. ``filtered`` tells whether one of its rules filters.
     """
+
+    rules: rruleset
+    last: datetime | None
+    filtered: bool
+
+
+def _filters(parts: dict[str, list[Any]]) -> bool:
+    """Whether an accepted rule may step through many periods without an occurrence.
+
+    It may when it filters by month, day of the month or set position, or
+    asks for the fifth (or a later) weekday of a period. Every other rule
+    that ``check_rule`` accepts has an occurrence every few periods, so its
+    cost is in its steps.
+    """
+    keys = {str(key).upper(): value for key, value in parts.items()}
+    ordinals = [abs(int(day[:-2])) for day in map(str, keys.get("BYDAY", [])) if day[:-2]]
+    return bool(set(keys) & _FILTER_PARTS) or any(ordinal >= 5 for ordinal in ordinals)
+
+
+def _recurrence(vevent: icalendar.Component, anchor: datetime, timezone: str) -> _Recurrence:
+    """The rule set of a recurring VEVENT whose DTSTART is ``anchor``."""
     rules = rruleset()
     lasts: list[datetime | None] = [anchor]
+    filtered = False
     for value in _values(vevent, "RRULE"):
         text, until = _rule_text(value, anchor, timezone)
         # The text of one RRULE always gives a single rule, never a set.
         rules.rrule(cast(rrule, rrulestr(text, dtstart=anchor)))
         lasts.append(until)
+        filtered = filtered or _filters(dict(value))
     rules.rdate(anchor)
     for moment in _list_values(vevent, "RDATE"):
         aligned = _align(moment, anchor, timezone)
@@ -649,7 +674,8 @@ def _recurrence(
     for moment in _list_values(vevent, "EXDATE"):
         rules.exdate(_align(moment, anchor, timezone))
     bounded = [moment for moment in lasts if moment is not None]
-    return rules, max(bounded) if len(bounded) == len(lasts) else None
+    last = max(bounded) if len(bounded) == len(lasts) else None
+    return _Recurrence(rules, last, filtered)
 
 
 def _expand(
@@ -662,13 +688,13 @@ def _expand(
     """
     is_date = not isinstance(start, datetime)
     anchor = start if isinstance(start, datetime) else datetime.combine(start, time.min)
-    rules, last = _recurrence(vevent, anchor, timezone)
+    recurrence = _recurrence(vevent, anchor, timezone)
     low, high = _window_bounds(window, anchor, timezone)
-    if last is not None and last < low:
+    if recurrence.last is not None and recurrence.last < low:
         return _Expansion()
     starts: list[Moment] = []
     steps = 0
-    for moment in rules:
+    for moment in recurrence.rules:
         if moment >= high or len(starts) >= MAX_OCCURRENCES or steps >= MAX_EXPANSION_STEPS:
             break
         if steps >= budget:
@@ -678,7 +704,7 @@ def _expand(
         steps += 1
         if moment >= low:
             starts.append(moment.date() if is_date else moment)
-    return _Expansion(tuple(starts), steps, expanded=True)
+    return _Expansion(tuple(starts), steps, recurrence.filtered)
 
 
 def _window_bounds(
