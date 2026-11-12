@@ -9,9 +9,12 @@ department that hosts them. Two candidates are the same talk when
   one of these holds: the titles are similar
   (``rapidfuzz.fuzz.token_set_ratio`` of at least ``dedup.title_similarity``),
   they share a speaker, the title of one names a speaker of the other by a
-  name of at least two words (a campus calendar's "MRC Public Lecture:
-  Tadashi Tokieda" without speakers, against the host's listing of Tadashi
-  Tokieda's talk), or they point at the same detail page.
+  name of at least two words that reads like a person's (a campus
+  calendar's "MRC Public Lecture: Tadashi Tokieda" without speakers,
+  against the host's listing of Tadashi Tokieda's talk; a speaker
+  mis-read as "Computer Science" is no person, see
+  ``seminars.pipeline.speakers.looks_like_name``), or they point at the
+  same detail page.
 
 Four guards keep unrelated talks apart. "TBA" is never similar to "TBA",
 and a title of a single word ("Seminar") is not compared at all, because
@@ -114,6 +117,7 @@ from seminars.models import (
 )
 from seminars.pipeline.ids import canonical_url, is_native_key, is_time_of_day_key, uid_for_key
 from seminars.pipeline.normalize import merge_speakers
+from seminars.pipeline.speakers import looks_like_name
 from seminars.pipeline.text import canonical_name, fold, word_set
 
 MIN_TITLE_WORDS: Final = 2
@@ -167,6 +171,7 @@ class _Profile:
     title: str | None  # folded; None when the title is not compared
     words: str  # the folded title between spaces, to find names in
     speakers: frozenset[str]
+    persons: frozenset[str]  # the speakers whose names read like a person's, of two words or more
     page: str | None  # canonical address of the detail page, if it is one
     sources: frozenset[str]  # ids of the sources whose keys the event holds
     native: frozenset[str]  # ids of the sources whose native id the event holds
@@ -215,11 +220,15 @@ def _profile(candidate: Candidate, not_pages: Collection[str]) -> _Profile:
     title = fold(event.title)
     comparable = not event.is_tba and len(title.split()) >= MIN_TITLE_WORDS
     names = (canonical_name(speaker.name) for speaker in event.speakers)
+    persons = (
+        canonical_name(speaker.name) for speaker in event.speakers if looks_like_name(speaker.name)
+    )
     return _Profile(
         start=event.start,
         title=title if comparable else None,
         words=f" {title} ",
         speakers=frozenset(name for name in names if name),
+        persons=frozenset(name for name in persons if " " in name),
         page=_detail_page(event, not_pages),
         sources=_sources_of(event),
         native=frozenset(key.partition(":")[0] for key in event.source_ids if is_native_key(key)),
@@ -231,14 +240,14 @@ def _linked(first: _Profile, second: _Profile) -> bool:
     return (
         (first.page is not None and first.page == second.page)
         or bool(first.speakers & second.speakers)
-        or _names_one_of(first, second.speakers)
-        or _names_one_of(second, first.speakers)
+        or _names_one_of(first, second.persons)
+        or _names_one_of(second, first.persons)
     )
 
 
 def _names_one_of(profile: _Profile, names: Collection[str]) -> bool:
-    """Whether the title of ``profile`` names one of ``names`` that has two words or more."""
-    return any(f" {name} " in profile.words for name in names if " " in name)
+    """Whether the title of ``profile`` names one of ``names`` (folded names of persons)."""
+    return any(f" {name} " in profile.words for name in names)
 
 
 def _similar_titles(first: _Profile, second: _Profile, threshold: int) -> bool:

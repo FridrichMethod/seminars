@@ -280,6 +280,7 @@ class TestSpeakerLines:
                 [("Jane Doe", "MIT"), ("John Roe", "Stanford")],
             ),
             ("Speaker 1 - Jane Doe", [("Jane Doe", None)]),
+            ("Jane Doe, Computer Science", [("Jane Doe", "Computer Science")]),
         ],
     )
     def test_split(self, line: str, people: list[tuple[str, str | None]]) -> None:
@@ -296,6 +297,7 @@ class TestSpeakerLines:
         [
             *["Stanford University", "MIT", "Room 104", "jane@example.edu", "google deepmind"],
             *["", "Department of Chemistry", "x" * 90, "A B C D E F G"],
+            *["Computer Science", "Biomedical Data Science"],
         ],
     )
     def test_not_names(self, text: str) -> None:

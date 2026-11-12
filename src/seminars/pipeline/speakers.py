@@ -66,14 +66,15 @@ _PARTICLES: Final = word_set(
 )
 _ORGANISATION_WORDS: Final = word_set(
     "academy amazon anthropic apple berkeley biohub biology broad caltech cambridge center "
-    "centre chemistry clinic cnrs college columbia company cornell corp corporation csail "
-    "deepmind department dept division ecole engineering epfl eth faculty flatiron foundation "
-    "genentech google group harvard hhmi hopkins hospital ibm inc inria institut institute "
-    "institution intel janelia kaist lab laboratories laboratory labs llc ltd mathematics "
-    "medicine mellon merck meta microsoft mit national nih novartis nvidia openai oxford pfizer "
-    "physics polytechnic polytechnique princeton program research riken salk school sciences "
-    "scripps simons slac society stanford state statistics team tech technion uc ucb ucla ucsd "
-    "ucsf universidad universitat universite university weizmann yale"
+    "centre chemistry clinic cnrs college columbia company computer cornell corp corporation "
+    "csail data deepmind department dept division ecole engineering epfl eth faculty flatiron "
+    "foundation genentech google group harvard hhmi hopkins hospital ibm inc inria institut "
+    "institute institution intel janelia kaist lab laboratories laboratory labs llc ltd "
+    "mathematics medicine mellon merck meta microsoft mit national nih novartis nvidia openai "
+    "oxford pfizer physics polytechnic polytechnique princeton program research riken salk "
+    "school science sciences scripps simons slac society stanford state statistics team tech "
+    "technion uc ucb ucla ucsd ucsf universidad universitat universite university weizmann "
+    "yale"
 )
 
 

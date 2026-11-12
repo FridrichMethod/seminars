@@ -103,6 +103,23 @@ class TestPairs:
         second = candidate("b", sources=("sites-y",), speakers=[Speaker(name="Li")])
         assert uids(run(first, second)) == ["a", "b"]
 
+    @pytest.mark.parametrize("name", ["Computer Science", "Applied Physics", "Data Science"])
+    def test_a_speaker_string_that_is_no_person_in_the_other_title_is_not_enough(
+        self, name: str
+    ) -> None:
+        # A schedule whose speaker line was mis-read gives a department as a speaker.
+        schedule = candidate(
+            "a", sources=("sites-icme",), title="Seminar Session 8", speakers=[Speaker(name=name)]
+        )
+        calendar = candidate(
+            "b",
+            sources=("localist-stanford",),
+            title=f"{name} Colloquium: Quantum algorithms",
+            start=START + timedelta(minutes=10),
+        )
+        for order in ((schedule, calendar), (calendar, schedule)):
+            assert uids(run(*order)) == ["a", "b"]
+
     def test_a_speaker_named_in_a_title_of_one_source_does_not_join_two_talks(self) -> None:
         # One source lists two colloquia at the same hour; the calendar's title names one.
         first = candidate("a", speakers=[Speaker(name="Jane Doe")])
