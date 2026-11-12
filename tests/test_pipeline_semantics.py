@@ -249,7 +249,7 @@ class TestImportedCampusEvents:
             "localist-stanford:54426626599231",
             "sites-physics:0b6c1d2e-uuid",
         ]
-        assert event.title == "Applied Physics/Physics Colloquium: Dmitry Abanin"
+        assert event.title == 'Dmitry Abanin - "Quantum advantage and computational complexity"'
         assert (event.host_org, event.location, event.start) == (
             "Stanford Physics",
             "Hewlett 201",

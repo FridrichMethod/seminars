@@ -4,7 +4,10 @@ A draft says what a page says. An ``Event`` is what the project stores and
 publishes, so this is where the rules for stored data are applied:
 
 * times follow ``seminars.pipeline.times``; an event that starts outside
-  the window of the run is dropped and counted;
+  the window of the run is dropped and counted. An end that the length
+  rule drops (the same wall time on a later day, or more than a week after
+  the start) is logged as a warning with the source and the uids, at most
+  ``MAX_LOGGED_UIDS`` of them, once per source;
 * every text field is plain text: markup removed, cleaned by
   ``seminars.textrules.clean_text``, whitespace tidied, length bounded;
 * nothing that lets a stranger in or reaches a person is kept. A stream
@@ -25,7 +28,11 @@ publishes, so this is where the rules for stored data are applied:
   and "Cancelled:" or "(postponed)" in a title sets the status instead;
   an abstract that is only its heading or says that there is none yet
   ("Abstract", "Abstract: TBA") is no abstract;
-* a speaker line is split into people (``seminars.pipeline.speakers``);
+* a speaker line is split into people (``seminars.pipeline.speakers``). A
+  draft that names no speaker at all gets the people its title names in
+  one of the common forms (``speakers_from_title``; the campus calendar
+  has no speaker field). A key of the day is built from the speakers the
+  draft names, never from those of the title, which the title already is;
 * the event gets its source key and uid (``seminars.pipeline.ids``).
 
 A draft that cannot become an event (no usable start, no usable address,
@@ -35,6 +42,7 @@ values that the model refuses) is reported as excluded with the reason
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -62,7 +70,7 @@ from seminars.models import (
 )
 from seminars.pipeline.ids import draft_key, resolve_uid, shared_urls
 from seminars.pipeline.privacy import is_private_link, scrub_private, scrub_title, strip_markers
-from seminars.pipeline.speakers import ParsedSpeaker, split_speakers
+from seminars.pipeline.speakers import ParsedSpeaker, speakers_from_title, split_speakers
 from seminars.pipeline.text import (
     canonical_name,
     fold,
@@ -75,7 +83,7 @@ from seminars.pipeline.text import (
     truncate,
     word_set,
 )
-from seminars.pipeline.times import EventTimes, TimeError, resolve_times
+from seminars.pipeline.times import MAX_TIMED_LENGTH, EventTimes, TimeError, resolve_times
 
 MAX_TITLE: Final = 300
 MAX_SERIES: Final = 200
@@ -89,6 +97,9 @@ MAX_URL: Final = 2000
 MAX_SPEAKERS: Final = 20
 MAX_CATEGORIES: Final = 50
 UNTITLED: Final = "(no title)"
+MAX_LOGGED_UIDS: Final = 5
+
+logger: Final = logging.getLogger(__name__)
 
 _HTTP_URL: Final = TypeAdapter(HttpUrl)
 _LINK: Final = re.compile(r"https?://\S+", re.IGNORECASE)
@@ -242,7 +253,17 @@ def _structured_speakers(draft: EventDraft, cleaner: _Cleaner) -> list[Speaker]:
 
 def _line_speakers(draft: EventDraft, cleaner: _Cleaner) -> list[Speaker]:
     line = strip_markers(cleaner.block(draft.speaker_text, MAX_SPEAKER_LINE) or "")
-    people: list[ParsedSpeaker] = split_speakers(line) if line else []
+    return _parsed_speakers(split_speakers(line) if line else [])
+
+
+def _title_speakers(title: str, abstract: str | None) -> list[Speaker]:
+    """The people a cleaned title names, for a draft that names no speaker itself."""
+    if title == TBA_TITLE:
+        return []
+    return _parsed_speakers(speakers_from_title(title, abstract))
+
+
+def _parsed_speakers(people: Sequence[ParsedSpeaker]) -> list[Speaker]:
     found = (_person(person.name, person.affiliation) for person in people)
     return [
         Speaker(
@@ -326,9 +347,9 @@ def _event(
 ) -> Event:
     context = cleaner.context
     title, status = _title_and_status(draft, cleaner)
-    speakers = merge_speakers(
-        [*_structured_speakers(draft, cleaner), *_line_speakers(draft, cleaner)]
-    )
+    named = merge_speakers([*_structured_speakers(draft, cleaner), *_line_speakers(draft, cleaner)])
+    abstract = _abstract(draft, cleaner)
+    speakers = named or merge_speakers(_title_speakers(title, abstract))
     location, is_online, stream = _place(draft, cleaner)
     own_page = cleaner.url(draft.url)
     url = own_page or cleaner.url(source.homepage) or cleaner.url(source.all_urls[0])
@@ -337,12 +358,11 @@ def _event(
     key = draft_key(
         draft if own_page is not None else draft.evolve(url=None),
         start=times.start,
-        speaker=speakers[0].name if speakers else None,
+        speaker=named[0].name if named else None,
         title=None if title == TBA_TITLE else title,
         shared=shared,
         is_secret=context.is_secret,
     )
-    abstract = _abstract(draft, cleaner)
     seen = context.now.astimezone(UTC)
     return Event(
         uid=resolve_uid(key, context.uid_map),
@@ -389,6 +409,18 @@ def _invalid(
     )
 
 
+def _log_dropped_ends(source_id: str, uids: Sequence[str]) -> None:
+    shown = ", ".join(uids[:MAX_LOGGED_UIDS]) + (", ..." if len(uids) > MAX_LOGGED_UIDS else "")
+    logger.warning(
+        "%s: the end of %d timed event(s) is not kept (the same time on a later day, or more"
+        " than %d days after the start): %s",
+        source_id,
+        len(uids),
+        MAX_TIMED_LENGTH.days,
+        shown,
+    )
+
+
 def normalize_drafts(
     drafts: Sequence[EventDraft], source: SourceConfig, context: NormalizeContext
 ) -> Normalized:
@@ -403,6 +435,7 @@ def normalize_drafts(
     candidates: list[Candidate] = []
     invalid: list[ExcludedEvent] = []
     outside = 0
+    without_end: list[str] = []
     for draft in drafts:
         try:
             if draft.source_id != source.id:
@@ -418,6 +451,8 @@ def normalize_drafts(
         except ValidationError as error:
             invalid.append(_invalid(draft, source, _describe(error), cleaner))
             continue
+        if times.end_dropped_as_too_long:
+            without_end.append(event.uid)
         hints = EventHints(
             source_ids=[source.id],
             default_fields=source.default_fields,
@@ -426,6 +461,8 @@ def normalize_drafts(
             tags=_labels(draft.tags, cleaner),
         )
         candidates.append(Candidate(event=event, hints=hints))
+    if without_end:
+        _log_dropped_ends(source.id, without_end)
     return Normalized(
         candidates=tuple(candidates),
         invalid=tuple(invalid),

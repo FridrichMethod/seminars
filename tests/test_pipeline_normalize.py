@@ -147,6 +147,57 @@ class TestBasics:
         event = one(make_draft(start=datetime(2026, 11, 17, 19, 0), end=None), source).event
         assert event.start.isoformat() == "2026-11-17T16:00:00-08:00"
 
+    def test_an_end_at_the_same_time_on_the_next_day_is_not_kept(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # Instance 53759577652952 of the campus calendar as the API serves it: the Wu Tsai
+        # Neurosciences Seminar at noon, "12pm to 12pm PT" on its page.
+        source = make_source(
+            id="localist-stanford",
+            group="localist",
+            adapter="localist",
+            url="https://events.stanford.edu/api/2/events",
+        )
+        drafts = [
+            make_draft(
+                source_id="localist-stanford",
+                native_id=native_id,
+                title="Jonathan Kipnis - Navigating turbulent CNS waters",
+                start="2026-12-03T12:00:00-08:00",
+                end="2026-12-04T12:00:00-08:00",
+                all_day=False,
+            )
+            for native_id in ("53759577652952", "53759577710301")
+        ]
+        with caplog.at_level("WARNING", logger="seminars.pipeline.normalize"):
+            result = normalize(*drafts, source=source)
+        events = [candidate.event for candidate in result.candidates]
+        assert [(event.start.isoformat(), event.end, event.all_day) for event in events] == [
+            ("2026-12-03T12:00:00-08:00", None, False)
+        ] * 2
+        (record,) = caplog.records
+        assert record.getMessage() == (
+            "localist-stanford: the end of 2 timed event(s) is not kept (the same time on a"
+            " later day, or more than 7 days after the start): "
+            "localist-stanford.53759577652952, localist-stanford.53759577710301"
+        )
+
+    def test_at_most_a_few_uids_are_logged(self, caplog: pytest.LogCaptureFixture) -> None:
+        drafts = [
+            make_draft(
+                native_id=str(index),
+                start=datetime(2026, 11, 17 + index, 16, 0, tzinfo=PACIFIC),
+                end=datetime(2026, 11, 18 + index, 16, 0, tzinfo=PACIFIC),
+            )
+            for index in range(7)
+        ]
+        with caplog.at_level("WARNING", logger="seminars.pipeline.normalize"):
+            result = normalize(*drafts)
+        assert all(candidate.event.end is None for candidate in result.candidates)
+        (record,) = caplog.records
+        assert record.getMessage().endswith(", ...")
+        assert record.getMessage().count("sites-bioengineering.") == 5
+
     def test_an_all_day_draft(self) -> None:
         draft = make_draft(start=date(2026, 11, 17), end=date(2026, 11, 19))
         event = one(draft).event
@@ -255,6 +306,29 @@ class TestText:
         assert event.title == "TBA"
         assert event.is_tba
 
+    @pytest.mark.parametrize(
+        "title",
+        [
+            "\u86cb\u767d\u8d28\u8bbe\u8ba1\u7684\u65b0\u65b9\u6cd5",
+            "\u0422\u0435\u043e\u0440\u0438\u044f \u0447\u0438\u0441\u0435\u043b",
+            "\u03a4\u03bf\u03c0\u03bf\u03bb\u03bf\u03b3\u03af\u03b1",
+            "\u03c0",
+        ],
+    )
+    def test_a_title_in_another_script_is_kept(self, title: str) -> None:
+        event = one(make_draft(title=title)).event
+        assert (event.title, event.is_tba) == (title, False)
+
+    @pytest.mark.parametrize(
+        "abstract",
+        [
+            "\u8fd9\u662f\u4e00\u4e2a\u5173\u4e8e\u86cb\u767d\u8d28\u8bbe\u8ba1\u7684\u62a5\u544a",
+            "Abstract: \u86cb\u767d\u8d28\u8bbe\u8ba1",
+        ],
+    )
+    def test_an_abstract_in_another_script_is_kept(self, abstract: str) -> None:
+        assert one(make_draft(abstract=abstract)).event.abstract == abstract
+
     def test_a_cancelled_marker_sets_the_status(self) -> None:
         event = one(make_draft(title="CANCELLED: Protein design")).event
         assert (event.title, event.status) == ("Protein design", "cancelled")
@@ -294,6 +368,66 @@ class TestSpeakers:
     def test_no_speaker(self) -> None:
         assert one(make_draft(speaker_text=None)).event.speakers == []
         assert one(make_draft(speaker_text="TBA")).event.speakers == []
+
+    @pytest.mark.parametrize(
+        ("line", "people"),
+        [
+            (
+                "\u5f20\u4e09 (\u6e05\u534e\u5927\u5b66)",
+                [("\u5f20\u4e09", "\u6e05\u534e\u5927\u5b66")],
+            ),
+            (
+                "\u5f20\u4e09\uff08\u6e05\u534e\u5927\u5b66\uff09",
+                [("\u5f20\u4e09", "\u6e05\u534e\u5927\u5b66")],
+            ),
+            (
+                "\u0418\u0432\u0430\u043d \u0418\u0432\u0430\u043d\u043e\u0432"
+                " (\u041c\u0413\u0423)",
+                [
+                    (
+                        "\u0418\u0432\u0430\u043d \u0418\u0432\u0430\u043d\u043e\u0432",
+                        "\u041c\u0413\u0423",
+                    )
+                ],
+            ),
+            (
+                "\u03a3\u03c9\u03ba\u03c1\u03ac\u03c4\u03b7\u03c2 (\u0395\u039a\u03a0\u0391)",
+                [("\u03a3\u03c9\u03ba\u03c1\u03ac\u03c4\u03b7\u03c2", "\u0395\u039a\u03a0\u0391")],
+            ),
+            ("\u674e\u96f7 and Jane Doe (MIT)", [("\u674e\u96f7", None), ("Jane Doe", "MIT")]),
+            (
+                "\u674e\u56db, \u738b\u4e94 (\u5317\u4eac\u5927\u5b66)",
+                [("\u674e\u56db", None), ("\u738b\u4e94", "\u5317\u4eac\u5927\u5b66")],
+            ),
+            (
+                "\u674e\u56db\u3001\u738b\u4e94\uff08\u5317\u4eac\u5927\u5b66\uff09",
+                [("\u674e\u56db", None), ("\u738b\u4e94", "\u5317\u4eac\u5927\u5b66")],
+            ),
+            (
+                "\u5f20\u4e09\uff0c\u6e05\u534e\u5927\u5b66",
+                [("\u5f20\u4e09", "\u6e05\u534e\u5927\u5b66")],
+            ),
+        ],
+    )
+    def test_names_in_any_script_are_kept(
+        self, line: str, people: list[tuple[str, str | None]]
+    ) -> None:
+        speakers = one(make_draft(speaker_text=line)).event.speakers
+        assert [(s.name, s.affiliation) for s in speakers] == people
+
+    def test_structured_names_in_any_script_are_kept(self) -> None:
+        draft = make_draft(
+            speakers=[
+                SpeakerDraft(name="\u738b\u5c0f\u660e", affiliation="\u5317\u4eac\u5927\u5b66"),
+                SpeakerDraft(name="\u041f\u0451\u0442\u0440 \u041f\u0435\u0442\u0440\u043e\u0432"),
+                SpeakerDraft(name="TBA"),
+            ],
+            speaker_text=None,
+        )
+        assert [(s.name, s.affiliation) for s in one(draft).event.speakers] == [
+            ("\u738b\u5c0f\u660e", "\u5317\u4eac\u5927\u5b66"),
+            ("\u041f\u0451\u0442\u0440 \u041f\u0435\u0442\u0440\u043e\u0432", None),
+        ]
 
     def test_merge_speakers_is_idempotent_and_bounded(self) -> None:
         many = [SpeakerDraft(name=f"Person Number{chr(65 + index)}") for index in range(26)]

@@ -438,8 +438,10 @@ class TestDataCharsetProblems:
         assert data_charset_problems("a\ud83db\n") == ["1:2 U+D83D"]
         assert data_charset_problems("\n\udfff\n") == ["2:1 U+DFFF"]
 
-    def test_is_stricter_than_the_gate_for_binary_content(self) -> None:
-        assert gate.check_bytes("data/events.json", b"a\x00b\n") == []
+    def test_rejects_a_nul_byte_like_the_gate(self) -> None:
+        assert gate.check_bytes("data/events.json", b"a\x00b\n") == [
+            "data/events.json: NUL byte at byte offset 1: not UTF-8 text"
+        ]
         assert data_charset_problems("a\x00b\n") == ["1:2 U+0000"]
 
 

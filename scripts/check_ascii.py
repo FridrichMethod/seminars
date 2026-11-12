@@ -19,16 +19,36 @@ Scans every git-tracked file and enforces the charset rules of the project:
 * ``tests/fixtures/**`` holds verbatim snapshots of real pages. They are test
   input and are never published, and the cleaning code has to be tested
   against exactly what the sites serve, so anything that is valid UTF-8 is
-  accepted there.
+  accepted there, a stray NUL byte included.
 
-Binary files (detected by a NUL byte) are skipped. Violations are printed as
+Binary files are skipped; a file is binary when its name ends in one of
+``BINARY_SUFFIXES`` (images, fonts, archives, PDF). Every other file is text
+and must be UTF-8: a byte order mark of UTF-16 or UTF-32 is reported with the
+name of the encoding, and a NUL byte as not UTF-8 text. In ``tests/fixtures/**``
+a NUL byte is reported only when the file reads like UTF-16 or UTF-32 text
+without a byte order mark, which has a NUL at every second or every fourth
+byte (``WIDE_NUL_SHARE``). A binary file of another kind fails the gate until
+its suffix is added to the list. Violations are printed as
 ``path:line:col U+XXXX NAME`` and the exit status is non-zero.
+
+``--commit-msg FILE`` checks a commit message instead of the tree, which is
+what the commit-msg hook of pre-commit runs: printable ASCII and newlines
+only. Git removes comment lines (starting with ``#``) and everything below
+the scissors line of ``git commit --verbose`` only from a message written in
+an editor, so only then are they skipped. Git tells its hooks that no editor
+is used (``git commit -m``, ``-F``, ``--no-edit``) by setting ``GIT_EDITOR``
+to ``:``; the message is then kept as it is, comment lines included, and
+every line is checked. A cleanup mode chosen with ``--cleanup`` or
+``commit.cleanup`` is not visible to a hook: with an editor and the mode
+``verbatim``, ``whitespace`` or ``scissors``, comment lines are kept by git
+but not checked here.
 
 The script uses the standard library only and runs under any Python 3, so it
 cannot import the project. EMOJI_RANGES and DECORATIVE_RANGES are therefore
 repeated in ``src/seminars/textrules.py`` for the code that cleans and checks
 text at run time; tests/test_textrules.py fails when the two copies differ.
-Usage: ``python3 scripts/check_ascii.py [--root DIR]``
+Usage: ``python3 scripts/check_ascii.py [--root DIR]`` or
+``python3 scripts/check_ascii.py --commit-msg FILE``.
 """
 
 from __future__ import annotations
@@ -51,8 +71,48 @@ TAB_BASENAMES = ("Makefile", "makefile", "GNUmakefile")
 TAB_SUFFIXES = (".mk",)
 
 BOM = b"\xef\xbb\xbf"
-BINARY_SNIFF_BYTES = 8000
+OTHER_BOMS = (  # longest first: the UTF-32 LE mark starts with the UTF-16 LE one
+    (b"\xff\xfe\x00\x00", "UTF-32 LE"),
+    (b"\x00\x00\xfe\xff", "UTF-32 BE"),
+    (b"\xff\xfe", "UTF-16 LE"),
+    (b"\xfe\xff", "UTF-16 BE"),
+)
+BINARY_SUFFIXES = (
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".ico",
+    ".bmp",
+    ".tif",
+    ".tiff",
+    ".avif",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".otf",
+    ".eot",
+    ".pdf",
+    ".zip",
+    ".gz",
+    ".tgz",
+    ".bz2",
+    ".xz",
+    ".zst",
+    ".7z",
+    ".mp3",
+    ".mp4",
+    ".webm",
+    ".ogg",
+    ".wav",
+)
+WIDE_SAMPLE_BYTES = 4096
+WIDE_NUL_SHARE = 0.5  # of the even or of the odd bytes of the sample
 MAX_REPORTS_PER_FILE = 20
+COMMENT_PREFIX = "#"
+SCISSORS_LINE = "# ------------------------ >8 ------------------------"
+NO_EDITOR = ":"  # the value of GIT_EDITOR that git gives its hooks when it opens no editor
 
 # Inclusive code point ranges treated as emoji. Mirrored in src/seminars/textrules.py.
 EMOJI_RANGES: tuple[tuple[int, int], ...] = (
@@ -64,6 +124,13 @@ EMOJI_RANGES: tuple[tuple[int, int], ...] = (
     (0x260A, 0x263E),
     (0x2648, 0x266C),
     (0x2670, 0x27BF),
+    # Characters that are text by default but are shown as emoji by most systems:
+    # U+203C double and U+2049 question exclamation mark, U+2139 information source,
+    # U+24C2 circled M.
+    (0x203C, 0x203C),
+    (0x2049, 0x2049),
+    (0x2139, 0x2139),
+    (0x24C2, 0x24C2),
     (0x231A, 0x231B),
     (0x2328, 0x2328),
     (0x23CF, 0x23CF),
@@ -92,20 +159,25 @@ EMOJI_RANGES: tuple[tuple[int, int], ...] = (
 DECORATIVE_RANGES: tuple[tuple[int, int], ...] = (
     (0x00A0, 0x00A0),  # no-break space
     (0x00AD, 0x00AD),  # soft hyphen
+    (0x034F, 0x034F),  # combining grapheme joiner
     (0x061C, 0x061C),  # Arabic letter mark
     (0x115F, 0x1160),  # Hangul initial and medial filler
-    (0x180E, 0x180E),  # Mongolian vowel separator
+    (0x17B4, 0x17B5),  # Khmer inherent vowels, which are not written
+    (0x180B, 0x180F),  # Mongolian free variation selectors and vowel separator
     (0x2000, 0x200F),  # typographic spaces, zero width characters and direction marks
     (0x2028, 0x202F),  # line and paragraph separator, bidi controls, narrow no-break space
     (0x205F, 0x2064),  # medium mathematical space, word joiner and invisible operators
     (0x2066, 0x2069),  # bidi isolates
+    (0x2800, 0x2800),  # Braille pattern blank, a blank filler
     (0x3164, 0x3164),  # Hangul filler
     (0xE000, 0xF8FF),  # private use area (Symbol font bullets pasted from Word, icon fonts)
     (0xFB00, 0xFB06),  # Latin ligatures
-    (0xFE0E, 0xFE0E),  # text variation selector
+    (0xFE00, 0xFE0E),  # variation selectors 1 to 14 and the text variation selector
     (0xFEFF, 0xFEFF),  # zero width no-break space
     (0xFFA0, 0xFFA0),  # halfwidth Hangul filler
     (0xFFF9, 0xFFFC),  # interlinear annotation marks, object replacement character
+    (0xE0001, 0xE0001),  # language tag
+    (0xE0100, 0xE01EF),  # variation selectors supplement
     (0xF0000, 0xFFFFD),  # supplementary private use area A (icon fonts)
     (0x100000, 0x10FFFD),  # supplementary private use area B
 )
@@ -140,9 +212,27 @@ def allows_tab(path: str) -> bool:
     return name in TAB_BASENAMES or name.endswith(TAB_SUFFIXES)
 
 
-def is_binary(data: bytes) -> bool:
-    """Use the same heuristic as git: a NUL byte near the start means binary."""
-    return b"\0" in data[:BINARY_SNIFF_BYTES]
+def is_binary(path: str) -> bool:
+    """Whether ``path`` names a binary file: its suffix is one of ``BINARY_SUFFIXES``."""
+    return path.lower().endswith(BINARY_SUFFIXES)
+
+
+def reads_like_wide_text(data: bytes) -> bool:
+    """Whether ``data`` reads like UTF-16 or UTF-32 text: NUL is half its even or odd bytes."""
+    sample = data[:WIDE_SAMPLE_BYTES]
+    halves = [half for half in (sample[0::2], sample[1::2]) if half]
+    return any(half.count(0) >= WIDE_NUL_SHARE * len(half) for half in halves)
+
+
+def _encoding_problem(path: str, data: bytes, mode: str) -> str | None:
+    """Why ``data`` is no UTF-8 text at all (another encoding, a NUL byte); else ``None``."""
+    for mark, name in OTHER_BOMS:
+        if data.startswith(mark):
+            return f"{path}: not UTF-8 ({name} byte order mark)"
+    nul = data.find(b"\0")
+    if nul >= 0 and (mode != MODE_FREE or reads_like_wide_text(data)):
+        return f"{path}: NUL byte at byte offset {nul}: not UTF-8 text"
+    return None
 
 
 def _is_bad_char(char: str, mode: str, tab_ok: bool) -> bool:
@@ -177,8 +267,12 @@ def _scan_chars(path: str, text: str, mode: str) -> list[str]:
 
 def check_bytes(path: str, data: bytes) -> list[str]:
     """Return the list of violation messages for one file."""
-    if not data or is_binary(data):
+    if not data or is_binary(path):
         return []
+    mode = classify(path)
+    problem = _encoding_problem(path, data, mode)
+    if problem is not None:
+        return [problem]
     messages: list[str] = []
     if data.startswith(BOM):
         messages.append(f"{path}:1:1 U+FEFF byte order mark at start of file")
@@ -194,10 +288,52 @@ def check_bytes(path: str, data: bytes) -> list[str]:
         messages.append(f"{path}:{crlf_lines[0]}: CRLF line ending ({count} line(s) in total)")
     if not text.endswith("\n"):
         messages.append(f"{path}: missing final newline")
-    mode = classify(path)
     if mode != MODE_FREE:
         messages.extend(_scan_chars(path, text, mode))
     return messages
+
+
+def check_commit_message(path: str, data: bytes, editor_used: bool = True) -> list[str]:
+    """Return the violation messages for a commit message read from ``path``.
+
+    The message may only hold printable ASCII and newlines. When the
+    message was written in an editor (``editor_used``), comment lines and
+    the part below the scissors line are skipped, because git removes them;
+    otherwise git keeps them and they are checked. Line numbers count every
+    line of the file.
+    """
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        return [f"{path}: not valid UTF-8 (byte offset {error.start})"]
+    messages: list[str] = []
+    for line_number, line in enumerate(text.split("\n"), start=1):
+        if editor_used and line.startswith(COMMENT_PREFIX):
+            if line.rstrip("\r") == SCISSORS_LINE:
+                break
+            continue
+        for column, char in enumerate(line.rstrip("\r"), start=1):
+            if _is_bad_char(char, MODE_STRICT, False):
+                messages.append(f"{path}:{line_number}:{column} {_describe(char)}")
+    return messages
+
+
+def _check_commit_message_file(path: str) -> int:
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read()
+    except OSError as error:
+        print(f"check_ascii: cannot read the commit message: {error}", file=sys.stderr)
+        return 2
+    editor_used = os.environ.get("GIT_EDITOR") != NO_EDITOR
+    messages = check_commit_message(path, data, editor_used=editor_used)
+    for message in messages:
+        print(message)
+    if messages:
+        count = len(messages)
+        print(f"check_ascii: {count} violation(s) in the commit message", file=sys.stderr)
+        return 1
+    return 0
 
 
 def tracked_files(root: str) -> list[str]:
@@ -239,7 +375,12 @@ def _print_failures(failures: list[tuple[str, list[str]]]) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check the charset rules of the repository.")
     parser.add_argument("--root", default=".", help="directory inside the git work tree")
+    parser.add_argument(
+        "--commit-msg", metavar="FILE", help="check this commit message instead of the tree"
+    )
     args = parser.parse_args(argv)
+    if args.commit_msg is not None:
+        return _check_commit_message_file(args.commit_msg)
     try:
         toplevel = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=args.root)
         checked, failures = check_tree(toplevel.decode("utf-8").strip())

@@ -17,7 +17,18 @@ naive one, a date, a string). This module applies those rules:
   repaired first: an end on the same day as the start but earlier, which
   is what a source produces when it puts an end time next to a start date
   for a talk that runs past midnight. It moves to the next day when the
-  talk is then at most six hours long (``seminars.models.MAX_ROLLOVER``).
+  talk is then at most six hours long (``seminars.models.MAX_ROLLOVER``);
+* the end of a timed event is not kept either when it is at the same wall
+  time as the start on a later day (a seminar at noon that the campus
+  calendar lists until noon of the next day: the date of the end is a slip
+  of whoever entered it), or when it is more than ``MAX_TIMED_LENGTH``
+  after the start. The day is compared in wall time, so the rule holds
+  across the clock changes, when the same time of day is 23 or 25 hours
+  later. A timed event over several days with other times of day ("9:00 on
+  Monday to 17:00 on Wednesday") keeps its end, and so does a span of
+  whole days written from midnight to midnight. All-day events are not
+  affected. ``EventTimes.end_dropped_as_too_long`` tells normalization
+  that this happened; the feeds then give the talk their default length.
 
 Nothing in here reads the clock. ``reference`` supplies the year for a
 string that has none: the year that puts the date closest to it, so that
@@ -37,6 +48,8 @@ from dateutil import parser as date_parser
 from seminars.models import MAX_ROLLOVER
 
 MAX_TEXT_LENGTH: Final = 120
+MAX_TIMED_LENGTH: Final = timedelta(days=7)
+"""The longest that an event with times of day may last; a later end is not kept."""
 _PROBE_DEFAULTS: Final = (datetime(2004, 1, 1, 0, 0), datetime(2008, 3, 2, 11, 0))
 """Two defaults that differ in every field: what a text leaves out differs between them.
 
@@ -79,6 +92,8 @@ class EventTimes:
     start: datetime
     end: datetime | None
     all_day: bool
+    end_dropped_as_too_long: bool = False
+    """The draft had an end after the start that was dropped by the length rule."""
 
 
 def _parse(text: str, default: datetime) -> datetime:
@@ -165,9 +180,18 @@ def _all_day(
     return EventTimes(start=_midnight(first, project), end=until, all_day=True)
 
 
+def _too_long(start: datetime, end: datetime) -> bool:
+    """Whether a timed event from ``start`` to ``end`` (both later) breaks the length rule."""
+    if end - start > MAX_TIMED_LENGTH:
+        return True
+    whole_days = end.date() > start.date() and end.time() == start.time()
+    return whole_days and start.time() != time.min
+
+
 def _timed_end(
     start: datetime, end: datetime | date | None, source: ZoneInfo, project: ZoneInfo
 ) -> datetime | None:
+    """The end of a timed event; ``None`` when there is none or it cannot be right."""
     if end is None:
         return None
     if not isinstance(end, datetime):
@@ -179,6 +203,16 @@ def _timed_end(
     rolled = until + _ONE_DAY
     same_day = until.date() == start.date()
     return rolled if same_day and start < rolled <= start + MAX_ROLLOVER else None
+
+
+def _timed(
+    start: datetime, end: datetime | date | None, source: ZoneInfo, project: ZoneInfo
+) -> EventTimes:
+    begin = _wall(_instant(start, source), project)
+    until = _timed_end(begin, end, source, project)
+    if until is not None and _too_long(begin, until):
+        return EventTimes(start=begin, end=None, all_day=False, end_dropped_as_too_long=True)
+    return EventTimes(start=begin, end=until, all_day=False)
 
 
 def resolve_times(
@@ -205,7 +239,6 @@ def resolve_times(
     try:
         if all_day or not isinstance(first, datetime):
             return _all_day(first, last, source, project)
-        begin = _wall(_instant(first, source), project)
-        return EventTimes(start=begin, end=_timed_end(begin, last, source, project), all_day=False)
+        return _timed(first, last, source, project)
     except (OverflowError, ValueError) as error:  # dates at the edge of what datetime can hold
         raise TimeError("time is out of range") from error

@@ -7,7 +7,13 @@ from datetime import UTC, date, datetime, timedelta, timezone
 import pytest
 
 from factories import REFERENCE_NOW
-from seminars.pipeline.times import EventTimes, TimeError, parse_moment, resolve_times
+from seminars.pipeline.times import (
+    MAX_TIMED_LENGTH,
+    EventTimes,
+    TimeError,
+    parse_moment,
+    resolve_times,
+)
 
 LA = "America/Los_Angeles"
 PST = timezone(timedelta(hours=-8))
@@ -152,6 +158,69 @@ class TestMidnight:
         times = resolve(datetime(2026, 11, 17, 9, 0), date(2026, 11, 19))
         assert iso(times.end) == "2026-11-20T00:00:00-08:00"
         assert times.all_day is False
+
+
+class TestLength:
+    """An end at the same wall time on a later day is a slip of the source, not a long talk."""
+
+    def test_an_end_at_the_same_time_on_the_next_day_is_dropped(self) -> None:
+        # The Wu Tsai Neurosciences Seminar on the campus calendar: 12pm to 12pm next day.
+        times = resolve(
+            datetime(2026, 12, 3, 12, 0, tzinfo=PST), datetime(2026, 12, 4, 12, 0, tzinfo=PST)
+        )
+        assert (iso(times.start), times.end, times.all_day) == (
+            "2026-12-03T12:00:00-08:00",
+            None,
+            False,
+        )
+        assert times.end_dropped_as_too_long
+
+    @pytest.mark.parametrize(
+        ("start", "end"),
+        [
+            # Across the change to daylight saving time the same wall time is 23 hours later.
+            (datetime(2027, 3, 13, 12, 0), datetime(2027, 3, 14, 12, 0)),
+            # Across the change back it is 25 hours later.
+            (datetime(2026, 10, 31, 16, 0), datetime(2026, 11, 1, 16, 0)),
+            (datetime(2026, 11, 17, 16, 0), datetime(2026, 11, 19, 16, 0)),
+        ],
+    )
+    def test_whole_days_are_dropped_also_across_the_clock_changes(
+        self, start: datetime, end: datetime
+    ) -> None:
+        times = resolve(start, end)
+        assert times.end is None
+        assert times.end_dropped_as_too_long
+
+    def test_a_timed_event_over_several_days_keeps_its_end(self) -> None:
+        times = resolve(datetime(2026, 12, 3, 9, 0), datetime(2026, 12, 5, 17, 0))
+        assert iso(times.end) == "2026-12-05T17:00:00-08:00"
+        assert not times.end_dropped_as_too_long
+
+    def test_a_timed_span_of_days_from_midnight_keeps_its_end(self) -> None:
+        times = resolve(datetime(2026, 12, 3, 0, 0), datetime(2026, 12, 4, 0, 0))
+        assert iso(times.end) == "2026-12-04T00:00:00-08:00"
+
+    def test_an_end_more_than_the_longest_length_after_the_start_is_dropped(self) -> None:
+        start = datetime(2026, 12, 3, 9, 0)
+        longest = start + MAX_TIMED_LENGTH
+        assert iso(resolve(start, longest - timedelta(hours=1)).end) == "2026-12-10T08:00:00-08:00"
+        times = resolve(start, longest + timedelta(hours=8))
+        assert times.end is None
+        assert times.end_dropped_as_too_long
+        assert resolve(start, date(2026, 12, 20)).end is None
+
+    def test_an_ordinary_end_is_not_marked(self) -> None:
+        times = resolve(datetime(2026, 11, 17, 16, 0), datetime(2026, 11, 17, 17, 0))
+        assert not times.end_dropped_as_too_long
+        assert not resolve(datetime(2026, 11, 17, 16, 0), "never").end_dropped_as_too_long
+
+    def test_all_day_events_over_several_days_keep_their_end(self) -> None:
+        times = resolve(date(2026, 12, 3), date(2026, 12, 4))
+        assert iso(times.end) == "2026-12-05T00:00:00-08:00"
+        times = resolve(datetime(2026, 12, 3, 0, 0), datetime(2026, 12, 5, 0, 0), all_day=True)
+        assert iso(times.end) == "2026-12-05T00:00:00-08:00"
+        assert not times.end_dropped_as_too_long
 
 
 class TestAllDay:

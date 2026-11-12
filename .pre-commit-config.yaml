@@ -14,3 +14,8 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: check-ascii-commit-msg
+        name: check_ascii (commit message)
+        entry: python3 scripts/check_ascii.py --commit-msg
+        language: system
+        stages: [commit-msg]
