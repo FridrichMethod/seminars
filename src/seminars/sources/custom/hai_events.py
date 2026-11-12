@@ -42,6 +42,9 @@ shared host check):
   the source; the offset is dropped.
 * ``type_labels``: type label -> event type. ``keep_type_labels``: only events with one of
   these labels are returned (empty: all).
+* ``skip_organiser_hosts``: host names; an event whose organiser address is on one of them
+  (that host exactly) is not returned: another source collects those talks. The cards do
+  not know the organiser address.
 * ``title_separator``: in a title "<prefix><separator><rest>" the prefix is the speakers
   when it names those of the detail page or, without them, reads like person names (then it
   is the speaker text, for normalization to split); otherwise it is the series. The title is
@@ -50,8 +53,7 @@ shared host check):
   ``summary``), ``card_date_format`` and ``card_time_pattern`` (groups ``start`` and
   ``end``): the cards, read when the payload cannot be. A card without a time is an all-day
   event.
-* ``fetch_details`` (``upcoming`` or ``never``, default) and ``max_detail_pages`` (default
-  10).
+* ``fetch_details`` (``upcoming`` or ``never``, the default), ``max_detail_pages`` (10).
 * ``detail_redirect_selector``: a page with a match only forwards elsewhere. Such a page,
   one without ``detail_selectors.title`` and a failed request leave the event as the list
   describes it.
@@ -85,7 +87,7 @@ from zoneinfo import ZoneInfo
 from pydantic import AfterValidator, Field, ValidationError, model_validator
 from selectolax.lexbor import LexborHTMLParser, LexborNode
 
-from seminars.http import HttpClient
+from seminars.http import HttpClient, canonical_host, split_url
 from seminars.models import (
     EventDraft,
     EventStatus,
@@ -128,11 +130,9 @@ from seminars.textrules import ascii_printable, without_surrogates
 
 logger = logging.getLogger(__name__)
 
-MAX_REFERENCE_DEPTH: Final = 8
-"""References resolved inside one another; a deeper one counts as missing."""
+MAX_REFERENCE_DEPTH: Final = 8  # references inside one another; a deeper one is missing
 MAX_REFERENCE_LENGTH: Final = 256
-MAX_LIST_ITEMS: Final = 500
-"""Items of one list in the payload that are looked at."""
+MAX_LIST_ITEMS: Final = 500  # items of one list in the payload that are looked at
 MAX_EVENTS: Final = 1000  # events taken from one payload (the page shows 20)
 # Characters kept of a text of an event, cut before anything else: many events can refer
 # to one long text and each keeps a copy (normalization keeps less). A longer link is missing.
@@ -177,6 +177,7 @@ def _check_path(value: str) -> str:
 
 
 KeyPath = Annotated[str, AfterValidator(_check_path)]
+HostName = Annotated[str, AfterValidator(canonical_host)]
 
 
 class FlightKeys(Model):
@@ -252,6 +253,7 @@ class HaiParams(Model):
     times_are_local: bool = False
     type_labels: dict[str, EventType] = {}
     keep_type_labels: list[str] = []
+    skip_organiser_hosts: list[HostName] = []
     title_separator: Annotated[str, Field(min_length=1)] | None = None
     card_selectors: CardSelectors | None = None
     card_date_format: str | None = None
@@ -270,9 +272,14 @@ class HaiParams(Model):
             raise ValueError("fetch_details needs detail_selectors")
         return self
 
-    def keeps(self, label: str | None) -> bool:
+    def keeps(self, label: str | None, organiser_url: str | None = None) -> bool:
+        """Whether an event with this type label and organiser address is returned."""
         kept = {collapse(name) for name in self.keep_type_labels}
-        return not kept or collapse(label) in kept
+        if kept and collapse(label) not in kept:
+            return False
+        with contextlib.suppress(ValueError):  # no public http(s) URL: on no listed host
+            return not organiser_url or split_url(organiser_url)[1] not in self.skip_organiser_hosts
+        return True
 
     def event_type(self, label: str | None) -> EventType | None:
         types: dict[str | None, EventType] = {
@@ -431,7 +438,7 @@ class Flight:
                 for path in (self.params.upcoming_key, self.params.previous_key):
                     if not isinstance(node, dict) or path.split(".", 1)[0] not in node:
                         continue
-                    target = self.at(node, path)
+                    target = next(iter(self.follow(node, path)), None)
                     if not isinstance(target, list) or id(target) in lists:
                         continue
                     lists.add(id(target))
@@ -439,12 +446,6 @@ class Flight:
                         if isinstance(item, dict) and marker in item and len(found) < MAX_EVENTS:
                             found.setdefault(id(item), item)
         return list(found.values()) if lists else None
-
-    def at(self, node: Any, path: str) -> Any:
-        """The resolved value at a dotted ``path`` (no fan-out) below ``node``."""
-        for name in path.split("."):
-            node = self.value(node.get(name)) if isinstance(node, dict) else None
-        return node
 
 
 def step(node: Any, key: str) -> Any:
@@ -568,7 +569,7 @@ def read_list(params: HaiParams, source: SourceConfig, document: FetchedDocument
         listed = (from_card(params, card, base, reference) for card in cards)
     unique: dict[tuple[str | None, str], Listed] = {}
     for item in listed:
-        if item is not None and params.keeps(item.type_label):
+        if item is not None and params.keeps(item.type_label, item.organiser_url):
             unique.setdefault((item.link, item.start.isoformat()), item)
     return list(unique.values())
 

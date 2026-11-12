@@ -229,6 +229,11 @@ sources:
       # Only these tag labels are collected (the owner's choice, 2026-11-11): policy
       # conversations, student events and promotions of other units are left out.
       keep_type_labels: [Seminar, Conference]
+      # Events whose promo_url (flight.keys.organiser_url) is on one of these hosts are
+      # left out: custom-ai4science collects the Marlowe AI + Data for Science sessions
+      # with speaker and room, and the copies here (no speaker, no room) would not merge
+      # with them.
+      skip_organiser_hosts: [marlowe-research.stanford.edu]
       # "Speaker | Title" and "Series | Title" are both common.
       title_separator: " | "
       # Fallback when the payload cannot be read: the same events as cards.

@@ -154,8 +154,9 @@ class TestRecordedPages:
         # Events with a promo_url only forward to it: no request for them. The
         # conference in May 2027 is after the run window.
         assert http.requests == [LIST_URL, AI100, CHRISTIN]
-        # 20 events in the payload; 5 are tagged Event or Event Promo and are left out.
-        assert len(drafts) == 15
+        # 20 events in the payload; 5 are tagged Event or Event Promo and are left out,
+        # and so are the 5 Marlowe sessions, which another source collects.
+        assert len(drafts) == 10
         assert all(draft.source_id == SOURCE.id and draft.extraction == "html" for draft in drafts)
         assert {draft.event_type_hint for draft in drafts} == {"seminar", "conference"}
         left_out = ("Special Seminar", "Center for Decoding", "NVIDIA", "Christopher Ong")
@@ -212,8 +213,16 @@ class TestRecordedPages:
         )
         assert talk.abstract_html == "<p>An AI Measurement Science (AIMS) Seminar Series</p>"
 
-    def test_events_sharing_a_promo_url_keep_their_own_urls(self) -> None:
+    def test_events_whose_organiser_host_is_skipped_are_left_out(self) -> None:
         drafts = run(SOURCE, offline_client(SOURCE.id))
+        every = run(with_params(skip_organiser_hosts=[]), offline_client(SOURCE.id))
+        marlowe = [d for d in every if d.series == "Marlowe"]
+        assert len(marlowe) == 5
+        assert all((d.title or "").startswith("AI + Data for Science with ") for d in marlowe)
+        assert drafts == [d for d in every if d not in marlowe]
+
+    def test_events_sharing_a_promo_url_keep_their_own_urls(self) -> None:
+        drafts = run(with_params(skip_organiser_hosts=[]), offline_client(SOURCE.id))
         marlowe = [d for d in drafts if d.series == "Marlowe"]
         assert len(marlowe) == 5
         assert len({draft.url for draft in marlowe}) == 5
@@ -260,7 +269,7 @@ class TestRecordedPages:
         with caplog.at_level(logging.WARNING):
             drafts = run(with_params(fetch_details="never"), serve({LIST_URL: text}))
         assert "the cards are used" in caplog.text
-        assert len(drafts) == 15
+        assert len(drafts) == 15  # the cards do not know the promo_url: Marlowe stays
         talk = by_title(drafts, "Best Practices for the Use of LLMs as Judges")
         assert (talk.start, talk.end) == (
             datetime(2026, 11, 13, 13),
@@ -482,7 +491,7 @@ class TestPayload:
         assert flight.value("$" + "1" * 300) is None
         assert flight.value("$3") == "$2 is text"  # a text row is never a reference
         assert flight.value("$3:x") is None
-        assert flight.at({"a": {"b": "$2"}}, "a.b") == [1]
+        assert flight.follow({"a": {"b": "$2"}}, "a.b") == [[1]]
 
 
 CARD = (
@@ -582,6 +591,23 @@ class TestDetailPages:
             ("Part two", "Gates 104"),
         ]
 
+    @pytest.mark.parametrize(
+        ("promo", "kept"),
+        [
+            ("https://Talks.Example.org./a", False),  # the same host, spelt otherwise
+            ("http://talks.example.org:8080/b", False),
+            ("https://sub.talks.example.org/c", True),  # another host
+            ("https://example.org/d", True),
+            ("$undefined", True),
+            ("mailto:talks@example.org", True),  # no web page: no organiser address
+        ],
+    )
+    def test_skip_organiser_hosts(self, promo: str, kept: bool) -> None:
+        upcoming = [event("Talk", "2026-11-17T12:00:00Z", promo=promo)]
+        source = with_params(fetch_details="never", skip_organiser_hosts=["TALKS.example.org"])
+        drafts = parse_rows([events_row(upcoming, [])], source)
+        assert [d.title for d in drafts] == (["Talk"] if kept else [])
+
     def test_no_detail_requests_when_they_are_not_wanted(self) -> None:
         http = serve({LIST_URL: payload_page(self.rows())})
         run(with_params(fetch_details="never"), http)
@@ -671,6 +697,10 @@ class TestParams:
         )
         with pytest.raises(AdapterConfigError, match="fetch_details needs detail_selectors"):
             load_params(HaiParams, source)
+
+    def test_a_skipped_host_must_be_a_host_name(self) -> None:
+        with pytest.raises(AdapterConfigError, match=r"params\.skip_organiser_hosts"):
+            load_params(HaiParams, with_params(skip_organiser_hosts=["https://x.org/a b"]))
 
     def test_the_card_time_pattern_needs_a_start(self) -> None:
         with pytest.raises(AdapterConfigError, match="card_time_pattern needs"):
