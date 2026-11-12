@@ -138,6 +138,21 @@ class TestSpeakersOfTheDetailPage:
         assert [(s.name, s.affiliation) for s in detail.speakers] == [("Ned Wingreen, Ph.D.", None)]
         assert detail.start is not None
 
+    def test_a_biohub_keynote_with_an_affiliation_has_it(self) -> None:
+        # The recorded keynote card has no affiliation element; the theme styles one.
+        params = html_list.load_params(html_list.HtmlListParams, SOURCES["bayarea-biohub"])
+        assert params.detail_page is not None
+        path = FIXTURES / "bayarea-biohub" / "events-physics-of-life-2026-4be4bb80.html"
+        document = detail_document(path, "https://biohub.org/events/physics-of-life-2026/")
+        name = '<h3 class="people-featured__name">Ned Wingreen, Ph.D.</h3>'
+        assert document.text.count(name) == 1
+        affiliation = '<p class="people-featured__affiliation">Princeton University</p>'
+        document = document.evolve(text=document.text.replace(name, name + affiliation))
+        detail = html_list.read_detail(params.detail_page, document)
+        assert [(s.name, s.affiliation) for s in detail.speakers] == [
+            ("Ned Wingreen, Ph.D.", "Princeton University")
+        ]
+
     def test_a_row_without_speakers_takes_those_of_its_page(self) -> None:
         source = list_source(
             times=".nothing",

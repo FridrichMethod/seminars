@@ -754,7 +754,9 @@ sources:
         native_id_pattern: '[?&]p=(?P<native_id>\d+)'
         # Speakers: the person cards of the section whose heading names speakers
         # ("Speakers", "Keynote Speaker"): .people-list-item (name and affiliation) or,
-        # for a keynote, .people-featured (a name and a bio, no affiliation). The list
+        # for a keynote, .people-featured (a name and a bio). The recorded keynote card
+        # has no affiliation element, but the theme's stylesheet in that page styles
+        # .people-featured__affiliation, so a card that has one is read. The list
         # cards never name a speaker. A conference page uses the same cards for its
         # "Scientific Organizers", who are no speakers, so a bare .people-list-item
         # would be wrong.
@@ -762,7 +764,7 @@ sources:
           .wp-block-group:has(> h2:lexbor-contains("speaker" i))
           :is(.people-list-item, .people-featured)
         speaker_name: '.people-list-item__name, .people-featured__name'
-        speaker_affiliation: '.people-list-item__affiliation'
+        speaker_affiliation: '.people-list-item__affiliation, .people-featured__affiliation'
       title_event_types:
         Webinar: seminar
         Symposium: conference
