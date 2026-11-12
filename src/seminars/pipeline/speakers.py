@@ -378,7 +378,7 @@ _TOPIC_WORDS: Final = word_set(
     " ukrainian mexican indian italian spanish british latin arab arabic jewish indigenous"
     " electric galactic healthy uncommon unreliable authoritarian documentary"
     " telescope medium markets machines effects pictures knowledge minerals century worlds"
-    " magic letters hour hours quarter tour tours fair fairs salon class classes week weekend"
+    " magic letters hour hours quarter fair fairs salon class classes week weekend"
     " evening edition exhibit exhibits sale basics debrief makeover makeovers cancelled"
     " canceled postponed holiday holidays checks practice presents sense"
 )

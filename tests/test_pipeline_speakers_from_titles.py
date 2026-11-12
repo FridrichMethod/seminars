@@ -256,6 +256,11 @@ def test_a_name_that_starts_with_a_verb_in_ing_needs_its_abstract(
         ("Seminar: Igor Markov", None, [("Igor Markov", None)]),
         ("Seminar: Hugo de Vries", None, [("Hugo de Vries", None)]),
         ("Seminar: Paul Clement", None, [("Paul Clement", None)]),
+        (
+            "Organic Chemistry Seminar: Professor James Tour, Rice University",
+            None,
+            [("James Tour", "Rice University")],
+        ),
         # A name that reads like a topic is a speaker when the abstract names the person.
         ("Seminar: Jane Matter", None, []),
         (
