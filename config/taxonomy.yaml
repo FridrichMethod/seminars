@@ -895,14 +895,19 @@ source_defaults: {}
 # subject, type or audience filter: the calendar files wellness fairs, nutrition
 # classes and medical humanities under the subject "Medicine", so "Medicine" is
 # not a department here ("Department of Medicine" is).
+#
+# A unit that the calendar's map also names gets the same fields here as there
+# (the owner's choices of 2026-11-11, for example ICME -> math and Stanford Data
+# Science -> math + ai-ml): the tagger adds the fields of a label below to those
+# of the calendar's map, so a different list would add a field nobody chose.
 departments:
   Mathematics: [math]
   Department of Mathematics: [math]
   Statistics: [math]
   Department of Statistics: [math]
-  Computational and Mathematical Engineering: [math, cs]
-  Institute for Computational and Mathematical Engineering: [math, cs]
-  ICME: [math, cs]
+  Computational and Mathematical Engineering: [math]
+  Institute for Computational and Mathematical Engineering: [math]
+  ICME: [math]
   Computer Science: [cs]
   Department of Computer Science: [cs]
   Electrical Engineering: [cs]
@@ -935,8 +940,8 @@ departments:
   Stem Cell Biology and Regenerative Medicine: [bio, med]
   Cancer Biology: [bio, med]
   Immunology: [bio, med]
-  Biomedical Data Science: [med, ai-ml]
-  Biomedical Informatics: [med, ai-ml]
+  Biomedical Data Science: [bio, med]
+  Biomedical Informatics: [bio, med]
   Physics: [physics]
   Department of Physics: [physics]
   Applied Physics: [physics]
