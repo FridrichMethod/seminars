@@ -46,8 +46,12 @@ TOPOS = "https://researchseminars.org/seminar/ToposInstituteColloquium/ics"
 AGSTANFORD = "https://researchseminars.org/seminar/agstanford/ics"
 
 SERIES_FEED_PARAMS: dict[str, Any] = {
-    # A series feed whose SUMMARY is the speaker, whose LOCATION is the page of the talk and
-    # whose URL properties are the livestreams; the title and the room are in DESCRIPTION.
+    # Exercises the generic machinery on a recorded series feed: SUMMARY is the speaker, the
+    # URL properties are the livestreams, and the title and the room are in DESCRIPTION.
+    # LOCATION -> url only shows that a property can fill another field. It is no recipe for
+    # researchseminars.org: there LOCATION holds the talk page today but will hold the
+    # livestream link, passcode included, once the site's current code is deployed, so the
+    # sources of that site use their own adapter, which builds the talk page from the UID.
     "property_fields": {
         "SUMMARY": "speaker",
         "LOCATION": "url",
