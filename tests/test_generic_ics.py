@@ -855,6 +855,14 @@ class TestRecurrence:
             "FREQ=YEARLY;BYDAY=TU,4WE",
             "FREQ=YEARLY;BYMONTH=3;BYDAY=-1MO,FR",
             "FREQ=MONTHLY;BYDAY=TH,1TH;COUNT=5",
+            # a monthly period is one month, whatever BYMONTH names
+            "FREQ=MONTHLY;BYMONTH=6,7,8;BYDAY=4TU;BYSETPOS=2",
+            "FREQ=MONTHLY;BYMONTH=1,4,12;BYSETPOS=3",
+            # without BYDAY and BYMONTHDAY a year has the day of DTSTART once
+            "FREQ=YEARLY;BYSETPOS=3",
+            "FREQ=YEARLY;BYDAY=20TH;BYSETPOS=5",
+            # 30 and -1 are the same day of November
+            "FREQ=MONTHLY;BYMONTH=11;BYMONTHDAY=30,-1;BYSETPOS=2",
         ],
     )
     def test_rules_the_expansion_cannot_bound_are_skipped(self, rule: str) -> None:
@@ -906,10 +914,43 @@ class TestRecurrence:
             "FREQ=MONTHLY;BYDAY=MO;BYHOUR=9,14;BYSETPOS=10",
             "FREQ=MONTHLY;BYDAY=-1FR",
             "FREQ=YEARLY;BYDAY=20TH",
+            "FREQ=MONTHLY;BYMONTH=2;BYMONTHDAY=28,-1;BYSETPOS=2",
+            "FREQ=MONTHLY;BYMONTH=2;BYMONTHDAY=2,-28;BYSETPOS=2",
         ],
     )
     def test_rules_of_talk_calendars_are_accepted(self, rule: str) -> None:
         check_rule(dict(icalendar.vRecur.from_ical(rule)))
+
+    @pytest.mark.parametrize(
+        ("rule", "refused"),
+        [
+            ("FREQ=MONTHLY;BYMONTH=6", True),
+            ("FREQ=YEARLY;BYMONTH=2,9", True),
+            ("FREQ=MONTHLY;INTERVAL=3;BYMONTH=4,9", True),
+            ("FREQ=MONTHLY;INTERVAL=2;BYMONTH=6,7;BYMONTHDAY=31", True),
+            ("FREQ=YEARLY;BYMONTH=3,4,8;BYSETPOS=-3", True),
+            ("FREQ=MONTHLY", False),
+            ("FREQ=MONTHLY;INTERVAL=2", False),
+            ("FREQ=MONTHLY;BYMONTH=6,7", False),
+            ("FREQ=YEARLY;BYMONTH=2,12", False),
+            ("FREQ=MONTHLY;BYMONTH=6;BYDAY=MO", False),
+            ("FREQ=YEARLY;BYMONTH=3,4,8;BYSETPOS=-2", False),
+        ],
+    )
+    def test_the_day_of_dtstart_must_be_in_a_month_the_rule_reaches(
+        self, rule: str, refused: bool
+    ) -> None:
+        # DTSTART is 31 October: without BYDAY and BYMONTHDAY the rule repeats the 31st, which
+        # neither June nor April has; every third month from October skips September.
+        drafts = expand(vevent(f"RRULE:{rule}", start="DTSTART:20261031T090000"))
+        assert (drafts == []) == refused
+        parts: dict[str, list[Any]] = dict(icalendar.vRecur.from_ical(rule))
+        check_rule(parts)
+        if refused:
+            with pytest.raises(ValueError, match=r"BYMONTH|BYSETPOS"):
+                check_rule(parts, start=date(2026, 10, 31))
+        else:
+            check_rule(parts, start=date(2026, 10, 31))
 
     def test_a_recurring_event_without_uid_has_no_native_id(self) -> None:
         drafts = expand(

@@ -501,16 +501,20 @@ def check_rule(parts: dict[str, list[Any]], start: date | None = None) -> None:
     """Refuse a recurrence rule that the expansion does not support (``ValueError``).
 
     When its filters never match, the recurrence library steps through every
-    period until the year 9999 whatever UNTIL or COUNT say (about 1 us per
+    period until the year 9999 whatever UNTIL or COUNT say (1 to 3 us per
     period: up to 3 s for a daily rule). So only what calendars of talks use
     is accepted: ``FREQ`` ``DAILY``, ``WEEKLY``, ``MONTHLY`` or ``YEARLY``;
     no ``BYYEARDAY``, ``BYWEEKNO``, ``BYEASTER``; days and months that exist
     (``_check_calendar_days``); a ``BYDAY`` of weekdays or of ordinals, not
     both (``_check_ordinals``); ordinals and ``BYSETPOS`` only where a
-    period has them; and, with ``start`` (the DTSTART), an ``INTERVAL`` that
-    lands on periods the filters accept. Of some 7000 accepted combinations,
-    the slowest without any occurrence took 0.03 s (and the number of such
-    rules in a feed is bounded, ``_filters``).
+    period has them (``_set_size_bound``); and, with ``start`` (the
+    DTSTART), an ``INTERVAL`` and days that land on periods the filters
+    accept (``_check_from_start``). What still passes without ever matching
+    is a BYSETPOS beyond the days that BYMONTHDAY and BYDAY have in common:
+    in random sweeps of 24000 rules every accepted rule without occurrence
+    that took more than 0.04 s was of that kind, the slowest took 0.3 s (a
+    monthly one), and ``_filters`` counts them, so a feed has at most
+    ``MAX_FILTERED_EVENTS`` of them (about 30 s).
     """
     keys = {str(key).upper(): value for key, value in parts.items()}
     frequency = [str(value).upper() for value in keys.get("FREQ", [])]
@@ -521,9 +525,9 @@ def check_rule(parts: dict[str, list[Any]], start: date | None = None) -> None:
         raise ValueError(f"unsupported recurrence rule part(s) {', '.join(unsupported)}")
     _check_calendar_days(keys, frequency[0])
     _check_ordinals(keys, frequency[0])
-    _check_positions(keys, frequency[0])
+    _check_positions(keys, frequency[0], start)
     if start is not None:
-        _check_interval(keys, frequency[0], start)
+        _check_from_start(keys, frequency[0], start)
 
 
 def _check_calendar_days(keys: dict[str, list[Any]], frequency: str) -> None:
@@ -581,25 +585,29 @@ def _check_ordinals(keys: dict[str, list[Any]], frequency: str) -> None:
         raise ValueError("BYDAY names an ordinal that no period has")
 
 
-def _check_positions(keys: dict[str, list[Any]], frequency: str) -> None:
+def _check_positions(keys: dict[str, list[Any]], frequency: str, start: date | None) -> None:
     """BYSETPOS only in a monthly or yearly rule, and only for positions a period can have."""
     if "BYSETPOS" not in keys:
         return
     if frequency not in ("MONTHLY", "YEARLY"):
         raise ValueError("BYSETPOS is only supported with a monthly or yearly rule")
     largest = max(abs(int(position)) for position in keys["BYSETPOS"])
-    if largest > _set_size_bound(keys, yearly=frequency == "YEARLY"):
+    day = None if start is None else start.day
+    if largest > _set_size_bound(keys, yearly=frequency == "YEARLY", day=day):
         raise ValueError("BYSETPOS names a position that no period has")
 
 
-def _check_interval(keys: dict[str, list[Any]], frequency: str, start: date) -> None:
-    """Refuse a rule whose ``INTERVAL`` never lands on a period that its filters accept.
+def _check_from_start(keys: dict[str, list[Any]], frequency: str, start: date) -> None:
+    """Refuse a rule that, from ``start``, never lands on a day that its filters accept.
 
     A daily rule whose INTERVAL is a multiple of 7 stays on the weekday of
     ``start``, which its BYDAY must name; with an INTERVAL it may not combine
     BYDAY and BYMONTHDAY (INTERVAL=27 can step through centuries without a
     match). A monthly rule only reaches the months congruent to the month of
     ``start`` modulo gcd(INTERVAL, 12), one of which its BYMONTH must name.
+    One of the months that a monthly or yearly rule reaches must have a day
+    of its BYMONTHDAY, or without BYDAY and BYMONTHDAY the day of ``start``,
+    which such a rule repeats (no June has the 31st).
     """
     interval = int(keys.get("INTERVAL", [1])[0])
     if interval < 1:
@@ -610,23 +618,66 @@ def _check_interval(keys: dict[str, list[Any]], frequency: str, start: date) -> 
             raise ValueError("BYDAY never names the weekday that this daily rule falls on")
         if "BYMONTHDAY" in keys:
             raise ValueError("BYDAY with BYMONTHDAY is not supported in a daily rule with INTERVAL")
-    months = [int(month) for month in keys.get("BYMONTH", [])]
-    step = math.gcd(interval, 12)
-    if frequency == "MONTHLY" and months and all((m - start.month) % step for m in months):
-        raise ValueError("BYMONTH never names a month that this monthly rule falls on")
+    months = sorted({int(month) for month in keys.get("BYMONTH", [])}) or list(range(1, 13))
+    if frequency == "MONTHLY":
+        step = math.gcd(interval, 12)
+        months = [month for month in months if (month - start.month) % step == 0]
+        if not months:
+            raise ValueError("BYMONTH never names a month that this monthly rule falls on")
+    if frequency in ("MONTHLY", "YEARLY") and ("BYMONTHDAY" in keys or "BYDAY" not in keys):
+        days = [abs(int(day)) for day in keys.get("BYMONTHDAY", [start.day])]
+        if all(day > _DAYS_IN_MONTH[month] for month in months for day in days):
+            raise ValueError(
+                "no month that this rule falls on has the day of BYMONTHDAY or DTSTART"
+            )
 
 
-def _set_size_bound(keys: dict[str, list[Any]], *, yearly: bool) -> int:
-    """An upper bound of the number of occurrences in one month or year of a rule."""
-    months = len(set(keys.get("BYMONTH", []))) or (12 if yearly else 1)
-    weekdays = [str(day) for day in keys.get("BYDAY", [])]
-    by_weekday = sum(1 if day[:1] in "+-0123456789" else 5 for day in weekdays) * months
-    by_monthday = len(set(keys.get("BYMONTHDAY", []))) * months
-    counts = [count for count in (by_weekday, by_monthday) if count] or [months]
-    times = 1
-    for part in ("BYHOUR", "BYMINUTE", "BYSECOND"):
-        times *= len(set(keys.get(part, []))) or 1
-    return min(counts) * times
+def _set_size_bound(keys: dict[str, list[Any]], *, yearly: bool, day: int | None = None) -> int:
+    """An upper bound of the number of occurrences in one month or year of a rule.
+
+    A monthly period is one month, which BYMONTH only selects; a yearly one
+    has the months of BYMONTH, or the whole year. In a month an ordinal
+    weekday is one day, a plain weekday at most five and BYMONTHDAY the days
+    that month has; in a whole year an ordinal is one day and a plain weekday
+    at most 53. Without BYDAY and BYMONTHDAY the rule repeats ``day`` (that
+    of DTSTART, if known): once in each month of BYMONTH that has it, else
+    once.
+    """
+    months = sorted({int(month) for month in keys.get("BYMONTH", [])})
+    weekdays = [str(item) for item in keys.get("BYDAY", [])]
+    monthdays = {int(item) for item in keys.get("BYMONTHDAY", [])}
+    times = math.prod(
+        len(set(keys.get(part, []))) or 1 for part in ("BYHOUR", "BYMINUTE", "BYSECOND")
+    )
+    if not weekdays and not monthdays:
+        if yearly and not months:
+            return times  # the month and the day of DTSTART
+        monthdays = set() if day is None else {day}
+    ordinals = sum(1 for item in weekdays if item[:1] in "+-0123456789")
+    plain = len(weekdays) - ordinals
+    in_month = ordinals + 5 * plain if weekdays else None
+    if not yearly:
+        size = max(_month_bound(month, in_month, monthdays) for month in months or range(1, 13))
+    elif months or monthdays:
+        size = sum(_month_bound(month, in_month, monthdays) for month in months or range(1, 13))
+    else:
+        size = ordinals + 53 * plain
+    return size * times
+
+
+def _month_bound(month: int, in_month: int | None, monthdays: set[int]) -> int:
+    """At most how many days of ``month`` a rule picks; ``in_month`` bounds its BYDAY.
+
+    The days of BYMONTHDAY are counted once each as days of the month (in a
+    month of 30 days, 30 and -1 are one day), February with 28 or 29 days.
+    """
+    counts = [] if in_month is None else [in_month]
+    if monthdays:
+        lengths = (28, 29) if month == 2 else (_DAYS_IN_MONTH[month],)
+        counts.append(
+            max(len({day % (n + 1) for day in monthdays if abs(day) <= n}) for n in lengths)
+        )
+    return min(counts, default=1)
 
 
 def _rule_text(rule: object, anchor: datetime, timezone: str) -> tuple[str, datetime | None]:
@@ -690,10 +741,11 @@ def _filters(parts: dict[str, list[Any]]) -> bool:
 
     It may when it filters by month, day of the month or set position, or
     asks for the fifth (or a later) weekday of a period. Every other rule
-    that ``check_rule`` accepts has an occurrence in every period (in one of
-    every seven for a daily rule with an INTERVAL and BYDAY): its BYDAY is
-    either plain weekdays or ordinals up to 4, never a mix of the two, so
-    its cost is in its steps.
+    that ``check_rule`` accepts has an occurrence within a dozen periods or
+    so: its BYDAY is plain weekdays or ordinals up to 4, never a mix of the
+    two, and without BYDAY it repeats the day of DTSTART, which comes back
+    (the 31st in seven months of twelve, the 29th of February in leap
+    years). So its cost is in its steps.
     """
     keys = {str(key).upper(): value for key, value in parts.items()}
     _, ordinals = _weekdays(keys)
