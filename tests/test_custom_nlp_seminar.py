@@ -311,6 +311,20 @@ class TestDetailsPages:
         assert len(drafts) == 4
         assert "1 details page(s) on a host the source does not name" in caplog.text
 
+    def test_a_details_page_that_two_rows_share_is_requested_once(self) -> None:
+        rows = [
+            row("Nov 12", "A B", "Part one", "details/a"),
+            row("Nov 19", "A B", "Part two", "details/a"),
+        ]
+        details = f"{SCHEDULE_URL}details/a"
+        http = serve({SCHEDULE_URL: schedule((heading(), rows)), details: DETAILS}, self.NOW)
+        drafts = run(SOURCE, http, self.NOW)
+        assert http.requests == [SCHEDULE_URL, details]
+        assert [(d.title, d.location) for d in drafts] == [
+            ("Part one", "Room 104"),
+            ("Part two", "Room 104"),
+        ]
+
     def test_talks_after_the_window_get_no_details_request(self) -> None:
         page = schedule((heading("Fall 2027"), [row("Nov 4", "A B", "Far", "details/far")]))
         http = serve({SCHEDULE_URL: page}, self.NOW)

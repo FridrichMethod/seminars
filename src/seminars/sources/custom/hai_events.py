@@ -741,7 +741,7 @@ def detail_targets(
     if params.fetch_details == "never":
         return []
     zone = ZoneInfo(source.timezone)
-    wanted: list[str] = []
+    wanted: dict[str, None] = {}  # ordered, without repeats
     foreign = 0
     for document in lists:
         today = local_day(document.fetched_at, zone)
@@ -757,8 +757,8 @@ def detail_targets(
                 continue
             if not on_source_host(source, url):
                 foreign += 1
-            elif url not in wanted:
-                wanted.append(url)
+            else:
+                wanted[url] = None
     if foreign:
         logger.warning(
             "source %s: %d event(s) have their details on a host the source does not name; "
@@ -766,7 +766,7 @@ def detail_targets(
             source.id,
             foreign,
         )
-    return wanted[: params.max_detail_pages]
+    return list(wanted)[: params.max_detail_pages]
 
 
 @register_adapter("hai_events")

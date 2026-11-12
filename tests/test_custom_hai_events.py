@@ -510,6 +510,20 @@ class TestDetailPages:
         titles = ["Past", "Promo", "Own promo", "Elsewhere", "Far", "Soon", "Later"]
         assert [d.title for d in drafts] == titles
 
+    def test_a_page_that_two_events_share_is_requested_once(self) -> None:
+        upcoming = [
+            event("Part one", "2026-11-17T12:00:00Z", href="/events/twice"),
+            event("Part two", "2026-11-18T12:00:00Z", href="/events/twice"),
+        ]
+        detail = f"{SITE}/events/twice"
+        http = serve({LIST_URL: payload_page([events_row(upcoming, [])]), detail: DETAIL})
+        drafts = run(SOURCE, http)
+        assert http.requests == [LIST_URL, detail]
+        assert [(d.title, d.location) for d in drafts] == [
+            ("Part one", "Gates 104"),
+            ("Part two", "Gates 104"),
+        ]
+
     def test_no_detail_requests_when_they_are_not_wanted(self) -> None:
         http = serve({LIST_URL: payload_page(self.rows())})
         run(with_params(fetch_details="never"), http)

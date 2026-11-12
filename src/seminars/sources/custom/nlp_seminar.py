@@ -431,7 +431,7 @@ def detail_targets(
 ) -> list[str]:
     """Details pages of talks from the fetch day on, in the window and on the source's hosts."""
     zone = ZoneInfo(source.timezone)
-    wanted: list[str] = []
+    wanted: dict[str, None] = {}  # ordered, without repeats
     foreign = 0
     for document in schedules:
         today = local_day(document.fetched_at, zone)
@@ -444,15 +444,15 @@ def detail_targets(
                 continue
             if not on_source_host(source, talk.url):
                 foreign += 1
-            elif talk.url not in wanted:
-                wanted.append(talk.url)
+            else:
+                wanted[talk.url] = None
     if foreign:
         logger.warning(
             "source %s: %d details page(s) on a host the source does not name were not fetched",
             source.id,
             foreign,
         )
-    return wanted[: params.max_detail_pages]
+    return list(wanted)[: params.max_detail_pages]
 
 
 @register_adapter("nlp_seminar")
