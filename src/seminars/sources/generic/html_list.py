@@ -36,7 +36,9 @@ Keys of ``params`` (an unknown key is an error that names it;
 * ``time_format``: ``strptime`` format of ``start`` and ``end``. Without it,
   "4:30", "4:30pm", "4:30 PM", "16:30", "4 p.m.", "noon", "12:00 noon" work. A
   ``time`` value without ``start`` / ``end`` groups is read as a range ("4:30
-  - 5:30pm PT", en dash or "to" work too); "TBA" / "TBD" mean no time.
+  - 5:30pm PT", en dash or "to" work too); "TBA" / "TBD" mean no time. One
+  AM / PM completes the other end ("11am - 1:30" ends at 13:30); an end before
+  the start is on the next day if at most 6 hours later, else the row has none.
 * ``default_start_time`` / ``default_end_time``: local time of day ("12:00")
   for rows without one. A row without any time is an all-day talk; with
   ``end_date`` it lasts to that day (inclusive).
@@ -260,6 +262,7 @@ _RANGE: Final = re.compile(r"\s*[-\u2013\u2014]\s*|\s+to\s+", re.IGNORECASE)
 _TBA: Final = re.compile(r"\W*(?:tba|tbd|tbc|to be (?:announced|determined|confirmed))\W*", re.I)
 _NAMED_TIMES: Final = {"noon": time(12, 0), "midnight": time(0, 0)}
 _NOON: Final = re.compile(r"12(?:[:.h]00)?\s*noon", re.IGNORECASE)
+MAX_ROLLOVER: Final = timedelta(hours=6)  # longest talk with an end before its start
 
 
 def is_tba(text: str | None) -> bool:
@@ -314,11 +317,13 @@ def split_range(text: str | None) -> tuple[str | None, str | None]:
 def time_range(
     start: str | None, end: str | None, *, meridiem: str | None = None, fmt: str | None = None
 ) -> tuple[time | None, time | None]:
-    """Start and end times of day; one written meridiem applies to both ends.
+    """Start and end times of day; a meridiem written on one end completes the other.
 
     When only the end says AM or PM (or ``meridiem`` does) the start gets the
     same one, unless that would put it after the end: "11:30 - 1:00 PM"
-    starts at 11:30 in the morning.
+    starts at 11:30 in the morning. When only the start says it (noon is PM),
+    an end before the start is read as PM if that puts it after the start:
+    "11am - 1:30" ends at 13:30, "4:30 PM - 3:30" keeps 3:30.
     """
     first, second = parse_clock(start, fmt), parse_clock(end, fmt)
     shared = meridiem or (second[1] if second else None)
@@ -332,6 +337,9 @@ def time_range(
         start_time = with_meridiem(first[0], shared)
         if end_time is not None and start_time > end_time:
             start_time = with_meridiem(first[0], "am")
+    elif first[1] and shared is None and end_time is not None and end_time < start_time:
+        afternoon = with_meridiem(end_time, "pm")
+        end_time = afternoon if end_time.hour and afternoon > start_time else end_time
     return start_time, end_time
 
 
@@ -611,9 +619,11 @@ def row_times(
     if finish is None:
         return start, None
     end = datetime.combine(last or day, finish)
-    if end <= start and end.date() < date.max:  # "11pm - 1am" ends the next day
+    if end > start:
+        return start, end
+    if end.date() == start.date() < date.max:  # "11pm - 1am" ends the next day
         end += timedelta(days=1)
-    return start, end if end > start else None
+    return start, end if start < end <= start + MAX_ROLLOVER else None
 
 
 def row_speakers(row: Row) -> list[SpeakerDraft]:

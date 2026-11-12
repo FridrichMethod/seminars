@@ -318,6 +318,27 @@ class TestRows:
         [draft] = run(list_source(), serve(page(row(clock="11pm - 1am"))))
         assert draft.end == datetime(2026, 11, 18, 1)
 
+    @pytest.mark.parametrize(
+        ("clock", "start", "end"),
+        [
+            ("Noon - 1:30", datetime(2026, 11, 17, 12), datetime(2026, 11, 17, 13, 30)),
+            ("11pm - 5am", datetime(2026, 11, 17, 23), datetime(2026, 11, 18, 5)),
+            ("11pm - 5:30am", datetime(2026, 11, 17, 23), None),
+            ("4:30 PM - 3:30", datetime(2026, 11, 17, 16, 30), None),
+            ("4:30 - 4:30", datetime(2026, 11, 17, 4, 30), None),
+        ],
+    )
+    def test_an_end_before_the_start_ends_at_most_six_hours_later(
+        self, clock: str, start: datetime, end: datetime | None
+    ) -> None:
+        [draft] = run(list_source(), serve(page(row(clock=clock))))
+        assert (draft.start, draft.end) == (start, end)
+
+    def test_an_end_before_the_start_of_a_multi_day_row_is_dropped(self) -> None:
+        source = list_source(date_pattern=r"^(?P<date>\S+) to (?P<end_date>\S+)$")
+        [draft] = run(source, serve(page(row(day="2026-11-18 to 2026-11-17", clock="1pm - 3pm"))))
+        assert (draft.start, draft.end) == (datetime(2026, 11, 18, 13), None)
+
     def test_exclusion_keys(self) -> None:
         source = list_source(
             selectors={
@@ -500,6 +521,15 @@ class TestParams:
         ("11:00 am - 12:00 noon", (time(11, 0), time(12, 0))),
         ("12:00 noon", (time(12, 0), None)),
         ("12 Noon - 1:15 pm PT", (time(12, 0), time(13, 15))),
+        ("Noon - 1:30", (time(12, 0), time(13, 30))),
+        ("12 noon - 1:30", (time(12, 0), time(13, 30))),
+        ("11am - 1:30", (time(11, 0), time(13, 30))),
+        ("4:30pm - 5:30", (time(16, 30), time(17, 30))),
+        ("9am - 10:30", (time(9, 0), time(10, 30))),
+        ("9:00 AM - 17:00", (time(9, 0), time(17, 0))),
+        ("4:30 PM - 3:30", (time(16, 30), time(3, 30))),
+        ("11pm - 1", (time(23, 0), time(1, 0))),
+        ("11am - 0:30", (time(11, 0), time(0, 30))),
         ("noon PT", (time(12, 0), None)),
         ("11:30 noon", (None, None)),
         ("16:00-17:30", (time(16, 0), time(17, 30))),
