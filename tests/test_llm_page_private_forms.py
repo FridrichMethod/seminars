@@ -9,6 +9,7 @@ talk. Every private value in this file is made up.
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 from typing import Any, Final
@@ -230,3 +231,31 @@ class TestOlderEntriesAndTheRulesOfToday:
         settled = file_cache(directory, days_later=2)
         assert extract(FakeLLMClient(), text, settled) == [draft]
         assert settled.stats().writes == 0
+
+
+class TestBlankValues:
+    """Only a value that the scrubber emptied goes; one that was blank already is left alone.
+
+    The other half of the rule is
+    ``test_llm_page_privacy.TestOlderEntries.test_a_value_that_is_nothing_but_private_data_goes``.
+    """
+
+    @pytest.mark.parametrize("blank", ["", "   "])
+    def test_an_entry_with_a_blank_value_is_not_stored_again(
+        self, blank: str, tmp_path: Path
+    ) -> None:
+        text = page_with(BASE)
+        talk = {**talk_with(BASE), "speakers": [{"name": BASE["name"], "affiliation": blank}]}
+        directory = tmp_path / "llm_cache"
+        file_cache(directory).put(key_of(text), cache_value(date(2026, 11, 9), answer(talk)))
+        [entry] = sorted(directory.rglob("*.json"))
+        before = entry.read_bytes()
+        cache = file_cache(directory, days_later=1)
+        [draft] = extract(FakeLLMClient(), text, cache)
+        assert cache.stats() == LLMCacheStats(hits=1, misses=0, writes=0)
+        assert entry.read_bytes() == before
+        assert json.loads(before)["value"]["answer"]["events"][0]["speakers"][0] == {
+            "name": BASE["name"],
+            "affiliation": blank,
+        }
+        assert fields_of(draft) == {**BASE, "affiliation": None}
