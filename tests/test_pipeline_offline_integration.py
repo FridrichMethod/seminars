@@ -9,6 +9,7 @@ the talks of the afternoon of 11 November have already taken place.
 
 from __future__ import annotations
 
+import json
 import shutil
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -251,6 +252,17 @@ def test_no_timed_talk_ends_at_its_own_time_on_a_later_day(
         and event.end.date() > event.start.date()
         and event.end.time() == event.start.time()
     ] == []
+
+
+def test_no_source_skips_a_page_it_asks_for(offline_run: tuple[str, Path]) -> None:
+    # Every detail page an adapter fetches in the window is recorded, so no source is
+    # read only in part (the Sieber post of Chemical and Systems Biology included).
+    _, root = offline_run
+    report = json.loads((root / "data" / "run_report.json").read_text(encoding="utf-8"))
+    assert report["sources"]
+    assert {item["source_id"]: item["skipped_pages"] for item in report["sources"]} == {
+        item["source_id"]: 0 for item in report["sources"]
+    }
 
 
 STANFORD = ZoneInfo("America/Los_Angeles")

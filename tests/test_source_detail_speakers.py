@@ -191,10 +191,24 @@ class TestAffiliationsFromTheText:
         assert http.requests == ["https://chemsysbio.stanford.edu/events/", GARFIELD, SIEBER]
         talk = on_day(drafts, 16)
         assert people(talk) == [("David Garfield", "AI for Life Sciences, Partnerships, Anthropic")]
+        # One paragraph with <br>: a line about the department, the name with "Prof. Dr."
+        # and a middle initial, then two lines of affiliation and a paragraph with the date.
+        talk = on_day(drafts, 3, month=12)
+        assert people(talk) == [
+            ("Stephan Sieber", "Department of Chemistry, Technical University Munich (TUM)")
+        ]
+        assert talk.location == "Clark Auditorium"
 
     def test_a_csb_talk_whose_post_cannot_be_fetched_keeps_what_its_title_says(self) -> None:
-        # The Sieber post is not recorded: its fetch fails offline.
-        drafts = run(SOURCES["custom-csb-events"], offline_client("custom-csb-events"))
+        # The recorded list and Garfield post, but no answer for the Sieber post.
+        http = FakeHttpClient()
+        for url, path in (
+            ("https://chemsysbio.stanford.edu/events/", "events-bebd0f3c.html"),
+            (GARFIELD, "events-join-us-csb-special-seminar-open-abb211c4.html"),
+        ):
+            http.add(url, (FIXTURES / "custom-csb-events" / path).read_text(encoding="utf-8"))
+        drafts = run(SOURCES["custom-csb-events"], http)
+        assert http.requests == ["https://chemsysbio.stanford.edu/events/", GARFIELD, SIEBER]
         assert len(drafts) == 4
         talk = on_day(drafts, 3, month=12)
         assert people(talk) == [("Stephan Sieber", None)]

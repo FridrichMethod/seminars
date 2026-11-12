@@ -1,21 +1,26 @@
 # custom-csb-events
 
 Events of the Stanford Department of Chemical and Systems Biology, recorded
-2026-11-11 (Pacific time) through the polite client.
+through the polite client: the list and the Garfield post on 2026-11-11, the
+Sieber post on 2026-11-12 (Pacific time).
 
 | File | URL | What it is |
 |---|---|---|
 | `events-bebd0f3c.html` | `https://chemsysbio.stanford.edu/events/` | the archive of the WordPress category "Events": the 10 newest posts |
 | `events-join-us-csb-special-seminar-open-abb211c4.html` | `https://chemsysbio.stanford.edu/events/join-us-csb-special-seminar-open-discussion-david-garfield-phd-monday-november-16-2026-1100-am-1245-pm-munzer/` | the post of the special seminar of 2026-11-16 |
+| `events-save-the-date-csb-special-seminar-a33d4935.html` | `https://chemsysbio.stanford.edu/events/save-the-date-csb-special-seminar-stephan-sieber-phd-tum-munich-december-3-2026-1230-pm-clark-auditorium/` | the post of the special seminar of 2026-12-03 |
 
-Nothing was trimmed or replaced. Both pages show the department's office
-telephone number (`Phone: 650.723.9785`, three times in the footer, once per
-building address). It is the shared number of the department, not a
-personal one, and was kept. Both pages also carry the values of Cloudflare's
-page beacon for this one response (`window.__CF$cv$params` with `r`, the ray
-id, and `t`, the time of the request, and `ray=` in the address of its
-script). They identify the response, are no credential and were kept as
-received.
+Nothing was trimmed. The Sieber post names the host and the contact of the
+seminar with their personal e-mail addresses (`Host: Matthew Bogyo, PhD
+(...)`, `Contact: Yoli Cervantes (...)`); both addresses were replaced by
+`redacted@example.edu` and the names kept. Nothing else was replaced. Every
+page shows the department's office telephone number (`Phone: 650.723.9785`,
+three times in the footer, once per building address). It is the shared
+number of the department, not a personal one, and was kept. Every page also
+carries the values of Cloudflare's page beacon for this one response
+(`window.__CF$cv$params` with `r`, the ray id, and `t`, the time of the
+request, and `ray=` in the address of its script). They identify the
+response, are no credential and were kept as received.
 
 ## Layout
 
@@ -38,9 +43,19 @@ received.
   news item without a date (the new PhD cohort).
 - Links point to `/events/<slug>/` or `/uncategorized/<slug>/`, depending on
   the first category of the post.
-- The post page has the announcement as text in `div` elements: speaker in
-  `b`, affiliation in `i`, then date, time and room, `Talk Title:`,
-  `Abstract:` and `Speaker Bio:`. No JSON-LD.
+- The post page has the announcement as text. The Garfield post uses `div`
+  elements: speaker in `b`, affiliation in `i`, then date, time and room,
+  `Talk Title:`, `Abstract:` and `Speaker Bio:`. The Sieber post uses
+  paragraphs with `<br>`: "The Department of Chemical and Systems Biology
+  Presents a Special Seminar", "Prof. Dr. Stephan A. Sieber", "Department of
+  Chemistry", "Technical University Munich (TUM)"; then date, time
+  (`12:30 PM <en dash> 1:30 PM`) and room; `Talk Title:`; host and contact.
+  No JSON-LD.
+- A post's own heading can change after the list was recorded: the Sieber
+  post, whose address still says `save-the-date-...`, is headed `JOIN US! CSB
+  Special Seminar, Stephan Sieber, PhD, December 3, 2026, 12:30 pm, Clark
+  Auditorium!`, while the list recording of 2026-11-11 shows its earlier
+  title. The source reads the title from the list only.
 
 ## What the source entry reads from it
 
@@ -48,12 +63,14 @@ Checked offline with the `html_list` adapter and the entry in
 `config/sources.d/stanford-extra.yaml`; a test of this source can pin these
 values:
 
-- one request, `https://chemsysbio.stanford.edu/events/`, and 4 drafts; no
-  social post and not the news item without a date;
+- three requests (the list and the posts of the two seminars in the run
+  window) and 4 drafts; no social post and not the news item without a date;
 - 2026-11-16 11:00 to 12:45 (naive local time), `Munzer`, speaker
   `David Garfield`, title `CSB Special Seminar & Open Discussion, David
   Garfield, PhD`, event type `seminar`, `url` the post of the seminar;
-- 2026-12-03 12:30 with no end, `Clark Auditorium`, speaker `Stephan Sieber`;
+- 2026-12-03 12:30 with no end, `Clark Auditorium`, speaker `Stephan Sieber`
+  with the affiliation `Department of Chemistry, Technical University Munich
+  (TUM)` from the lines under the name in the post;
 - the two defenses with event type `defense`: 2026-09-15 12:00,
   `Clark S360 or via Zoom`, `Alex Van Elgort`; 2026-09-23 13:00,
   `ChEM-H E153`, `Rebecca Rodell` (both titles have no year; the year is

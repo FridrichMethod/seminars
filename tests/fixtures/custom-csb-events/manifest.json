@@ -17,6 +17,14 @@
       "fetched_at": "2026-11-12T06:37:11Z",
       "final_url": null,
       "volatile_params": []
+    },
+    "https://chemsysbio.stanford.edu/events/save-the-date-csb-special-seminar-stephan-sieber-phd-tum-munich-december-3-2026-1230-pm-clark-auditorium/": {
+      "file": "events-save-the-date-csb-special-seminar-a33d4935.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T23:16:08Z",
+      "final_url": null,
+      "volatile_params": []
     }
   }
 }
