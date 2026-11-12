@@ -24,15 +24,19 @@ Times, as the draft conventions want them:
   ``DTEND`` of an event that starts at a time of day.
 * Recurring events (``RRULE``, ``RDATE``, ``EXDATE``) are expanded inside
   the run window only (occurrences that start in it), at most
-  ``MAX_OCCURRENCES`` per event and ``MAX_EXPANSION_STEPS`` steps from
-  ``DTSTART``; a rule the expansion cannot bound is skipped, and one whose
-  ``UNTIL`` lies before the window is not expanded (all three in
-  ``seminars.sources.generic.ics_rules``). A feed that needs more than
-  ``MAX_FEED_STEPS`` steps, or expands more than ``MAX_RECURRING_EVENTS``
-  recurring events, or more than ``MAX_FILTERED_EVENTS`` whose rules filter
-  (``ics_rules._filters``), is a ``ParseError``: a part of it would make
-  the events left out count as gone. An occurrence keeps the duration of
-  the first one.
+  ``MAX_OCCURRENCES`` per event. Each RRULE is walked only up to the end of
+  the window (or its earlier UNTIL), from the window on, or from
+  ``DTSTART`` when it has a COUNT, in at most ``MAX_EXPANSION_STEPS``
+  steps; a rule the expansion does not support is skipped with its event,
+  and one whose ``UNTIL`` lies before the window is not walked (all in
+  ``seminars.sources.generic.ics_rules``, which states the cost). A feed
+  whose RRULE lines need more than ``MAX_FEED_STEPS`` steps, or that walks
+  more than ``MAX_RECURRING_EVENTS`` RRULE lines, or more than
+  ``MAX_FILTERED_EVENTS`` lines that filter (``ics_rules._filters``), is a
+  ``ParseError``: a part of it would make the events left out count as
+  gone. The lines are counted, not the events: one VEVENT with many RRULE
+  properties costs as much as many VEVENTs. An occurrence keeps the
+  duration of the first one.
 * A VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names (also
   the only one of an event without recurrence, which keeps its native id);
   without ``DTSTART`` it keeps the original times, and one whose times
@@ -110,7 +114,9 @@ from seminars.models import (
 )
 from seminars.sources.base import ParseError, absolute_url, fetch_urls, register_adapter
 from seminars.sources.generic.ics_rules import (
+    Allowance,
     Expansion,
+    Limit,
     Moment,
     RecurrenceProperties,
     expand,
@@ -124,13 +130,13 @@ NOTE_PARAMS: Final = frozenset({"calendar_ids", "embed_selector"})
 """Keys of ``params`` that record research notes; accepted and not read."""
 
 MAX_FEED_STEPS: Final = 500_000
-"""Most steps through the recurrences of one feed (about a second in all)."""
+"""Most steps through the recurrence rules of one feed (0.5 to 0.8 s in all)."""
 
 MAX_FILTERED_EVENTS: Final = 100
-"""Most recurring VEVENTs of one feed whose rules filter and do not end before the window."""
+"""Most RRULE lines of one feed that filter and do not end before the window."""
 
 MAX_RECURRING_EVENTS: Final = 500
-"""Most recurring VEVENTs of one feed whose rules do not all end before the window."""
+"""Most RRULE lines of one feed that do not end before the window (all VEVENTs together)."""
 
 MAX_PATTERN_INPUT: Final = 20_000
 """Longest text a configured regular expression is applied to."""
@@ -347,8 +353,8 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
     ``timezone`` is the zone of floating times (``calendar.timezone`` or the
     source's). VEVENTs that cannot be used are left out; see the module
     docstring for the limits of the expansion. Raises ``ParseError`` when
-    the recurrences need more than ``MAX_FEED_STEPS`` steps, when more than
-    ``MAX_RECURRING_EVENTS`` of them are expanded or when more than
+    the RRULE lines of the feed need more than ``MAX_FEED_STEPS`` steps, when
+    more than ``MAX_RECURRING_EVENTS`` lines are walked or when more than
     ``MAX_FILTERED_EVENTS`` of those filter: a part of the feed would make
     the events left out count as gone.
     """
@@ -365,22 +371,24 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
         else:
             masters.append(vevent)
     found: list[IcsOccurrence] = []
-    steps = expanded = filtered = 0
+    steps = rules = filtered = 0
     for vevent in masters:
+        allowance = Allowance(
+            steps=MAX_FEED_STEPS - steps,
+            rules=MAX_RECURRING_EVENTS - rules,
+            filtered=MAX_FILTERED_EVENTS - filtered,
+        )
         try:
             items, expansion = _occurrences_of(
-                vevent, window, timezone, overrides, budget=MAX_FEED_STEPS - steps
+                vevent, window, timezone, overrides, allowance=allowance
             )
         except (ValueError, TypeError, OverflowError):
             continue
-        if expansion.exhausted:
-            raise ParseError(
-                f"the recurring events of the feed need more than {MAX_FEED_STEPS} steps"
-            )
+        if expansion.exceeded is not None:
+            raise ParseError(_limit_message(expansion.exceeded))
         steps += expansion.steps
-        expanded += expansion.expanded
+        rules += expansion.rules
         filtered += expansion.filtered
-        _check_expanded(expanded, filtered)
         found += items
     for (uid, key), (vevent, original) in overrides.items():
         single = _replacement(vevent, original, None, f"{uid}/{key}")
@@ -389,22 +397,19 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
     return found
 
 
-def _check_expanded(expanded: int, filtered: int) -> None:
-    """Raise ``ParseError`` when a feed expands more recurring events than the caps allow.
-
-    Each expansion may step through every period until the year 9999 before
-    its first occurrence (``ics_rules.check_rule``); the caps bound what a feed costs.
-    """
-    if expanded > MAX_RECURRING_EVENTS:
-        raise ParseError(
-            f"the feed has more than {MAX_RECURRING_EVENTS} recurring events"
+def _limit_message(limit: Limit) -> str:
+    """Why a feed whose expansion needed more than ``limit`` allows cannot be read."""
+    if limit == "steps":
+        return f"the recurrence rules of the feed need more than {MAX_FEED_STEPS} steps"
+    if limit == "rules":
+        return (
+            f"the feed has more than {MAX_RECURRING_EVENTS} recurrence rules (RRULE lines)"
             " that do not end before the run window"
         )
-    if filtered > MAX_FILTERED_EVENTS:
-        raise ParseError(
-            f"the feed has more than {MAX_FILTERED_EVENTS} recurring events whose rules"
-            " filter and that do not end before the run window"
-        )
+    return (
+        f"the feed has more than {MAX_FILTERED_EVENTS} recurrence rules (RRULE lines)"
+        " that filter and do not end before the run window"
+    )
 
 
 def _replacement(
@@ -434,19 +439,19 @@ def _occurrences_of(
     timezone: str,
     overrides: dict[tuple[str, str], _Override],
     *,
-    budget: int,
+    allowance: Allowance,
 ) -> tuple[list[IcsOccurrence], Expansion]:
     """The occurrences of one VEVENT and what expanding it cost.
 
-    Replaced occurrences are taken out of ``overrides``; ``budget`` is the
-    number of steps the feed has left.
+    Replaced occurrences are taken out of ``overrides``; ``allowance`` is
+    what the feed has left.
     """
     first = IcsOccurrence.of(vevent)
     uid = first.native_id
     if not _is_recurring(vevent):
         # An override of the only occurrence replaces the event and keeps its native id.
         return [_overridden(first, uid, instance_key(first.start), overrides)], Expansion()
-    expansion = _expand(vevent, first.start, window, timezone, budget=budget)
+    expansion = _expand(vevent, first.start, window, timezone, allowance=allowance)
     duration = _duration(first.start, first.end)
     found: list[IcsOccurrence] = []
     for start in expansion.starts:
@@ -492,7 +497,12 @@ def _list_values(vevent: icalendar.Component, name: str) -> list[Moment]:
 
 
 def _expand(
-    vevent: icalendar.Component, start: Moment, window: TimeWindow, timezone: str, *, budget: int
+    vevent: icalendar.Component,
+    start: Moment,
+    window: TimeWindow,
+    timezone: str,
+    *,
+    allowance: Allowance,
 ) -> Expansion:
     """The starts of the occurrences of a recurring VEVENT inside ``window`` (``expand``)."""
     recurrence = RecurrenceProperties(
@@ -500,7 +510,7 @@ def _expand(
         rdates=tuple(_list_values(vevent, "RDATE")),
         exdates=tuple(_list_values(vevent, "EXDATE")),
     )
-    return expand(recurrence, start, window, timezone, budget=budget)
+    return expand(recurrence, start, window, timezone, allowance=allowance)
 
 
 # --- drafts --------------------------------------------------------------------------------

@@ -1,42 +1,78 @@
 """Recurrence rules of iCalendar events: which ones are supported, and their expansion.
 
-The ``ics`` adapter expands recurring VEVENTs with the recurrence library
-(dateutil) inside the run window. When the filters of a rule never match,
-that library steps through every period until the year 9999, whatever
-UNTIL or COUNT say, before it returns. So a rule is checked first
-(``check_rule``), and the expansion of one event is capped
-(``MAX_OCCURRENCES``, ``MAX_EXPANSION_STEPS`` and the steps the feed has
-left). The caps of a whole feed are the adapter's
-(``seminars.sources.generic.ics``). This module registers no adapter.
+The ``ics`` adapter expands recurring VEVENTs inside the run window with the
+walk in this module, not with a recurrence library: dateutil checks UNTIL
+and COUNT only on the occurrences it finds, so a rule whose filters never
+match steps through every period until the year 9999, UNTIL or not, and no
+cap that counts events or occurrences sees that cost.
+
+Here every RRULE gets an effective end before it is walked: the end of the
+window, or its own UNTIL when that is earlier. A rule without COUNT is
+walked only through its periods (days, weeks, months or years, INTERVAL
+apart) from the one before the window starts up to that end; a rule with
+COUNT from its DTSTART, because the occurrences before the window count.
+So what one rule costs is bounded by its periods up to the end of the
+window, whatever its filters, and every unit of that work is a step: each
+day of a walked period, each BYSETPOS entry of a period (duplicates are
+dropped) and each occurrence handed out. One rule takes at most
+``MAX_EXPANSION_STEPS`` steps (and the rest of a period it has started;
+then its walk stops where it is), and the caps of a whole feed
+(``seminars.sources.generic.ics``) count the steps and the RRULE lines of
+all its VEVENTs together.
+
+``check_rule`` is a cheap first filter: it refuses what the walk does not
+implement and shapes that can never match, which are then not walked at
+all. The bound above does not depend on it catching every such shape.
+
+The cost, measured through ``IcsAdapter.parse`` on one core: a step takes 1
+to 2 us, so a feed that spends the whole step budget of the adapter
+(500000) takes 0.5 to 0.8 s and is then a ``ParseError``. Rules that took
+dateutil seconds take milliseconds: BYSETPOS=2 written 200 times 0.001 s
+(8.9 s), the 364 positions +-185..+-366 with BYHOUR=0..22;BYMINUTE=0..7
+0.001 s (16 s), 100 VEVENTs of that rule 0.1 s, one VEVENT with 50 RRULE
+lines of a rule that never matches 0.005 s (50 x 0.29 s). The worst feeds
+built for this (rules that never match with COUNT and a DTSTART in 1900,
+86400 times of day, 500 RRULE lines in one VEVENT) spend the budget and
+fail after at most 0.8 s. Turning occurrences into drafts costs more than
+finding them, about 20 us each: 500 recurring VEVENTs with 500 occurrences
+each in the window (250000 drafts) take about 5 s. This module registers
+no adapter.
 """
 
 from __future__ import annotations
 
 import math
+from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time
-from typing import Any, Final, cast
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
+from typing import Any, Final, Literal
 from zoneinfo import ZoneInfo
 
 import icalendar
-from dateutil.rrule import rrule, rruleset, rrulestr
 
 from seminars.models import TimeWindow
 
 MAX_OCCURRENCES: Final = 500
 """Most occurrences of one recurring event inside the window."""
 
-MAX_EXPANSION_STEPS: Final = 10_000
-"""Most steps through the recurrence of one event, counted from its DTSTART."""
+MAX_EXPANSION_STEPS: Final = 50_000
+"""Most steps through one recurrence rule; more stop its walk where it is."""
 
 Moment = date | datetime
+Limit = Literal["steps", "rules", "filtered"]
+"""Which allowance of a feed an expansion needed more of."""
 
-_UNSUPPORTED_RULE_PARTS: Final = frozenset({"BYYEARDAY", "BYWEEKNO", "BYEASTER"})
+_RULE_PARTS: Final = frozenset(
+    {"FREQ", "UNTIL", "COUNT", "INTERVAL", "WKST", "BYMONTH", "BYMONTHDAY", "BYDAY"}
+    | {"BYSETPOS", "BYHOUR", "BYMINUTE", "BYSECOND"}
+)
 _FILTER_PARTS: Final = frozenset({"BYMONTH", "BYMONTHDAY", "BYSETPOS"})
 _DAYS_IN_MONTH: Final = {
     month: 29 if month == 2 else 30 if month in (4, 6, 9, 11) else 31 for month in range(1, 13)
 }
 _WEEKDAYS: Final = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
+_TIME_PARTS: Final = (("BYHOUR", 23), ("BYMINUTE", 59), ("BYSECOND", 59))
+_ONE_DAY: Final = timedelta(days=1)
 
 
 # --- the guard -----------------------------------------------------------------------------
@@ -45,30 +81,30 @@ _WEEKDAYS: Final = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 def check_rule(parts: dict[str, list[Any]], start: date | None = None) -> None:
     """Refuse a recurrence rule that the expansion does not support (``ValueError``).
 
-    When its filters never match, the recurrence library steps through every
-    period until the year 9999 whatever UNTIL or COUNT say (1 to 3 us per
-    period: up to 3 s for a daily rule). So only what calendars of talks use
-    is accepted: ``FREQ`` ``DAILY``, ``WEEKLY``, ``MONTHLY`` or ``YEARLY``;
-    no ``BYYEARDAY``, ``BYWEEKNO``, ``BYEASTER``; days and months that exist
-    (``_check_calendar_days``); a ``BYDAY`` of weekdays or of ordinals, not
-    both (``_check_ordinals``); ordinals and ``BYSETPOS`` only where a
-    period has them (``_set_size_bound``); and, with ``start`` (the
-    DTSTART), an ``INTERVAL`` and days that land on periods the filters
-    accept (``_check_from_start``). What still passes without ever matching
-    is a BYSETPOS beyond the days that BYMONTHDAY and BYDAY have in common:
-    in random sweeps of 24000 rules every accepted rule without occurrence
-    that took more than 0.04 s was of that kind, the slowest took 0.3 s (a
-    monthly one), and ``_filters`` counts them, so a feed has at most
-    ``ics.MAX_FILTERED_EVENTS`` of them (about 30 s).
+    The walk implements ``FREQ`` ``DAILY``, ``WEEKLY``, ``MONTHLY`` and
+    ``YEARLY`` with ``INTERVAL``, ``COUNT``, ``UNTIL``, ``WKST``, ``BYMONTH``,
+    ``BYMONTHDAY``, ``BYDAY``, ``BYSETPOS``, ``BYHOUR``, ``BYMINUTE`` and
+    ``BYSECOND``; any other part is refused. So are values that name nothing
+    (``_check_calendar_days``, ``_check_times``), a ``BYDAY`` that mixes
+    weekdays with and without ordinals (``_check_ordinals``), ordinals and
+    ``BYSETPOS`` where no period has them (``_set_size_bound``) and, with
+    ``start`` (the DTSTART), an ``INTERVAL`` and days that never land on a
+    period the filters accept (``_check_from_start``).
+
+    This is a first filter that spares the walk of rules that cannot match,
+    not what bounds the cost: rules that pass and still never match exist
+    (a ``BYSETPOS`` beyond the days that ``BYMONTHDAY`` and ``BYDAY`` have in
+    common), and they cost the steps of their periods like any other rule.
     """
     keys = {str(key).upper(): value for key, value in parts.items()}
     frequency = [str(value).upper() for value in keys.get("FREQ", [])]
     if frequency not in (["DAILY"], ["WEEKLY"], ["MONTHLY"], ["YEARLY"]):
         raise ValueError(f"unsupported recurrence frequency {frequency}")
-    unsupported = sorted(set(keys) & _UNSUPPORTED_RULE_PARTS)
+    unsupported = sorted(set(keys) - _RULE_PARTS)
     if unsupported:
         raise ValueError(f"unsupported recurrence rule part(s) {', '.join(unsupported)}")
     _check_calendar_days(keys, frequency[0])
+    _check_times(keys)
     _check_ordinals(keys, frequency[0])
     _check_positions(keys, frequency[0], start)
     if start is not None:
@@ -95,11 +131,20 @@ def _check_calendar_days(keys: dict[str, list[Any]], frequency: str) -> None:
             raise ValueError("BYMONTHDAY names no day of the months in BYMONTH")
 
 
+def _check_times(keys: dict[str, list[Any]]) -> None:
+    """Hours 0 to 23, minutes and seconds 0 to 59 (a leap second has no datetime)."""
+    for part, largest in _TIME_PARTS:
+        if any(not 0 <= int(value) <= largest for value in keys.get(part, [])):
+            raise ValueError(f"{part} names no time of day")
+
+
 def _weekdays(keys: dict[str, list[Any]]) -> tuple[set[str], list[int]]:
     """The BYDAY weekdays without an ordinal (``MO``), and the ordinals of the others (abs)."""
     plain: set[str] = set()
     ordinals: list[int] = []
     for day in (str(value).upper() for value in keys.get("BYDAY", [])):
+        if day[-2:] not in _WEEKDAYS:
+            raise ValueError("BYDAY names no weekday")
         if day[:-2]:
             ordinals.append(abs(int(day[:-2])))
         else:
@@ -111,9 +156,8 @@ def _check_ordinals(keys: dict[str, list[Any]], frequency: str) -> None:
     """BYDAY with an ordinal (``2MO``, ``-1FR``) only where a period has that many weekdays.
 
     A BYDAY that mixes weekdays with and without an ordinal (``TH,1FR``) is
-    refused: RFC 5545 takes the union of the two kinds, the recurrence
-    library requires a day to be of both, which no day is when the weekdays
-    differ, so it would step through every period until the year 9999.
+    refused: RFC 5545 takes the union of the two kinds, other implementations
+    (dateutil) the intersection, which no day is in when the weekdays differ.
     """
     plain, ordinals = _weekdays(keys)
     if not ordinals:
@@ -126,19 +170,25 @@ def _check_ordinals(keys: dict[str, list[Any]], frequency: str) -> None:
         # The ordinal already fixes the day; the two together rarely meet, if ever.
         raise ValueError("BYDAY with an ordinal is not supported together with BYMONTHDAY")
     limit = 5 if frequency == "MONTHLY" or keys.get("BYMONTH") else 53
-    if max(ordinals) > limit:
+    if min(ordinals) < 1 or max(ordinals) > limit:
         raise ValueError("BYDAY names an ordinal that no period has")
 
 
 def _check_positions(keys: dict[str, list[Any]], frequency: str, start: date | None) -> None:
-    """BYSETPOS only in a monthly or yearly rule, and only for positions a period can have."""
+    """BYSETPOS only in a monthly or yearly rule, and only for positions a period can have.
+
+    Positions are 1 to 366 or -366 to -1, as RFC 5545 has them; a repeated
+    one is one position (the walk drops duplicates).
+    """
     if "BYSETPOS" not in keys:
         return
     if frequency not in ("MONTHLY", "YEARLY"):
         raise ValueError("BYSETPOS is only supported with a monthly or yearly rule")
-    largest = max(abs(int(position)) for position in keys["BYSETPOS"])
+    positions = {abs(int(position)) for position in keys["BYSETPOS"]}
+    if not positions or min(positions) < 1 or max(positions) > 366:
+        raise ValueError("BYSETPOS names no position of a set")
     day = None if start is None else start.day
-    if largest > _set_size_bound(keys, yearly=frequency == "YEARLY", day=day):
+    if max(positions) > _set_size_bound(keys, yearly=frequency == "YEARLY", day=day):
         raise ValueError("BYSETPOS names a position that no period has")
 
 
@@ -225,6 +275,273 @@ def _month_bound(month: int, in_month: int | None, monthdays: set[int]) -> int:
     return min(counts, default=1)
 
 
+def _filters(parts: dict[str, list[Any]]) -> bool:
+    """Whether an accepted rule may step through many periods without an occurrence.
+
+    It may when it filters by month, day of the month or set position, or
+    asks for the fifth (or a later) weekday of a period. Every other rule
+    that ``check_rule`` accepts has an occurrence within a dozen periods or
+    so: its BYDAY is plain weekdays or ordinals up to 4, never a mix of the
+    two, and without BYDAY it repeats the day of DTSTART, which comes back
+    (the 31st in seven months of twelve, the 29th of February in leap
+    years). The feed counts the rules that filter (``ics.MAX_FILTERED_EVENTS``).
+    """
+    keys = {str(key).upper(): value for key, value in parts.items()}
+    _, ordinals = _weekdays(keys)
+    return bool(set(keys) & _FILTER_PARTS) or any(ordinal >= 5 for ordinal in ordinals)
+
+
+# --- one rule ------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _Rule:
+    """One checked RRULE, with what RFC 5545 takes from DTSTART made explicit.
+
+    ``until`` is comparable with the DTSTART it was read for (aware in UTC
+    for an aware DTSTART, else floating). ``monthdays`` holds positive and
+    negative days; ``ordinals`` the ``(ordinal, weekday)`` pairs of BYDAY
+    and ``weekdays`` its plain weekdays (0 is Monday).
+    """
+
+    frequency: str
+    interval: int
+    count: int | None
+    until: datetime | None
+    week_start: int
+    months: frozenset[int]
+    monthdays: frozenset[int]
+    weekdays: frozenset[int]
+    ordinals: frozenset[tuple[int, int]]
+    positions: tuple[int, ...]
+    hours: tuple[int, ...]
+    minutes: tuple[int, ...]
+    seconds: tuple[int, ...]
+    filtered: bool
+
+    @property
+    def times_per_day(self) -> int:
+        return len(self.hours) * len(self.minutes) * len(self.seconds)
+
+    def time_at(self, index: int) -> time:
+        """The ``index``-th time of day of the rule, in order (no list of them is built)."""
+        minutes, seconds = len(self.minutes), len(self.seconds)
+        return time(
+            self.hours[index // (minutes * seconds)],
+            self.minutes[index // seconds % minutes],
+            self.seconds[index % seconds],
+        )
+
+
+def _read_rule(value: object, anchor: datetime, timezone: str) -> _Rule:
+    """The RRULE ``value`` of a VEVENT whose DTSTART is ``anchor``; ``ValueError`` if refused."""
+    if not isinstance(value, icalendar.vRecur):
+        raise ValueError("the RRULE cannot be read")
+    parts: dict[str, list[Any]] = {str(key).upper(): list(items) for key, items in value.items()}
+    check_rule(parts, start=anchor)
+    frequency = str(parts["FREQ"][0]).upper()
+    weekdays: set[int] = set()
+    ordinals: set[tuple[int, int]] = set()
+    for text in (str(item).upper() for item in parts.get("BYDAY", [])):
+        weekday = _WEEKDAYS.index(text[-2:])
+        if text[:-2]:
+            ordinals.add((int(text[:-2]), weekday))
+        else:
+            weekdays.add(weekday)
+    months = {int(month) for month in parts.get("BYMONTH", [])}
+    monthdays = {int(day) for day in parts.get("BYMONTHDAY", [])}
+    if not (weekdays or ordinals or monthdays):  # the day of DTSTART comes back
+        if frequency == "YEARLY":
+            months, monthdays = months or {anchor.month}, {anchor.day}
+        elif frequency == "MONTHLY":
+            monthdays = {anchor.day}
+        elif frequency == "WEEKLY":
+            weekdays = {anchor.weekday()}
+    clock = {
+        part: tuple(sorted({int(item) for item in parts.get(part, [])})) or (default,)
+        for part, default in zip(
+            ("BYHOUR", "BYMINUTE", "BYSECOND"),
+            (anchor.hour, anchor.minute, anchor.second),
+            strict=True,
+        )
+    }
+    return _Rule(
+        frequency=frequency,
+        interval=int(parts.get("INTERVAL", [1])[0]),
+        count=int(parts["COUNT"][0]) if "COUNT" in parts else None,
+        until=_until(parts.get("UNTIL"), anchor, timezone),
+        week_start=_WEEKDAYS.index(str(parts.get("WKST", ["MO"])[0]).upper()),
+        months=frozenset(months),
+        monthdays=frozenset(monthdays),
+        weekdays=frozenset(weekdays),
+        ordinals=frozenset(ordinals),
+        positions=tuple(sorted({int(position) for position in parts.get("BYSETPOS", [])})),
+        hours=clock["BYHOUR"],
+        minutes=clock["BYMINUTE"],
+        seconds=clock["BYSECOND"],
+        filtered=_filters(parts),
+    )
+
+
+def _until(values: list[Any] | None, anchor: datetime, timezone: str) -> datetime | None:
+    """UNTIL comparable with ``anchor``: a date means its end, a floating time local wall time."""
+    if not values:
+        return None
+    value = values[0]
+    if not isinstance(value, datetime):
+        value = datetime.combine(value, time(23, 59, 59))
+    aligned = _align(value, anchor, timezone)
+    return aligned.astimezone(UTC) if aligned.tzinfo is not None else aligned
+
+
+# --- the walk ------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _Walk:
+    """The starts one rule gives inside the window; ``stopped`` when steps ran out first."""
+
+    starts: tuple[datetime, ...]
+    steps: int
+    stopped: bool = False
+
+
+def _week_start(rule: _Rule, day: date) -> date:
+    return day - timedelta(days=(day.weekday() - rule.week_start) % 7)
+
+
+def _period(rule: _Rule, anchor: date, index: int) -> tuple[date, date]:
+    """First and last day of period ``index`` (0 holds DTSTART); raises past the calendar.
+
+    A period is a day, a week from WKST (the first one from DTSTART on), a
+    month or a year; INTERVAL periods apart.
+    """
+    if rule.frequency == "DAILY":
+        day = anchor + timedelta(days=index * rule.interval)
+        return day, day
+    if rule.frequency == "WEEKLY":
+        first = _week_start(rule, anchor) + timedelta(weeks=index * rule.interval)
+        return (anchor if index == 0 else first), first + timedelta(days=6)
+    if rule.frequency == "MONTHLY":
+        year, month = divmod(anchor.year * 12 + anchor.month - 1 + index * rule.interval, 12)
+        last = _month_length(year, month + 1)
+        return date(year, month + 1, 1), date(year, month + 1, last)
+    year = anchor.year + index * rule.interval
+    return date(year, 1, 1), date(year, 12, 31)
+
+
+def _period_index(rule: _Rule, anchor: date, day: date) -> int:
+    """The index of the last period that starts on or before ``day`` (0 when none does)."""
+    if rule.frequency == "DAILY":
+        span = (day - anchor).days
+    elif rule.frequency == "WEEKLY":
+        span = (day - _week_start(rule, anchor)).days // 7
+    elif rule.frequency == "MONTHLY":
+        span = (day.year - anchor.year) * 12 + day.month - anchor.month
+    else:
+        span = day.year - anchor.year
+    return max(0, span // rule.interval)
+
+
+def _month_length(year: int, month: int) -> int:
+    """Days of ``month`` in ``year`` (``_DAYS_IN_MONTH`` gives February the 29th it may have)."""
+    if month != 2:
+        return _DAYS_IN_MONTH[month]
+    return 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28
+
+
+def _accepts(rule: _Rule, day: date, first: date, last: date) -> bool:
+    """Whether the filters of ``rule`` keep ``day`` of the period from ``first`` to ``last``.
+
+    An ordinal weekday counts within the month in a monthly rule and in a
+    yearly one with BYMONTH, else within the year.
+    """
+    if rule.months and day.month not in rule.months:
+        return False
+    weekday = day.weekday()
+    if rule.weekdays and weekday not in rule.weekdays:
+        return False
+    if rule.monthdays:
+        length = _month_length(day.year, day.month)
+        if day.day not in rule.monthdays and day.day - length - 1 not in rule.monthdays:
+            return False
+    if rule.ordinals:
+        if rule.frequency == "YEARLY" and rule.months:  # else the period: its month or year
+            first = day.replace(day=1)
+            last = day.replace(day=_month_length(day.year, day.month))
+        forward, backward = (day - first).days // 7 + 1, -((last - day).days // 7 + 1)
+        if (forward, weekday) not in rule.ordinals and (backward, weekday) not in rule.ordinals:
+            return False
+    return True
+
+
+def _moments(rule: _Rule, days: list[date], zone: tzinfo | None) -> Iterator[datetime]:
+    """The candidates of one period in order: every time of every day, or the BYSETPOS ones."""
+    per_day = rule.times_per_day
+    if rule.positions:
+        size = len(days) * per_day
+        indexes = {position - 1 if position > 0 else size + position for position in rule.positions}
+        for index in sorted(index for index in indexes if 0 <= index < size):
+            yield datetime.combine(days[index // per_day], rule.time_at(index % per_day), zone)
+        return
+    for day in days:
+        for index in range(per_day):
+            yield datetime.combine(day, rule.time_at(index), zone)
+
+
+def _walk(rule: _Rule, anchor: datetime, low: datetime, high: datetime, *, limit: int) -> _Walk:
+    """The starts of ``rule`` in ``[low, high)``, in at most about ``limit`` steps.
+
+    The periods walked end with the one that holds the effective end (UNTIL
+    or ``high``, the earlier); a rule without COUNT starts with the period
+    before ``low``, one with COUNT with that of DTSTART.
+    """
+    if rule.count is not None and rule.count < 1:
+        return _Walk((), 0)
+    end = high if rule.until is None else min(high, rule.until)
+    last_day, start_day = _wall_day(end, anchor), _wall_day(low, anchor) - _ONE_DAY
+    index = 0 if rule.count is not None else _period_index(rule, anchor.date(), start_day)
+    starts: list[datetime] = []
+    steps = taken = 0
+    while True:
+        try:
+            first, last = _period(rule, anchor.date(), index)
+        except (ValueError, OverflowError):  # past the end of the calendar
+            return _Walk(tuple(starts), steps)
+        if first > last_day:
+            return _Walk(tuple(starts), steps)
+        if steps >= limit:
+            return _Walk(tuple(starts), steps, stopped=True)
+        days = [day for day in _days(first, last) if _accepts(rule, day, first, last)]
+        steps += (last - first).days + 1 + len(rule.positions)
+        for moment in _moments(rule, days, anchor.tzinfo):
+            if steps >= limit:
+                return _Walk(tuple(starts), steps, stopped=True)
+            steps += 1
+            if moment >= high or (rule.until is not None and moment > rule.until):
+                return _Walk(tuple(starts), steps)
+            if moment < anchor:
+                continue
+            taken += 1
+            if moment >= low:
+                starts.append(moment)
+            if taken == rule.count or len(starts) >= MAX_OCCURRENCES:
+                return _Walk(tuple(starts), steps)
+        index += 1
+
+
+def _days(first: date, last: date) -> Iterator[date]:
+    for ordinal in range(first.toordinal(), last.toordinal() + 1):
+        yield date.fromordinal(ordinal)
+
+
+def _wall_day(moment: datetime, anchor: datetime) -> date:
+    """The day of ``moment`` on the wall clock of ``anchor``."""
+    if anchor.tzinfo is None or moment.tzinfo is None:
+        return moment.date()
+    return moment.astimezone(anchor.tzinfo).date()
+
+
 # --- expansion -----------------------------------------------------------------------------
 
 
@@ -243,73 +560,29 @@ class RecurrenceProperties:
 
 
 @dataclass(frozen=True)
+class Allowance:
+    """What a feed has left for its expansions: steps, RRULE lines and lines that filter."""
+
+    steps: int
+    rules: int
+    filtered: int
+
+
+@dataclass(frozen=True)
 class Expansion:
     """The starts that the recurrence of a VEVENT gives inside the window, and their cost.
 
-    ``expanded`` is true when the recurrence was stepped through (its rules
-    do not all end before the window), ``filtered`` when a rule of the event
-    filters (``_filters``), ``exhausted`` when the expansion stopped because
-    it needed more steps than its budget.
+    ``rules`` counts its RRULE lines that were walked (all but those whose
+    UNTIL lies before the window), ``filtered`` those of them that filter
+    (``_filters``), ``steps`` the steps they took. ``exceeded`` names the
+    allowance of the feed that the expansion needed more of; it stopped there.
     """
 
     starts: tuple[Moment, ...] = ()
     steps: int = 0
-    expanded: bool = False
-    filtered: bool = False
-    exhausted: bool = False
-
-
-@dataclass(frozen=True)
-class _Recurrence:
-    """The rule set of a recurring VEVENT.
-
-    ``last`` is the latest start it can give, known (else ``None``) when
-    every RRULE has an UNTIL: the latest of those, of the RDATEs and of
-    DTSTART. ``filtered`` tells whether one of its rules filters.
-    """
-
-    rules: rruleset
-    last: datetime | None
-    filtered: bool
-
-
-def _filters(parts: dict[str, list[Any]]) -> bool:
-    """Whether an accepted rule may step through many periods without an occurrence.
-
-    It may when it filters by month, day of the month or set position, or
-    asks for the fifth (or a later) weekday of a period. Every other rule
-    that ``check_rule`` accepts has an occurrence within a dozen periods or
-    so: its BYDAY is plain weekdays or ordinals up to 4, never a mix of the
-    two, and without BYDAY it repeats the day of DTSTART, which comes back
-    (the 31st in seven months of twelve, the 29th of February in leap
-    years). So its cost is in its steps.
-    """
-    keys = {str(key).upper(): value for key, value in parts.items()}
-    _, ordinals = _weekdays(keys)
-    return bool(set(keys) & _FILTER_PARTS) or any(ordinal >= 5 for ordinal in ordinals)
-
-
-def _rule_set(recurrence: RecurrenceProperties, anchor: datetime, timezone: str) -> _Recurrence:
-    """The rule set of a recurring VEVENT whose DTSTART is ``anchor``."""
-    rules = rruleset()
-    lasts: list[datetime | None] = [anchor]
-    filtered = False
-    for value in recurrence.rules:
-        text, until = _rule_text(value, anchor, timezone)
-        # The text of one RRULE always gives a single rule, never a set.
-        rules.rrule(cast(rrule, rrulestr(text, dtstart=anchor)))
-        lasts.append(until)
-        filtered = filtered or _filters(dict(cast(icalendar.vRecur, value)))
-    rules.rdate(anchor)
-    for moment in recurrence.rdates:
-        aligned = _align(moment, anchor, timezone)
-        rules.rdate(aligned)
-        lasts.append(aligned)
-    for moment in recurrence.exdates:
-        rules.exdate(_align(moment, anchor, timezone))
-    bounded = [moment for moment in lasts if moment is not None]
-    last = max(bounded) if len(bounded) == len(lasts) else None
-    return _Recurrence(rules, last, filtered)
+    rules: int = 0
+    filtered: int = 0
+    exceeded: Limit | None = None
 
 
 def expand(
@@ -318,50 +591,48 @@ def expand(
     window: TimeWindow,
     timezone: str,
     *,
-    budget: int,
+    allowance: Allowance,
 ) -> Expansion:
     """The starts of the occurrences of a recurring VEVENT that start inside ``window``.
 
-    ``start`` is its DTSTART and ``timezone`` the zone of floating times.
-    Every occurrence from DTSTART on is one step; when the expansion needs
-    more than the ``budget`` steps that the feed has left it stops and is
-    ``exhausted``. Raises ``ValueError`` (``TypeError``, ``OverflowError``)
-    when a rule is refused (``check_rule``) or cannot be read.
+    ``start`` is its DTSTART, which is always an occurrence, and ``timezone``
+    the zone of floating times. Each RRULE is walked as the module docstring
+    says; RDATEs are added and EXDATEs taken out. Raises ``ValueError``
+    (``TypeError``, ``OverflowError``) when a rule is refused
+    (``check_rule``) or cannot be read; then no rule is walked.
     """
     is_date = not isinstance(start, datetime)
     anchor = start if isinstance(start, datetime) else datetime.combine(start, time.min)
-    rule_set = _rule_set(recurrence, anchor, timezone)
+    anchor = anchor.replace(microsecond=0)
+    rules = [_read_rule(value, anchor, timezone) for value in recurrence.rules]
     low, high = _window_bounds(window, anchor, timezone)
-    if rule_set.last is not None and rule_set.last < low:
-        return Expansion()
-    starts: list[Moment] = []
-    steps = 0
-    for moment in rule_set.rules:
-        if moment >= high or len(starts) >= MAX_OCCURRENCES or steps >= MAX_EXPANSION_STEPS:
-            break
-        if steps >= budget:
-            return Expansion(tuple(starts), steps, expanded=True, exhausted=True)
-        steps += 1
-        if moment >= low:
-            starts.append(moment.date() if is_date else moment)
-    return Expansion(tuple(starts), steps, expanded=True, filtered=rule_set.filtered)
+    found: set[datetime] = set()
+    steps = walked = filtered = 0
+    for rule in rules:
+        if rule.until is not None and rule.until < low:
+            continue  # ends before the window
+        walked, filtered = walked + 1, filtered + rule.filtered
+        left = allowance.steps - steps
+        exceeded = _exceeded(allowance, walked, filtered)
+        if exceeded is None:
+            walk = _walk(rule, anchor, low, high, limit=max(0, min(MAX_EXPANSION_STEPS, left)))
+            steps += walk.steps
+            found.update(walk.starts)
+            exceeded = "steps" if walk.stopped and left <= MAX_EXPANSION_STEPS else None
+        if exceeded is not None:
+            return Expansion(steps=steps, rules=walked, filtered=filtered, exceeded=exceeded)
+    extra = (anchor, *(_align(moment, anchor, timezone) for moment in recurrence.rdates))
+    found.update(moment for moment in extra if low <= moment < high)
+    excluded = {_align(moment, anchor, timezone) for moment in recurrence.exdates}
+    starts = sorted(found - excluded)[:MAX_OCCURRENCES]
+    moments = tuple(moment.date() if is_date else moment for moment in starts)
+    return Expansion(moments, steps, walked, filtered)
 
 
-def _rule_text(rule: object, anchor: datetime, timezone: str) -> tuple[str, datetime | None]:
-    """The RRULE as text for dateutil, and its UNTIL comparable with ``anchor`` (if any)."""
-    if not isinstance(rule, icalendar.vRecur):
-        raise ValueError("the RRULE cannot be read")
-    parts = dict(rule)
-    check_rule(parts, start=anchor)
-    until = parts.get("UNTIL")
-    if not until:
-        return icalendar.vRecur(parts).to_ical().decode("ascii"), None
-    value = until[0]
-    if not isinstance(value, datetime):
-        value = datetime.combine(value, time(23, 59, 59))
-    aligned = _align(value, anchor, timezone)
-    parts["UNTIL"] = [aligned.astimezone(UTC) if aligned.tzinfo is not None else aligned]
-    return icalendar.vRecur(parts).to_ical().decode("ascii"), aligned
+def _exceeded(allowance: Allowance, rules: int, filtered: int) -> Limit | None:
+    if rules > allowance.rules:
+        return "rules"
+    return "filtered" if filtered > allowance.filtered else None
 
 
 def _local_naive(moment: datetime, timezone: str) -> datetime:
