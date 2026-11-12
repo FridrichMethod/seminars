@@ -490,13 +490,9 @@ def detail_speakers(params: DetailParams, tree: LexborHTMLParser) -> tuple[Speak
         return ()
     found: list[SpeakerDraft] = []
     for node in tree.css(params.speaker):
-        name = node_text(node.css_first(params.speaker_name)) if params.speaker_name else None
-        affiliation = (
-            node_text(node.css_first(params.speaker_affiliation))
-            if params.speaker_affiliation
-            else None
-        )
-        found.extend(make_speakers(name if params.speaker_name else node_text(node), affiliation))
+        name = node_text(node.css_first(params.speaker_name) if params.speaker_name else node)
+        part = params.speaker_affiliation
+        found.extend(make_speakers(name, node_text(node.css_first(part)) if part else None))
     return tuple(found)
 
 
@@ -539,7 +535,8 @@ def detail_targets(
     """Detail pages to fetch: kept rows in the window with a link on the source's hosts.
 
     A link to another host is a third party's page: it is not fetched (the
-    row is then dropped, and a warning counts such rows). When the list page
+    row is then dropped, or kept without it when the page is not required,
+    and a warning counts such rows). When the list page
     itself was redirected to a host the source does not name, every link on
     it is foreign, and that is ``ForeignHostError``.
     """
@@ -561,8 +558,9 @@ def detail_targets(
             elif url not in wanted:
                 wanted.append(url)
     if foreign:
+        fate = "dropped" if detail.required else "kept without it"
         why = "their detail page is on a host the source does not name (params.extra_hosts)"
-        logger.warning("source %s: %d row(s) in the window dropped: %s", source.id, foreign, why)
+        logger.warning("source %s: %d row(s) in the window %s: %s", source.id, foreign, fate, why)
     return wanted[: detail.max_pages]
 
 

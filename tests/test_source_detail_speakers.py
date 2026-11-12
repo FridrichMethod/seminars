@@ -6,6 +6,7 @@ Chemical and Systems Biology); the page of the talk has the rest.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -237,6 +238,22 @@ class TestAffiliationsFromTheText:
         assert people(draft) == [("Ada Lovelace", "Cambridge")]
 
 
+@pytest.mark.parametrize(
+    ("line", "name", "expected"),
+    [
+        ("Prof. Dr. Stephan A. Sieber", "Stephan Sieber", True),
+        ("Hemamala (Hema) Karunadasa, Stanford", "Hemamala Karunadasa", True),
+        ("STEPHAN SIEBER", "Stephan Sieber", True),
+        ("Stephanie Sieberts", "Stephan Sieber", False),
+        ("Sieber, Stephan", "Stephan Sieber", False),
+        ("Madonna", "Madonna", True),
+        ("anything", " ", False),
+    ],
+)
+def test_the_line_of_a_name(line: str, name: str, expected: bool) -> None:
+    assert html_list.names_line(line, name) is expected
+
+
 class TestRowsWithoutTheirPage:
     def test_a_row_is_dropped_when_its_required_page_fails(self) -> None:
         source = list_source(times="time")
@@ -249,6 +266,20 @@ class TestRowsWithoutTheirPage:
         [draft] = run(source, serve(list_page("Ada Lovelace")))
         assert people(draft) == [("Ada Lovelace", None)]
         assert draft.start == datetime(2026, 11, 17, 16)
+
+    def test_a_row_whose_page_is_on_another_host_is_kept_without_it(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        source = list_source(body="article > div", required=False)
+        listing = list_page("Ada Lovelace").replace("/talks/one", "https://other.org/one")
+        http = serve(listing)
+        with caplog.at_level(logging.WARNING, logger=html_list.__name__):
+            [draft] = run(source, http)
+        assert http.requests == [LIST_URL]
+        assert draft.url == "https://other.org/one"
+        assert "1 row(s) in the window kept without it: their detail page is on a host" in (
+            caplog.text
+        )
 
     def test_keep_tags_still_drops_a_row_without_its_page(self) -> None:
         source = list_source(tag=".tag", required=False)

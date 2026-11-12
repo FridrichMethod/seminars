@@ -254,9 +254,8 @@ sources:
         - The VEVENT is embedded per detail page, there is no ICS feed URL.
         - The upcoming cards and the detail pages name no place. Past cards have one in
           .c-card__location ("Kavli Auditorium", "Kavli Auditorium and zoom"; 6 of the 9
-          cards on /past-events, seen in the HTTP cache), and the home page says that the
-          in-person part of the talks takes place at the Kavli Auditorium, hence
-          default_location.
+          cards on /past-events), and the home page says that the in-person part of the
+          talks takes place at the Kavli Auditorium, hence default_location.
         - Card date text looks like "Monday, November 16, 2026", a middle dot,
           "4:00 p.m.", an en dash, "5:00 p.m.", two no-break spaces, "PT"; the text of
           .c-card__date also starts with "Date", the title of its SVG icon.

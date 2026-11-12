@@ -101,6 +101,8 @@ class TestMinHours:
             ([CONFERENCE, LECTURE], None, False, "conference"),
             ([CONFERENCE, LECTURE], "2026-11-17T23:59:00-08:00", True, "conference"),
             ([CONFERENCE], "2026-11-17T17:00:00-08:00", False, None),
+            # An end without an offset cannot be compared with the start: length unknown.
+            ([CONFERENCE, LECTURE], "2026-11-17T17:00:00", False, "conference"),
         ],
     )
     def test_the_entry_needs_its_length(
