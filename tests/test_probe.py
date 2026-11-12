@@ -163,6 +163,23 @@ class TestSuggestedYaml:
         assert source.name == "CHANGE www.lab.example.edu"
         assert source.default_fields == []
 
+    def test_a_redirect_suggests_the_final_address(self) -> None:
+        url = "https://cs.example.edu/events/rss"
+        final = "https://www.cs.example.edu/events/rss"
+        http = FakeHttpClient()
+        feed = '<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>'
+        http.add(url, feed, content_type="application/rss+xml", final_url=final)
+        result = probe_source(http, url)
+        assert http.requests == [url]
+        assert result.url == url
+        assert suggested_source(result).url == final
+        assert any(f"redirected to {final}" in note for note in result.notes)
+
+    def test_no_redirect_note_without_a_redirect(self) -> None:
+        result = probe_text("BEGIN:VCALENDAR", "text/calendar")
+        assert suggested_source(result).url == "https://lab.example.edu/x"
+        assert not any("redirected" in note for note in result.notes)
+
     def test_urls_outside_ascii_are_escaped(self) -> None:
         url = "https://lab.example.edu/\u00e9v\u00e9nements"
         result = probe_text("BEGIN:VCALENDAR", "text/calendar", url=url)

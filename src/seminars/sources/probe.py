@@ -22,6 +22,9 @@ and recognises the format of the answer from cheap signs only:
 The answer carries a suggested ``config/sources.d`` entry that loads as a
 ``SourceConfig`` as it is (group ``new``, institution ``other``, no
 fields): ASCII only, with ``CHANGE`` in the values a person has to check.
+When the request was redirected, the entry names the final address (a
+note says so): links on a page count as the source's own only on the
+host the entry names.
 Nothing a site sent reaches the notes unescaped.
 """
 
@@ -60,11 +63,17 @@ def probe_source(http: HttpClient, url: str) -> ProbeResult:
     """Fetch ``url`` once, recognise its format and suggest a sources.d entry."""
     document = http.get(url)
     kind, adapter, target, params, notes = detect(document)
+    if document.final_url != url:
+        notes = [
+            *notes,
+            f"{url} redirected to {document.final_url}; the entry names the final "
+            "address, so that the links on the page stay on the source's host",
+        ]
     return ProbeResult(
         url=url,
         format=kind,
         content_type=document.content_type,
-        suggested_yaml=suggested_yaml(target or url, adapter, params),
+        suggested_yaml=suggested_yaml(target or document.final_url, adapter, params),
         notes=[ascii_printable(note) for note in notes],
     )
 
