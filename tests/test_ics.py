@@ -366,9 +366,13 @@ class TestTimezoneDefinition:
             *("BEGIN:VTIMEZONE", "TZID:America/Los_Angeles"),
             *("BEGIN:STANDARD", "DTSTART:20260101T000000", "TZNAME:PST"),
             *("TZOFFSETFROM:-0800", "TZOFFSETTO:-0800", "END:STANDARD"),
-            *("BEGIN:DAYLIGHT", "DTSTART:20260308T020000", "RDATE:20270314T020000", "TZNAME:PDT"),
+            *("BEGIN:DAYLIGHT", "DTSTART:20260308T020000", "TZNAME:PDT"),
             *("TZOFFSETFROM:-0800", "TZOFFSETTO:-0700", "END:DAYLIGHT"),
-            *("BEGIN:STANDARD", "DTSTART:20261101T020000", "RDATE:20271107T020000", "TZNAME:PST"),
+            *("BEGIN:STANDARD", "DTSTART:20261101T020000", "TZNAME:PST"),
+            *("TZOFFSETFROM:-0700", "TZOFFSETTO:-0800", "END:STANDARD"),
+            *("BEGIN:DAYLIGHT", "DTSTART:20270314T020000", "TZNAME:PDT"),
+            *("TZOFFSETFROM:-0800", "TZOFFSETTO:-0700", "END:DAYLIGHT"),
+            *("BEGIN:STANDARD", "DTSTART:20271107T020000", "TZNAME:PST"),
             *("TZOFFSETFROM:-0700", "TZOFFSETTO:-0800", "END:STANDARD"),
             "END:VTIMEZONE",
         ]
@@ -469,6 +473,28 @@ class TestEventProperties:
             ({"status": "cancelled", "title": "T"}, "Cancelled: T - Jane Doe"),
             ({"title": "Two\nlines  and\ttabs"}, "Two lines and tabs - Jane Doe"),
             ({"title": ROCKET}, "Bioengineering Seminar: Jane Doe"),
+            # a speaker the title names already is not repeated
+            (
+                {
+                    "title": "Thesis Defense: Julisia Chau, Lin Group",
+                    "speakers": people("Julisia Chau"),
+                },
+                "Thesis Defense: Julisia Chau, Lin Group",
+            ),
+            (
+                {"title": "DISSERTATION DEFENSE: Connie Miao", "speakers": people("Connie Miao")},
+                "DISSERTATION DEFENSE: Connie Miao",
+            ),
+            (
+                {"title": f"Seminar: Jos{E_ACUTE} Garcia", "speakers": people("JOSE GARC\u00cdA")},
+                f"Seminar: Jos{E_ACUTE} Garcia",
+            ),
+            (
+                {"title": "Jane Doe on knots", "speakers": people("Jane Doe", "Bob Roe")},
+                "Jane Doe on knots - Bob Roe",
+            ),
+            ({"title": "Annals of knots", "speakers": people("Ann")}, "Annals of knots - Ann"),
+            ({"title": "Jane Doe", "status": "cancelled"}, "Cancelled: Jane Doe"),
         ],
     )
     def test_summary(self, overrides: dict[str, Any], summary: str, one: Any) -> None:
@@ -588,9 +614,10 @@ class TestTimeZonesAndDst:
     @pytest.mark.parametrize(
         ("start", "line"),
         [
-            # the Sunday the clocks go back: 00:30 PDT, 01:30 PDT, 01:30 PST, 02:30 PST
+            # the Sunday the clocks go back: 00:30 PDT, 01:30 PDT, 01:30 PST, 02:30 PST;
+            # both moments of the repeated hour are written in UTC
             (utc(11, 1, 7, 30), f"DTSTART;{LOCAL}20261101T003000"),
-            (utc(11, 1, 8, 30), f"DTSTART;{LOCAL}20261101T013000"),
+            (utc(11, 1, 8, 30), "DTSTART:20261101T083000Z"),
             (utc(11, 1, 9, 30), "DTSTART:20261101T093000Z"),
             (utc(11, 1, 10, 30), f"DTSTART;{LOCAL}20261101T023000"),
             # the Sunday the clocks go forward: 01:30 PST, then 03:30 PDT

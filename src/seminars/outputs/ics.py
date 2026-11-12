@@ -14,9 +14,10 @@ A calendar holds
   feed (English locale, ``feeds.<id>.*``), the time zone and the refresh
   interval of the settings;
 * one VTIMEZONE for the zone of the settings. It lists the changes of the
-  UTC offset in the years the events of the run fall in, each with the local
-  time at which it happens, so every feed of a run has the same definition
-  and no calendar is without a component;
+  UTC offset in the years the events of the run fall in, each in a
+  sub-component of its own whose DTSTART is the local time at which it
+  happens (no RDATE, which some readers misread), so every feed of a run
+  has the same definition and no calendar is without a component;
 * one VEVENT per event. ``UID`` is ``<uid>@<uid_domain>`` and never changes;
   ``SEQUENCE`` is the counter of the event. A timed event is written in the
   zone of the settings and gets the default duration when it has no end; an
@@ -41,6 +42,7 @@ the document as a second opinion.
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -78,6 +80,7 @@ _LABEL_SOURCE: Final = "digest.health.source"
 _LABEL_CANCELLED: Final = "digest.labels.cancelled"
 
 _LAST_WORD: Final = re.compile(r"\s\S{0,30}$")
+_NOT_A_WORD: Final = re.compile(r"[^\w]|_")
 _ONE_DAY: Final = timedelta(days=1)
 _ONE_SECOND: Final = timedelta(seconds=1)
 _LAST_SCANNED_YEAR: Final = 9998  # the scan of a year needs the first day of the next one
@@ -143,17 +146,32 @@ def _speaker(speaker: Speaker) -> str:
     return f"{name} ({affiliation})" if name and affiliation else name
 
 
+def _words(text: str) -> str:
+    """``text`` folded for finding a name in it: no accents, no case, words between spaces."""
+    decomposed = unicodedata.normalize("NFKD", text)
+    letters = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return f" {' '.join(_NOT_A_WORD.sub(' ', letters.casefold()).split())} "
+
+
+def _speaker_list(names: Sequence[str]) -> str:
+    speakers = ", ".join(names[:SUMMARY_MAX_SPEAKERS])
+    return f"{speakers}, {ELLIPSIS}" if len(names) > SUMMARY_MAX_SPEAKERS else speakers
+
+
 def _summary(event: Event, ctx: _Context) -> str:
-    """``<title> - <speakers>``, or ``<series>: <speakers>`` while the title is not announced."""
+    """``<title> - <speakers>``, or ``<series>: <speakers>`` while the title is not announced.
+
+    A speaker whose name the title holds already is left out after the
+    title, so that "Thesis Defense: Jane Doe" does not end in "- Jane Doe".
+    """
     title = _one_line(event.title)
     names = [name for speaker in event.speakers if (name := _one_line(speaker.name))]
-    speakers = ", ".join(names[:SUMMARY_MAX_SPEAKERS])
-    if len(names) > SUMMARY_MAX_SPEAKERS:
-        speakers = f"{speakers}, {ELLIPSIS}"
     if not title or title == TBA_TITLE:
         heading = _one_line(event.series) or _one_line(event.host_org)
-        text = f"{heading}: {speakers or TBA_TITLE}"
+        text = f"{heading}: {_speaker_list(names) or TBA_TITLE}"
     else:
+        named = _words(title)
+        speakers = _speaker_list([name for name in names if _words(name) not in named])
         text = f"{title} - {speakers}" if speakers else title
     if event.status == "cancelled":
         text = f"{ctx.locale.t(_LABEL_CANCELLED)}: {text}"
@@ -207,11 +225,13 @@ def _instant(moment: datetime, zone: ZoneInfo) -> datetime:
     """``moment`` as local time of ``zone``, or in UTC when that local time is ambiguous.
 
     A local time in the hour that is repeated when daylight saving time ends
-    names two moments, and a reader takes the first of them. The second one
-    is therefore written in UTC, which no reader can misread.
+    names two moments. RFC 5545 says a reader takes the first of them, but
+    ical.js and libical take the second, so both moments of that hour are
+    written in UTC, which no reader can misread.
     """
     local = moment.astimezone(zone)
-    return moment.astimezone(UTC) if local.fold else local
+    other = local.replace(fold=1 - local.fold)
+    return moment.astimezone(UTC) if other.utcoffset() != local.utcoffset() else local
 
 
 def _day_after(local: datetime) -> date:
@@ -324,21 +344,22 @@ def _observances(ctx: _Context, first_year: int, last_year: int) -> list[_Observ
 
 
 def _vtimezone(ctx: _Context, first_year: int, last_year: int) -> icalendar.Timezone:
-    """The zone of the settings; changes of the same kind share one sub-component."""
-    onsets: dict[tuple[timedelta, timedelta, str, bool], list[datetime]] = {}
-    for item in _observances(ctx, first_year, last_year):
-        key = (item.offset_from, item.offset_to, item.name, item.daylight)
-        onsets.setdefault(key, []).append(item.onset)
+    """The zone of the settings: one sub-component per onset, named by its DTSTART alone.
+
+    RFC 5545 also allows one sub-component per kind of change with the later
+    onsets as RDATEs, but ical.js (Thunderbird and other web calendars)
+    ignores the DTSTART of a sub-component that has an RDATE and so loses
+    the first onset of every kind: summer time of the first year would read
+    as standard time.
+    """
     component = icalendar.Timezone()
     component.add("tzid", ctx.zone_name)
-    for (offset_from, offset_to, name, daylight), moments in onsets.items():
-        part = icalendar.TimezoneDaylight() if daylight else icalendar.TimezoneStandard()
-        part.add("dtstart", moments[0])
-        if len(moments) > 1:
-            part.add("rdate", moments[1:])
-        part.add("tzoffsetfrom", offset_from)
-        part.add("tzoffsetto", offset_to)
-        part.add("tzname", name)
+    for item in _observances(ctx, first_year, last_year):
+        part = icalendar.TimezoneDaylight() if item.daylight else icalendar.TimezoneStandard()
+        part.add("dtstart", item.onset)
+        part.add("tzoffsetfrom", item.offset_from)
+        part.add("tzoffsetto", item.offset_to)
+        part.add("tzname", item.name)
         component.add_component(part)
     return component
 

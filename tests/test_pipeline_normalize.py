@@ -466,7 +466,8 @@ class TestSourceKeys:
         assert self.key(draft) == "sites-bioengineering:caf\\xe9-7"
         named = make_draft(native_id=None, url=None)
         assert self.key(named, speaker="Jos\u00e9 Garc\u00eda").endswith(":jose-garcia")
-        assert self.key(named, speaker="\u5f20\u4f1f", title="\u7fa4\u8bba").endswith(":t1600")
+        cjk = self.key(named, speaker="\u5f20\u4f1f", title="\u7fa4\u8bba")
+        assert re.fullmatch(r".+:day:2026-11-17:u[0-9a-f]{10}", cjk)
 
     def test_long_and_secret_shaped_native_ids_are_hashed(self) -> None:
         assert safe_native_id(" short ", no_secret) == "short"
