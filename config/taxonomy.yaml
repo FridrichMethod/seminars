@@ -971,6 +971,16 @@ departments:
   Cardiovascular Institute: [med, bio]
   Stanford Cancer Institute: [med, bio]
 
+# Category labels whose events are always out of scope, matched like the labels
+# of "departments" (ignoring case, accents and punctuation). An event that carries
+# one is excluded by the filter with reason out_of_scope, whatever its title, its
+# other categories or its source fields say, and never goes to the LLM. For units
+# that share a school with ones that hold talks, but whose events are not talks.
+out_of_scope_categories:
+  # Courses for practising clinicians (accredited CME), not academic talks; the
+  # owner's choice of 2026-11-11. Their records also carry "School of Medicine".
+  - Stanford Center for Continuing Medical Education
+
 # Filter phrases per exclusion reason (seminars.classify.filters). A phrase in the
 # title or the series excludes the event, unless the title or the series also
 # names a talk ("seminar", "colloquium", "lecture", "talk", ...): such events are
