@@ -7,8 +7,13 @@ normalized, has to do the same. Every private value here is made up.
 
 from __future__ import annotations
 
+import ast
+from pathlib import Path
+
 import pytest
 
+import seminars.llm
+from seminars.contracts import IMPLEMENTATIONS
 from seminars.llm.grounding import Grounding
 from seminars.llm.privacy_filter import (
     MAX_DECODING_PASSES,
@@ -18,7 +23,7 @@ from seminars.llm.privacy_filter import (
     readable,
 )
 from seminars.pipeline.privacy import scrub_private
-from seminars.pipeline.text import one_line
+from seminars.pipeline.text import one_line, paragraphs
 
 FILTER = PrivacyFilter(scrub_private)
 
@@ -99,10 +104,35 @@ class TestHides:
         assert not FILTER.hides(text)
 
 
+def tag_scrubber(text: str) -> str:
+    """A scrubber for ``IMPLEMENTATIONS``: takes the word "secret" out."""
+    return text.replace("secret", "[x]")
+
+
 class TestTheProjectFilter:
     def test_it_uses_the_scrubber_of_normalization(self) -> None:
         assert project_privacy_filter().scrub is scrub_private
         assert project_scrubber() is scrub_private
+
+    def test_the_scrubber_comes_from_its_contract_key(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setitem(IMPLEMENTATIONS, "private_scrubber", f"{__name__}:tag_scrubber")
+        assert project_scrubber() is tag_scrubber
+        assert project_privacy_filter().clean("a secret&#33;") == "a [x]!"
+
+    def test_no_module_of_the_llm_layer_imports_the_pipeline(self) -> None:
+        package = Path(seminars.llm.__file__).parent
+        for path in sorted(package.glob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                names = []
+                if isinstance(node, ast.Import):
+                    names = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom):
+                    names = [node.module or ""]
+                for name in names:
+                    assert not name.startswith("seminars.pipeline"), f"{path.name}: {name}"
 
 
 class TestGroundingHas:
@@ -117,3 +147,46 @@ class TestGroundingHas:
     def test_anything_else_whatever_the_similarity(self, value: str) -> None:
         grounding = Grounding(self.PAGE, min_similarity=0)
         assert not grounding.has(value)
+
+
+class TestWhiteSpaceOfNormalization:
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("a  b\t\tc", "a b c"),
+            ("  first line  \n\n\n  second   line  ", "first line\nsecond line"),
+            ("Passcode:\n\n\n\n\n482913", "Passcode:\n482913"),
+            ("a\u00a0\u00a0\u00a0b", "a b"),
+        ],
+    )
+    def test_readable_collapses_white_space_in_each_line(self, text: str, expected: str) -> None:
+        assert readable(text) == expected
+
+    def test_it_reads_a_block_as_normalization_does(self) -> None:
+        for text in ("Zoom passcode:\n\n\n\n482913", "a  b\n\n  c   d ", "x\u00a0 \u00a0y"):
+            assert readable(text) == paragraphs(text, limit=200)
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Zoom passcode:" + "\n" * 5 + "482913",
+            "Zoom passcode:" + " " * 6 + "482913",
+            "Mail jane.doe @" + " " * 5 + "example.edu",
+            "Passcode:" + " \n " * 3 + "482913",
+            "Mail jane.doe\n" + " " * 4 + "@example.edu",
+        ],
+    )
+    def test_private_data_split_by_white_space_is_found(self, text: str) -> None:
+        assert scrub_private(text) == text, "the scrubber alone misses it"
+        assert FILTER.hides(text)
+        assert FILTER.clean(text) != readable(text)
+
+    def test_private_data_that_only_a_line_field_joins_is_found(self) -> None:
+        # A line field (a title, a place) joins its lines; a block keeps them apart.
+        text = "Contact Jane Doe\nat 723-" + "1234"
+        assert scrub_private(text) == text
+        assert FILTER.clean(text) == readable(text), "the block form shows nothing"
+        joined = one_line(text, limit=200)
+        assert joined == "Contact Jane Doe at 723-" + "1234"
+        assert scrub_private(joined) != joined
+        assert FILTER.hides(text)

@@ -80,7 +80,7 @@ from seminars.sources.base import (
     on_source_host,
     register_adapter,
 )
-from seminars.sources.generic.html_list import (
+from seminars.sources.generic.common import (
     Pattern,
     Selector,
     collapse,
@@ -89,8 +89,10 @@ from seminars.sources.generic.html_list import (
     inner_html,
     load_params,
     local_day,
+    month_number,
     node_text,
     outside_window,
+    require_groups,
     search,
     split_names,
     split_range,
@@ -100,7 +102,6 @@ from seminars.textrules import ascii_printable
 
 logger = logging.getLogger(__name__)
 
-MONTHS: Final = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 WEEKDAYS: Final = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 MAX_HEADING_DISTANCE: Final = 50
 """Siblings looked at before a table when searching for its heading."""
@@ -108,11 +109,6 @@ MIN_VOTING_DAYS: Final = 3  # dated rows a table needs to move its year on weekd
 
 
 # --- params ------------------------------------------------------------------------------
-
-
-def _require_groups(pattern: Pattern | None, name: str, *groups: str) -> None:
-    if pattern is not None and (missing := [g for g in groups if g not in pattern.groupindex]):
-        raise ValueError(f"{name} needs the group(s) {', '.join(missing)}")
 
 
 class NlpSelectors(Model):
@@ -133,9 +129,9 @@ class HeadingPatterns(Model):
 
     @model_validator(mode="after")
     def _check_groups(self) -> HeadingPatterns:
-        _require_groups(self.term, "heading_patterns.term", "year")
-        _require_groups(self.time, "heading_patterns.time", "start")
-        _require_groups(self.venue, "heading_patterns.venue", "venue")
+        require_groups(self.term, "heading_patterns.term", "year")
+        require_groups(self.time, "heading_patterns.time", "start")
+        require_groups(self.venue, "heading_patterns.venue", "venue")
         return self
 
 
@@ -153,8 +149,8 @@ class DetailPatterns(Model):
 
     @model_validator(mode="after")
     def _check_groups(self) -> DetailPatterns:
-        _require_groups(self.date_line, "detail_patterns.date_line", "value")
-        _require_groups(self.venue_line, "detail_patterns.venue_line", "value")
+        require_groups(self.date_line, "detail_patterns.date_line", "value")
+        require_groups(self.venue_line, "detail_patterns.venue_line", "value")
         return self
 
 
@@ -172,7 +168,7 @@ class NlpParams(Model):
 
     @model_validator(mode="after")
     def _check_groups(self) -> NlpParams:
-        _require_groups(self.date_pattern, "date_pattern", "month", "day")
+        require_groups(self.date_pattern, "date_pattern", "month", "day")
         return self
 
 
@@ -202,12 +198,6 @@ def first_group(pattern: Pattern | None, lines: Sequence[str], group: str) -> st
         if (match := search(pattern, line)) is not None:
             return collapse(match.groupdict().get(group))
     return None
-
-
-def month_number(name: str | None) -> int | None:
-    """1 to 12 for an English month name or its abbreviation ("Sept", "March")."""
-    key = (name or "")[:3].lower()
-    return MONTHS.index(key) + 1 if key in MONTHS else None
 
 
 def weekday_number(name: str | None) -> int | None:

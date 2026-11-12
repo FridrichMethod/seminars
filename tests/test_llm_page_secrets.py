@@ -347,3 +347,21 @@ class TestSecretFilter:
         assert SecretFilter(fake).shows(GITHUB_SHAPED)
         assert set(fake.scanned) == {ORIGIN}
         assert GITHUB_SHAPED not in repr(SecretFilter(fake))
+
+
+class TestThePartOfThePage:
+    """A value the model wrote in other case is checked in the words of the page as well."""
+
+    def test_a_value_whose_page_part_shows_a_secret_is_not_cached(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setitem(IMPLEMENTATIONS, "secret_scanner", f"{__name__}:needle_scanner")
+        lowered = BASE["location"].lower()
+        assert not needle_scanner().scan_text(lowered, origin="value")
+        talk = {**talk_with(BASE), "location": lowered}
+        cache = FakeLLMCache()
+        [draft] = extract(FakeLLMClient(answer(talk)), page_with(BASE), cache)
+        assert draft.location is None
+        assert draft.title == BASE["title"]
+        [stored] = cache.entries.values()
+        assert stored["answer"]["events"][0]["location"] is None

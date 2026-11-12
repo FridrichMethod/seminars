@@ -204,6 +204,10 @@ class TestUncertain:
         item = candidate("Dark matter at SLAC", categories=["Social Event / Reception"])
         assert outcome(event_filter, item) == ("uncertain", None)
 
+    def test_a_phrase_in_a_tag_only_is_uncertain(self, event_filter: RuleEventFilter) -> None:
+        item = candidate("Dark matter at SLAC", tags=["Social Event / Reception"])
+        assert outcome(event_filter, item) == ("uncertain", None)
+
     def test_categories_without_a_phrase_change_nothing(
         self, event_filter: RuleEventFilter
     ) -> None:

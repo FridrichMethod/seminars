@@ -80,7 +80,7 @@ from seminars.sources.base import (
     fetch_urls,
     register_adapter,
 )
-from seminars.sources.generic.html_list import (
+from seminars.sources.generic.common import (
     PATTERN_INPUT_LIMIT,
     Pattern,
     Selector,
@@ -88,7 +88,9 @@ from seminars.sources.generic.html_list import (
     is_tba,
     load_params,
     make_speakers,
+    month_number,
     node_text,
+    require_groups,
     search,
     time_range,
 )
@@ -96,7 +98,6 @@ from seminars.textrules import ascii_printable
 
 logger = logging.getLogger(__name__)
 
-MONTHS: Final = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 MAX_LABEL_LENGTH: Final = 40
 LineKind = Literal["when", "where", "title"]
 _SPEAKER_SEPARATOR: Final = re.compile(r"\s+(?:&|and)\s+", re.IGNORECASE)
@@ -104,11 +105,6 @@ _NAME_END: Final = re.compile(r"[(,@]")
 
 
 # --- params ------------------------------------------------------------------------------
-
-
-def _require_groups(pattern: Pattern | None, name: str, *groups: str) -> None:
-    if pattern is not None and (missing := [g for g in groups if g not in pattern.groupindex]):
-        raise ValueError(f"{name} needs the group(s) {', '.join(missing)}")
 
 
 class SynbioSelectors(Model):
@@ -155,8 +151,8 @@ class SynbioParams(Model):
 
     @model_validator(mode="after")
     def _check_groups(self) -> SynbioParams:
-        _require_groups(self.heading_id_pattern, "heading_id_pattern", "key")
-        _require_groups(
+        require_groups(self.heading_id_pattern, "heading_id_pattern", "key")
+        require_groups(
             self.when_range_pattern,
             "when_range_pattern",
             "start_month",
@@ -165,10 +161,10 @@ class SynbioParams(Model):
             "end_day",
             "year",
         )
-        _require_groups(self.when_pattern, "when_pattern", "times", "month", "day", "year")
-        _require_groups(self.times_pattern, "times_pattern", "start")
+        require_groups(self.when_pattern, "when_pattern", "times", "month", "day", "year")
+        require_groups(self.times_pattern, "times_pattern", "start")
         for pattern in self.speaker_heading_patterns:
-            _require_groups(pattern, "speaker_heading_patterns", "speaker")
+            require_groups(pattern, "speaker_heading_patterns", "speaker")
         if self.anchor_url_template is not None and "{key}" not in self.anchor_url_template:
             raise ValueError("anchor_url_template needs {key}")
         return self
@@ -299,17 +295,16 @@ def segments(block: Block) -> list[Segment]:
     return found
 
 
-def month_number(params: SynbioParams, name: str | None) -> int | None:
+def aliased_month(params: SynbioParams, name: str | None) -> int | None:
+    """1 to 12 for a month name, after ``month_aliases`` (a misspelt name of the page)."""
     aliases = {fold(key): value for key, value in params.month_aliases.items()}
-    value = aliases.get(fold(name), name or "")
-    key = value[:3].lower()
-    return MONTHS.index(key) + 1 if key in MONTHS else None
+    return month_number(aliases.get(fold(name), name or ""))
 
 
 def make_date(
     params: SynbioParams, month: str | None, day: str | None, year: str | None
 ) -> date | None:
-    number = month_number(params, month)
+    number = aliased_month(params, month)
     if number is None or not (day or "").isdigit() or not (year or "").isdigit():
         return None
     try:
@@ -323,7 +318,7 @@ def range_days(params: SynbioParams, match: re.Match[str]) -> tuple[date, date] 
     last = make_date(params, match["end_month"], match["end_day"], match["year"])
     if last is None:
         return None
-    start_month = month_number(params, match["start_month"]) or 0
+    start_month = aliased_month(params, match["start_month"]) or 0
     year = last.year - 1 if start_month > last.month else last.year  # "December 30 to January 2"
     first = make_date(params, match["start_month"], match["start_day"], str(year))
     return (first, last) if first is not None and first <= last else None

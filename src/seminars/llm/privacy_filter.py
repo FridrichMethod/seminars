@@ -10,33 +10,33 @@ page text and over every text value of an answer before the answer is
 cached, and checks every entry it reads (``seminars.sources.generic.llm_page``).
 
 Normalization reads a text field before it scrubs it: it removes markup,
-decodes HTML entities (``html.unescape``) and cleans the characters
+decodes HTML entities (``html.unescape``), cleans the characters
 (``seminars.textrules.clean_text``: no-break spaces become spaces, soft
-hyphens and zero width characters go). The text the model gets is not read
+hyphens and zero width characters go) and collapses white space: a line
+field (a title, a name) into one line, a block field (an abstract) in each
+of its lines, without the empty ones. The text the model gets is not read
 that way: a feed or a plain text document is passed on as it is, and a page
-can show an entity. An address written ``jane.doe&#64;example.edu`` or with a
-zero width space in it gets past the scrubber as it is, while normalization
-finds it later. So ``PrivacyFilter``
+can show an entity. An address written ``jane.doe&#64;example.edu``, with a
+zero width space in it or with a run of spaces around the at sign, or a
+passcode on a line of its own after a few empty ones, gets past the
+scrubber as it is, while normalization finds it later. So ``PrivacyFilter``
 
-* scrubs text the way normalization reads it (``clean``, over ``readable``):
-  entities decoded, up to ``MAX_DECODING_PASSES`` times for text that was
-  escaped more than once, and the characters cleaned. Markup is not removed
-  here, because normalization removes only tags with a known HTML name and
-  "<x, y>" in a title about mathematics stays;
+* scrubs text the way normalization reads a block field (``clean``, over
+  ``readable``): entities decoded, up to ``MAX_DECODING_PASSES`` times for
+  text that was escaped more than once, the characters cleaned, the white
+  space of each line collapsed and empty lines dropped. Markup is not
+  removed here, because normalization removes only tags with a known HTML
+  name and "<x, y>" in a title about mathematics stays;
 * tells whether a text still hides private data from the scrubber
   (``hides``): in any form normalization may read it in, as it is, decoded,
-  or with its tags taken out (``jane.doe<b></b>@example.edu``). Such a text
-  is never cached.
+  with its tags taken out (``jane.doe<b></b>@example.edu``), and each of
+  them also as one line. Such a text is never cached.
 
-``project_scrubber`` returns the scrubber of normalization,
-``seminars.pipeline.privacy.scrub_private``. Packages normally reach an
-implementation of another package through a contract key
-(``seminars.contracts.load_implementation``, as ``project_secret_filter``
-does for the secret scanner), but the contracts have no key for the
-scrubber yet. So it is imported by name, and this module is the only place
-of the LLM layer that imports the pipeline; with a key, the function body
-becomes that lookup and nothing else changes. Everything else here uses
-the standard library and ``seminars.textrules`` only.
+``project_scrubber`` returns the scrubber of normalization through its
+contract key (``private_scrubber``, a ``PrivateTextScrubber``), as
+``project_secret_filter`` does for the secret scanner: the LLM layer never
+imports the pipeline. Everything else here uses the standard library and
+``seminars.textrules`` only.
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Final
 
-from seminars.pipeline.privacy import scrub_private
+from seminars.contracts import PrivateTextScrubber, load_implementation
 from seminars.textrules import clean_text
 
 type Scrubber = Callable[[str], str]
@@ -64,9 +64,11 @@ _TAG_JOINTS: Final = ("", "\n")
 
 
 def readable(text: str) -> str:
-    """``text`` as normalization reads it before it scrubs: entities decoded, characters cleaned.
+    """``text`` as normalization reads a block field before it scrubs it.
 
-    The time is linear in the length of ``text``.
+    Entities are decoded, the characters cleaned, the white space of every
+    line collapsed to single spaces and empty lines dropped. The time is
+    linear in the length of ``text``.
     """
     current = text
     for _ in range(MAX_DECODING_PASSES):
@@ -74,16 +76,26 @@ def readable(text: str) -> str:
         if decoded == current:
             break
         current = decoded
-    return clean_text(current)
+    lines = (" ".join(line.split()) for line in clean_text(current).split("\n"))
+    return "\n".join(line for line in lines if line)
+
+
+def _one_line(text: str) -> str:
+    """``text`` with every run of white space, line breaks included, as one space."""
+    return " ".join(text.split())
 
 
 def _forms(text: str) -> frozenset[str]:
-    """``text`` in the forms normalization may read it in: as it is, decoded, without tags."""
+    """``text`` in the forms normalization may read it in.
+
+    As it is, decoded, without tags, and each of them also as one line (a
+    line field collapses line breaks too).
+    """
     forms = {text, readable(text)}
     for form in tuple(forms):
         if "<" in form:
             forms.update(readable(_TAG.sub(joint, form)) for joint in _TAG_JOINTS)
-    return frozenset(forms)
+    return frozenset(forms | {_one_line(form) for form in forms})
 
 
 @dataclass(frozen=True)
@@ -103,7 +115,8 @@ class PrivacyFilter:
 
 def project_scrubber() -> Scrubber:
     """The scrubber normalization applies to every text field of an event."""
-    return scrub_private
+    scrub: PrivateTextScrubber = load_implementation("private_scrubber")
+    return scrub
 
 
 def project_privacy_filter() -> PrivacyFilter:

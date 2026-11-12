@@ -109,7 +109,7 @@ from seminars.sources.base import (
     on_source_host,
     register_adapter,
 )
-from seminars.sources.generic.html_list import (
+from seminars.sources.generic.common import (
     PATTERN_INPUT_LIMIT,
     AdapterConfigError,
     Pattern,

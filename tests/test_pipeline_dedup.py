@@ -7,6 +7,7 @@ import random
 from datetime import datetime, timedelta
 from typing import Any
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -368,6 +369,95 @@ class TestMerge:
         event = self.merged(site, aggregator).event
         assert event.title == "Protein design with diffusion models"
         assert event.abstract == "A much longer abstract."
+
+    def test_the_title_of_the_talk_beats_an_announcement_that_names_the_speaker(self) -> None:
+        # Two hosts list one talk: one by its announcement, one by the title of the talk.
+        speaker = [Speaker(name="David Garfield")]
+        announcement = candidate(
+            "csb-1",
+            sources=("custom-csb-events",),
+            title="CSB Special Seminar & Open Discussion, David Garfield, PhD",
+            speakers=speaker,
+            url="https://example.edu/shared",
+            source_urls=["https://example.edu/shared"],
+        )
+        talk = candidate(
+            "zz-chemh-1",
+            sources=("sites-chemh",),
+            title="Science with Claude: language models in the lab",
+            speakers=speaker,
+            url="https://example.edu/shared",
+            source_urls=["https://example.edu/shared"],
+        )
+        for order in ((announcement, talk), (talk, announcement)):
+            event = self.merged(*order).event
+            assert event.title == "Science with Claude: language models in the lab"
+
+    def test_of_titles_without_a_speaker_the_one_that_says_most_wins(self) -> None:
+        site = self.site(title="Diffusion models", series="Bioengineering Seminar")
+        aggregator = self.aggregator(
+            title="Bioengineering Seminar: Diffusion models for protein design",
+            series="Bioengineering Seminar",
+        )
+        event = self.merged(site, aggregator).event
+        assert event.title == "Bioengineering Seminar: Diffusion models for protein design"
+
+    def test_the_words_of_the_series_say_nothing_and_the_host_title_stays(self) -> None:
+        site = self.site(title="Diffusion models", series="Bioengineering Seminar")
+        aggregator = self.aggregator(
+            title="Bioengineering Seminar: Diffusion models", series="Bioengineering Seminar"
+        )
+        assert self.merged(site, aggregator).event.title == "Diffusion models"
+
+    @pytest.mark.parametrize(
+        ("talk", "speaker", "generic"),
+        [
+            (
+                "Jane Doe: Protein design with diffusion models",
+                "Jane Doe",
+                "Bioengineering Seminar",
+            ),
+            (
+                "Protein design with diffusion models - Jane Doe (MIT)",
+                "Jane Doe",
+                "Applied Physics Colloquium",
+            ),
+            ("Li-ion batteries at the nanoscale", "Li", "Energy Seminar"),
+        ],
+    )
+    def test_a_talk_title_that_names_its_speaker_beats_the_name_of_the_series(
+        self, talk: str, speaker: str, generic: str
+    ) -> None:
+        speakers = [Speaker(name=speaker)]
+        for named_by_host in (True, False):
+            site = self.site(
+                title=talk if named_by_host else generic, series=generic, speakers=speakers
+            )
+            aggregator = self.aggregator(
+                title=generic if named_by_host else talk, series=generic, speakers=speakers
+            )
+            assert self.merged(site, aggregator).event.title == talk, named_by_host
+
+    def test_a_title_that_names_the_speaker_gives_way_to_one_that_says_as_much(self) -> None:
+        speakers = [Speaker(name="Jane Doe")]
+        for named_by_host in (True, False):
+            site = self.site(
+                title="Jane Doe on protein design" if named_by_host else "Protein design",
+                speakers=speakers,
+            )
+            aggregator = self.aggregator(
+                title="Protein design" if named_by_host else "Jane Doe on protein design",
+                speakers=speakers,
+            )
+            assert self.merged(site, aggregator).event.title == "Protein design", named_by_host
+
+    def test_when_every_title_names_the_speaker_the_host_title_stays(self) -> None:
+        speaker = [Speaker(name="Jane Doe")]
+        site = self.site(title="Jane Doe: Protein design", speakers=speaker)
+        aggregator = self.aggregator(
+            title="Seminar with Jane Doe on protein design", speakers=speaker
+        )
+        assert self.merged(site, aggregator).event.title == "Jane Doe: Protein design"
 
     def test_speakers_are_united(self) -> None:
         site = self.site(speakers=[Speaker(name="Jane Doe"), Speaker(name="John Roe")])

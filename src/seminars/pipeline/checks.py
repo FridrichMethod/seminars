@@ -17,6 +17,13 @@ Any finding makes the run fail with exit status 3, and nothing of that run
 may be committed or deployed. A finding names a file, a line and a rule
 and never the text that was found, so it can be printed and put into an
 issue. ``sync_check_issue`` keeps one issue open while the check fails.
+
+One kind of finding does not go away by itself: an entry of the LLM cache
+that a newer rule of the scanner flags. The LLM layer checks an entry only
+when it reads it again, and an entry for text that no run reads any more
+(a page that changed or is gone) stays until it ages out, up to
+``LLMConfig.cache_ttl_days`` later. ``advice`` says what to do then:
+delete the file. The command line and the issue show it.
 """
 
 from __future__ import annotations
@@ -39,6 +46,15 @@ EXIT_OUTPUT_CHECK: Final = 3
 """Exit status of a command whose output check found something."""
 
 MAX_LISTED: Final = 50
+
+CACHE_FINDING_ADVICE: Final = (
+    "A finding below data/llm_cache/ is an answer of the LLM that was cached before the "
+    "checks knew its shape, for text that no run has read since, so no run replaces it: "
+    "delete that file and commit (a run that reads the text again asks the LLM again)."
+)
+"""What to do about a finding in the LLM cache (see the module)."""
+
+_CACHE_PREFIX: Final = ProjectPaths(Path()).llm_cache_dir.as_posix() + "/"
 
 
 @dataclass(frozen=True)
@@ -110,6 +126,15 @@ def describe(result: CheckResult) -> list[str]:
     ]
 
 
+def advice(result: CheckResult) -> list[str]:
+    """What to do about the findings beyond the general advice; for the command line and issue."""
+    origins = [
+        *(finding.origin for finding in result.secret_findings),
+        *result.charset_findings,
+    ]
+    return [CACHE_FINDING_ADVICE] if any(o.startswith(_CACHE_PREFIX) for o in origins) else []
+
+
 def check_issue_body(result: CheckResult) -> str:
     """Markdown body of the issue that reports a failed output check."""
     lines = describe(result)
@@ -129,6 +154,7 @@ def check_issue_body(result: CheckResult) -> str:
         "credential, replace it. A charset finding names the character that must not be "
         "stored. Run `seminars run --dry-run` to see whether the problem is still there.",
         "",
+        *(line for text in advice(result) for line in (text, "")),
         "This issue is updated by every run and closed automatically when a run passes.",
     ]
     return "\n".join(text) + "\n"

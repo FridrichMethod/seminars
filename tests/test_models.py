@@ -433,6 +433,10 @@ class TestEventDraft:
         with pytest.raises(ValidationError):
             make_draft(timezone="Mars/Olympus")
 
+    def test_a_zone_name_too_long_for_a_file_name_is_unknown(self) -> None:
+        with pytest.raises(ValidationError, match="unknown IANA time zone"):
+            make_draft(timezone="America/" + "x" * 300)
+
 
 class TestTimeWindow:
     def test_default_window_spans_whole_local_days(self) -> None:
@@ -494,6 +498,15 @@ class TestClassificationModels:
         assert merged.source_ids == ["localist-stanford", "sites-chemistry"]
         assert merged.suggested_fields == ["chem", "bio"]
         assert merged.categories == ["Chemistry", "Seminar"]
+
+    def test_hints_keep_tags_apart_from_categories(self) -> None:
+        left = EventHints(categories=["Seminar"], tags=["robotics"])
+        right = EventHints(categories=["Physics"], tags=["Seminar", "optics"])
+        merged = left.merge(right)
+        assert merged == right.merge(left)
+        assert merged.categories == ["Physics", "Seminar"]
+        assert merged.tags == ["Seminar", "optics", "robotics"]
+        assert merged.labels == ["Physics", "Seminar", "optics", "robotics"]
 
     def test_candidate_defaults_to_empty_hints(self) -> None:
         candidate = make_candidate()

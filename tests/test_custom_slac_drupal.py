@@ -32,7 +32,7 @@ from seminars.sources.custom.slac_drupal import (
     card_times,
     without_page_link,
 )
-from seminars.sources.generic.html_list import AdapterConfigError, load_params
+from seminars.sources.generic.common import AdapterConfigError, load_params
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PACIFIC = ZoneInfo("America/Los_Angeles")
@@ -170,14 +170,21 @@ class TestRecordedTheoryGroup:
         assert requests == ["https://theory.slac.stanford.edu/events/past-events"]
         assert len(drafts) == 9
         first = drafts[0]
-        assert first.title == "Roberto Bruschini (Ohio State U.)"
+        # A card names only its speaker: the talk has no title yet.
+        assert first.title == "TBA"
         assert first.start == datetime(2024, 12, 4, 12, 30)
         assert first.end == datetime(2024, 12, 4, 14, 30)
         assert first.native_id is None
         assert first.url == (
             "https://theory.slac.stanford.edu/events/2024-09-20-roberto-bruschini-ohio-state-u"
         )
-        assert first.speakers == []
+        assert [(s.name, s.affiliation) for s in first.speakers] == [
+            ("Roberto Bruschini", "Ohio State U.")
+        ]
+        assert {draft.title for draft in drafts} == {"TBA"}
+        assert ("Anthony M Morales", "SLAC") in [
+            (s.name, s.affiliation) for draft in drafts for s in draft.speakers
+        ]
 
 
 # --- hand-written pages --------------------------------------------------------------------

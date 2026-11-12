@@ -17,7 +17,8 @@ from seminars.models import EventDraft, SourceConfig
 from seminars.sources.base import ParseError, get_adapter
 from seminars.sources.custom import nlp_seminar
 from seminars.sources.custom.nlp_seminar import NlpParams, NlpSeminarAdapter, text_lines
-from seminars.sources.generic.html_list import AdapterConfigError, load_params
+from seminars.sources.generic import common
+from seminars.sources.generic.common import PATTERN_INPUT_LIMIT, AdapterConfigError, load_params
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = REPO_ROOT / "tests" / "fixtures" / "custom-nlp-seminar"
@@ -415,6 +416,28 @@ class TestDetailsPages:
             ("Part one", "Room 104"),
             ("Part two", "Room 104"),
         ]
+
+    def test_talks_that_share_a_huge_speaker_line_each_read_a_little(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        count = 300
+        rows = [row("Nov 17", "", f"Talk {number}", "details/a") for number in range(count)]
+        name = "Ada " * 250_000
+        details = DETAILS.replace("Ada Lovelace", name)
+        pages = {SCHEDULE_URL: schedule((heading(), rows)), f"{SCHEDULE_URL}details/a": details}
+        read = 0
+        original = common.collapse
+
+        def counted(text: str | None) -> str | None:
+            nonlocal read
+            read += len(text or "")
+            return original(text)
+
+        monkeypatch.setattr(common, "collapse", counted)
+        drafts = run(SOURCE, serve(pages, self.NOW), self.NOW)
+        assert len(drafts) == count
+        assert all(len(draft.speakers[0].name) <= PATTERN_INPUT_LIMIT for draft in drafts)
+        assert read < count * 2 * PATTERN_INPUT_LIMIT + 4 * len(details)
 
     def test_talks_after_the_window_get_no_details_request(self) -> None:
         page = schedule((heading("Fall 2027"), [row("Nov 4", "A B", "Far", "details/far")]))

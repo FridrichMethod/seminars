@@ -12,15 +12,15 @@ import pytest
 
 from factories import make_source, make_window
 from fakes import FakeHttpClient
+from seminars import models
 from seminars.config import load_sources
 from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig
 from seminars.pipeline import times as normalization_times
 from seminars.sources.base import ForeignHostError, ParseError, get_adapter
 from seminars.sources.generic import html_list
-from seminars.sources.generic.html_list import (
+from seminars.sources.generic.common import (
     AdapterConfigError,
-    HtmlListAdapter,
     parse_clock,
     parse_day,
     parse_moment,
@@ -28,6 +28,7 @@ from seminars.sources.generic.html_list import (
     split_range,
     time_range,
 )
+from seminars.sources.generic.html_list import HtmlListAdapter
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 NOW = datetime(2026, 11, 11, 20, 0, tzinfo=UTC)
@@ -419,6 +420,27 @@ class TestRows:
             with pytest.raises(ParseError, match=r"selectors\.item .* matches nothing"):
                 run(list_source(allow_empty=False), empty)
 
+    @pytest.mark.parametrize(
+        ("final_url", "allowed"),
+        [
+            ("https://talks.example.edu/seminar/?page=1", True),
+            ("http://talks.example.edu/seminar/", True),
+            ("https://newhost.example.org/seminar/", False),
+            ("https://login.example.edu/sso?next=/seminar/", False),
+        ],
+    )
+    def test_an_empty_list_counts_only_when_the_page_stayed_on_the_source_host(
+        self, final_url: str, allowed: bool
+    ) -> None:
+        http = FakeHttpClient()
+        http.add(LIST_URL, page(), final_url=final_url)
+        source = list_source(allow_empty=True)
+        if allowed:
+            assert run(source, http) == []
+        else:
+            with pytest.raises(ParseError, match="matches nothing"):
+                run(source, http)
+
     def test_allow_empty_still_needs_the_required_fields_when_there_are_items(self) -> None:
         source = list_source(allow_empty=True, require=["title", "date"])
         with pytest.raises(ParseError, match=r"no item .* has all of: title, date"):
@@ -591,9 +613,9 @@ def test_a_shared_meridiem_group() -> None:
 
 
 def test_the_rollover_limit_is_the_one_of_normalization() -> None:
-    # Sources do not import the pipeline, so the adapter keeps a copy: an end it keeps must
-    # be one normalization keeps, and the other way round.
-    assert html_list.MAX_ROLLOVER == normalization_times.MAX_ROLLOVER
+    # An end the adapter keeps must be one normalization keeps, and the other way round,
+    # so both read the one limit of seminars.models.
+    assert html_list.MAX_ROLLOVER is normalization_times.MAX_ROLLOVER is models.MAX_ROLLOVER
 
 
 def test_parse_clock_with_a_format() -> None:

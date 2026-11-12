@@ -10,8 +10,9 @@
 2. The categories that are always out of scope
    (``taxonomy.out_of_scope_categories``). A candidate with one of these
    labels among ``hints.categories`` (equal words after folding, like
-   ``taxonomy.departments``) is excluded with reason ``out_of_scope``,
-   whatever its title, other categories or source fields say. This
+   ``taxonomy.departments``; never a tag, ``hints.tags``) is excluded with
+   reason ``out_of_scope``, whatever its title, other categories or source
+   fields say. This
    happens here rather than after classification so that such an event
    is never merged with another one, never sent to the LLM tagger, and
    the run report names the category that decided.
@@ -26,7 +27,7 @@
    uncertain. A phrase that names a talk itself ("no seminar", "career
    talk") was written for such titles and always excludes; these phrases
    are tried first. A phrase that only matches one of the source's category
-   labels (``hints.categories``) marks the candidate uncertain as well.
+   labels or tags (``hints.labels``) marks the candidate uncertain as well.
    Uncertain candidates stay in unless the LLM tagger answers that they are
    not talks.
 4. Everything else is kept. The abstract is never read: announcements of
@@ -217,8 +218,8 @@ class RuleEventFilter:
         if verdict is not None:
             names_a_talk = any(self._names_a_talk(text) for text in texts.values())
             return _UNCERTAIN if names_a_talk else verdict
-        categories = [Words.of(category) for category in candidate.hints.categories]
-        if any(matcher.first(*categories) for _, matcher in self._phrases):
+        labels = [Words.of(label) for label in candidate.hints.labels]
+        if any(matcher.first(*labels) for _, matcher in self._phrases):
             return _UNCERTAIN
         return _KEEP
 

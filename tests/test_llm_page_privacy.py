@@ -91,9 +91,26 @@ def entry_scanner() -> SecretScanner:
     return FakeSecretScanner(['"cancelled": false'])
 
 
+def room_scrubber(text: str) -> str:
+    """A scrubber for ``IMPLEMENTATIONS``: takes the room of ``BASE`` out of every text."""
+    return text.replace("Room 104", "[room removed]")
+
+
 class TestTheScrubber:
     def test_it_is_the_one_of_normalization(self) -> None:
         assert project_scrubber() is scrub_private
+
+    def test_the_extractor_takes_it_from_the_contract(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setitem(IMPLEMENTATIONS, "private_scrubber", f"{__name__}:room_scrubber")
+        directory = tmp_path / "llm_cache"
+        client = FakeLLMClient(answer(talk_with(BASE)))
+        [draft] = extract(client, page_with(BASE), file_cache(directory))
+        assert draft.location == "Gates Computer Science Building, [room removed]"
+        assert "Room 104" not in stored_text(directory)
+        assert draft.source_text is not None
+        assert "Room 104" not in draft.source_text
 
     def test_the_samples_are_private_to_it(self) -> None:
         assert private_in(scrub_private(f"{NOTE}. Join at {LINK}")) == []

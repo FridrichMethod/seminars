@@ -633,14 +633,15 @@ class TestRecordMapping:
             "Department of Mathematics",
             "Bioengineering",
             "Robotics Club",
-            "Robotics",
         ]
+        assert draft.tags == ["Robotics"]
         assert draft.event_type_hint == "seminar"
 
     def test_odd_shapes_of_lists_give_nothing(self) -> None:
         draft = parse_one(departments="Biology", groups=None, filters=["x"], tags="tag")
         assert draft.field_hints == []
         assert draft.categories == []
+        assert draft.tags == []
         assert draft.event_type_hint is None
         assert parse_one(filters={"event_types": "Seminar"}).event_type_hint is None
 

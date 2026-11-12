@@ -1,4 +1,4 @@
-"""Contracts of the secret scanner and the source format probe."""
+"""Contracts of the secret scanner, the private text scrubber and the source format probe."""
 
 from __future__ import annotations
 
@@ -28,6 +28,21 @@ class SecretScannerFactory(Protocol):
     """``seminars.pipeline.secret_scan:build_secret_scanner``."""
 
     def __call__(self) -> SecretScanner: ...
+
+
+class PrivateTextScrubber(Protocol):
+    """``seminars.pipeline.privacy:scrub_private``.
+
+    Text in, the text without meeting credentials, e-mail addresses and
+    telephone numbers out (each replaced by a marker such as ``[removed]``).
+    Applied to its own result it changes nothing, and its time is linear in
+    the length of the text. It scrubs the text as it is given; a caller that
+    holds text which normalization has not read yet (entities, odd
+    characters, runs of white space) prepares it first, the way
+    ``seminars.llm.privacy_filter.readable`` does.
+    """
+
+    def __call__(self, text: str) -> str: ...
 
 
 class SourceProber(Protocol):

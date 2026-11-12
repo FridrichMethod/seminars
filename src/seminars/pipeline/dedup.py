@@ -28,15 +28,29 @@ speakers) is similar to both.
 The uid map does not get the last word on that guard: before a run
 looks at the uids, ``separate_listings`` gives a listing a uid of its own
 when its uid also holds a listing of its source that names other
-speakers, so a merge that later evidence refutes is undone.
+speakers, so a merge that later evidence refutes is undone. That is the
+one known gap of the guard: two talks of one source at one time, one of
+which names no speaker yet, can be one event for a run; once both name
+their speakers, the next run takes them apart again.
 
 Everything that is connected by such pairs forms one group, and each group
 becomes one event:
 
 * the uid is the one that was seen first (``first_seen``, then the uid
   itself), so a calendar client keeps the entry it already has;
-* a title that is not "TBA" wins, the longest abstract wins, speakers are
-  united, and every source key and source address is kept;
+* the title is one that is not "TBA". Titles are compared by their words
+  without those of the series, of the speakers and fillers such as
+  "seminar" or "with". A title that names a speaker of the talk gives way
+  to one that does not and has at least as many such words: a host that
+  announces a talk by its speaker ("CSB Special Seminar & Open
+  Discussion, David Garfield, PhD") gives way to one that names the talk,
+  while "Jane Doe: Protein design with diffusion models" stays against
+  "Bioengineering Seminar". Of the rest, a title whose words are strictly
+  more than those of another wins ("Diffusion models for protein design"
+  over "Diffusion models", any title over the bare name of its series), and
+  otherwise the order below decides;
+* the longest abstract wins, speakers are united, and every source key and
+  source address is kept;
 * the remaining values come from the listing of the host rather than from
   an aggregator (``SourceConfig.aggregator``): the address of the detail
   page, the times, the place, the host;
@@ -66,16 +80,23 @@ from seminars.models import (
     Event,
     EventHints,
     EventStatus,
+    Speaker,
     canonical_fields,
     event_to_line,
     split_source_key,
 )
 from seminars.pipeline.ids import canonical_url, is_native_key, is_time_of_day_key, uid_for_key
 from seminars.pipeline.normalize import merge_speakers
-from seminars.pipeline.text import canonical_name, fold
+from seminars.pipeline.text import canonical_name, fold, word_set
 
 MIN_TITLE_WORDS: Final = 2
 """Titles with fewer words are not compared: "Seminar" is part of too many titles."""
+
+_TITLE_FILLER: Final = word_set(
+    "a an and at by for from in of on the to with seminar seminars talk talks lecture "
+    "colloquium series special"
+)
+"""Words that say nothing about a talk when titles of one talk are compared."""
 
 
 @dataclass(frozen=True)
@@ -308,6 +329,37 @@ def _first[T](values: Sequence[T | None]) -> T | None:
     return next((value for value in values if value is not None), None)
 
 
+def _names_a_speaker(title: str, names: Collection[str]) -> bool:
+    folded = f" {fold(title)} "
+    return any(f" {name} " in folded for name in names if name)
+
+
+def _title(events: Sequence[Event], speakers: Sequence[Speaker]) -> str:
+    """The title of a group whose members are ``events`` in merge order (see the module)."""
+    titled = [event for event in events if not event.is_tba]
+    if not titled:
+        return events[0].title
+    names = {canonical_name(speaker.name) for speaker in speakers}
+    known = set(_TITLE_FILLER)
+    for text in [*names, *(event.series or "" for event in events)]:
+        known.update(fold(text).split())
+    words = [frozenset(fold(event.title).split()) - known for event in titled]
+    naming = [_names_a_speaker(event.title, names) for event in titled]
+    kept = [
+        index
+        for index in range(len(titled))
+        if not naming[index]
+        or not any(
+            not naming[other] and len(words[other]) >= len(words[index])
+            for other in range(len(titled))
+        )
+    ]
+    for index in kept:
+        if not any(words[other] > words[index] for other in kept):
+            return titled[index].title
+    return titled[kept[0]].title  # unreachable: a finite family of sets has a maximal one
+
+
 def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidate:
     """One candidate for a group; a group of one comes back in canonical form."""
 
@@ -325,10 +377,11 @@ def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidat
     hints = members[0].hints
     for member in members[1:]:
         hints = hints.merge(member.hints)
+    speakers = merge_speakers([speaker for event in events for speaker in event.speakers])
     merged = lead.evolve(
         uid=min(events, key=lambda event: (event.first_seen, event.uid)).uid,
-        title=next((event.title for event in events if not event.is_tba), lead.title),
-        speakers=merge_speakers([speaker for event in events for speaker in event.speakers]),
+        title=_title(events, speakers),
+        speakers=speakers,
         series=_first([event.series for event in events]),
         end=_first([event.end for event in same_time]),
         location=_first([event.location for event in events]),

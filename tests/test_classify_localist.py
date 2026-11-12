@@ -159,6 +159,8 @@ def test_every_continuing_education_course_is_out_of_scope(
         ("54064532593527", "academic_calendar", 'title matches "abstract deadline"'),
         ("54420408876947", "admissions", 'title matches "info session"'),
         ("54432183744117", "admissions", 'title matches "info session"'),
+        ("54365877853340", "career", 'title matches "clinical internship"'),
+        ("54381269449577", "fitness", 'title matches "access to experts webinar"'),
     ],
 )
 def test_recorded_non_talks_are_excluded(
@@ -198,6 +200,36 @@ def test_a_title_that_says_canceled_marks_the_event_cancelled(
     assert outcome.candidate.event.title == title
     assert outcome.decision is not None
     assert (outcome.reason, outcome.detail) == ("out_of_scope", OUT_OF_SCOPE_DETAIL)
+
+
+def test_a_tag_that_names_a_subject_does_not_decide_the_field(
+    recorded: dict[str, Outcome],
+) -> None:
+    """A history of science talk tagged "mathematics" is not a talk in mathematics."""
+    outcome = recorded["54124995976202"]
+    assert outcome.candidate.event.title.startswith("The Greek and Arabic Reception of Ptolemy")
+    assert "mathematics" in outcome.candidate.hints.tags
+    assert "mathematics" not in outcome.candidate.hints.categories
+    assert (outcome.reason, outcome.detail) == ("out_of_scope", OUT_OF_SCOPE_DETAIL)
+
+
+def test_a_talk_on_child_health_is_med_by_its_title_not_by_its_tag(
+    recorded: dict[str, Outcome],
+) -> None:
+    """Tagged "pediatrics"; before tags were kept apart, the abstract added math and physics."""
+    outcome = recorded["54355994709896"]
+    assert outcome.candidate.event.title.startswith("Team Science in Child Health Research")
+    assert "pediatrics" in outcome.candidate.hints.tags
+    assert outcome.reason is None
+    assert outcome.fields == ("med",)
+
+
+def test_the_department_of_a_tagged_talk_still_decides(recorded: dict[str, Outcome]) -> None:
+    outcome = recorded["54251541115699"]
+    assert outcome.candidate.event.title == "MRC Public Lecture: Tadashi Tokieda"
+    assert "Department of Mathematics" in outcome.candidate.hints.categories
+    assert outcome.reason is None
+    assert "math" in outcome.fields
 
 
 @pytest.mark.parametrize(
@@ -387,6 +419,9 @@ def test_an_all_day_abstract_deadline_is_excluded() -> None:
         ("Happy cells: stress responses in yeast", "Department of Biology", "bio"),
         ("Information flow in sessions of a protocol", "Information Systems Lab", "cs"),
         ("Grand Rounds in Bioengineering: implantable sensors", "Bioengineering", "bio"),
+        ("Stress management interventions in oncology", "Department of Medicine", "med"),
+        ("Access to experts: LLM triage of patient messages", "Department of Medicine", "med"),
+        ("Internships, mentoring and the training of pre-med students", "Pediatrics", "med"),
     ],
 )
 def test_talks_with_words_of_the_new_phrases_are_kept(

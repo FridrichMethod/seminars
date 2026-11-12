@@ -230,6 +230,12 @@ class LLMCache(Protocol):
     pruned up to R - 1 days sooner than ``ttl_days`` after its last hit.
     Once more than ``ttl_days`` have passed since its last hit, the next
     ``prune`` always removes it.
+
+    Placeholders. A stored ``{}`` is a placeholder (the cache has no
+    delete, so a user that may no longer keep an answer stores ``{}`` over
+    it): ``get`` returns it as stored, but the lookup counts as a miss in
+    ``stats`` and never renews the recorded date, so ``prune`` removes it
+    once ``ttl_days`` have passed.
     """
 
     def get(self, key: str) -> dict[str, Any] | None:

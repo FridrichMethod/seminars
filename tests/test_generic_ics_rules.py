@@ -5,9 +5,11 @@ from __future__ import annotations
 import datetime as datetime_module
 import inspect
 import random
+import time
 import types
 from collections import Counter
 from datetime import UTC, date, datetime, timedelta, tzinfo
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import icalendar
@@ -474,3 +476,49 @@ def test_the_walk_ends_with_the_calendar() -> None:
     for rule in ("FREQ=DAILY", "FREQ=WEEKLY", "FREQ=MONTHLY", "FREQ=YEARLY"):
         expansion = run(rule, start=datetime(9999, 12, 30, 1, tzinfo=UTC), window=end_of_time)
         assert expansion.starts[0] == datetime(9999, 12, 30, 1, tzinfo=UTC)
+
+
+# --- the guard and the start of a walk -----------------------------------------------------
+
+LATE = datetime(2026, 10, 25, 23, 59, 0, tzinfo=UTC)
+
+
+def test_a_rule_that_repeats_its_months_and_days_is_checked_in_linear_time() -> None:
+    months = ",".join(["2"] * 20_000)
+    days = ",".join(["31"] * 20_000)
+    rule = icalendar.vRecur.from_ical(f"FREQ=YEARLY;BYMONTH={months};BYMONTHDAY={days}")
+    parts: dict[str, list[Any]] = dict(rule)
+    started = time.perf_counter()
+    with pytest.raises(ValueError, match="BYMONTHDAY names no day"):
+        ics_rules.check_rule(parts)
+    assert time.perf_counter() - started < 0.5
+
+
+@pytest.mark.parametrize("count", ["", ";COUNT=5"])
+def test_the_times_before_dtstart_cost_no_steps(count: str) -> None:
+    expansion = run(f"{EVERY_SECOND}{count}", start=LATE)
+    assert expansion.starts[:5] == tuple(LATE + timedelta(seconds=n) for n in range(5))
+    if count:
+        assert len(expansion.starts) == 5
+        assert expansion.steps < 100
+    else:
+        assert len(expansion.starts) == MAX_OCCURRENCES
+
+
+@pytest.mark.parametrize(
+    ("rule", "first"),
+    [
+        ("FREQ=MONTHLY;BYDAY=1TU,3TU;BYSETPOS=1,3", datetime(2026, 11, 3, 23, 0, tzinfo=UTC)),
+        (
+            "FREQ=DAILY;INTERVAL=2;BYDAY=TU;BYMONTHDAY=13",
+            None,  # walked: no Tuesday the 13th on the parity of DTSTART in the window
+        ),
+        ("FREQ=DAILY;INTERVAL=1;BYDAY=FR;BYMONTHDAY=13", datetime(2026, 11, 13, 23, 0, tzinfo=UTC)),
+    ],
+)
+def test_rules_that_can_match_are_walked(rule: str, first: datetime | None) -> None:
+    parts: dict[str, list[Any]] = dict(icalendar.vRecur.from_ical(rule))
+    ics_rules.check_rule(parts, start=START)
+    starts = run(rule).starts
+    assert starts[0] == START
+    assert (starts[1] if len(starts) > 1 else None) == first

@@ -29,15 +29,39 @@ let a stranger into a meeting or reach a person:
   bracket, a link or another label ("Meeting ID", "Passcode", "Join", "to
   join"). So "PIN: auxin efflux carriers", "the password: a history" and
   "Zoom password protected" stay, and after a bare "password" without a
-  colon a value needs a digit ("the password is the weakest link"). A
-  meeting id ("Meeting ID: 984 6689 7972") stays: it lets nobody in
-  without the code;
+  colon a value needs a digit ("the password is the weakest link"). After
+  a label without a colon the value is also no word of prose about
+  passwords ("use password managers", "enter PIN codes", "type the
+  password correctly") and does not end a question ("Is the passcode
+  secret?"); "use" and "enter" take one code ("use passwords safely"
+  stays). A meeting id ("Meeting ID: 984 6689 7972") stays: it lets nobody
+  in without the code. A title or a series name is scrubbed by
+  ``scrub_title``, which leaves codes without a digit alone: there such a
+  value is a word of what the talk is about ("Password: a history of
+  authentication", "How users enter PIN codes"). Only the one word after
+  "Passcode:", "Zoom password:" and the like that ends the title (or its
+  brackets) goes ("Seminar - Zoom passcode: neuro"), unless it is a common
+  word or a word of prose about passwords ("Passcodes: Security");
 * e-mail addresses, also written as "name @ host.edu", with a full-width
   at sign, as "name [at] host [dot] edu" or "name at host dot edu",
   become ``[email removed]``; so does "name at host.edu" after "E-mail",
-  "Contact", "Write to" or "RSVP to", or when the name has a dot, a digit,
-  an underscore, "%" or "+" ("j.doe at stanford.edu"). A plain "jdoe at
-  stanford.edu" stays: "Register at events.stanford.edu" reads the same.
+  "Contact", "Write to" or "RSVP to", or when the name has a letter and a
+  dot, a digit, an underscore, "%" or "+" and the host is one people have
+  mailboxes at: a university or an agency itself ("j.doe at stanford.edu",
+  "jdoe2 at ox.ac.uk") or a mail provider ("jane.doe at gmail.com"); a
+  department of one ("jane.doe at cs.stanford.edu", "jdoe2 at
+  csail.mit.edu", "j.doe at eng.cam.ac.uk") when the name has no capital
+  or two letters joined by a dot, "_" or "+"; and any host in a country
+  domain or at ".com", ".org" or ".net" ("jane.doe at ethz.ch", "j_doe at
+  genentech.com") for such a joined name. A host whose labels have a
+  digit or start with a word of a web site ("events.stanford.edu",
+  "cs229.stanford.edu", "www.ethz.ch"), a time, a number, an abbreviation
+  and the name of a file or a package are no address, so "Recordings of
+  CS224N at youtube.com", "CS224N at cs.stanford.edu", "closes at 5pm at
+  eventbrite.com", "posted on Nov. 12 at stanford.edu", "e.g. at
+  stanford.edu", "talk.mp4 at youtu.be" and "node.js at github.com" stay.
+  A plain "jdoe at stanford.edu" stays too: "Register at
+  events.stanford.edu" reads the same.
   One in brackets after a name ("Jane Doe (jdoe@stanford.edu)") is
   removed with its brackets, so that the line still splits into a name
   and nothing else. File names ("photo@2x.png") and the ids of shared
@@ -130,15 +154,66 @@ _MAIL_CUE: Final = (
     r"\b(?:e-?mail(?:\s{1,3}address)?|contact|write\s{1,3}to|rsvp(?:\s{1,3}to)?)\b\.?"
     r"\s{0,3}[:-]?\s{0,3}"
 )
-_MAILBOX: Final = r"(?<![\w.%+-])(?=[\w.%+-]{0,63}[._%+\d])"
-"""A local part with a dot, an underscore, a digit, "%" or "+": a mailbox, not a word."""
+_MAILBOX: Final = (
+    r"(?<![\w.%+-])(?=[\w.%+-]{0,63}[._%+\d])(?=[\w.%+-]{0,63}[^\W\d_])"
+    r"(?!\d{1,2}(?:[:.]\d{2})?(?:am|pm)(?![\w.%+-]))"
+    r"(?![\w.%+-]{0,59}\.(?:pdf|pptx?|key|docx?|mp[34]|mov|m4v|png|jpe?g|gif|svg|zip|html?"
+    r"|js|py|ts|io|net|ai|md|txt|csv|json|ipynb)\s)"
+)
+"""A local part with a letter and a dot, an underscore, a digit, "%" or "+".
+
+A time ("5pm") and the name of a file or a software package ("talk.mp4",
+"node.js") are no local part.
+"""
+_PERSON: Final = r"(?=[\w.%+-]{0,61}[^\W\d_][._+][^\W\d_])"
+"""A local part with two letters joined by a dot, "_" or "+" ("jane.doe", "j_doe")."""
+_LOWER: Final = r"(?=(?-i:[^\W_A-Z]|[._%+-]){1,64}\s)"
+"""A local part without a capital letter: "jdoe2" is a mailbox, "CS224N" a course."""
+_LOCAL: Final = r"[\w.%+-]{1,64}(?<!\.)\s{1,3}at\s{1,3}"
+"""A local part and the spelled "at"; a local part never ends in a dot ("e.g. at")."""
+_UNIVERSITY: Final = r"[\w-]{1,63}\.(?:edu|gov|(?:ac|edu)\.[a-z]{2})"
+_PROVIDER: Final = (
+    r"(?:gmail|googlemail|outlook|hotmail|live|yahoo|icloud|me|protonmail|proton|aol"
+    r"|qq|163|126)\.(?:com|me|net|cn)"
+)
+_WEB_LABEL: Final = (
+    r"(?!(?:www\d{0,2}|w3|web|events?|calendars?|news|sites?|librar(?:y|ies)|lib|profiles?"
+    r"|people|apps?|docs|blogs?|wiki|videos?|media|online|login|search|courses?|class(?:es)?"
+    r"|cms|portal|static|cdn|go|my)\.)"
+)
+"""First labels of a host that serves pages ("events.stanford.edu", "www.ethz.ch")."""
+_LABELS: Final = rf"{_WEB_LABEL}(?:[a-z][a-z-]{{0,62}}\.){{1,3}}"
+"""One to three labels of letters and hyphens: a department ("cs.", "eng.cam.")."""
+_WEB_COUNTRY: Final = r"(?!(?:io|ly|me|tv|ai|co|us|gl|fm|to|gg|sh|so|cc|ws)(?![\w-]))"
+"""Country domains used by web services ("bit.ly", "zoom.us") rather than universities."""
+_NAMED_HOST: Final = rf"{_LABELS}(?:{_WEB_COUNTRY}[a-z]{{2}}|com|org|net)"
+"""A host of letters in a country domain or at ".com", ".org" or ".net"."""
+_HOST_END: Final = r"(?![\w-]|\.\w|/)"
+_MAIL_HOST: Final = (
+    rf"{_MAILBOX}{_LOCAL}(?:{_UNIVERSITY}|{_PROVIDER})"
+    rf"|{_MAILBOX}(?:{_PERSON}|{_LOWER}){_LOCAL}{_LABELS}{_UNIVERSITY}"
+    rf"|{_MAILBOX}{_PERSON}{_LOCAL}{_NAMED_HOST}"
+)
+"""A mailbox at a host people have mailboxes at.
+
+That is a university or an agency itself ("stanford.edu", "ox.ac.uk") or a
+mail provider, for every local part of ``_MAILBOX``; a department of a
+university ("cs.stanford.edu", "eng.cam.ac.uk") for a name ("jane.doe") or
+a local part without a capital ("jdoe2"); and a host in a country domain
+("ethz.ch", "inf.ethz.ch") or at ".com", ".org" or ".net" ("genentech.com")
+for a name. The labels of such a host have no digit and the first is no
+word of a web site ("events", "www"), so "EE380 at events.stanford.edu",
+"CS229 at cs229.stanford.edu" and "CS224N at cs.stanford.edu" name no
+mailbox, and neither does a course or a package at a web site ("CS224N at
+youtube.com", "node.js at github.com").
+"""
 _NOT_A_MAILBOX: Final = (
     r"(?!(?:info|information|details|us|me|them|him|her|page|form|desk|office|here)\s)"
 )
 _AT_HOST: Final = (
-    r"(?:(?P<mail_cue>" + _MAIL_CUE + r")" + _NOT_A_MAILBOX + r"|" + _MAILBOX + r")"
-    r"[\w.%+-]{1,64}\s{1,3}at\s{1,3}"
-    rf"(?:[\w-]{{1,63}}\.){{1,8}}{_TOP_LEVEL}(?![\w-]|\.\w|/)"
+    r"(?P<mail_cue>" + _MAIL_CUE + r")" + _NOT_A_MAILBOX + r"[\w.%+-]{1,64}\s{1,3}at\s{1,3}"
+    rf"(?:[\w-]{{1,63}}\.){{1,8}}{_TOP_LEVEL}{_HOST_END}"
+    rf"|(?:{_MAIL_HOST}){_HOST_END}"
 )
 _EMAIL: Final = re.compile(
     rf"(?P<wrapped>\s?[(<\[]\s?(?:mailto:)?{_ADDRESS}\s?[)>\]])"
@@ -174,12 +249,25 @@ _VALUE: Final = rf"(?:{_ENCLOSED}|{_DIGITS}|{_WORD})"
 _HAS_DIGIT: Final = r"(?=[^\s<>]{0,64}\d)"
 _STRICT_SEPARATOR: Final = r"\s{0,3}[:=\uff1a]{1,2}\s{0,3}"
 _LOOSE_SEPARATOR: Final = r"(?:\s{1,3}is\s{0,3}:?\s{0,3}|\s{1,3})"
-_USE_LABEL: Final = r"(?:use|enter|type)\s{1,3}(?:the\s{1,3})?(?:passwords?|pins?)"
+_USE_LABEL: Final = r"(?:use|enter|type)\s{1,3}(?:the\s{1,3})?(?:password|pin)(?!\w)"
+"""One code is used or entered; "use passwords safely" is about passwords in general."""
 _COMMON_WORD: Final = (
     r"(?!(?:protected|required|needed|provided|sent|shared|available|included|optional"
     r"|below|above|upon|will|is|are|was|be|the|a|an|to|for|of|and|or|not|no|in|on|at|by"
     r"|via|with|from|this|that|none|tba|tbd|n/a)(?![\w/]))"
 )
+_PROSE_WORD: Final = (
+    r"(?!(?:codes?|managers?|management|policy|policies|hashing|hash(?:es)?|reuse|resets?"
+    r"|strength|entry|entries|fields?|prompts?|protection|security|authentication|logins?"
+    r"|storage|cracking|guessing|attacks?|leaks?|breaches|sharing|habits|choices?|rules"
+    r"|requirements?|changes?|length|numbers?|pads?|meters?|schemes?|systems?|users?"
+    r"|twice|again|instead|first|here|there|now|then|later|too|also|only|once|itself"
+    r"|safe|secret|secure|private|wrong|right|correct|incorrect|online|offline)(?![\w/])"
+    r"|[a-z]{2,40}(?:ly|ing)(?![\w/]))"
+)
+"""Words that follow "password" or "PIN" in prose about passwords ("password managers")."""
+_NOT_A_QUESTION: Final = r"(?<!\?)(?![ \t]{0,3}\?)"
+"""A word that ends a question ("Is the passcode secret?") is asked about, not given."""
 _NEXT: Final = (
     r"(?:(?<=[.!?;])(?=\s|\Z)"
     r"|(?=[ \t]{0,3}(?:[.,;:!?]{1,3}[ \t]{0,3})?(?:[\n\r)\]}]|\Z|https?://"
@@ -188,19 +276,35 @@ _NEXT: Final = (
     r"|when\s{1,3}(?:prompted|asked)\b|if\s{1,3}(?:prompted|asked|needed)\b)))"
 )
 _LAST_WORD: Final = rf"{_COMMON_WORD}(?=\S{{2}})(?>{_ENCLOSED}|{_WORD}){_NEXT}"
-_CODE: Final = re.compile(
-    rf"\b(?P<label>(?:{_STRONG_LABEL}){_QUALIFIER}{_SEPARATOR})(?P<value>{_VALUE})"
-    rf"|\b(?P<weak>(?:{_WEAK_LABEL}){_QUALIFIER}{_SEPARATOR}){_HAS_DIGIT}"
+_LOOSE_LAST_WORD: Final = (
+    rf"{_COMMON_WORD}{_PROSE_WORD}(?=\S{{2}})(?>{_ENCLOSED}|{_WORD}){_NOT_A_QUESTION}{_NEXT}"
+)
+_STRONG_CODE: Final = rf"\b(?P<label>(?:{_STRONG_LABEL}){_QUALIFIER}{_SEPARATOR})"
+_DIGIT_CODES: Final = (
+    rf"\b(?P<weak>(?:{_WEAK_LABEL}){_QUALIFIER}{_SEPARATOR}){_HAS_DIGIT}"
     rf"(?=[\d\x20]{{4}}|\S{{4}})(?P<weak_value>{_VALUE})"
     rf"|\b(?P<loose>(?:{_STRONG_LABEL}|passwords?){_QUALIFIER}"
     rf"(?:\s{{1,3}}is\s{{0,3}}:?\s{{0,3}}|\s{{1,3}})){_HAS_DIGIT}(?P<digits>{_VALUE})"
+)
+_CODE: Final = re.compile(
+    rf"{_STRONG_CODE}(?P<value>{_VALUE})|{_DIGIT_CODES}"
     rf"|\b(?P<weak_word>(?:{_WEAK_LABEL}){_QUALIFIER}{_STRICT_SEPARATOR})(?P<word>{_LAST_WORD})"
     rf"|\b(?P<loose_word>(?:{_STRONG_LABEL}|{_USE_LABEL}){_QUALIFIER}{_LOOSE_SEPARATOR})"
-    rf"(?P<loose_value>{_LAST_WORD})",
+    rf"(?P<loose_value>{_LOOSE_LAST_WORD})",
     re.IGNORECASE,
 )
-_LABEL_GROUPS: Final = ("label", "weak", "loose", "weak_word", "loose_word")
-_VALUE_GROUPS: Final = ("value", "weak_value", "digits", "word", "loose_value")
+_TITLE_END: Final = r"(?=[ \t]{0,3}(?:[.,;:!?]{1,3}[ \t]{0,3})?(?:[)\]}]|\Z))"
+"""The end of a title, or of the brackets a code is given in."""
+_TITLE_CODE: Final = re.compile(
+    rf"{_STRONG_CODE}{_HAS_DIGIT}(?P<value>{_VALUE})|{_DIGIT_CODES}"
+    rf"|\b(?P<title_label>(?:{_STRONG_LABEL}){_QUALIFIER}{_STRICT_SEPARATOR})"
+    rf"(?P<title_word>{_COMMON_WORD}{_PROSE_WORD}(?=\S{{2}})(?>{_ENCLOSED}|{_WORD}){_TITLE_END})",
+    re.IGNORECASE,
+)
+"""What ``scrub_title`` takes out: the codes of ``_CODE`` whose value has a digit, and the
+one word after "Passcode:" or "Zoom password:" that ends the title."""
+_LABEL_GROUPS: Final = ("label", "weak", "loose", "weak_word", "loose_word", "title_label")
+_VALUE_GROUPS: Final = ("value", "weak_value", "digits", "word", "loose_value", "title_word")
 
 # --- telephone numbers ---------------------------------------------------------------------
 
@@ -333,8 +437,9 @@ def _link(match: re.Match[str]) -> str:
 
 
 def _code(match: re.Match[str]) -> str:
-    label = next(match[name] for name in _LABEL_GROUPS if match[name] is not None)
-    value = next(match[name] for name in _VALUE_GROUPS if match[name])
+    groups = match.groupdict()
+    label = next(groups[name] for name in _LABEL_GROUPS if groups.get(name) is not None)
+    value = next(groups[name] for name in _VALUE_GROUPS if groups.get(name))
     _, tail = _split_tail(value)
     return f"{label}{VALUE_REMOVED}{tail}"
 
@@ -359,11 +464,21 @@ def _phone(match: re.Match[str]) -> str:
     return PHONE_REMOVED
 
 
-def _scrub_once(text: str) -> str:
+def _scrub_once(text: str, codes: re.Pattern[str]) -> str:
     linked = _LINK.sub(_link, text)
-    coded = _CODE.sub(_code, linked)
+    coded = codes.sub(_code, linked)
     mailed = _EMAIL.sub(_email, coded)
     return _PHONE.sub(_phone, mailed)
+
+
+def _scrub(text: str, codes: re.Pattern[str]) -> str:
+    current = text
+    for _ in range(MAX_PASSES):
+        scrubbed = _scrub_once(current, codes)
+        if scrubbed == current:
+            break
+        current = scrubbed
+    return current
 
 
 def scrub_private(text: str) -> str:
@@ -373,13 +488,20 @@ def scrub_private(text: str) -> str:
     make a label out of them, so the rules are applied again until nothing
     changes, at most ``MAX_PASSES`` times.
     """
-    current = text
-    for _ in range(MAX_PASSES):
-        scrubbed = _scrub_once(current)
-        if scrubbed == current:
-            break
-        current = scrubbed
-    return current
+    return _scrub(text, _CODE)
+
+
+def scrub_title(text: str) -> str:
+    """``text``, a title, scrubbed like ``scrub_private`` except for most codes without a digit.
+
+    A title names what a talk is about, and talks on security name
+    passwords ("Why do people not use password managers?", "Password: a
+    history"). A meeting code without a digit is taken out of every other
+    field; in a title only links, codes with a digit, e-mail addresses,
+    telephone numbers and the one word that ends a title after a label
+    such as "Zoom passcode:" are.
+    """
+    return _scrub(text, _TITLE_CODE)
 
 
 def strip_markers(text: str) -> str:

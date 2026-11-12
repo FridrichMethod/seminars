@@ -16,7 +16,12 @@ Times, as the draft conventions want them:
   datetimes. Floating values stay naive: they are wall time in the
   calendar's ``X-WR-TIMEZONE`` when that names a known zone (it becomes the
   draft's ``timezone``), else in the source's timezone. A ``TZID`` that
-  names no known zone leaves the value floating.
+  names no known zone leaves the value floating. The library keeps the
+  zones that feeds define for the whole process, so that the first feed
+  to define a name would decide it for every later one; ``read_calendar``
+  makes it forget them before it reads a feed, and a feed only ever gets
+  its own definitions (feeds are read one at a time: the pipeline parses
+  the sources in turn).
 * ``VALUE=DATE`` makes an all-day event. ``DTEND`` of a date is the day
   after the last day, so the draft's ``end`` is ``DTEND`` minus one day (no
   ``end`` for a single day). ``DURATION`` works like ``DTEND``.
@@ -123,6 +128,7 @@ from seminars.sources.generic.ics_rules import (
     expand,
     starts_in,
 )
+from seminars.textrules import ascii_printable
 
 SHARED_PARAMS: Final = frozenset({"extra_hosts"})
 """Keys of ``params`` that the shared helpers read; they are not checked here."""
@@ -228,13 +234,26 @@ class IcsCalendar:
     timezone: str | None = None
 
 
+_READER_ERRORS: Final = (
+    ValueError,
+    AttributeError,
+    TypeError,
+    KeyError,
+    IndexError,
+    OSError,
+    OverflowError,
+    RecursionError,
+)
+"""What the iCalendar reader raises on broken input."""
+
+
 def _zone_name(value: object) -> str | None:
     name = str(value).strip() if value is not None else ""
     if not name:
         return None
     try:
         ZoneInfo(name)
-    except (ZoneInfoNotFoundError, ValueError):
+    except (ZoneInfoNotFoundError, ValueError, OSError):  # OSError: too long for a file name
         return None
     return name
 
@@ -244,13 +263,19 @@ def read_calendar(document: FetchedDocument) -> IcsCalendar:
 
     A body without any VCALENDAR (an HTML error page, a login form, a
     truncated file) cannot be understood. A calendar without events is fine.
+    Whatever the reader of the library raises on a broken feed is a
+    ``ParseError`` too: besides ``ValueError``, an ``AttributeError`` or
+    ``TypeError`` of a broken VTIMEZONE, an ``OSError`` of a TZID too long
+    for a file name of the zone database.
     """
     if "BEGIN:VCALENDAR" not in document.text.upper():
         raise ParseError(f"the answer is not an iCalendar feed: {document.url}")
     try:
+        icalendar.use_zoneinfo()  # a fresh store of zones: forget those of earlier feeds
         components = icalendar.Calendar.from_ical(document.text, multiple=True)
-    except ValueError as error:
-        raise ParseError(f"the iCalendar feed cannot be read: {document.url}") from error
+    except _READER_ERRORS as error:
+        url = ascii_printable(document.url)
+        raise ParseError(f"the iCalendar feed cannot be read: {url}") from error
     calendars = [item for item in components if item.name == "VCALENDAR"]
     if not calendars:
         raise ParseError(f"the answer is not an iCalendar feed: {document.url}")
@@ -379,7 +404,7 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
             items, expansion = _occurrences_of(
                 vevent, window, timezone, overrides, allowance=allowance
             )
-        except (ValueError, TypeError, OverflowError):
+        except _READER_ERRORS:  # a VEVENT that cannot be used; the others stay
             continue
         if expansion.exceeded is not None:
             raise ParseError(_limit_message(expansion.exceeded))

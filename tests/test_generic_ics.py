@@ -278,6 +278,27 @@ class TestReading:
         with pytest.raises(ParseError, match="custom-example-talks"):
             parse(text)
 
+    def test_a_time_zone_name_too_long_for_a_file_is_a_parse_error(self) -> None:
+        start = "DTSTART;TZID=" + "x" * 300 + ":20261117T160000"
+        with pytest.raises(ParseError, match="cannot be read"):
+            parse(calendar(vevent("SUMMARY:Talk", start=start)))
+
+    def test_a_long_calendar_time_zone_is_ignored(self) -> None:
+        text = calendar(vevent("SUMMARY:Talk"), header="X-WR-TIMEZONE:" + "x" * 300 + "\n")
+        (draft,) = parse(text)
+        assert draft.title == "Talk"
+
+    @pytest.mark.parametrize("error", [AttributeError, OSError, TypeError, KeyError])
+    def test_any_failure_of_the_calendar_reader_is_a_parse_error(
+        self, monkeypatch: pytest.MonkeyPatch, error: type[Exception]
+    ) -> None:
+        def broken(*args: Any, **kwargs: Any) -> Any:
+            raise error("a broken VTIMEZONE")
+
+        monkeypatch.setattr(ics.icalendar.Calendar, "from_ical", broken)
+        with pytest.raises(ParseError, match="cannot be read"):
+            parse(calendar(vevent("SUMMARY:Talk")))
+
     def test_a_calendar_inside_other_text_is_not_enough(self) -> None:
         text = (
             "BEGIN:VEVENT\nUID:x\nSUMMARY:BEGIN:VCALENDAR\nDTSTART:20261117T160000Z\nEND:VEVENT\n"
@@ -372,6 +393,25 @@ class TestOneEvent:
         assert isinstance(draft.start, datetime)
         assert draft.start.utcoffset() == timedelta(hours=-8)
         assert draft.start.astimezone(UTC) == datetime(2026, 11, 18, 0, 0, tzinfo=UTC)
+
+    def test_each_feed_reads_its_own_definition_of_a_zone(self) -> None:
+        """The library keeps the zones feeds define for the whole process; no feed sees them."""
+
+        def fixed(offset: str) -> str:
+            return (
+                "BEGIN:VTIMEZONE\nTZID:Lab Time\nBEGIN:STANDARD\nDTSTART:19700101T000000\n"
+                f"TZOFFSETFROM:{offset}\nTZOFFSETTO:{offset}\nEND:STANDARD\nEND:VTIMEZONE\n"
+            )
+
+        talk = vevent("DTSTART;TZID=Lab Time:20261117T100000", start=None)
+        (east,) = parse(calendar(talk, header=fixed("+0200")))
+        (west,) = parse(calendar(talk, header=fixed("-0500")))
+        (undefined,) = parse(calendar(talk))
+        assert isinstance(east.start, datetime)
+        assert isinstance(west.start, datetime)
+        assert east.start.astimezone(UTC) == datetime(2026, 11, 17, 8, 0, tzinfo=UTC)
+        assert west.start.astimezone(UTC) == datetime(2026, 11, 17, 15, 0, tzinfo=UTC)
+        assert undefined.start == datetime(2026, 11, 17, 10, 0)
 
     def test_floating_times_take_the_zone_the_calendar_names(self) -> None:
         header = "X-WR-TIMEZONE:America/New_York\n"

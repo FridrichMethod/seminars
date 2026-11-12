@@ -10,6 +10,13 @@ that tells the model to write something else gets nothing past them.
 Link markers (``[[n]]``, see ``seminars.sources.generic.llm_page``) are not
 text of the page: they are left out of the comparison and out of every
 value that is kept.
+
+A part of the page never starts or ends inside a short bracketed group of
+one line (``MAX_BRACKET_REACH``): it is widened to the whole group. The
+page text the extractor grounds in has its private data replaced by
+markers ("Zoom passcode: [removed]"), and a value the model wrote with a
+slip next to one would otherwise stand for half a marker ("Zoom passcode:
+[").
 """
 
 from __future__ import annotations
@@ -33,6 +40,9 @@ MAX_FUZZY_EDITS: Final = 10
 
 MAX_EXACT_PLACES: Final = 50
 """Places of the page compared when a value occurs there more than once."""
+
+MAX_BRACKET_REACH: Final = 32
+"""How far a part of the page is widened to take in the rest of a bracketed group."""
 
 _MONTH_NAMES: Final = {
     "january": 1,
@@ -237,6 +247,26 @@ def _numeric_days(text: str) -> frozenset[tuple[int, int]]:
     return frozenset(days)
 
 
+def _whole_brackets(text: str, start: int, end: int) -> tuple[int, int]:
+    """``text[start:end]`` widened so that it cuts no short bracketed group in two.
+
+    A group is a "[" and the next "]" on the same line, at most
+    ``MAX_BRACKET_REACH`` characters beyond the part; anything farther
+    leaves the part as it is.
+    """
+    piece = text[start:end]
+    if piece.rfind("[") > piece.rfind("]"):
+        close = text.find("]", end, end + MAX_BRACKET_REACH)
+        if close >= 0 and not any(char in "[\n" for char in text[end:close]):
+            end = close + 1
+    first_close = piece.find("]")
+    if first_close >= 0 and not 0 <= piece.find("[") < first_close:
+        opening = text.rfind("[", max(0, start - MAX_BRACKET_REACH), start)
+        if opening >= 0 and not any(char in "]\n" for char in text[opening:start]):
+            start = opening
+    return start, end
+
+
 def _cuts_word(text: str, index: int) -> bool:
     """Whether a span that starts or ends at ``index`` cuts a word of ``text`` in two."""
     return 0 < index < len(text) and text[index - 1].isalnum() and text[index].isalnum()
@@ -337,8 +367,14 @@ class Grounding:
         return None if best is None else (best[3], best[4])
 
     def _original(self, start: int, end: int) -> str | None:
-        """The page text behind ``self._text[start:end]``, tidied; ``None`` when it is empty."""
-        piece = self._source[self._page.starts[start] : self._page.ends[end - 1]]
+        """The page text behind ``self._text[start:end]``, tidied; ``None`` when it is empty.
+
+        A bracketed group the part cuts is taken in whole (``_whole_brackets``).
+        """
+        first, last = _whole_brackets(
+            self._source, self._page.starts[start], self._page.ends[end - 1]
+        )
+        piece = self._source[first:last]
         tidy = " ".join(_LINK_MARKER.sub(" ", piece).split())
         return tidy or None
 

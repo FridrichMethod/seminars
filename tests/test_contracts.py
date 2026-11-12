@@ -129,6 +129,7 @@ def test_every_protocol_has_a_fake() -> None:
         "DigestPublisher",
         "HealthUpdater",
         "SourceProber",
+        "PrivateTextScrubber",
     }
     with_object_fake = {protocol.__name__ for protocol, _ in PROTOCOL_FAKES}
     defined_elsewhere = {"HttpClient", "Adapter"}  # seminars.http and seminars.sources.base
@@ -202,6 +203,7 @@ class TestImplementationTable:
             "seminars.outputs.health",
             "seminars.github",
             "seminars.pipeline.secret_scan",
+            "seminars.pipeline.privacy",
             "seminars.sources.probe",
         }
 

@@ -17,7 +17,7 @@ naive one, a date, a string). This module applies those rules:
   repaired first: an end on the same day as the start but earlier, which
   is what a source produces when it puts an end time next to a start date
   for a talk that runs past midnight. It moves to the next day when the
-  talk is then at most six hours long.
+  talk is then at most six hours long (``seminars.models.MAX_ROLLOVER``).
 
 Nothing in here reads the clock. ``reference`` supplies the year for a
 string that has none: the year that puts the date closest to it, so that
@@ -34,6 +34,8 @@ from zoneinfo import ZoneInfo
 
 from dateutil import parser as date_parser
 
+from seminars.models import MAX_ROLLOVER
+
 MAX_TEXT_LENGTH: Final = 120
 _PROBE_DEFAULTS: Final = (datetime(2004, 1, 1, 0, 0), datetime(2008, 3, 2, 11, 0))
 """Two defaults that differ in every field: what a text leaves out differs between them.
@@ -41,7 +43,6 @@ _PROBE_DEFAULTS: Final = (datetime(2004, 1, 1, 0, 0), datetime(2008, 3, 2, 11, 0
 Both years are leap years, so "Feb 29" without a year can be read, and
 both days exist in every month.
 """
-MAX_ROLLOVER: Final = timedelta(hours=6)
 _ONE_DAY: Final = timedelta(days=1)
 _ZONE_ABBREVIATIONS: Final[dict[str, str]] = {
     "PST": "America/Los_Angeles",

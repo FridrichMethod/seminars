@@ -13,7 +13,7 @@ from fakes import FakeHttpClient
 from seminars.contracts import SourceProber, load_implementation
 from seminars.http import offline_client
 from seminars.models import ProbeResult, SourceConfig
-from seminars.sources.generic.html_list import load_params
+from seminars.sources.generic.common import load_params
 from seminars.sources.generic.rss import RssParams
 from seminars.sources.probe import probe_source
 

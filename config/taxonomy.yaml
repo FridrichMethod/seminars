@@ -841,6 +841,7 @@ fields:
       public health: 1.0
       global health: 0.5
       maternal health: 1.0
+      child health: 1.0
       mortality: 0.5
       mental health: 1.0
       digital health: 1.0
@@ -894,7 +895,9 @@ source_defaults: {}
 # Category label of a source (EventHints.categories) -> fields. A label must equal
 # the source's label, ignoring case, accents and punctuation: "Department of
 # Chemistry" and "Chemistry" are different labels. A match is a source field: it
-# is final, vetoes do not remove it and the LLM never sees it.
+# is final, vetoes do not remove it and the LLM never sees it. Tags
+# (EventHints.tags: the free keywords of a Stanford Events record) never match:
+# "mathematics" on a talk about the history of astronomy names no department.
 #
 # This list is for sources whose adapter has no department map of its own. The
 # Stanford Events calendar has one (department_fields and group_fields in
@@ -1081,6 +1084,10 @@ exclusions:
     - employer information
     - job search
     - professional development workshop
+    # internships for students (a clinical internship for pre-med students)
+    - clinical internship
+    - summer internship
+    - internship program
   social:
     - welcome reception
     - holiday reception
@@ -1148,6 +1155,10 @@ exclusions:
     - wellness walk
     - wellness fair
     - health fair
+    # the public wellness webinars of Stanford Lifestyle Medicine ("Access to
+    # Experts" Webinar Series: Stress Management); "stress management" alone is
+    # a topic of clinical research
+    - access to experts webinar
   religious:
     - worship
     - worship service

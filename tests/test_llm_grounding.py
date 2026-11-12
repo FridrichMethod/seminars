@@ -147,6 +147,38 @@ class TestTheTextOfThePage:
         assert grounding.text("strasse") == "Stra\u00dfe"
 
 
+class TestBrackets:
+    """A part of the page never ends or starts inside a short bracketed group."""
+
+    LONG = (
+        "We measure how fast a key pushed to a public repository is found and used, "
+        "and what a maintainer can do about it in the first hour."
+    )
+
+    @pytest.mark.parametrize("label", ["Zoom pascode", "Zoom passcde", "Zoom passcoed"])
+    def test_a_marker_at_the_end_is_kept_whole(self, label: str) -> None:
+        grounding = Grounding(f"{self.LONG} Zoom passcode: [removed]\nNext", min_similarity=90)
+        found = grounding.text(f"{self.LONG} {label}: 482913")
+        assert found == f"{self.LONG} Zoom passcode: [removed]"
+
+    def test_a_marker_at_the_start_is_kept_whole(self) -> None:
+        page = f"Contact [email removed] {self.LONG}"
+        grounding = Grounding(page, min_similarity=90)
+        found = grounding.text(f"removed] {self.LONG}x")
+        assert found is not None
+        assert found.startswith("[email removed]")
+
+    def test_a_bracket_far_away_or_across_a_line_is_not_followed(self) -> None:
+        far = "[" + "x" * 40 + "]"
+        page = f"{self.LONG} {far}\n[a\nb] tail"
+        grounding = Grounding(page, min_similarity=90)
+        assert grounding.text(f"{self.LONG} [xx") == f"{self.LONG} [xx"
+
+    def test_link_markers_stay_out(self) -> None:
+        grounding = Grounding("Talk [[1]] by Jane Doe [Stanford]", min_similarity=90)
+        assert grounding.text("Talk by Jane Doe [Stanf") == "Talk by Jane Doe [Stanford]"
+
+
 class TestDates:
     def grounding(self, page: str) -> Grounding:
         return Grounding(page, min_similarity=90)

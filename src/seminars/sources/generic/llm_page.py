@@ -62,8 +62,11 @@ cannot bring back what the scrubber took out. A value that still hides
 private data in a form normalization reads (behind markup, say), or that
 shows a secret, or whose part of the page does
 (``seminars.llm.secret_filter``), is dropped like an ungrounded one, and
-the rest of the talk is kept. The model still gets the piece as it is, and
-the cache key is that piece. An answer that still shows a secret as a whole
+the rest of the talk is kept. The piece is scrubbed as a whole, the way
+normalization scrubs a block of text, so a title of a talk on passwords can
+lose a word here that normalization keeps in the title of any other source
+("The meeting password is dead"). The model still gets the piece as it
+is, and the cache key is that piece. An answer that still shows a secret as a whole
 is not cached at all; the next run asks again.
 
 A hit is checked for privacy and secrets, but not grounded: grounding

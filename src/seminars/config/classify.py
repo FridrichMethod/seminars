@@ -73,7 +73,8 @@ class Taxonomy(Model):
     * ``source_defaults``: source id -> fields, in addition to the
       ``default_fields`` of the source entry itself.
     * ``departments``: department or category label (matched
-      case-insensitively against ``EventHints.categories``) -> fields.
+      case-insensitively against ``EventHints.categories``, never against
+      ``EventHints.tags``) -> fields.
     * ``exclusions``: phrases per rule-based exclusion reason for the filter.
     * ``out_of_scope_categories``: category labels (matched case-insensitively
       against ``EventHints.categories``, like ``departments``) whose events are

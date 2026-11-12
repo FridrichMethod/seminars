@@ -1,0 +1,364 @@
+"""Helpers that the page and feed adapters share.
+
+The generic adapters ``html_list``, ``rss`` and ``jsonld``, the source probe
+and the custom adapters read pages the same way, so the pieces live here:
+
+* params: ``load_params`` validates ``source.params`` against a model and
+  raises ``AdapterConfigError`` naming every bad key; ``Selector`` is a CSS
+  selector checked by the parser that uses it, ``Pattern`` a compiled
+  regular expression from the YAML, and ``require_groups`` checks that a
+  pattern has the named groups an adapter reads;
+* text of HTML nodes (``node_text``, ``node_lines``, ``node_value``,
+  ``inner_html``) and patterns applied to at most ``PATTERN_INPUT_LIMIT``
+  characters (``search``, ``any_match``);
+* lists of speaker names (``split_names``, ``make_speakers``);
+* dates and times: times of day and their ranges (``parse_clock``,
+  ``split_range``, ``time_range``), days without a year (``parse_day``,
+  closest to the fetch), ISO 8601 moments, English month names
+  (``month_number``) and the window test (``outside_window``);
+* fetching that stays on the source's hosts (``get_document``,
+  ``fetch_optional``).
+"""
+
+from __future__ import annotations
+
+import contextlib
+import logging
+import re
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from datetime import date, datetime, time
+from typing import Annotated, Any, Final
+from zoneinfo import ZoneInfo
+
+from dateutil import parser as date_parser
+from pydantic import AfterValidator, ValidationError
+from selectolax.lexbor import LexborHTMLParser, LexborNode, SelectolaxError
+
+from seminars.http import HttpClient, HttpError
+from seminars.models import (
+    FetchedDocument,
+    Model,
+    SourceConfig,
+    SpeakerDraft,
+    TimeWindow,
+)
+from seminars.sources.base import AdapterError, ForeignHostError, on_source_host
+from seminars.textrules import ascii_printable
+
+logger = logging.getLogger(__name__)
+
+MONTHS: Final = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+"""English month names by their first three letters, January first."""
+
+PATTERN_INPUT_LIMIT: Final = 2000
+"""Characters of a page text that a pattern from the YAML is applied to; bounds the work."""
+
+# --- params ------------------------------------------------------------------------------
+
+
+class AdapterConfigError(AdapterError, ValueError):
+    """The ``params`` of a source do not fit its adapter: an unknown key or a wrong value."""
+
+
+def _describe(problem: Mapping[str, Any]) -> str:
+    location = ".".join(["params", *(str(part) for part in problem["loc"])])
+    detail = "unknown key" if problem["type"] == "extra_forbidden" else problem["msg"]
+    return f"{location}: {detail}"
+
+
+def load_params[P: Model](model: type[P], source: SourceConfig) -> P:
+    """``source.params`` validated as ``model``; ``extra_hosts`` is left to the host check."""
+    data = {key: value for key, value in source.params.items() if key != "extra_hosts"}
+    try:
+        return model.model_validate(data)
+    except ValidationError as error:
+        problems = "; ".join(_describe(problem) for problem in error.errors())
+        message = f"source {source.id}: params of adapter {source.adapter}: {problems}"
+        raise AdapterConfigError(ascii_printable(message)) from None
+
+
+def check_selector(value: str) -> str:
+    """Validate a CSS selector with the parser that will use it."""
+    try:
+        LexborHTMLParser("<html><body></body></html>").css(value)
+    except (SelectolaxError, ValueError) as error:
+        raise ValueError(f"invalid CSS selector {value!r}") from error
+    return value
+
+
+Selector = Annotated[str, AfterValidator(check_selector)]
+Pattern = re.Pattern[str]
+
+
+# --- text helpers ------------------------------------------------------------------------
+
+
+def collapse(text: str | None) -> str | None:
+    """Runs of whitespace as one space, stripped; ``None`` for empty text."""
+    return None if text is None else " ".join(text.split()) or None
+
+
+def node_text(node: LexborNode | None) -> str | None:
+    """All text below ``node``, whitespace collapsed."""
+    return None if node is None else collapse(node.text(deep=True, strip=False))
+
+
+def node_lines(node: LexborNode | None) -> str | None:
+    """Text below ``node`` with every ``<br>`` as a line break, lines joined with ", "."""
+    if node is None:
+        return None
+    lines: list[list[str]] = [[]]
+    for child in node.traverse(include_text=True):
+        if child.tag == "br":
+            lines.append([])
+        elif child.is_text_node:
+            lines[-1].append(child.text_content or "")
+    parts = [collapse("".join(line)) for line in lines]
+    return ", ".join(part for part in parts if part) or None
+
+
+def node_value(node: LexborNode | None, attribute: str | None) -> str | None:
+    """The attribute ``attribute`` of ``node`` (collapsed), or its text without one."""
+    if node is None or attribute is None:
+        return node_text(node)
+    return collapse(node.attributes.get(attribute))
+
+
+def inner_html(node: LexborNode | None) -> str | None:
+    """The markup inside ``node`` without ``<summary>`` captions; ``None`` when blank."""
+    if node is None:
+        return None
+    copy = node.clone()
+    for caption in copy.css("summary"):
+        caption.decompose()
+    markup = copy.inner_html
+    return markup if isinstance(markup, str) and markup.strip() else None
+
+
+def search(pattern: Pattern, text: str) -> re.Match[str] | None:
+    """``pattern.search`` over at most PATTERN_INPUT_LIMIT characters of ``text``."""
+    return pattern.search(text[:PATTERN_INPUT_LIMIT])
+
+
+def any_match(patterns: Sequence[Pattern], text: str | None) -> bool:
+    return text is not None and any(search(pattern, text) for pattern in patterns)
+
+
+_NAME_LIST: Final = re.compile(r"\s(?:and|&)\s", re.IGNORECASE)
+_NAME_SEPARATOR: Final = re.compile(r"\s*,\s*(?:(?:and|&)\s+)?|\s+(?:and|&)\s+", re.IGNORECASE)
+
+
+def split_names(text: str | None) -> list[str]:
+    """Names of a list such as "A and B" or "A, B, and C"; one name otherwise.
+
+    A comma alone does not split ("Jane Doe, Jr."); it does in a list that
+    also has "and" or "&" between two names. At most PATTERN_INPUT_LIMIT
+    characters of ``text`` are read, so that many talks that share one long
+    text (a speaker line of a page they all link to) each cost little.
+    """
+    value = collapse(None if text is None else text[:PATTERN_INPUT_LIMIT])
+    if value is None:
+        return []
+    if not _NAME_LIST.search(value[:PATTERN_INPUT_LIMIT]):
+        return [value]
+    names = (collapse(part) for part in _NAME_SEPARATOR.split(value[:PATTERN_INPUT_LIMIT]))
+    return [name for name in names if name]
+
+
+def make_speakers(names: str | None, affiliation: str | None) -> list[SpeakerDraft]:
+    """One speaker per name of ``names``, all with ``affiliation``."""
+    return [
+        SpeakerDraft(name=name, affiliation=collapse(affiliation)) for name in split_names(names)
+    ]
+
+
+# --- dates and times ---------------------------------------------------------------------
+
+_CLOCK: Final = re.compile(
+    r"(?P<hour>\d{1,2})(?:[:.h](?P<minute>\d{2}))?\s*(?:(?P<meridiem>[ap])\.?\s*m\.?)?",
+    re.IGNORECASE,
+)
+_ZONE_SUFFIX: Final = re.compile(r"\s*\(?\b(?!am\b|pm\b|noon\b)[a-z]{2,4}\)?\s*$", re.IGNORECASE)
+_RANGE: Final = re.compile(r"\s*[-\u2013\u2014]\s*|\s+to\s+", re.IGNORECASE)
+_TBA: Final = re.compile(r"\W*(?:tba|tbd|tbc|to be (?:announced|determined|confirmed))\W*", re.I)
+_NAMED_TIMES: Final = {"noon": time(12, 0), "midnight": time(0, 0)}
+_NOON: Final = re.compile(r"12(?:[:.h]00)?\s*noon", re.IGNORECASE)
+
+
+def is_tba(text: str | None) -> bool:
+    """True for "TBA", "TBD", "to be announced" and the like."""
+    return text is not None and _TBA.fullmatch(text[:PATTERN_INPUT_LIMIT]) is not None
+
+
+def with_meridiem(value: time, meridiem: str) -> time:
+    """``value`` read on a 12-hour clock with ``meridiem`` ("am" / "pm", any case)."""
+    hour = value.hour % 12 + (12 if meridiem.lower().startswith("p") else 0)
+    return value.replace(hour=hour)
+
+
+def parse_clock(text: str | None, fmt: str | None = None) -> tuple[time, str | None] | None:
+    """A time of day and its meridiem ("am" / "pm", ``None`` when not written)."""
+    value = collapse(text)
+    if value is None or is_tba(value):
+        return None
+    if fmt is not None:
+        try:
+            parsed = datetime.strptime(value, fmt).time()
+        except ValueError:
+            return None
+        return parsed, ("pm" if parsed.hour >= 12 else "am") if "%p" in fmt else None
+    value = _ZONE_SUFFIX.sub("", value[:PATTERN_INPUT_LIMIT])
+    if value.lower() in _NAMED_TIMES:
+        return _NAMED_TIMES[value.lower()], "pm" if value.lower() == "noon" else "am"
+    if _NOON.fullmatch(value):  # "12:00 noon"
+        return time(12, 0), "pm"
+    match = _CLOCK.fullmatch(value)
+    if match is None:
+        return None
+    hour, minute = int(match["hour"]), int(match["minute"] or 0)
+    meridiem = match["meridiem"]
+    if hour > 23 or minute > 59 or (meridiem is not None and not 1 <= hour <= 12):
+        return None
+    clock = time(hour, minute)
+    if meridiem is None:
+        return clock, None
+    return with_meridiem(clock, meridiem), f"{meridiem.lower()}m"
+
+
+def split_range(text: str | None) -> tuple[str | None, str | None]:
+    """ "4:30 - 5:30pm" as its two ends; a single time as ``(time, None)``."""
+    value = collapse(text)
+    if value is None:
+        return None, None
+    parts = _RANGE.split(value[:PATTERN_INPUT_LIMIT], maxsplit=1)
+    return parts[0], parts[1] if len(parts) > 1 else None
+
+
+def time_range(
+    start: str | None, end: str | None, *, meridiem: str | None = None, fmt: str | None = None
+) -> tuple[time | None, time | None]:
+    """Start and end times of day; a meridiem written on one end completes the other.
+
+    When only the end says AM or PM (or ``meridiem`` does) the start gets the
+    same one, unless that would put it after the end: "11:30 - 1:00 PM"
+    starts at 11:30 in the morning. When only the start says it (noon is PM),
+    an end before the start is read as PM if that puts it after the start:
+    "11am - 1:30" ends at 13:30, "4:30 PM - 3:30" keeps 3:30.
+    """
+    first, second = parse_clock(start, fmt), parse_clock(end, fmt)
+    shared = meridiem or (second[1] if second else None)
+    end_time = None
+    if second is not None:
+        end_time = second[0] if second[1] or shared is None else with_meridiem(second[0], shared)
+    if first is None:
+        return None, end_time
+    start_time = first[0]
+    if first[1] is None and shared is not None and start_time.hour <= 12:
+        start_time = with_meridiem(first[0], shared)
+        if end_time is not None and start_time > end_time:
+            start_time = with_meridiem(first[0], "am")
+    elif first[1] and shared is None and end_time is not None and end_time < start_time:
+        afternoon = with_meridiem(end_time, "pm")
+        end_time = afternoon if end_time.hour and afternoon > start_time else end_time
+    return start_time, end_time
+
+
+def parse_day(text: str | None, fmt: str | None, reference: date) -> date | None:
+    """A calendar date from ``text``; see the module docstring for the rules."""
+    value = collapse(text)
+    if value is None or is_tba(value):
+        return None
+    if fmt is None:
+        if len(value) == 10:
+            with contextlib.suppress(ValueError):
+                return date.fromisoformat(value)
+        text = value[:PATTERN_INPUT_LIMIT]
+        return closest_day(
+            lambda year: date_parser.parse(text, default=datetime(year, 1, 1)).date(), reference
+        )
+    if "%Y" in fmt or "%y" in fmt:
+        with contextlib.suppress(ValueError):
+            return datetime.strptime(value, fmt).date()
+        return None
+    return closest_day(
+        lambda year: datetime.strptime(f"{value} {year}", f"{fmt} %Y").date(), reference
+    )
+
+
+def closest_day(read: Callable[[int], date], reference: date) -> date | None:
+    """Of the dates ``read`` gives for the years around ``reference``, the closest one.
+
+    A text with a year of its own gives the same date for every year; one
+    without gets the year that puts it closest to ``reference``.
+    """
+    candidates: list[date] = []
+    for year in (reference.year - 1, reference.year, reference.year + 1):
+        with contextlib.suppress(ValueError, OverflowError):
+            if (day := read(year)) not in candidates:
+                candidates.append(day)
+    return min(candidates, key=lambda day: abs(day - reference), default=None)
+
+
+def parse_moment(text: str | None) -> datetime | date | None:
+    """An ISO 8601 date (all day, "20261117" too) or date and time; ``None`` for anything else."""
+    value = collapse(text)
+    if value is None:
+        return None
+    for reader in (date.fromisoformat, datetime.fromisoformat):
+        with contextlib.suppress(ValueError):
+            return reader(value)
+    return None
+
+
+def local_day(moment: datetime | date, zone: ZoneInfo) -> date:
+    """The local day of ``moment`` (a naive one is local; at the end of the calendar its own)."""
+    if isinstance(moment, datetime) and moment.tzinfo is not None:
+        with contextlib.suppress(OverflowError):
+            return moment.astimezone(zone).date()
+    return moment.date() if isinstance(moment, datetime) else moment
+
+
+def outside_window(
+    start: datetime | date | None, end: datetime | date | None, window: TimeWindow, zone: ZoneInfo
+) -> bool:
+    """True when a talk certainly lies outside ``window`` (unknown starts are inside)."""
+    if start is None:
+        return False
+    first = local_day(start, zone)
+    last = max(first, local_day(end, zone)) if end is not None else first
+    return last < local_day(window.start, zone) or first >= local_day(window.end, zone)
+
+
+# --- fetching ----------------------------------------------------------------------------
+
+
+def get_document(http: HttpClient, source: SourceConfig, url: str, label: str) -> FetchedDocument:
+    """``http.get(url)`` labelled; ``ForeignHostError`` before any request off the source."""
+    if not on_source_host(source, url):
+        raise ForeignHostError(source.id, url)
+    return http.get(url).evolve(label=label)
+
+
+def fetch_optional(
+    http: HttpClient, source: SourceConfig, urls: Iterable[str], label: str
+) -> list[FetchedDocument]:
+    """Documents of ``urls`` that could be fetched; a failure is logged and skipped."""
+    documents = []
+    for url in urls:
+        try:
+            documents.append(get_document(http, source, url, label))
+        except HttpError as error:
+            logger.warning("source %s: %s page skipped: %s", source.id, label, error)
+    return documents
+
+
+def require_groups(pattern: Pattern | None, name: str, *groups: str) -> None:
+    """Raise ``ValueError`` when ``pattern`` (the param ``name``) lacks one of ``groups``."""
+    if pattern is not None and (missing := [g for g in groups if g not in pattern.groupindex]):
+        raise ValueError(f"{name} needs the group(s) {', '.join(missing)}")
+
+
+def month_number(name: str | None) -> int | None:
+    """1 to 12 for an English month name or its abbreviation ("Sept", "March")."""
+    key = (name or "")[:3].lower()
+    return MONTHS.index(key) + 1 if key in MONTHS else None

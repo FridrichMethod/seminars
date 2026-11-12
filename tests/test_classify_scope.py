@@ -65,6 +65,13 @@ def event_filter() -> RuleEventFilter:
 
 
 class TestExclusion:
+    def test_a_free_tag_never_puts_an_event_out_of_scope(
+        self, event_filter: RuleEventFilter
+    ) -> None:
+        result = event_filter.filter([candidate(tags=[CME], field_hints=["med"])])
+        assert result.excluded == []
+        assert len(result.kept) == 1
+
     def test_an_event_of_such_a_category_is_out_of_scope(
         self, event_filter: RuleEventFilter
     ) -> None:

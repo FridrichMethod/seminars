@@ -362,6 +362,14 @@ class TestSourceFields:
         assert decision.fields == []
         assert decision.needs_llm
 
+    def test_a_free_tag_never_counts_as_a_department(self, tagger: RuleFieldTagger) -> None:
+        # Anyone who posts an event may tag it: a talk on the history of astronomy
+        # tagged "mathematics" is not a talk in mathematics.
+        decision = tagger.tag(candidate("TBA", tags=["Chemical Engineering", "Bioengineering"]))
+        assert decision.fields == []
+        assert decision.needs_llm
+        assert not any("department" in reason for reason in decision.reasons)
+
     def test_rules_add_fields_to_the_source_fields(self, tagger: RuleFieldTagger) -> None:
         decision = tagger.tag(candidate("Machine learning for catalysis", default_fields=["chem"]))
         assert decision.fields == ["ai-ml", "chem"]

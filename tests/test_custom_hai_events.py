@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -15,10 +16,22 @@ from factories import make_window
 from fakes import FakeClock, FakeHttpClient
 from seminars.config import load_sources
 from seminars.http import offline_client
-from seminars.models import EventDraft, SourceConfig, SpeakerDraft
+from seminars.models import (
+    MAX_DRAFT_SPEAKERS,
+    MAX_DRAFT_URL,
+    EventDraft,
+    SourceConfig,
+    SpeakerDraft,
+)
 from seminars.sources.base import ParseError, get_adapter
 from seminars.sources.custom import hai_events
 from seminars.sources.custom.hai_events import (
+    HaiEventsAdapter,
+    HaiParams,
+    looks_like_person,
+    split_title,
+)
+from seminars.sources.custom.hai_flight import (
     MAX_EVENTS,
     MAX_LIST_ITEMS,
     MAX_SUMMARY_LENGTH,
@@ -26,14 +39,10 @@ from seminars.sources.custom.hai_events import (
     MAX_TOPIC_LENGTH,
     MAX_TOPICS,
     Flight,
-    HaiEventsAdapter,
-    HaiParams,
     TextRow,
     cut_rows,
-    looks_like_person,
-    split_title,
 )
-from seminars.sources.generic.html_list import AdapterConfigError, load_params
+from seminars.sources.generic.common import AdapterConfigError, load_params
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = REPO_ROOT / "tests" / "fixtures" / "custom-hai-events"
@@ -409,13 +418,31 @@ class TestPayload:
         assert talk.title == "$" + "z" * (MAX_TEXT_LENGTH - 1)
 
     @pytest.mark.parametrize(
-        ("length", "kept"), [(MAX_TEXT_LENGTH, True), (MAX_TEXT_LENGTH + 1, False)]
+        ("length", "kept"),
+        [
+            (MAX_DRAFT_URL - len(SITE), True),
+            (MAX_DRAFT_URL - len(SITE) + 1, False),
+            (MAX_TEXT_LENGTH + 1, False),
+        ],
     )
     def test_a_link_longer_than_the_limit_is_missing(self, length: int, kept: bool) -> None:
+        """A link the page writes and the address it gives both have a limit."""
         href = "/e/" + "x" * (length - 3)
         upcoming = [event("Long link", "2026-11-17", href=href, promo=href)]
         [talk] = parse_rows([events_row(upcoming, [])], with_params(fetch_details="never"))
         assert talk.url == (f"{SITE}{href}" if kept else None)
+
+    def test_white_space_inside_a_long_link_does_not_make_it_short(self) -> None:
+        href = "/e/" + " " * 10 + "x" * (MAX_TEXT_LENGTH - 5)
+        upcoming = [event("Long link", "2026-11-17", href=href)]
+        [talk] = parse_rows([events_row(upcoming, [])], with_params(fetch_details="never"))
+        assert talk.url is None
+
+    def test_a_link_after_a_blank_one_is_taken(self) -> None:
+        flight = Flight(PARAMS.flight, {})
+        assert flight.link({"a": ["  ", " /e/1 "]}, "a[]") == "/e/1"
+        assert flight.link({"a": "   "}, "a") is None
+        assert flight.link({"a": "/e/1"}, None) is None
 
     def test_rows_that_are_not_json_are_skipped(self) -> None:
         rows = ["5:{not json\n", events_row([], [event("Old", "2026-10-01T12:00:00Z")])]
@@ -590,6 +617,41 @@ class TestDetailPages:
             ("Part one", "Gates 104"),
             ("Part two", "Gates 104"),
         ]
+
+    def test_events_that_share_a_huge_detail_page_stay_small_and_fast(self) -> None:
+        """A thousand events point at one page with 10k topics and 1k speaker cards."""
+        topics = "".join(f'<a href="/t/{n}">Topic {n}</a>' for n in range(10_000))
+        cards = "".join(
+            f'<div class="PersonCard_root__p"><h3 class="PersonCard_personName__n">Person {n}</h3>'
+            f'<p class="PersonCard_title__t">Lab {n}</p></div>'
+            for n in range(1000)
+        )
+        page = DETAIL.replace("<div>Robotics</div>", f"<div>{topics}</div>").replace(
+            "</body>",
+            f'<div class="PersonList_root__l"><h2 class="PersonList_title__h">Speakers</h2>'
+            f"{cards}</div></body>",
+        )
+        upcoming = [
+            event(
+                "Shared",
+                f"2026-11-{17 + n // 500:02d}T{n % 500 // 60:02d}:{n % 60:02d}:00Z",
+                href="/events/shared",
+                topics=[f"T{n % 7}"],
+            )
+            for n in range(1000)
+        ]
+        rows = [events_row(upcoming[:500], [], "25"), events_row(upcoming[500:], [], "26")]
+        detail = f"{SITE}/events/shared"
+        started = time.perf_counter()
+        drafts = run(SOURCE, serve({LIST_URL: payload_page(rows), detail: page}))
+        assert time.perf_counter() - started < 20
+        assert len(drafts) == 1000
+        for draft in drafts:
+            assert draft.categories[:2] == [draft.categories[0], "Topic 0"]
+            assert len(draft.categories) == MAX_TOPICS + 1  # its own topic and the page's
+            assert [speaker.name for speaker in draft.speakers] == [
+                f"Person {n}" for n in range(MAX_DRAFT_SPEAKERS)
+            ]
 
     @pytest.mark.parametrize(
         ("promo", "kept"),

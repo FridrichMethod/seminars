@@ -167,7 +167,7 @@ class TestASlipOfTheModel:
         [draft] = extract(FakeLLMClient(answer(talk)), page_with(values), file_cache(directory))
         assert private_in(stored_text(directory)) == []
         [item] = stored_items(directory)
-        assert item["abstract"].startswith(f"{LONG} Zoom passcode: ")
+        assert item["abstract"] == f"{LONG} Zoom passcode: [removed]"
         assert draft.abstract is not None
         assert draft.abstract.startswith(LONG)
         assert private_in(draft.abstract) == []
@@ -259,3 +259,57 @@ class TestBlankValues:
             "affiliation": blank,
         }
         assert fields_of(draft) == {**BASE, "affiliation": None}
+
+
+class TestWhiteSpace:
+    """Normalization collapses white space before it scrubs, so the cache is checked that way.
+
+    A line field loses every run of white space, line breaks included; a
+    block field keeps its lines and collapses the white space in each.
+    """
+
+    @pytest.mark.parametrize(
+        ("note", "cached"),
+        [
+            ("Zoom passcode:" + "\n" * 5 + "482913", "Zoom passcode: [removed]"),
+            ("Zoom passcode:" + " " * 6 + "482913", "Zoom passcode: [removed]"),
+            ("Mail jane.doe @" + " " * 5 + "example.edu", "Mail [email removed]"),
+            ("Call (650)" + " " * 4 + "555-0142", "Call [phone removed]"),
+        ],
+    )
+    def test_a_value_is_cached_without_what_collapsing_reveals(
+        self, note: str, cached: str, tmp_path: Path
+    ) -> None:
+        assert scrub_private(note) == note, "the scrubber alone misses it"
+        values = {**BASE, "affiliation": f"Stanford University, {note}"}
+        directory = tmp_path / "llm_cache"
+        client = FakeLLMClient(answer(talk_with(values)))
+        [draft] = extract_document(client, plain_text(values), "text/plain", file_cache(directory))
+        assert private_in(stored_text(directory)) == []
+        [item] = stored_items(directory)
+        assert normalization_finds_nothing(item)
+        affiliation = item["speakers"][0]["affiliation"]
+        read = None if affiliation is None else " ".join(affiliation.split())
+        assert read in (None, f"Stanford University, {cached}")
+        assert private_in(json.dumps(fields_of(draft))) == []
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "Zoom passcode:" + "\n" * 5 + "482913",
+            "Mail jane.doe @" + " " * 5 + "example.edu",
+            "Passcode:" + " \n " * 3 + "482913",
+        ],
+    )
+    def test_an_entry_from_before_loses_such_a_value_when_it_is_read(
+        self, value: str, tmp_path: Path
+    ) -> None:
+        text = page_with(BASE)
+        talk = {**talk_with(BASE), "speakers": [{"name": BASE["name"], "affiliation": value}]}
+        directory = tmp_path / "llm_cache"
+        file_cache(directory).put(key_of(text), cache_value(date(2026, 11, 9), answer(talk)))
+        cache = file_cache(directory, days_later=1)
+        [draft] = extract(FakeLLMClient(), text, cache)
+        assert cache.stats().writes == 1
+        assert private_in(stored_text(directory)) == []
+        assert private_in(json.dumps(fields_of(draft))) == []

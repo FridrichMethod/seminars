@@ -415,7 +415,7 @@ class TestRecurrence:
         [
             ("FREQ=DAILY;INTERVAL=7;BYDAY=TU", True),
             ("FREQ=DAILY;INTERVAL=14;BYDAY=WE,TH", True),
-            ("FREQ=DAILY;INTERVAL=2;BYDAY=TU;BYMONTHDAY=13", True),
+            ("FREQ=DAILY;INTERVAL=2;BYDAY=TU;BYMONTHDAY=13", False),  # walked, may match
             ("FREQ=MONTHLY;INTERVAL=2;BYMONTH=2", True),
             ("FREQ=MONTHLY;INTERVAL=12;BYMONTH=6,12", True),
             ("FREQ=DAILY;INTERVAL=0", True),

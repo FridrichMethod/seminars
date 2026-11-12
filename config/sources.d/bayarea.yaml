@@ -272,6 +272,9 @@ sources:
         link: h3.c-card__title a
         date_text: .c-card__date
         empty: div.c-view__empty  # "No items to display." (the recorded page)
+      # A card title is the speaker with the affiliation, "Jane Doe (MIT)": the talk
+      # has no title on the list, and this names its speaker.
+      tba_title_patterns: ['^(?P<speaker>[^()]+?)\s*\((?P<affiliation>[^()]+)\)$']
     research:
       verified: 2026-11-11
       sample_events: 0

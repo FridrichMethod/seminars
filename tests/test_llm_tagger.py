@@ -174,6 +174,12 @@ class TestWhatTheModelSees:
         assert len(payload["abstract"]) <= ABSTRACT_CHARS
         assert payload["abstract"].startswith("word word")
 
+    def test_the_payload_shows_the_tags_among_the_labels(self) -> None:
+        event = make_event(fields=[])
+        hints = {"categories": ["Seminar"], "tags": ["mathematics", "Seminar"]}
+        payload = event_payload(make_candidate(event, **hints))
+        assert payload["categories"] == ["Seminar", "mathematics"]
+
     def test_empty_parts_are_left_out(self) -> None:
         event = make_event(series=None, abstract=None, speakers=[], fields=[])
         payload = event_payload(make_candidate(event, default_fields=[], source_ids=[]))

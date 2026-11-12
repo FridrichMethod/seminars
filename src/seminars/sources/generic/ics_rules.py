@@ -16,8 +16,8 @@ window, whatever its filters, and every unit of that work is a step: in
 each period the days the rule can hit (``_candidates``: the days of
 BYMONTHDAY, else the weekdays of BYDAY, in the months of BYMONTH; at least
 one step a period), each BYSETPOS entry (duplicates are dropped) and each
-time of day the walk builds. A rule without COUNT does not build the times
-of day before the window (``_skip_before``). One rule takes at most
+time of day the walk builds. No rule builds the times of day before its
+DTSTART, and a rule without COUNT none before the window (``_skip_before``). One rule takes at most
 ``MAX_EXPANSION_STEPS`` steps (and the rest of a period it has started;
 then its walk stops where it is, so a series with COUNT that began more
 than about 25000 periods before the window gives nothing in it), and the
@@ -132,10 +132,9 @@ def _check_calendar_days(keys: dict[str, list[Any]], frequency: str) -> None:
     if days and frequency == "WEEKLY":
         raise ValueError("BYMONTHDAY is not valid in a weekly rule")
     if months and days:
-        possible = any(
-            abs(int(day)) <= _DAYS_IN_MONTH.get(int(month), 0) for month in months for day in days
-        )
-        if not possible:
+        # At most 12 months and 31 days once each, however often the rule repeats them.
+        longest = max(_DAYS_IN_MONTH[month] for month in {int(month) for month in months})
+        if min(abs(int(day)) for day in days) > longest:
             raise ValueError("BYMONTHDAY names no day of the months in BYMONTH")
 
 
@@ -186,7 +185,10 @@ def _check_positions(keys: dict[str, list[Any]], frequency: str, start: date | N
     """BYSETPOS only in a monthly or yearly rule, and only for positions a period can have.
 
     Positions are 1 to 366 or -366 to -1, as RFC 5545 has them; a repeated
-    one is one position (the walk drops duplicates).
+    one is one position (the walk drops duplicates). A position beyond the
+    set of a period picks nothing there, so the rule is refused only when
+    no period can have any of its positions ("BYDAY=1TU,3TU;BYSETPOS=1,3"
+    is the first Tuesday).
     """
     if "BYSETPOS" not in keys:
         return
@@ -196,7 +198,7 @@ def _check_positions(keys: dict[str, list[Any]], frequency: str, start: date | N
     if not positions or min(positions) < 1 or max(positions) > 366:
         raise ValueError("BYSETPOS names no position of a set")
     day = None if start is None else start.day
-    if max(positions) > _set_size_bound(keys, yearly=frequency == "YEARLY", day=day):
+    if min(positions) > _set_size_bound(keys, yearly=frequency == "YEARLY", day=day):
         raise ValueError("BYSETPOS names a position that no period has")
 
 
@@ -204,10 +206,9 @@ def _check_from_start(keys: dict[str, list[Any]], frequency: str, start: date) -
     """Refuse a rule that, from ``start``, never lands on a day that its filters accept.
 
     A daily rule whose INTERVAL is a multiple of 7 stays on the weekday of
-    ``start``, which its BYDAY must name; with an INTERVAL it may not combine
-    BYDAY and BYMONTHDAY (INTERVAL=27 can step through centuries without a
-    match). A monthly rule only reaches the months congruent to the month of
-    ``start`` modulo gcd(INTERVAL, 12), one of which its BYMONTH must name.
+    ``start``, which its BYDAY must name. A monthly rule only reaches the
+    months congruent to the month of ``start`` modulo gcd(INTERVAL, 12), one
+    of which its BYMONTH must name.
     One of the months that a monthly or yearly rule reaches must have a day
     of its BYMONTHDAY, or without BYDAY and BYMONTHDAY the day of ``start``,
     which such a rule repeats (no June has the 31st).
@@ -216,11 +217,9 @@ def _check_from_start(keys: dict[str, list[Any]], frequency: str, start: date) -
     if interval < 1:
         raise ValueError("INTERVAL must be positive")
     weekdays = {str(day).upper()[-2:] for day in keys.get("BYDAY", [])}
-    if frequency == "DAILY" and interval > 1 and weekdays:
-        if interval % 7 == 0 and _WEEKDAYS[start.weekday()] not in weekdays:
-            raise ValueError("BYDAY never names the weekday that this daily rule falls on")
-        if "BYMONTHDAY" in keys:
-            raise ValueError("BYDAY with BYMONTHDAY is not supported in a daily rule with INTERVAL")
+    stays_on_one_weekday = frequency == "DAILY" and interval % 7 == 0
+    if stays_on_one_weekday and weekdays and _WEEKDAYS[start.weekday()] not in weekdays:
+        raise ValueError("BYDAY never names the weekday that this daily rule falls on")
     months = sorted({int(month) for month in keys.get("BYMONTH", [])}) or list(range(1, 13))
     if frequency == "MONTHLY":
         step = math.gcd(interval, 12)
@@ -228,8 +227,8 @@ def _check_from_start(keys: dict[str, list[Any]], frequency: str, start: date) -
         if not months:
             raise ValueError("BYMONTH never names a month that this monthly rule falls on")
     if frequency in ("MONTHLY", "YEARLY") and ("BYMONTHDAY" in keys or "BYDAY" not in keys):
-        days = [abs(int(day)) for day in keys.get("BYMONTHDAY", [start.day])]
-        if all(day > _DAYS_IN_MONTH[month] for month in months for day in days):
+        day = min(abs(int(day)) for day in keys.get("BYMONTHDAY", [start.day]))
+        if all(day > _DAYS_IN_MONTH[month] for month in months):
             raise ValueError(
                 "no month that this rule falls on has the day of BYMONTHDAY or DTSTART"
             )
@@ -565,14 +564,18 @@ def _walk(rule: _Rule, anchor: datetime, low: datetime, high: datetime, *, limit
     or ``high``, the earlier); a rule without COUNT starts with the period
     before ``low`` and leaves out the times of day before ``low`` without
     steps (``_skip_before``); one with COUNT starts with the period of
-    DTSTART and counts every occurrence from there.
+    DTSTART and counts every occurrence from there. Neither builds the
+    times of day before DTSTART, which are no occurrences.
     """
     if rule.count is not None and rule.count < 1:
         return _Walk((), 0)
     end = high if rule.until is None else min(high, rule.until)
     last_day, start_day = _wall(end, anchor).date(), _wall(low, anchor).date() - _ONE_DAY
     index = 0 if rule.count is not None else _period_index(rule, anchor.date(), start_day)
-    since = None if rule.count is not None else _skip_before(low, anchor)
+    since = _skip_before(anchor, anchor)  # no time before DTSTART is an occurrence
+    if rule.count is None:
+        before_low = _skip_before(low, anchor)
+        since = None if since is None or before_low is None else max(since, before_low)
     starts: list[datetime] = []
     steps = taken = 0
     while True:

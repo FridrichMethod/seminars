@@ -10,10 +10,12 @@ from fakes import FakeIssueClient, FakeSecretScanner
 from seminars.config import ProjectPaths
 from seminars.models import Issue, IssueStateFilter, SecretFinding
 from seminars.pipeline.checks import (
+    CACHE_FINDING_ADVICE,
     CHECK_ISSUE_TITLE,
     EXIT_OUTPUT_CHECK,
     MAX_LISTED,
     CheckResult,
+    advice,
     check_issue_body,
     check_texts,
     check_tree,
@@ -106,6 +108,22 @@ class TestResults:
         assert f"... and {60 - MAX_LISTED} more" in body
         assert body.endswith("\n")
         assert body.isascii()
+
+    def test_a_finding_in_the_llm_cache_says_how_to_clear_it(self) -> None:
+        entry = "data/llm_cache/ab/" + "ab" * 32 + ".json"
+        cached = CheckResult((finding(entry, 2, "github-token"),))
+        assert advice(cached) == [CACHE_FINDING_ADVICE]
+        assert "delete that file" in CACHE_FINDING_ADVICE
+        assert CACHE_FINDING_ADVICE in check_issue_body(cached)
+        assert advice(CheckResult(charset_findings=(f"{entry}:1:1 U+00A0",))) == [
+            CACHE_FINDING_ADVICE
+        ]
+
+    def test_other_findings_get_no_cache_advice(self) -> None:
+        elsewhere = CheckResult((finding("data/events.json"),), ("public/x.json:1:1 U+00A0",))
+        assert advice(elsewhere) == []
+        assert CACHE_FINDING_ADVICE not in check_issue_body(elsewhere)
+        assert advice(CheckResult((finding("data/llm_cache_old.json"),))) == []
 
     def test_the_exit_status_is_three(self) -> None:
         assert EXIT_OUTPUT_CHECK == 3

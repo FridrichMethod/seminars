@@ -128,8 +128,9 @@ def event_payload(candidate: Candidate) -> dict[str, Any]:
     """What the model is told about one event; also the text behind its cache key.
 
     Only what helps to tell the field: title, series, host, kind of event,
-    speakers with their affiliation, the labels and usual fields of the
-    source, and the beginning of the abstract. No uid, link or time. Empty
+    speakers with their affiliation, the labels (categories and tags, both
+    under ``categories``) and usual fields of the source, and the beginning
+    of the abstract. No uid, link or time. Empty
     parts are left out and whitespace is tidied, so that the same event
     always gives the same payload.
     """
@@ -146,7 +147,7 @@ def event_payload(candidate: Candidate) -> dict[str, Any]:
         "host": _tidy(event.host_org),
         "type": event.event_type,
         "speakers": [speaker for speaker in speakers if speaker],
-        "categories": [_tidy(label) for label in hints.categories[:MAX_CATEGORIES]],
+        "categories": [_tidy(label) for label in hints.labels[:MAX_CATEGORIES]],
         "source_fields": hints.suggested_fields,
         "abstract": _tidy(event.abstract)[:ABSTRACT_CHARS].rstrip(),
     }

@@ -104,6 +104,13 @@ class TestBasics:
         assert hints.default_fields == ["bio", "med"]
         assert hints.field_hints == ["chem"]
         assert hints.categories == ["Chemistry Dept", "Talks"]
+        assert hints.tags == []
+
+    def test_tags_are_cleaned_like_categories_and_kept_apart(self) -> None:
+        draft = make_draft(categories=["Talks"], tags=[" protein <b>design</b> ", "", "Talks"])
+        hints = one(draft, make_source()).hints
+        assert hints.categories == ["Talks"]
+        assert hints.tags == ["Talks", "protein design"]
 
     def test_source_defaults_fill_what_the_draft_leaves_out(self) -> None:
         source = make_source(series="Bioengineering Seminar", default_event_type="colloquium")

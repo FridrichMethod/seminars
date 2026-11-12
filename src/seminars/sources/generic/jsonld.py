@@ -62,7 +62,7 @@ from seminars.models import (
     TimeWindow,
 )
 from seminars.sources.base import ParseError, absolute_url, fetch_urls, register_adapter
-from seminars.sources.generic.html_list import collapse, load_params, parse_moment
+from seminars.sources.generic.common import collapse, load_params, parse_moment
 from seminars.textrules import ascii_printable, without_surrogates
 
 logger = logging.getLogger(__name__)

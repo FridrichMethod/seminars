@@ -18,7 +18,7 @@ from seminars.http import offline_client
 from seminars.models import TBA_TITLE, EventDraft, SourceConfig
 from seminars.sources.base import ForeignHostError, ParseError, get_adapter
 from seminars.sources.generic import rss as rss_module
-from seminars.sources.generic.html_list import AdapterConfigError
+from seminars.sources.generic.common import AdapterConfigError
 from seminars.sources.generic.rss import RssAdapter, RssParams, feed_moment, load_params
 
 REPO_ROOT = Path(__file__).resolve().parents[1]

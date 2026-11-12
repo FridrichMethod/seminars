@@ -162,7 +162,9 @@ class FakeLLMCache:
     a later run, set ``today`` or build another fake over the same
     ``entries`` and ``dates``. ``refreshes`` counts the hits that renewed a
     date (the ones for which a real cache rewrites a file), ``prunes`` the
-    calls of ``prune``, which really removes what is too old.
+    calls of ``prune``, which really removes what is too old. A stored
+    ``{}`` is a placeholder, as in the contract: it is returned, counts as
+    a miss and is never renewed.
     """
 
     def __init__(
@@ -190,6 +192,9 @@ class FakeLLMCache:
         if value is None:
             self.misses += 1
             return None
+        if not value:  # {} is a placeholder: it answers nothing
+            self.misses += 1
+            return {}
         self.hits += 1
         if self._age(key) >= max(1, llm_cache_refresh_days(self.ttl_days)):
             self.dates[key] = self.today

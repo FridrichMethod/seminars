@@ -42,6 +42,7 @@ from seminars.models import (
 )
 from seminars.outputs.health import update_health
 from seminars.pipeline import services as wiring
+from seminars.pipeline.checks import CACHE_FINDING_ADVICE
 from seminars.pipeline.run import LIVE_OVER_OFFLINE
 from seminars.pipeline.secret_scan import build_secret_scanner
 from seminars.sources.base import AdapterRegistry, fetch_urls
@@ -618,6 +619,21 @@ class TestValidate:
         result = invoke("validate")
         assert result.exit_code == 3
         assert "charset: data/note.txt:missing final newline" in result.output
+
+    def test_a_secret_in_an_old_cache_entry_says_what_to_do(
+        self, project: Path, fakes: Fakes
+    ) -> None:
+        assert invoke("run", "--offline").exit_code == 0
+        forged = "ghp" + "_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
+        entry = project / "data" / "llm_cache" / "ab" / ("ab" * 32 + ".json")
+        entry.parent.mkdir(parents=True, exist_ok=True)
+        entry.write_text(
+            f'{{"used": "2026-11-10", "value": {{"note": "{forged}"}}}}\n', encoding="utf-8"
+        )
+        result = invoke("validate")
+        assert result.exit_code == 3
+        assert f"note: {CACHE_FINDING_ADVICE}" in result.output
+        assert forged not in result.output
 
     def test_a_broken_feed_is_a_problem(self, project: Path, fakes: Fakes) -> None:
         assert invoke("run", "--offline").exit_code == 0

@@ -115,10 +115,13 @@ def sorted_dict[V](value: dict[str, V]) -> dict[str, V]:
 
 
 def check_timezone(name: str) -> str:
-    """Validate an IANA time zone name such as ``America/Los_Angeles``."""
+    """Validate an IANA time zone name such as ``America/Los_Angeles``.
+
+    A name too long for a file name (``OSError``) is unknown like any other.
+    """
     try:
         ZoneInfo(name)
-    except (ZoneInfoNotFoundError, ValueError) as error:
+    except (ZoneInfoNotFoundError, ValueError, OSError) as error:
         raise ValueError(f"unknown IANA time zone: {name!r}") from error
     return name
 

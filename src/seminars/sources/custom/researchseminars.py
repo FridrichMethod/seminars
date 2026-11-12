@@ -80,7 +80,7 @@ from seminars.models import (
     TimeWindow,
 )
 from seminars.sources.base import ParseError, absolute_url, fetch_urls, register_adapter
-from seminars.sources.generic.html_list import collapse, is_tba, load_params, node_text
+from seminars.sources.generic.common import collapse, is_tba, load_params, node_text
 from seminars.sources.generic.ics import (
     IcsOccurrence,
     occurrence_draft,

@@ -59,11 +59,17 @@ class EventHints(Model):
     default_fields: FieldList = []  # union of the sources' default_fields
     field_hints: FieldList = []  # union of the drafts' field_hints
     categories: SortedStrList = []  # union of the drafts' free-text categories
+    tags: SortedStrList = []  # union of the drafts' tags (never a department)
 
     @property
     def suggested_fields(self) -> list[str]:
         """``default_fields`` and ``field_hints`` combined, in canonical order."""
         return canonical_fields([*self.default_fields, *self.field_hints])
+
+    @property
+    def labels(self) -> list[str]:
+        """``categories`` and ``tags`` together, sorted: what the filter and the LLM read."""
+        return sorted({*self.categories, *self.tags})
 
     def merge(self, other: EventHints) -> Self:
         """Union of two hint sets; commutative, associative and idempotent."""
@@ -72,6 +78,7 @@ class EventHints(Model):
             default_fields=[*self.default_fields, *other.default_fields],
             field_hints=[*self.field_hints, *other.field_hints],
             categories=[*self.categories, *other.categories],
+            tags=[*self.tags, *other.tags],
         )
 
 

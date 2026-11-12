@@ -76,7 +76,13 @@ from seminars.github import repository_owner
 from seminars.http import HttpError
 from seminars.models import LLMProviderResult, RunReport, SourceRunResult
 from seminars.pipeline import services as wiring
-from seminars.pipeline.checks import EXIT_OUTPUT_CHECK, CheckResult, check_tree, describe
+from seminars.pipeline.checks import (
+    EXIT_OUTPUT_CHECK,
+    CheckResult,
+    advice,
+    check_tree,
+    describe,
+)
 from seminars.pipeline.clock import ClockError, current_time, run_time
 from seminars.pipeline.collect import collect_sources
 from seminars.pipeline.normalize import NormalizeContext
@@ -210,6 +216,7 @@ def report_lines(report: RunReport) -> list[str]:
     if not checks.ok:
         lines.append(f"OUTPUT CHECK FAILED: {NOT_PUBLISHABLE}")
         lines += [f"  {line}" for line in describe(checks)]
+        lines += [f"  note: {line}" for line in advice(checks)]
     lines.append(f"result: {_verdict(report)}")
     return lines
 
@@ -473,6 +480,8 @@ def validate() -> None:
         say(f"problem: {problem}")
     for line in describe(result.checks):
         say(line)
+    for line in advice(result.checks):
+        say(f"note: {line}")
     if not result.checks.ok:
         say(f"result: output check failed: {NOT_PUBLISHABLE}")
         raise typer.Exit(EXIT_OUTPUT_CHECK)
@@ -544,6 +553,8 @@ def build_site() -> None:
         say(f"missing: {part}")
     for line in describe(checks):
         say(line)
+    for line in advice(checks):
+        say(f"note: {line}")
     if not checks.ok:
         say(f"result: output check failed: {NOT_PUBLISHABLE}")
         raise typer.Exit(EXIT_OUTPUT_CHECK)

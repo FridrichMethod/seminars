@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import contextlib
 import json
+from collections.abc import Iterable, Mapping
 from datetime import date, datetime, time, timedelta
-from typing import Annotated, Any, Self
+from itertools import islice
+from types import MappingProxyType
+from typing import Annotated, Any, Final, Self
 from zoneinfo import ZoneInfo
 
 from pydantic import AfterValidator, PlainValidator, model_validator
@@ -27,6 +30,87 @@ from seminars.textrules import without_surrogates
 
 BodyText = Annotated[str, AfterValidator(normalize_body)]
 """Text of a response body in canonical form (see ``seminars.textio.normalize_body``)."""
+
+# --- how much of a draft is kept ---------------------------------------------------------
+#
+# Normalization reads a line field of stored limit L as at most 4 L characters
+# of text, of which it takes at most 8 times as much raw input (markup
+# included), so 32 L characters in all (seminars.pipeline.normalize and
+# seminars.pipeline.text, RAW_FACTOR). A draft keeps one character more,
+# so that normalization still sees where it cuts. tests/test_pipeline_draft_limits.py
+# ties every number here to the limits of normalization.
+
+MAX_ROLLOVER: Final = timedelta(hours=6)
+"""An end that the clock puts before its start on the same day is on the next day
+when that is at most this much after the start ("11pm - 1am"); otherwise there is none.
+Normalization and the adapters that read times of day apply the same rule."""
+
+MAX_DRAFT_URL: Final = 2000
+"""A draft address longer than this counts as missing; normalization would not use it."""
+
+MAX_DRAFT_NATIVE_ID: Final = 2000
+"""A native id longer than this counts as missing: no source uses one that long."""
+
+DRAFT_TEXT_LIMITS: Final[Mapping[str, int]] = MappingProxyType(
+    {
+        "title": 9601,  # 32 x 300
+        "speaker_text": 64001,  # 32 x 2000
+        "series": 6401,  # 32 x 200
+        "host_org": 6401,  # 32 x 200
+        "location": 9601,  # 32 x 300
+        "abstract": 128001,  # 32 x 4000, the default of events.abstract_max_chars
+        "abstract_html": 128001,
+        "source_text": 262144,  # the page text an LLM answer was grounded in
+    }
+)
+"""Characters a text field of ``EventDraft`` keeps at most; the rest is cut off."""
+
+MAX_DRAFT_SPEAKER_NAME: Final = 3841  # 32 x 120
+MAX_DRAFT_AFFILIATION: Final = 9601  # 32 x 300
+MAX_DRAFT_CATEGORY: Final = 3201  # 32 x 100
+
+MAX_DRAFT_SPEAKERS: Final = 40
+"""Structured speakers a draft keeps; normalization keeps 20 different people."""
+
+MAX_DRAFT_CATEGORIES: Final = 100
+"""Categories (and tags) a draft keeps; normalization keeps the first 50 that are not empty."""
+
+MAX_DRAFT_TIME: Final = 121
+"""Characters a start or end written as text keeps; normalization reads at most 120."""
+
+MAX_DRAFT_CHARACTERS: Final = (
+    sum(DRAFT_TEXT_LIMITS.values())
+    + 2 * MAX_DRAFT_TIME
+    + 2 * MAX_DRAFT_URL
+    + MAX_DRAFT_NATIVE_ID
+    + MAX_DRAFT_SPEAKERS * (MAX_DRAFT_SPEAKER_NAME + MAX_DRAFT_AFFILIATION + MAX_DRAFT_URL)
+    + 2 * MAX_DRAFT_CATEGORIES * MAX_DRAFT_CATEGORY
+)
+"""Characters of text, times, addresses and lists one draft holds at most (about 1.9 million).
+
+The other fields are of a fixed small size: the source id, the time zone,
+the field ids, flags and names of a kind. A draft of ASCII text therefore
+takes about as many bytes, and one of other text up to four times as many.
+"""
+
+
+def _cut(value: object, limit: int) -> object:
+    """A string longer than ``limit`` cut to it; anything else as it is."""
+    return value[:limit] if isinstance(value, str) and len(value) > limit else value
+
+
+def _bounded_address(value: object, limit: int = MAX_DRAFT_URL) -> object:
+    """``None`` for a string longer than ``limit``; anything else as it is."""
+    return None if isinstance(value, str) and len(value) > limit else value
+
+
+def _first(value: object, count: int) -> object:
+    """The first ``count`` items of a list or other iterable; anything else as it is."""
+    if isinstance(value, list | tuple):
+        return list(value[:count]) if len(value) > count else value
+    if isinstance(value, Iterable) and not isinstance(value, str | bytes | Mapping):
+        return list(islice(value, count))
+    return value
 
 
 def _draft_moment(value: object) -> datetime | date | str:
@@ -153,6 +237,21 @@ class SpeakerDraft(Model):
     affiliation: str | None = None
     url: HttpUrlStr | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _keep_bounded(cls, data: Any) -> Any:
+        """Cut name and affiliation to what a draft keeps; a too long address is missing."""
+        if not isinstance(data, Mapping):
+            return data
+        bounded: dict[Any, Any] = dict(data)
+        if "name" in bounded:
+            bounded["name"] = _cut(bounded["name"], MAX_DRAFT_SPEAKER_NAME)
+        if "affiliation" in bounded:
+            bounded["affiliation"] = _cut(bounded["affiliation"], MAX_DRAFT_AFFILIATION)
+        if "url" in bounded:
+            bounded["url"] = _bounded_address(bounded["url"])
+        return bounded
+
 
 class EventDraft(Model):
     """What ``Adapter.parse`` returns for one event, before normalization.
@@ -202,14 +301,35 @@ class EventDraft(Model):
     * ``abstract`` is plain text, ``abstract_html`` is HTML to be converted.
     * ``field_hints`` are canonical field ids the adapter can infer (for
       example through a department map); ``categories`` are free-text labels
-      of the source (departments, subjects, event types, tags) for the rule
-      based tagger and the filter.
+      of the source (departments, subjects, event types) for the rule
+      based tagger and the filter. ``tags`` are keywords that whoever posts
+      an event may attach (the tags of a Stanford Events record): a tag
+      "mathematics" on a talk about the history of astronomy names no
+      department, so tags never count as a department or an out-of-scope
+      category; the filter and the LLM tagger read them like categories.
     * ``event_type_hint`` / ``status_hint`` are set only when the source
       states them explicitly; otherwise the source defaults apply.
     * ``stream_url`` may carry a credential; normalization drops such URLs.
     * ``source_text`` is the text the draft was extracted from. It is
       mandatory for ``extraction == "llm"`` because every LLM-extracted field
       must be grounded in it.
+
+    * Sizes are bounded when a draft is built, so that no page can make
+      the drafts of its events large, however many events share one long
+      text: a text field keeps at most ``DRAFT_TEXT_LIMITS`` characters (a
+      speaker's name ``MAX_DRAFT_SPEAKER_NAME``, an affiliation
+      ``MAX_DRAFT_AFFILIATION``, a category ``MAX_DRAFT_CATEGORY``), which
+      is more than normalization reads; ``speakers`` keeps the first
+      ``MAX_DRAFT_SPEAKERS`` and ``categories`` and ``tags`` the first
+      ``MAX_DRAFT_CATEGORIES`` (a tag is cut like a category). A longer
+      address (``MAX_DRAFT_URL``) or native id (``MAX_DRAFT_NATIVE_ID``)
+      is not cut but counts as missing, and a start or end written as text
+      keeps ``MAX_DRAFT_TIME`` characters, one more than normalization
+      reads. Text below its limit is kept as the very object it was given.
+      One draft therefore holds at most ``MAX_DRAFT_CHARACTERS``
+      characters (about 1.9 million, about 1.9 MB of ASCII text). Drafts
+      that share a text too long for a field each keep a cut copy of their
+      own, so a thousand of them can take a thousand times as much.
 
     Building a draft validates it, and a value that breaks these rules
     raises ``pydantic.ValidationError``. Adapters treat that like any other
@@ -236,9 +356,38 @@ class EventDraft(Model):
     abstract_html: str | None = None
     field_hints: FieldList = []
     categories: list[str] = []
+    tags: list[str] = []
     event_type_hint: EventType | None = None
     status_hint: EventStatus | None = None
     source_text: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _keep_bounded(cls, data: Any) -> Any:
+        """Bound text, lists and addresses to what a draft keeps (see the class)."""
+        if not isinstance(data, Mapping):
+            return data
+        bounded: dict[Any, Any] = dict(data)
+        for name, limit in DRAFT_TEXT_LIMITS.items():
+            if name in bounded:
+                bounded[name] = _cut(bounded[name], limit)
+        for name in ("start", "end"):
+            if name in bounded:
+                bounded[name] = _cut(bounded[name], MAX_DRAFT_TIME)
+        for name in ("url", "stream_url"):
+            if name in bounded:
+                bounded[name] = _bounded_address(bounded[name])
+        if "native_id" in bounded:
+            bounded["native_id"] = _bounded_address(bounded["native_id"], MAX_DRAFT_NATIVE_ID)
+        if "speakers" in bounded:
+            bounded["speakers"] = _first(bounded["speakers"], MAX_DRAFT_SPEAKERS)
+        for name in ("categories", "tags"):
+            if name in bounded:
+                labels = _first(bounded[name], MAX_DRAFT_CATEGORIES)
+                if isinstance(labels, list | tuple):
+                    labels = [_cut(label, MAX_DRAFT_CATEGORY) for label in labels]
+                bounded[name] = labels
+        return bounded
 
     @model_validator(mode="after")
     def _check_grounding_text(self) -> Self:

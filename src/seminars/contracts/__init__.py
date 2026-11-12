@@ -14,7 +14,7 @@ Import everything from ``seminars.contracts``. The definitions live in:
                PageExtractor and their factories
 * classify.py  FieldTagger, EventFilter, PicksScorer and their factories
 * outputs.py   the ICS, site data, digest and health functions, IssueClient
-* tools.py     SecretScanner, SourceProber
+* tools.py     SecretScanner, PrivateTextScrubber, SourceProber
 
 Where each contract is implemented (``module:attribute``, also available as
 ``IMPLEMENTATIONS[key]``):
@@ -38,6 +38,7 @@ digest_publish       seminars.outputs.digest:publish_digest                  Dig
 health_update        seminars.outputs.health:update_health                   HealthUpdater
 issue_client         seminars.github:build_issue_client                      IssueClientFactory
 secret_scanner       seminars.pipeline.secret_scan:build_secret_scanner      SecretScannerFactory
+private_scrubber     seminars.pipeline.privacy:scrub_private                 PrivateTextScrubber
 source_probe         seminars.sources.probe:probe_source                     SourceProber
 ==================== ======================================================= ==================
 
@@ -184,6 +185,7 @@ from seminars.contracts.outputs import (
     SiteDataWriter,
 )
 from seminars.contracts.tools import (
+    PrivateTextScrubber,
     SecretScanner,
     SecretScannerFactory,
     SourceProber,
@@ -231,6 +233,7 @@ __all__ = [
     "PicksReranker",
     "PicksScorer",
     "PicksScorerFactory",
+    "PrivateTextScrubber",
     "SecretScanner",
     "SecretScannerFactory",
     "SiteDataWriter",
@@ -258,6 +261,7 @@ IMPLEMENTATIONS: Final[dict[str, str]] = {
     "health_update": "seminars.outputs.health:update_health",
     "issue_client": "seminars.github:build_issue_client",
     "secret_scanner": "seminars.pipeline.secret_scan:build_secret_scanner",
+    "private_scrubber": "seminars.pipeline.privacy:scrub_private",
     "source_probe": "seminars.sources.probe:probe_source",
 }
 """Contract key -> ``module:attribute`` of its implementation (see the module docstring)."""

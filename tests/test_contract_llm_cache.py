@@ -246,6 +246,17 @@ FILE_CHECKS: list[Callable[[LLMCacheFactory, Path], None]] = [
 ALL_CHECKS = [*AGE_CHECKS, *FILE_CHECKS]
 
 
+def check_a_placeholder_answers_nothing(open_cache: LLMCacheFactory, directory: Path) -> None:
+    """A stored ``{}`` is returned as stored, counts as a miss, is never renewed, ages out."""
+    key = key_of("placeholder")
+    open_cache(directory, ttl_days=TTL, now=day(0)).put(key, {})
+    for offset in (0, R, TTL):
+        cache = open_cache(directory, ttl_days=TTL, now=day(offset))
+        assert cache.get(key) == {}, offset
+        assert cache.stats() == LLMCacheStats(hits=0, misses=1, writes=0), offset
+    assert open_cache(directory, ttl_days=TTL, now=day(TTL + 1)).prune() == 1
+
+
 def names(checks: list[Callable[[LLMCacheFactory, Path], None]]) -> list[str]:
     return [check.__name__.removeprefix("check_") for check in checks]
 
@@ -474,6 +485,9 @@ class TestFake:
         check(self.shared_store(), tmp_path)
         assert list(tmp_path.iterdir()) == []
 
+    def test_a_placeholder_of_the_fake_answers_nothing(self, tmp_path: Path) -> None:
+        check_a_placeholder_answers_nothing(self.shared_store(), tmp_path)
+
 
 class TestRealCache:
     @pytest.mark.parametrize("check", ALL_CHECKS, ids=names(ALL_CHECKS))
@@ -486,3 +500,7 @@ class TestRealCache:
             pytest.skip(f"{module_name} is not implemented yet")
         open_cache: LLMCacheFactory = load_implementation("llm_cache")
         check(open_cache, tmp_path / "data" / "llm_cache")
+
+    def test_a_placeholder_of_the_real_cache_answers_nothing(self, tmp_path: Path) -> None:
+        open_cache: LLMCacheFactory = load_implementation("llm_cache")
+        check_a_placeholder_answers_nothing(open_cache, tmp_path / "data" / "llm_cache")

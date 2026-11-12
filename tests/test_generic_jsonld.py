@@ -15,7 +15,7 @@ from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig
 from seminars.sources.base import ParseError, get_adapter
 from seminars.sources.generic import jsonld
-from seminars.sources.generic.html_list import AdapterConfigError
+from seminars.sources.generic.common import AdapterConfigError
 from seminars.sources.generic.jsonld import JsonLdAdapter, decode, find_events
 
 WINDOW = make_window(datetime(2026, 11, 11, 20, 0, tzinfo=UTC))

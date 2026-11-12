@@ -11,7 +11,9 @@ publishes, so this is where the rules for stored data are applied:
   address that carries a credential is dropped (the event only stays
   marked as online); every text loses meeting credentials, e-mail
   addresses and telephone numbers (``seminars.pipeline.privacy``; the
-  names and affiliations of speakers keep no marker), and an address with a
+  names and affiliations of speakers keep no marker, and a title or a
+  series name keeps a code without a digit, which there is a word of what
+  the talk is about), and an address with a
   credential, a login or an e-mail address in it, also encoded or wrapped
   in another link, is not used: the event then points at the page of its
   source and gets a key of its day;
@@ -32,7 +34,7 @@ values that the model refuses) is reported as excluded with the reason
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Final
@@ -57,7 +59,7 @@ from seminars.models import (
     url_has_credential,
 )
 from seminars.pipeline.ids import draft_key, resolve_uid, shared_urls
-from seminars.pipeline.privacy import is_private_link, scrub_private, strip_markers
+from seminars.pipeline.privacy import is_private_link, scrub_private, scrub_title, strip_markers
 from seminars.pipeline.speakers import ParsedSpeaker, split_speakers
 from seminars.pipeline.text import (
     canonical_name,
@@ -145,16 +147,22 @@ class _Cleaner:
     context: NormalizeContext
     redactions: int = field(default=0)
 
-    def _finish(self, text: str | None, limit: int) -> str | None:
+    def _finish(
+        self, text: str | None, limit: int, scrub: Callable[[str], str] = scrub_private
+    ) -> str | None:
         if text is None:
             return None
-        safe = self.context.redact(scrub_private(text))
+        safe = self.context.redact(scrub(text))
         if safe != text:
             self.redactions += 1
         return truncate(safe, limit).strip() or None
 
     def line(self, text: str | None, limit: int) -> str | None:
         return self._finish(one_line(text, limit=4 * limit), limit)
+
+    def title(self, text: str | None, limit: int) -> str | None:
+        """A title or a series name: scrubbed by ``scrub_title``, which keeps word codes."""
+        return self._finish(one_line(text, limit=4 * limit), limit, scrub_title)
 
     def block(self, text: str | None, limit: int, *, is_html: bool = False) -> str | None:
         return self._finish(paragraphs(text, limit=4 * limit, is_html=is_html), limit)
@@ -183,7 +191,7 @@ class _Cleaner:
 
 
 def _title_and_status(draft: EventDraft, cleaner: _Cleaner) -> tuple[str, EventStatus]:
-    text = cleaner.line(draft.title, MAX_TITLE)
+    text = cleaner.title(draft.title, MAX_TITLE)
     title, marked = split_status(text) if text else (TBA_TITLE, None)
     if "cancelled" in (draft.status_hint, marked):
         status: EventStatus = "cancelled"
@@ -287,9 +295,10 @@ def _times(draft: EventDraft, source: SourceConfig, context: NormalizeContext) -
         raise _Invalid(f"start: {error}") from error
 
 
-def _categories(draft: EventDraft, cleaner: _Cleaner) -> list[str]:
-    cleaned = (cleaner.line(category, MAX_CATEGORY) for category in draft.categories)
-    return [category for category in cleaned if category][:MAX_CATEGORIES]
+def _labels(labels: Iterable[str], cleaner: _Cleaner) -> list[str]:
+    """Categories or tags of a draft: cleaned, without empty ones, at most ``MAX_CATEGORIES``."""
+    cleaned = (cleaner.line(label, MAX_CATEGORY) for label in labels)
+    return [label for label in cleaned if label][:MAX_CATEGORIES]
 
 
 def _event(
@@ -326,7 +335,7 @@ def _event(
         uid=resolve_uid(key, context.uid_map),
         title=title,
         speakers=speakers,
-        series=cleaner.line(draft.series, MAX_SERIES) or cleaner.line(source.series, MAX_SERIES),
+        series=cleaner.title(draft.series, MAX_SERIES) or cleaner.title(source.series, MAX_SERIES),
         host_org=cleaner.line(draft.host_org, MAX_HOST) or source.host_org,
         institution=source.institution,
         event_type=draft.event_type_hint or source.default_event_type,
@@ -360,7 +369,7 @@ def _invalid(
     shown = cleaner.url(draft.url)
     return ExcludedEvent(
         source_ids=[source.id],
-        title=cleaner.line(draft.title, MAX_TITLE) or UNTITLED,
+        title=cleaner.title(draft.title, MAX_TITLE) or UNTITLED,
         url=str(shown) if shown is not None else None,
         reason="invalid",
         detail=reason,
@@ -400,7 +409,8 @@ def normalize_drafts(
             source_ids=[source.id],
             default_fields=source.default_fields,
             field_hints=draft.field_hints,
-            categories=_categories(draft, cleaner),
+            categories=_labels(draft.categories, cleaner),
+            tags=_labels(draft.tags, cleaner),
         )
         candidates.append(Candidate(event=event, hints=hints))
     return Normalized(

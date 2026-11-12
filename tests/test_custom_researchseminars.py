@@ -7,7 +7,6 @@ of DESCRIPTION, the speakers and the edge cases with hand-written feeds.
 from __future__ import annotations
 
 import functools
-import time
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -30,7 +29,7 @@ from seminars.sources.custom.researchseminars import (
     read_description,
     talk_counter,
 )
-from seminars.sources.generic.html_list import AdapterConfigError
+from seminars.sources.generic.common import AdapterConfigError
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RECORDED = datetime(2026, 11, 11, 16, 16, tzinfo=UTC)
@@ -392,14 +391,35 @@ def test_read_description(text: str | None, expected: Description) -> None:
     assert read_description(text) == expected
 
 
-@pytest.mark.parametrize("ending", ["", "\nAbstract\nText", "\nAbstract: Text"])
-def test_a_huge_description_is_read_in_linear_time(ending: str) -> None:
-    text = "by A as part of B\n" + "Meeting ID: 1\n" * 200_000 + ending
-    started = time.perf_counter()
+@pytest.mark.parametrize(
+    ("ending", "rest"), [("", []), ("\nAbstract\nText", [1]), ("\nAbstract: Text", [0])]
+)
+def test_a_long_description_is_read_in_linear_time(
+    ending: str, rest: list[int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every line is looked at once: what the helpers see adds up to the text, not its square."""
+    text = "by A as part of B\n" + "Meeting ID: 1\nLecture held in 104\n" * 2000 + ending
+    seen = 0
+    abstracts: list[int] = []
+    real_collapse, real_abstract = researchseminars.collapse, researchseminars._abstract
+
+    def counted_collapse(value: str | None) -> str | None:
+        nonlocal seen
+        seen += len(value or "")
+        return real_collapse(value)
+
+    def counted_abstract(first: str | None, rest: list[str]) -> str | None:
+        abstracts.append(len(rest))
+        return real_abstract(first, rest)
+
+    monkeypatch.setattr(researchseminars, "collapse", counted_collapse)
+    monkeypatch.setattr(researchseminars, "_abstract", counted_abstract)
     description = read_description(text)
-    assert time.perf_counter() - started < 1.0
     assert description.speakers_text == "A"
+    assert description.location == "104"
     assert description.abstract == ("Text" if ending else None)
+    assert seen <= len(text)
+    assert abstracts == rest  # the lines after the marker are taken once
 
 
 @pytest.mark.parametrize(
@@ -617,17 +637,15 @@ class TestHandWrittenFeeds:
                 calendar(vevent(f"DTSTART;TZID={LONG_ZONE}:20261117T090000", start=None)),
                 id="over-long-tzid",
             ),
-            pytest.param(
-                calendar(vevent()).replace(
-                    "VERSION:2.0", f"VERSION:2.0\nX-WR-TIMEZONE:{LONG_ZONE}"
-                ),
-                id="over-long-calendar-zone",
-            ),
         ],
     )
     def test_a_feed_that_breaks_the_calendar_library_is_a_parse_error(self, broken: str) -> None:
         with pytest.raises(ParseError, match="source rsorg-example: the iCalendar feed"):
             parse(broken)
+
+    def test_a_calendar_zone_too_long_for_a_file_name_is_ignored(self) -> None:
+        text = calendar(vevent()).replace("VERSION:2.0", f"VERSION:2.0\nX-WR-TIMEZONE:{LONG_ZONE}")
+        assert len(parse(text)) == 1
 
     def test_a_repeated_uid_is_kept_once(self) -> None:
         drafts = parse(calendar(vevent("SUMMARY:First"), vevent("SUMMARY:Second")))

@@ -32,7 +32,10 @@ The field tagger (``build_field_tagger``) decides the fields of a candidate:
    and the drafts' ``field_hints``), ``taxonomy.source_defaults`` of every
    source in ``hints.source_ids``, and ``taxonomy.departments`` whose label
    equals one of ``hints.categories`` (same words after folding). These are
-   facts stated by the source; method ``"source"``.
+   facts stated by the source; method ``"source"``. A tag (``hints.tags``)
+   is never one: whoever posts an event chooses its tags freely, and a talk
+   on the history of astronomy tagged "mathematics" is no talk in
+   mathematics. The LLM tagger sees the tags.
 2. Rule fields, per field of ``taxonomy.fields``: a name of ``series`` that
    appears in the series or the title implies the field; otherwise the
    weights of the distinct ``keywords`` found in title, series and abstract

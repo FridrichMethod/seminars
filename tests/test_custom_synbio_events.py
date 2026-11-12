@@ -17,7 +17,7 @@ from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig
 from seminars.sources.base import ParseError, get_adapter
 from seminars.sources.custom.synbio_events import SynbioEventsAdapter, SynbioParams
-from seminars.sources.generic.html_list import AdapterConfigError, load_params
+from seminars.sources.generic.common import AdapterConfigError, load_params
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SOURCES = {source.id: source for source in load_sources(REPO_ROOT / "config" / "sources.d")}

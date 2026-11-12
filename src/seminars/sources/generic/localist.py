@@ -74,7 +74,9 @@ How a record (``events[].event``) becomes a draft:
 * ``abstract``: ``description_text``; ``abstract_html``: ``description``
   when there is no plain text.
 * ``categories``: the names of the record's event types, subjects,
-  audiences, departments and groups, and its tags.
+  audiences, departments and groups. ``tags``: its tags, which whoever
+  posts an event chooses freely ("mathematics" on a talk on the history
+  of astronomy), so they never count as a department.
 * ``status_hint``: ``cancelled`` for the statuses ``canceled``,
   ``cancelled`` and ``postponed``. ``live`` says nothing (the calendar keeps
   it on events whose title says that they are cancelled), so no hint.
@@ -342,6 +344,7 @@ def _draft(
         field_hints=_field_hints(departments, params.department_fields)
         + _field_hints(groups, params.group_fields),
         categories=_categories(record, departments, groups),
+        tags=_tags(record),
         event_type_hint=_event_type(record, params),
         status_hint=_STATUS_HINTS.get(str(record.get("status")).strip().lower()),
     )
@@ -412,13 +415,14 @@ def _filters(record: dict[str, Any]) -> dict[str, Any]:
 def _categories(record: dict[str, Any], departments: list[str], groups: list[str]) -> list[str]:
     filters = _filters(record)
     labels = [name for key in _CATEGORY_FILTERS for name in _names(filters.get(key))]
+    return list(dict.fromkeys([*labels, *departments, *groups]))
+
+
+def _tags(record: dict[str, Any]) -> list[str]:
     tags = record.get("tags")
-    tag_names = (
-        [tag.strip() for tag in tags if isinstance(tag, str) and tag.strip()]
-        if isinstance(tags, list)
-        else []
-    )
-    return list(dict.fromkeys([*labels, *departments, *groups, *tag_names]))
+    if not isinstance(tags, list):
+        return []
+    return list(dict.fromkeys(tag.strip() for tag in tags if isinstance(tag, str) and tag.strip()))
 
 
 def _event_type(record: dict[str, Any], params: LocalistParams) -> EventType | None:
