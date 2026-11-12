@@ -216,6 +216,76 @@ class TestAffiliationsFromTheText:
         [draft] = run(source, serve(list_page("Ada Lovelace"), post))
         assert people(draft) == [("Ada Lovelace", affiliation)]
 
+    @pytest.mark.parametrize(
+        ("article", "affiliation"),
+        [
+            pytest.param(
+                "<div>Jane Doe</div><div>Jane Doe is a professor of chemistry at MIT, where "
+                "she ...</div>",
+                None,
+                id="a-bio-that-names-the-speaker",
+            ),
+            pytest.param(
+                "<div>Jane Doe</div><div>MIT</div><div>She is a professor of chemistry who "
+                "has worked on enzymes and their evolution for twenty years now</div>",
+                "MIT",
+                id="a-long-line",
+            ),
+            pytest.param(
+                "<div>Jane Doe</div><div>MIT</div><div>She studies enzymes.</div>",
+                "MIT",
+                id="a-sentence",
+            ),
+            pytest.param(
+                "<h2>CSB Seminar: Jane Doe</h2><div>Jane Doe, PhD</div><div>MIT</div>",
+                "MIT",
+                id="a-heading-that-names-the-speaker",
+            ),
+            pytest.param(
+                "<div>Jane Doe</div><div>MIT</div><div>Jane Doe, PhD</div><div>Harvard</div>",
+                "MIT",
+                id="the-name-again",
+            ),
+            pytest.param(
+                "<div>Jane Doe</div><div>Abstract</div><div>We study things.</div>",
+                None,
+                id="an-abstract-heading",
+            ),
+            pytest.param(
+                "<div>Jane Doe</div><div>Speaker Bio</div><div>Jane is at MIT</div>",
+                None,
+                id="a-bio-heading",
+            ),
+            pytest.param(
+                "<div>Jane Doe</div><div>MIT</div><div>jdoe@mit.example</div>",
+                "MIT",
+                id="an-e-mail-address",
+            ),
+            pytest.param(
+                "<div>Jane Doe</div><div>MIT</div><div>https://mit.example/jdoe</div>",
+                "MIT",
+                id="a-link",
+            ),
+            pytest.param(
+                "<div><b>Jane Doe</b><div>MIT</div>Monday, November 16</div>",
+                "MIT",
+                id="text-after-a-nested-block",
+            ),
+            pytest.param(
+                "<div>Jane Doe<div></div>MIT</div>",
+                "MIT",
+                id="text-after-an-empty-block",
+            ),
+        ],
+    )
+    def test_the_affiliation_ends_where_the_announcement_goes_on(
+        self, article: str, affiliation: str | None
+    ) -> None:
+        post = f"<html><body><article>{article}</article></body></html>"
+        source = list_source(body="article", required=False)
+        [draft] = run(source, serve(list_page("Jane Doe"), post))
+        assert people(draft) == [("Jane Doe", affiliation)]
+
     def test_a_sentence_that_mentions_the_speaker_is_not_the_line_of_the_name(self) -> None:
         post = (
             "<html><body><article><div>Speaker Bio: Ada Lovelace works on engines at the "
