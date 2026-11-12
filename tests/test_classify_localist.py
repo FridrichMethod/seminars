@@ -267,18 +267,29 @@ def run_one(title: str, *departments: str, **fields: Any) -> Outcome:
 
 
 @pytest.mark.parametrize(
-    "title",
+    ("title", "series"),
     [
-        "Medicine Grand Rounds: Sepsis in 2026",
-        "Medicine Grand Rounds",
-        "Department of Medicine Grand Rounds - Jane Doe, MD",
-        "Surgery Grand Rounds: Robotic Hernia Repair",
-        "Anesthesiology Grand Rounds with the California Surgeon General",
-        "Pediatric Grand Rounds (CME): Beyond Blood",
-        "Pediatrics Grand Rounds",
+        ("Medicine Grand Rounds: Sepsis in 2026", "Medicine Grand Rounds"),
+        ("Medicine Grand Rounds", "Medicine Grand Rounds"),
+        (
+            "Department of Medicine Grand Rounds - Jane Doe, MD",
+            "Department of Medicine Grand Rounds",
+        ),
+        ("Surgery Grand Rounds: Robotic Hernia Repair", "Surgery Grand Rounds"),
+        (
+            "Anesthesiology Grand Rounds with the California Surgeon General",
+            "Anesthesiology Grand Rounds",
+        ),
+        ("Pediatric Grand Rounds (CME): Beyond Blood", "Pediatric Grand Rounds"),
+        ("Pediatrics Grand Rounds", "Pediatrics Grand Rounds"),
+        ("Ophthalmology Grand Rounds: retinal imaging", "Grand Rounds"),
     ],
 )
-def test_grand_rounds_without_a_department_are_med(title: str) -> None:
+def test_grand_rounds_without_a_department_are_med(title: str, series: str) -> None:
+    """The research found the Medicine Grand Rounds without any department.
+
+    The most specific series name is the one the reason gives.
+    """
     outcome = run_one(title)
     assert outcome.candidate.hints.field_hints == []
     assert outcome.reason is None
@@ -286,6 +297,8 @@ def test_grand_rounds_without_a_department_are_med(title: str) -> None:
     assert "med" in outcome.fields
     assert outcome.decision.method == "rules"
     assert not outcome.decision.needs_llm
+    med = [reason for reason in outcome.decision.reasons if reason.startswith("med: ")]
+    assert med[0].startswith(f'med: series "{series}"'), med
 
 
 def test_a_cancelled_grand_rounds_stays_in_as_cancelled() -> None:

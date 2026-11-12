@@ -763,13 +763,19 @@ fields:
 
   med:
     series:
-      - Medicine Grand Rounds
-      - Grand Rounds
+      # Grand rounds of the clinical departments. Stanford Events lists the Medicine
+      # Grand Rounds without any department, so the name alone has to place it. The
+      # reason of a decision names the first series of this list that the title or
+      # the series holds: the specific names come first, the generic one last.
       - Department of Medicine Grand Rounds
+      - Medicine Grand Rounds
+      - Surgery Grand Rounds
+      - Anesthesiology Grand Rounds
+      - Pediatric Grand Rounds
       - Pediatrics Grand Rounds
       - Psychiatry Grand Rounds
       - Neurology Grand Rounds
-      - Surgery Grand Rounds
+      - Grand Rounds
       - Cancer Institute Seminar
       - Stanford Cancer Institute Seminar
       - Cardiovascular Institute Seminar
