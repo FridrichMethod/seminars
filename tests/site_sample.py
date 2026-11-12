@@ -14,7 +14,9 @@ in every text field, an all-day event, a cancelled and a tentative event,
 online and hybrid events, a "TBA" title, a missing end time, several
 speakers, non-ASCII names, picks with reasons of every kind the picks scorer
 writes, a past event, a far-future event, all seven fields and all
-institutions.
+institutions. The sources have every state, and two of them a last run
+that was not read in full (pages that could not be fetched, a listing far
+smaller than usual) or that took a smaller listing as the usual size.
 """
 
 from __future__ import annotations
@@ -319,6 +321,32 @@ def sample_status_payload() -> PublicStatusPayload:
             events=12,
             last_run_at=ran_at,
             last_success_at=ran_at,
+        ),
+        PublicSourceStatus(
+            id="sites-mathematics",
+            name="Stanford Mathematics",
+            group="stanford-sites",
+            url="https://mathematics.stanford.edu/events",
+            state="ok",
+            events=4,
+            last_run_at=ran_at,
+            last_success_at=ran_at,
+            read_in_full=False,
+            skipped_pages=2,
+            listed=5,
+            usual_size=20,
+        ),
+        PublicSourceStatus(
+            id="sites-statistics",
+            name="Stanford Statistics",
+            group="stanford-sites",
+            url="https://statistics.stanford.edu/events",
+            state="ok",
+            events=6,
+            last_run_at=ran_at,
+            last_success_at=ran_at,
+            listed=6,
+            resized_from=18,
         ),
     ]
     return PublicStatusPayload(

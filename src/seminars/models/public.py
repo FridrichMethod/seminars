@@ -213,7 +213,16 @@ class PublicEventsPayload(Model):
 
 
 class PublicSourceStatus(Model):
-    """One row of the status page."""
+    """One row of the status page.
+
+    ``read_in_full`` is false when the last run delivered events but not
+    all of them: ``skipped_pages`` pages could not be fetched, or the
+    listing had ``listed`` usable items where it usually has
+    ``usual_size``. ``resized_from`` is set when the last run took its
+    smaller listing (``listed`` items) as the usual size, in place of
+    ``resized_from``. A disabled source, and one that never ran, has
+    nothing of the kind.
+    """
 
     id: SourceId
     name: NonEmptyStr
@@ -225,6 +234,11 @@ class PublicSourceStatus(Model):
     last_success_at: Timestamp | None = None
     consecutive_failures: Count = 0
     error: str | None = None  # short message of the last failure, if it failed
+    read_in_full: bool = True  # false: the last run is known to have missed events
+    skipped_pages: Count = 0  # pages the last run could not fetch and went on without
+    listed: Count | None = None  # usable items of the last run, when its size was judged
+    usual_size: Count | None = None  # the usual number, when the last run listed far fewer
+    resized_from: Count | None = None  # the usual number the last run gave up for ``listed``
 
 
 class PublicStatusPayload(Model):

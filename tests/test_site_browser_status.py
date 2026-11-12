@@ -16,6 +16,9 @@ import pytest
 import test_site_browser as harness
 from test_site_browser import Session, catalog, sample, serve_json
 
+PARTIAL = 'article[data-source="sites-mathematics"]'
+RESIZED = 'article[data-source="sites-statistics"]'
+
 pytestmark = pytest.mark.browser
 
 # The facts of every source card, as {source id: {term: description}}.
@@ -123,7 +126,7 @@ class TestStatusPage:
             for source in sample("status.json")["sources"]
         ]
         summary = page.locator("#summary").text_content() or ""
-        assert "2 of 5 active sources are healthy." in summary
+        assert "3 of 7 active sources are healthy." in summary
         assert "claude-cli" in summary
         unlinked = page.locator('article[data-source="rsorg-new-series"] .source-name a')
         assert unlinked.count() == 0
@@ -161,4 +164,62 @@ class TestStatusPage:
         assert error.text_content() == expected
         assert error.get_attribute("lang") == "en"
         assert error.get_attribute("translate") == "no"
+        current.assert_clean()
+
+    @pytest.mark.parametrize(
+        ("path", "lang"), [("status.html", "en"), ("status.html?lang=zh", "zh-CN")]
+    )
+    def test_a_source_not_read_in_full_says_so_and_why(
+        self, session: Callable[..., Session], path: str, lang: str
+    ) -> None:
+        current = session().open(path)
+        messages = catalog(lang)
+        partial = current.page.locator(PARTIAL)
+        assert partial.locator(".badge-state").text_content() == messages["site.status.states.ok"]
+        assert partial.locator(".badge-partial").text_content() == messages["site.status.partial"]
+        missed = messages["site.status.columns.missed"]
+        term = partial.locator("dt", has_text=missed)
+        assert term.count() == 1
+        reasons = partial.locator(f'dt:text-is("{missed}") ~ dd.missed')
+        assert reasons.all_text_contents() == [
+            messages["site.status.skipped_other"].replace("{count}", "2"),
+            messages["site.status.shrank"].replace("{listed}", "5").replace("{usual}", "20"),
+        ]
+        resized = current.page.locator(RESIZED)
+        assert resized.locator(".badge-partial").count() == 0
+        note = current.page.evaluate(FACTS)["sites-statistics"][
+            messages["site.status.columns.resized"]
+        ]
+        assert note == messages["site.status.resized"].replace("{listed}", "6").replace(
+            "{usual}", "18"
+        )
+        assert partial.locator("dt", has_text=messages["site.status.columns.resized"]).count() == 0
+        current.assert_clean()
+
+    def test_one_page_that_could_not_be_fetched_is_said_in_the_singular(
+        self, session: Callable[..., Session]
+    ) -> None:
+        source = {
+            "id": "sites-one",
+            "name": "One page short",
+            "group": "stanford-sites",
+            "state": "ok",
+            "read_in_full": False,
+            "skipped_pages": 1,
+            "listed": None,
+            "usual_size": None,
+            "resized_from": None,
+        }
+        current = session()
+        serve_json(
+            current, "status.json", {"generated_at": "2026-11-10T12:30:00Z", "sources": [source]}
+        )
+        current.open("status.html")
+        english = catalog("en")
+        card = current.page.locator('article[data-source="sites-one"]')
+        assert card.locator("dd.missed").all_text_contents() == [
+            english["site.status.skipped_one"].replace("{count}", "1")
+        ]
+        summary = current.page.locator("#summary").text_content() or ""
+        assert "0 of 1 active sources are healthy." in summary
         current.assert_clean()

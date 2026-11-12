@@ -32,6 +32,19 @@ function stateOf(source) {
   return children("site.status.states.").includes(source.state) ? source.state : "unknown";
 }
 
+/** Whether the last run of a source is known to have missed events. */
+function partial(source) {
+  return source.read_in_full === false && stateOf(source) !== "disabled";
+}
+
+function healthy(source) {
+  return stateOf(source) === "ok" && !partial(source);
+}
+
+function size(value) {
+  return Number.isInteger(value) && value >= 0 ? value : null;
+}
+
 /** The name of a source group: the known groups are translated, others shown as given. */
 function groupName(group) {
   if (typeof group !== "string" || group === "") {
@@ -50,7 +63,7 @@ function summaryLines(status, lang) {
   const lastRun = moment(status.last_run_at, lang);
   const sources = sourcesOf(status);
   const active = sources.filter((source) => stateOf(source) !== "disabled");
-  const healthy = active.filter((source) => stateOf(source) === "ok");
+  const healthySources = active.filter(healthy);
   const outcome =
     status.last_run_ok === true
       ? t("site.status.last_run_ok")
@@ -70,7 +83,7 @@ function summaryLines(status, lang) {
       "li",
       {},
       t("site.status.summary", {
-        ok: formatNumber(healthy.length),
+        ok: formatNumber(healthySources.length),
         total: formatNumber(active.length),
       }),
     ),
@@ -90,6 +103,43 @@ function diagnostic(error) {
   return h("code", { lang: "en", translate: "no" }, error);
 }
 
+/** What the last run of a source missed: one description per reason, under one term. */
+function missedFacts(source) {
+  if (!partial(source)) {
+    return null;
+  }
+  const skipped = count(source.skipped_pages);
+  const usual = size(source.usual_size);
+  const reasons = [
+    skipped > 0 ? plural("site.status.skipped", skipped) : null,
+    usual === null
+      ? null
+      : t("site.status.shrank", {
+          listed: formatNumber(count(source.listed)),
+          usual: formatNumber(usual),
+        }),
+  ].filter((reason) => reason !== null);
+  if (reasons.length === 0) {
+    return null;
+  }
+  return [
+    h("dt", {}, t("site.status.columns.missed")),
+    ...reasons.map((reason) => h("dd", { class: "missed" }, reason)),
+  ];
+}
+
+/** The note of a source whose last run took its smaller listing as the usual size. */
+function resizedNote(source) {
+  const before = size(source.resized_from);
+  if (before === null || stateOf(source) === "disabled") {
+    return null;
+  }
+  return t("site.status.resized", {
+    listed: formatNumber(count(source.listed)),
+    usual: formatNumber(before),
+  });
+}
+
 function sourceCard(source, lang) {
   const state = stateOf(source);
   const never = t("site.status.never");
@@ -102,6 +152,7 @@ function sourceCard(source, lang) {
       { class: "source-head" },
       h("h2", { class: "source-name" }, link(source.url, {}, source.name)),
       h("p", { class: `badge badge-state state-${state}` }, t("site.status.states." + state)),
+      partial(source) ? h("p", { class: "badge badge-partial" }, t("site.status.partial")) : null,
     ),
     h(
       "dl",
@@ -112,6 +163,8 @@ function sourceCard(source, lang) {
       fact("site.status.columns.last_success", moment(source.last_success_at, lang) ?? never),
       fact("site.status.columns.failures", formatNumber(count(source.consecutive_failures))),
       error === null ? null : fact("site.status.columns.error", diagnostic(error)),
+      missedFacts(source),
+      fact("site.status.columns.resized", resizedNote(source)),
     ),
   );
 }

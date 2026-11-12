@@ -27,6 +27,7 @@ from collections import Counter
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from seminars.config import AppConfig
 from seminars.models import (
@@ -41,6 +42,7 @@ from seminars.models import (
     PublicStatusPayload,
     SourceConfig,
     SourceHealth,
+    SourceHealthEntry,
     Speaker,
     write_model,
 )
@@ -89,11 +91,24 @@ def _ordered(events: Sequence[Event]) -> list[Event]:
     return sorted(events, key=lambda event: (event.start.astimezone(UTC), event.uid))
 
 
+def _completeness(last: SourceHealthEntry) -> dict[str, Any]:
+    """What the status row says about how much of its listing the last run read."""
+    judged = last.shrank_from is not None or last.resized_from is not None
+    return {
+        "read_in_full": last.read_in_full,
+        "skipped_pages": last.skipped_pages,
+        "listed": last.accepted if judged else None,
+        "usual_size": last.shrank_from,
+        "resized_from": last.resized_from,
+    }
+
+
 def _source_status(source: SourceConfig, health: HealthFile) -> PublicSourceStatus:
     """One row of the status page: what the last run of a source did.
 
     A disabled source keeps the times of its history but shows no result,
-    and a source that never ran is ``unknown``.
+    and a source that never ran is ``unknown``. A run that is known to have
+    missed events says so (``PublicSourceStatus.read_in_full``).
     """
     history = health.sources.get(source.id, SourceHealth())
     last = history.last
@@ -102,18 +117,19 @@ def _source_status(source: SourceConfig, health: HealthFile) -> PublicSourceStat
         state = "disabled"
     elif last is not None:
         state = last.status
-    counted = source.enabled and last is not None
+    counted = last if source.enabled else None
     return PublicSourceStatus(
         id=source.id,
         name=_text(source.name) or source.id,
         group=source.group,
         url=source.homepage or source.all_urls[0],
         state=state,
-        events=last.events if counted and last is not None else 0,
+        events=counted.events if counted is not None else 0,
         last_run_at=last.at if last is not None else None,
         last_success_at=history.last_success_at,
         consecutive_failures=history.trailing("failed") if source.enabled else 0,
         error=_text(last.error) if last is not None and state == "failed" else None,
+        **(_completeness(counted) if counted is not None else {}),
     )
 
 
