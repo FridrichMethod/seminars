@@ -18,9 +18,11 @@ cannot always tell which. The choice made here is conservative:
    together ("...Cardiology Speaker 2 (2:10 PM) - Emily Fox, Professor,
    Statistics and Computer Science"), gives one speaker per label and
    never a "Computer Science". Only before the first comma do ``;``,
-   ``|``, a line break, "and" and ``&`` separate people, and only when
-   every part reads like a person: "Speaker 1: Jane Doe and John Roe,
-   MIT" names two, and the affiliation goes to the last, as in 3.
+   ``|``, a line break, "and" and ``&`` separate people, as in 3: "Speaker
+   1: Jane Doe and John Roe, MIT" names two, and the affiliation goes to
+   the last. A part there that does not start with a name belongs to the
+   affiliation of the person before it, so "Speaker 1: Jane Doe; Stanford
+   University" is Jane Doe of Stanford University.
 1. A leading label ("Speaker:", "Presented by:") is dropped, and so is a
    part that is nothing but a label ("Contact:").
 2. When every part between separators (``;``, ``|``, a line break, "and",
@@ -212,17 +214,33 @@ def _numbered(text: str) -> list[str] | None:
     return [part for part in parts if part]
 
 
+def _people_or_affiliations(chunks: list[str]) -> list[ParsedSpeaker]:
+    """Rule 3 of the module docstring for parts that are already split at hard separators.
+
+    A part that starts with a name is a person, the text after its first
+    comma the affiliation; a part that does not belongs to the affiliation
+    of the person before it.
+    """
+    speakers: list[ParsedSpeaker] = []
+    for chunk in chunks:
+        person = None if chunk.endswith(":") else _person_with_commas(chunk)
+        if person is None:
+            continue
+        if speakers and not looks_like_name(person.name):
+            previous = speakers[-1]
+            joined = f"{previous.affiliation} and {chunk}" if previous.affiliation else chunk
+            speakers[-1] = ParsedSpeaker(name=previous.name, affiliation=joined)
+        else:
+            speakers.append(person)
+    return speakers
+
+
 def _numbered_people(part: str) -> list[ParsedSpeaker]:
     """The people after one numbered label (see rule 0 of the module docstring)."""
-    comma = _mask_brackets(part).find(",")
-    head, rest = (part, "") if comma < 0 else (part[:comma], part[comma:])
-    names = _split(head, _HARD_SEPARATOR)
-    if len(names) < 2 or not all(_is_person(name) for name in names):
-        names = [part]
-    else:
-        names = [*names[:-1], names[-1] + rest]
-    people = (_person_with_commas(name) for name in names)
-    return [person for person in people if person is not None]
+    comma = _COMMA.search(_mask_brackets(part))
+    head, rest = (part, "") if comma is None else (part[: comma.start()], part[comma.start() :])
+    pieces = _split(head, _HARD_SEPARATOR) or [""]
+    return _people_or_affiliations([*pieces[:-1], pieces[-1] + rest])
 
 
 def split_speakers(text: str) -> list[ParsedSpeaker]:
@@ -235,15 +253,4 @@ def split_speakers(text: str) -> list[ParsedSpeaker]:
     if len(parts) > 1 and all(_is_person(part) for part in parts):
         people = [_person(part) for part in parts]
         return [person for person in people if person is not None]
-    speakers: list[ParsedSpeaker] = []
-    for chunk in _split(line, _HARD_SEPARATOR):
-        person = None if chunk.endswith(":") else _person_with_commas(chunk)
-        if person is None:
-            continue
-        if speakers and not looks_like_name(person.name):
-            previous = speakers[-1]
-            joined = f"{previous.affiliation} and {chunk}" if previous.affiliation else chunk
-            speakers[-1] = ParsedSpeaker(name=previous.name, affiliation=joined)
-        else:
-            speakers.append(person)
-    return speakers
+    return _people_or_affiliations(_split(line, _HARD_SEPARATOR))

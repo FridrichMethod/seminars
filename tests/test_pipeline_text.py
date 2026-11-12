@@ -369,6 +369,19 @@ class TestSpeakerLines:
                 ],
             ),
             ("Jane Doe, Computer Science", [("Jane Doe", "Computer Science")]),
+            # After a numbered label, a part that is no person belongs to the affiliation.
+            ("Speaker 1:\nJane Doe\nStanford University", [("Jane Doe", "Stanford University")]),
+            ("Speaker 1: Jane Doe; Stanford University", [("Jane Doe", "Stanford University")]),
+            ("Speaker 1 - Jane Doe | Stanford", [("Jane Doe", "Stanford")]),
+            ("Speaker 1: Jane Doe and Team", [("Jane Doe", "Team")]),
+            (
+                "Speaker 1: Jane Doe; Stanford University, Department of Chemistry",
+                [("Jane Doe", "Stanford University, Department of Chemistry")],
+            ),
+            (
+                "Speaker 1: Jane Doe and John Roe; MIT\nSpeaker 2: Mary Major",
+                [("Jane Doe", None), ("John Roe", "MIT"), ("Mary Major", None)],
+            ),
         ],
     )
     def test_split(self, line: str, people: list[tuple[str, str | None]]) -> None:
