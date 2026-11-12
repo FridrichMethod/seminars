@@ -23,7 +23,6 @@ from seminars.sources.generic import ics
 from seminars.sources.generic.ics import (
     MAX_OCCURRENCES,
     MAX_PATTERN_INPUT,
-    MAX_RECURRING_EVENTS,
     IcsAdapter,
     IcsCalendar,
     IcsOccurrence,
@@ -723,12 +722,63 @@ class TestRecurrence:
         assert len(parse(calendar(daily), window=two_years)) == MAX_OCCURRENCES
         # from 1990 the window is more than MAX_EXPANSION_STEPS days away
         assert expand(vevent("RRULE:FREQ=DAILY", start="DTSTART:19900101T230000Z")) == []
-        many = [
-            vevent("RRULE:FREQ=WEEKLY;COUNT=1", uid=f"e{n}")
-            for n in range(MAX_RECURRING_EVENTS + 1)
+
+    def test_a_calendar_that_keeps_its_past_series(self) -> None:
+        # Exports keep every series: 55 quarters of weekly talks, ended by COUNT or UNTIL.
+        past = [
+            vevent(
+                f"RRULE:FREQ=WEEKLY;{'COUNT=10' if n % 2 else f'UNTIL={2010 + n // 4}1231'}",
+                uid=f"q{n}",
+                start=f"DTSTART:{2010 + n // 4}{1 + 3 * (n % 4):02d}05T230000Z",
+            )
+            for n in range(55)
         ]
-        many_drafts = expand(*[event.replace("20261117", "20261020") for event in many])
-        assert len(many_drafts) == MAX_RECURRING_EVENTS
+        current = vevent("RRULE:FREQ=WEEKLY;COUNT=10", uid="now", start="DTSTART:20260922T230000Z")
+        drafts = expand(*past, current)
+        assert [draft.native_id for draft in drafts] == [
+            f"now/2026{day}T230000Z" for day in ("1020", "1027", "1103", "1110")
+        ]
+
+    def test_series_that_ended_before_the_window_are_not_expanded(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(ics, "MAX_RECURRING_EVENTS", 2)
+        monkeypatch.setattr(ics, "MAX_FEED_STEPS", 20)
+        ended = [
+            vevent(
+                f"RRULE:FREQ=DAILY;UNTIL={2000 + n}1231", uid=f"old{n}", start="DTSTART:19990101"
+            )
+            for n in range(5)
+        ]
+        again = vevent(
+            "RRULE:FREQ=WEEKLY;UNTIL=20200101T000000Z",
+            "RDATE:20261021T230000Z",
+            uid="again",
+            start="DTSTART:20191201T230000Z",
+        )
+        current = vevent("RRULE:FREQ=WEEKLY;COUNT=3", uid="now", start="DTSTART:20261020T230000Z")
+        drafts = expand(*ended, again, current)
+        assert [draft.native_id for draft in drafts] == [
+            "again/20261021T230000Z",
+            "now/20261020T230000Z",
+            "now/20261027T230000Z",
+            "now/20261103T230000Z",
+        ]
+        with pytest.raises(
+            ParseError, match=r"custom-example-talks: .*more than 2 recurring events"
+        ):
+            expand(*ended, again, current, current.replace("UID:now", "UID:third"))
+
+    def test_a_feed_whose_recurrences_need_too_many_steps_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(ics, "MAX_FEED_STEPS", 12)
+        expired = vevent("RRULE:FREQ=WEEKLY;COUNT=5", uid="old", start="DTSTART:20200107T230000Z")
+        current = vevent("RRULE:FREQ=DAILY;COUNT=7", uid="now", start="DTSTART:20261020T230000Z")
+        assert len(expand(expired, current)) == 7
+        more = vevent("RRULE:FREQ=DAILY;COUNT=2", uid="more", start="DTSTART:20261101T230000Z")
+        with pytest.raises(ParseError, match=r"more than 12 steps: https://calendar\.example"):
+            expand(expired, current, more)
 
     @pytest.mark.parametrize(
         "rule",

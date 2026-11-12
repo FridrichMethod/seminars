@@ -25,9 +25,13 @@ Times, as the draft conventions want them:
 * Recurring events (``RRULE``, ``RDATE``, ``EXDATE``) are expanded inside
   the run window only (occurrences that start in it), at most
   ``MAX_OCCURRENCES`` per event and after at most ``MAX_EXPANSION_STEPS``
-  steps of the rule from ``DTSTART``, for at most ``MAX_RECURRING_EVENTS``
-  recurring events per feed; a rule the expansion cannot bound is skipped
-  (``check_rule``). An occurrence keeps the duration of the first one. A
+  steps of the rule from ``DTSTART``; a rule the expansion cannot bound is
+  skipped (``check_rule``). An event whose rules all end (``UNTIL``) before
+  the window is not expanded. A feed with more than
+  ``MAX_RECURRING_EVENTS`` other recurring events, or whose recurrences
+  need more than ``MAX_FEED_STEPS`` steps in all, is a ``ParseError``
+  rather than a part of the feed, whose missing events would count as
+  gone. An occurrence keeps the duration of the first one. A
   VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names; one whose
   occurrence is not generated (it was moved into the window, or the rule is
   gone) stands on its own when it starts in the window. The override of
@@ -84,7 +88,7 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated, Any, Final, Literal, cast
@@ -121,8 +125,11 @@ MAX_OCCURRENCES: Final = 500
 MAX_EXPANSION_STEPS: Final = 10_000
 """Most steps through the recurrence of one event, counted from its DTSTART."""
 
-MAX_RECURRING_EVENTS: Final = 50
-"""Most recurring VEVENTs of one feed that are expanded; the others are skipped."""
+MAX_FEED_STEPS: Final = 200_000
+"""Most steps through the recurrences of one feed (well under a second in all)."""
+
+MAX_RECURRING_EVENTS: Final = 1_000
+"""Most recurring VEVENTs of one feed that are expanded (not counting those that ended)."""
 
 MAX_PATTERN_INPUT: Final = 20_000
 """Longest text a configured regular expression is applied to."""
@@ -344,7 +351,10 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
 
     ``timezone`` is the zone of floating times (``calendar.timezone`` or the
     source's). VEVENTs that cannot be used are left out; see the module
-    docstring for the limits of the expansion.
+    docstring for the limits of the expansion. Raises ``ParseError`` when
+    the feed has more than ``MAX_RECURRING_EVENTS`` recurring events that
+    have to be expanded or when they need more than ``MAX_FEED_STEPS``
+    steps: a part of the feed would make the events left out count as gone.
     """
     overrides: dict[tuple[str, str], _Override] = {}
     masters: list[icalendar.Component] = []
@@ -359,16 +369,22 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
         else:
             masters.append(vevent)
     found: list[IcsOccurrence] = []
-    recurring = 0
+    steps = expanded = 0
     for vevent in masters:
-        if _is_recurring(vevent):
-            recurring += 1
-            if recurring > MAX_RECURRING_EVENTS:
-                continue
         try:
-            found += _occurrences_of(vevent, window, timezone, overrides)
+            items, expansion = _occurrences_of(
+                vevent, window, timezone, overrides, budget=MAX_FEED_STEPS - steps
+            )
         except (ValueError, TypeError, OverflowError):
             continue
+        steps += expansion.steps
+        expanded += expansion.expanded
+        if expanded > MAX_RECURRING_EVENTS:
+            raise ParseError(
+                f"the feed has more than {MAX_RECURRING_EVENTS} recurring events"
+                " that do not end before the run window"
+            )
+        found += items
     for (uid, key), (vevent, original) in overrides.items():
         single = _replacement(vevent, original, None, f"{uid}/{key}")
         if single is not None and _starts_in(single.start, window, timezone):
@@ -402,21 +418,28 @@ def _occurrences_of(
     window: TimeWindow,
     timezone: str,
     overrides: dict[tuple[str, str], _Override],
-) -> list[IcsOccurrence]:
-    """The occurrences of one VEVENT; replaced ones are taken out of ``overrides``."""
+    *,
+    budget: int,
+) -> tuple[list[IcsOccurrence], _Expansion]:
+    """The occurrences of one VEVENT and what expanding it cost.
+
+    Replaced occurrences are taken out of ``overrides``; ``budget`` is the
+    number of steps the feed has left.
+    """
     first = IcsOccurrence.of(vevent)
     uid = first.native_id
     if not _is_recurring(vevent):
         # An override of the only occurrence replaces the event and keeps its native id.
-        return [_overridden(first, uid, instance_key(first.start), overrides)]
+        return [_overridden(first, uid, instance_key(first.start), overrides)], _Expansion()
+    expansion = _expand(vevent, first.start, window, timezone, budget=budget)
     duration = _duration(first.start, first.end)
     found: list[IcsOccurrence] = []
-    for start in _expand(vevent, first.start, window, timezone):
+    for start in expansion.starts:
         key = instance_key(start)
         native_id = None if uid is None else f"{uid}/{key}"
         end = None if duration is None else start + duration
         found.append(_overridden(IcsOccurrence(vevent, start, end, native_id), uid, key, overrides))
-    return found
+    return found, expansion
 
 
 def _overridden(
@@ -571,20 +594,21 @@ def _set_size_bound(keys: dict[str, list[Any]], *, yearly: bool) -> int:
     return min(counts) * times
 
 
-def _rule_text(rule: object, anchor: datetime, timezone: str) -> str:
-    """The RRULE as text, with UNTIL written the way dateutil accepts it for ``anchor``."""
+def _rule_text(rule: object, anchor: datetime, timezone: str) -> tuple[str, datetime | None]:
+    """The RRULE as text for dateutil, and its UNTIL comparable with ``anchor`` (if any)."""
     if not isinstance(rule, icalendar.vRecur):
         raise ValueError("the RRULE cannot be read")
     parts = dict(rule)
     check_rule(parts, start=anchor)
     until = parts.get("UNTIL")
-    if until:
-        value = until[0]
-        if not isinstance(value, datetime):
-            value = datetime.combine(value, time(23, 59, 59))
-        aligned = _align(value, anchor, timezone)
-        parts["UNTIL"] = [aligned.astimezone(UTC) if aligned.tzinfo is not None else aligned]
-    return icalendar.vRecur(parts).to_ical().decode("ascii")
+    if not until:
+        return icalendar.vRecur(parts).to_ical().decode("ascii"), None
+    value = until[0]
+    if not isinstance(value, datetime):
+        value = datetime.combine(value, time(23, 59, 59))
+    aligned = _align(value, anchor, timezone)
+    parts["UNTIL"] = [aligned.astimezone(UTC) if aligned.tzinfo is not None else aligned]
+    return icalendar.vRecur(parts).to_ical().decode("ascii"), aligned
 
 
 def _list_values(vevent: icalendar.Component, name: str) -> list[Moment]:
@@ -597,29 +621,72 @@ def _list_values(vevent: icalendar.Component, name: str) -> list[Moment]:
     return moments
 
 
-def _expand(
-    vevent: icalendar.Component, start: Moment, window: TimeWindow, timezone: str
-) -> Iterator[Moment]:
-    """Start times of the occurrences of a recurring VEVENT that start inside ``window``."""
-    is_date = not isinstance(start, datetime)
-    anchor = start if isinstance(start, datetime) else datetime.combine(start, time.min)
+@dataclass(frozen=True)
+class _Expansion:
+    """The starts that the recurrence of a VEVENT gives inside the window, and their cost.
+
+    ``expanded`` is false when nothing was expanded: the event does not
+    recur, or all its rules end before the window.
+    """
+
+    starts: tuple[Moment, ...] = ()
+    steps: int = 0
+    expanded: bool = False
+
+
+def _recurrence(
+    vevent: icalendar.Component, anchor: datetime, timezone: str
+) -> tuple[rruleset, datetime | None]:
+    """The rule set of a recurring VEVENT and the latest start it can give.
+
+    That bound is known (else ``None``) when every RRULE has an UNTIL: it is
+    the latest of those, of the RDATEs and of DTSTART (``anchor``).
+    """
     rules = rruleset()
+    lasts: list[datetime | None] = [anchor]
     for value in _values(vevent, "RRULE"):
+        text, until = _rule_text(value, anchor, timezone)
         # The text of one RRULE always gives a single rule, never a set.
-        rules.rrule(cast(rrule, rrulestr(_rule_text(value, anchor, timezone), dtstart=anchor)))
+        rules.rrule(cast(rrule, rrulestr(text, dtstart=anchor)))
+        lasts.append(until)
     rules.rdate(anchor)
     for moment in _list_values(vevent, "RDATE"):
-        rules.rdate(_align(moment, anchor, timezone))
+        aligned = _align(moment, anchor, timezone)
+        rules.rdate(aligned)
+        lasts.append(aligned)
     for moment in _list_values(vevent, "EXDATE"):
         rules.exdate(_align(moment, anchor, timezone))
+    bounded = [moment for moment in lasts if moment is not None]
+    return rules, max(bounded) if len(bounded) == len(lasts) else None
+
+
+def _expand(
+    vevent: icalendar.Component, start: Moment, window: TimeWindow, timezone: str, *, budget: int
+) -> _Expansion:
+    """The starts of the occurrences of a recurring VEVENT that start inside ``window``.
+
+    Every occurrence from DTSTART on is one step. Raises ``ParseError`` when
+    the expansion needs more than the ``budget`` steps that the feed has left.
+    """
+    is_date = not isinstance(start, datetime)
+    anchor = start if isinstance(start, datetime) else datetime.combine(start, time.min)
+    rules, last = _recurrence(vevent, anchor, timezone)
     low, high = _window_bounds(window, anchor, timezone)
-    count = 0
-    for step, moment in enumerate(rules):
-        if step >= MAX_EXPANSION_STEPS or moment >= high or count >= MAX_OCCURRENCES:
-            return
+    if last is not None and last < low:
+        return _Expansion()
+    starts: list[Moment] = []
+    steps = 0
+    for moment in rules:
+        if moment >= high or len(starts) >= MAX_OCCURRENCES or steps >= MAX_EXPANSION_STEPS:
+            break
+        if steps >= budget:
+            raise ParseError(
+                f"the recurring events of the feed need more than {MAX_FEED_STEPS} steps"
+            )
+        steps += 1
         if moment >= low:
-            count += 1
-            yield moment.date() if is_date else moment
+            starts.append(moment.date() if is_date else moment)
+    return _Expansion(tuple(starts), steps, expanded=True)
 
 
 def _window_bounds(
@@ -832,6 +899,21 @@ def _configured_draft(
     return draft.evolve(**changes) if changes else draft
 
 
+def _read_feed(
+    document: FetchedDocument, source: SourceConfig, window: TimeWindow
+) -> tuple[IcsCalendar, list[IcsOccurrence]]:
+    """The calendar of one answer and its occurrences; a ``ParseError`` names the source."""
+    try:
+        calendar = read_calendar(document)
+    except ParseError as error:
+        raise ParseError(f"source {source.id}: {error}") from error
+    zone = calendar.timezone or source.timezone
+    try:
+        return calendar, occurrences(calendar, window, timezone=zone)
+    except ParseError as error:
+        raise ParseError(f"source {source.id}: {error}: {document.url}") from error
+
+
 @register_adapter("ics")
 class IcsAdapter:
     """Reads iCalendar feeds; see the module docstring."""
@@ -845,12 +927,8 @@ class IcsAdapter:
         drafts: list[EventDraft] = []
         seen: set[str] = set()
         for document in payload.documents:
-            try:
-                calendar = read_calendar(document)
-            except ParseError as error:
-                raise ParseError(f"source {source.id}: {error}") from error
-            zone = calendar.timezone or source.timezone
-            for occurrence in occurrences(calendar, payload.window, timezone=zone):
+            calendar, found = _read_feed(document, source, payload.window)
+            for occurrence in found:
                 try:
                     draft = _configured_draft(
                         occurrence,
