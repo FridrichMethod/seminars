@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://mse.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://mse.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/mse-colloquium/mse-colloquium-robert-hovden" hreflang="en">MSE Colloquium: Robert Hovden</a></h2></title>
+  <link>https://mse.stanford.edu/events/mse-colloquium/mse-colloquium-robert-hovden</link>
+  <description/>
+  <pubDate>Wed, 18 Nov 2026 11:30:00 -0800</pubDate>
+    <dc:creator>Material Science and Engineering Department</dc:creator>
+    <guid isPermaLink="false">e6b761bd-76ed-4b32-b2c8-317aac29c65b</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/mse-colloquium/mse-colloquium-yanjie-shao" hreflang="en">MSE Colloquium: Yanjie Shao</a></h2></title>
+  <link>https://mse.stanford.edu/events/mse-colloquium/mse-colloquium-yanjie-shao</link>
+  <description/>
+  <pubDate>Wed, 02 Dec 2026 11:30:00 -0800</pubDate>
+    <dc:creator>Material Science and Engineering Department</dc:creator>
+    <guid isPermaLink="false">97cf11be-6cc1-4034-85bd-0f898c6c55a0</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/mse-colloquium/mse-colloquium-max-saccone" hreflang="en">MSE Colloquium: Max Saccone</a></h2></title>
+  <link>https://mse.stanford.edu/events/mse-colloquium/mse-colloquium-max-saccone</link>
+  <description/>
+  <pubDate>Wed, 13 Jan 2027 11:30:00 -0800</pubDate>
+    <dc:creator>Material Science and Engineering Department</dc:creator>
+    <guid isPermaLink="false">3857f950-1f52-4423-a878-afd0bd289f4e</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/lecture-reading/william-d-nix-lecture-2027" hreflang="en">William D. Nix Lecture 2027</a></h2></title>
+  <link>https://mse.stanford.edu/events/lecture-reading/william-d-nix-lecture-2027</link>
+  <description/>
+  <pubDate>Fri, 02 Apr 2027 08:30:00 -0700</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">068af320-ddcf-4936-a38e-c79437da502b</guid>
+    </item>
+
+  </channel>
+</rss>

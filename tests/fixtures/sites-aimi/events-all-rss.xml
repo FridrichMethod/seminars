@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://aimi.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://aimi.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/computational-medicine-research-colloquium-responsible-ai-healthcare-rwe-agentic-systems" hreflang="en">Computational Medicine Research Colloquium: Responsible AI in Healthcare: From RWE to Agentic Systems - Nigam Shah, MBBS, PhD</a></h2></title>
+  <link>https://aimi.stanford.edu/events/computational-medicine-research-colloquium-responsible-ai-healthcare-rwe-agentic-systems</link>
+  <description/>
+  <pubDate>Thu, 12 Nov 2026 12:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">c5a9f7f4-1218-4e7d-b7f3-42ffd5022176</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/ai4mh-seminar-ai-history-what-ask-what-build-what-measure-nina-vasan-md" hreflang="en">AI4MH Seminar: The AI History: What to Ask, What to Build, What to Measure - Nina Vasan, MD</a></h2></title>
+  <link>https://aimi.stanford.edu/events/ai4mh-seminar-ai-history-what-ask-what-build-what-measure-nina-vasan-md</link>
+  <description/>
+  <pubDate>Wed, 18 Nov 2026 11:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">c1c083fa-f537-4db2-90f4-3981a5f5b51f</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/ibiis-aimi-seminar-prateek-prasanna-phd" hreflang="en">IBIIS-AIMI Seminar: Prateek Prasanna, PhD</a></h2></title>
+  <link>https://aimi.stanford.edu/events/ibiis-aimi-seminar-prateek-prasanna-phd</link>
+  <description/>
+  <pubDate>Wed, 18 Nov 2026 12:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">789b35cf-9299-4bcf-9ca6-b693ed5d0ff3</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/grand-rounds/aimi-grand-rounds-tba-5" hreflang="en">AIMI Grand Rounds: TBA</a></h2></title>
+  <link>https://aimi.stanford.edu/events/grand-rounds/aimi-grand-rounds-tba-5</link>
+  <description/>
+  <pubDate>Tue, 24 Nov 2026 08:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">a31194ef-0d7f-4550-8243-b70ff9979931</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/grand-rounds/aimi-grand-rounds-genetic-diagnosis-and-discovery-enabled-large-language-models" hreflang="en">AIMI Grand Rounds: Genetic Diagnosis and Discovery Enabled by  Large Language Models  - Konstantina Stankovic, MD, PhD</a></h2></title>
+  <link>https://aimi.stanford.edu/events/grand-rounds/aimi-grand-rounds-genetic-diagnosis-and-discovery-enabled-large-language-models</link>
+  <description/>
+  <pubDate>Tue, 15 Dec 2026 08:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">9e63333f-9204-415d-b003-b09f9ead5d4d</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/stanford-ai-healthcare-leadership-strategy-course-hails" hreflang="en">Stanford AI in Healthcare Leadership Strategy Course (HAILS) </a></h2></title>
+  <link>https://aimi.stanford.edu/events/stanford-ai-healthcare-leadership-strategy-course-hails</link>
+  <description/>
+  <pubDate>Fri, 14 May 2027 00:00:00 -0700</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">32c4d60b-ba13-4349-9710-14068dc66827</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/aimi-symposium-summit-series-2027" hreflang="en">AIMI Symposium + Summit Series 2027</a></h2></title>
+  <link>https://aimi.stanford.edu/events/aimi-symposium-summit-series-2027</link>
+  <description/>
+  <pubDate>Mon, 17 May 2027 00:00:00 -0700</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">b58fb87a-0e29-4636-a72d-3736b5338bc1</guid>
+    </item>
+
+  </channel>
+</rss>
