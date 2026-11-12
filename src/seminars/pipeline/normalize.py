@@ -99,7 +99,10 @@ _ONLINE_FILLER: Final = word_set(
 _HYBRID_WORDS: Final = word_set("zoom online livestream webinar hybrid webex")
 _NO_LOCATION: Final = frozenset(
     {"tba", "tbd", "tbc", "location tba", "location tbd", "to be announced", "to be determined"}
+    | {"united states", "united states of america", "usa", "us"}
 )
+"""Locations that name no place: not announced yet, or only the country (the address
+block of a Stanford Sites card can hold just "United States")."""
 
 
 def _same(text: str) -> str:
@@ -269,11 +272,11 @@ def _place(draft: EventDraft, cleaner: _Cleaner) -> tuple[str | None, bool, Http
     if draft.is_online is not False and _LINK.fullmatch(link):
         return None, True, stream or cleaner.url(link)
     location = cleaner.line(draft.location, MAX_LOCATION)
-    if location is None or draft.is_online is False:
-        return location, online, stream
-    words = fold(location).split()
+    words = fold(location).split() if location is not None else []
     if " ".join(words) in _NO_LOCATION:
         return None, online, stream
+    if location is None or draft.is_online is False:
+        return location, online, stream
     if _ONLINE_CORE.intersection(words) and all(
         word in _ONLINE_CORE or word in _ONLINE_FILLER for word in words
     ):

@@ -346,6 +346,15 @@ class TestOnline:
     def test_an_unannounced_location_is_none(self) -> None:
         assert one(make_draft(location="TBA")).event.location is None
         assert one(make_draft(location="Location TBD")).event.location is None
+        assert one(make_draft(location="TBA", is_online=False)).event.location is None
+
+    def test_a_country_alone_is_no_location(self) -> None:
+        # The address block of a Stanford Sites card can hold just the country.
+        for country in ("United States", "USA", "United States of America"):
+            assert one(make_draft(location=country)).event.location is None, country
+            assert one(make_draft(location=country, is_online=False)).event.location is None
+        kept = "PAB 102/103, 452 Lomita Mall, Stanford, CA 94305, United States"
+        assert one(make_draft(location=kept)).event.location == kept
 
 
 class TestPrivacyAndSecrets:
