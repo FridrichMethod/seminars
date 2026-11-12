@@ -420,10 +420,11 @@ def follow_changed_keys(
     address of a TBA page when it is renamed. ``orphans`` are in the order
     in which they were first seen, ``now`` is the time of the run and
     ``title_similarity`` the ``fuzz.ratio`` that makes two titles one. The
-    result maps positions in ``events`` to the uid of an orphan; each
-    orphan is taken once, and the result does not depend on the order of
-    ``events``. ``events`` must come in a fixed order for step 3, where the
-    first event of a slot takes it.
+    result maps positions in ``events`` to the uid of an orphan, and each
+    orphan is taken once. Step 3 gives a slot to the first event that
+    claims it, so the result depends on the order of ``events``: pass them
+    in an order fixed by their values (``adopt_stored_uids`` sorts them by
+    value).
     """
     adopted: dict[int, str] = {}
 
