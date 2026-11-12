@@ -1,81 +1,72 @@
 """Custom adapter ``hai_events``: events embedded in the server component payload of a page.
 
-The list page is rendered by Next.js. Its inline scripts carry the React
-server component payload ("flight" data), which holds the events as JSON
-objects; the same events are also rendered as cards. Location and speakers
-are only on the detail page of an event.
+The list page is rendered by Next.js. Its inline scripts carry the React server component
+payload ("flight" data), which holds the events as JSON objects; the same events are also
+rendered as cards. Location and speakers are only on the detail page of an event.
 
-``fetch`` requests every URL of the source (the list) and, with
-``fetch_details: upcoming``, the detail pages of the kept events that start
-on or after the day the list was fetched and lie in the run window (at most
-``max_detail_pages``). The detail page of an event with an organiser
-address (``keys.organiser_url``) is that address: its own page only
-forwards there. A detail page on another host is never requested; the
-event is built from the list alone, and a warning counts such events.
-``parse`` reads the payload (the cards when it cannot be read) and completes
-each event from its detail page when one was fetched and is usable.
+``fetch`` requests every URL of the source (the list) and, with ``fetch_details: upcoming``,
+the detail pages of the kept events that start on or after the day the list was fetched and
+lie in the run window (at most ``max_detail_pages``). An event with an organiser address
+(``keys.organiser_url``) has none: its own page only forwards there, and the organiser's
+page has a layout of its own, so neither is requested, whatever its host. Nor is a detail
+page on another host (a warning counts those). Such events are built from the list alone.
+``parse`` reads the payload (the cards when it cannot be read) and completes each event from
+its detail page when one was fetched and is usable.
 
-Keys of ``params`` (an unknown key is an error that names it;
-``extra_hosts`` is read by the shared host check):
+Keys of ``params`` (an unknown key is an error that names it; ``extra_hosts`` is read by the
+shared host check):
 
 * ``flight``: how to read the payload.
 
-  - ``script_pattern`` (group ``json_string``): the scripts whose text it
-    matches carry one JSON string each; they are decoded and joined in
-    document order.
-  - The joined text is cut into rows on its UTF-8 bytes, from the start: a
-    row begins with ``row_start_pattern`` (group ``id``, may be empty). A
-    row that begins with ``text_row_pattern`` (groups ``id`` and
-    ``length``, hexadecimal) holds exactly ``length`` bytes after it and is
-    followed directly by the next row; every other row ends at a line
-    break. A row whose body matches ``special_row_pattern`` is not JSON;
-    every other row with an id is one JSON value.
-  - String values: ``undefined_marker`` is a missing value,
-    ``escaped_dollar_prefix`` starts a text that begins with "$" (one "$" is
-    dropped), ``reference_pattern`` (group ``id``, optional ``path``) is the
-    value of another row, or a value inside it reached key by key (``:``;
-    ``props`` in a React element is its fourth item). Any other string
-    that starts with "$" belongs to the component tree and counts as missing.
-  - ``event_marker_key``: an object with this key is an event.
-    ``upcoming_key`` and ``previous_key``: dotted paths (from any object
-    that has the first key) of the lists that hold the events. When neither
-    is found, the payload cannot be read.
-  - ``keys``: dotted paths inside an event (``name[]`` steps into every item
-    of a list): ``title``, ``start``, ``end``, ``link`` (the event's page),
-    ``summary_html``, ``type_label``, ``topics`` (categories) and
-    ``organiser_url``.
+  - ``script_pattern`` (group ``json_string``): the scripts whose text it matches carry one
+    JSON string each; they are decoded and joined in document order.
+  - The joined text is cut into rows on its UTF-8 bytes, from the start: a row begins with
+    ``row_start_pattern`` (group ``id``, may be empty). A row that begins with
+    ``text_row_pattern`` (groups ``id`` and ``length``, hexadecimal) holds exactly
+    ``length`` bytes after it and is followed directly by the next row; every other row ends
+    at a line break. A row whose body matches ``special_row_pattern`` is not JSON; every
+    other row with an id is one JSON value.
+  - String values: ``undefined_marker`` is a missing value, ``escaped_dollar_prefix`` starts
+    a text that begins with "$" (one "$" is dropped), ``reference_pattern`` (group ``id``,
+    optional ``path``) is the value of another row, or a value inside it reached key by key
+    (``:``; ``props`` in a React element is its fourth item). Any other string that starts
+    with "$" belongs to the component tree and counts as missing.
+  - ``event_marker_key``: an object with this key is an event. ``upcoming_key`` and
+    ``previous_key``: dotted paths (from any object that has the first key) of the lists
+    that hold the events. When neither is found, the payload cannot be read.
+  - ``keys``: dotted paths inside an event (``name[]`` steps into every item of a list):
+    ``title``, ``start``, ``end``, ``link`` (the event's page), ``summary_html``,
+    ``type_label``, ``topics`` (categories) and ``organiser_url``.
 
-* ``times_are_local``: the times of the payload carry an offset ("Z") but
-  are wall times of the source; the offset is dropped.
-* ``type_labels``: type label -> event type. ``keep_type_labels``: only
-  events with one of these labels are returned (empty: all).
-* ``title_separator``: in a title "<prefix><separator><rest>" the prefix
-  is the speakers when it names those of the detail page or, without them,
-  reads like person names (then it is the speaker text, for normalization
-  to split); otherwise it is the series. The title is the rest.
-* ``card_selectors`` (``item``, ``title``, ``link``, ``type``, ``date``,
-  ``time``, ``summary``), ``card_date_format`` and ``card_time_pattern``
-  (groups ``start`` and ``end``): the cards, read when the payload cannot
-  be. A card without a time is an all-day event.
-* ``fetch_details`` (``upcoming`` or ``never``, default) and
-  ``max_detail_pages`` (default 10).
-* ``detail_redirect_selector``: a page with a match only forwards elsewhere.
-  Such a page, one without ``detail_selectors.title`` and a failed request
-  leave the event as the list describes it.
-* ``detail_selectors``: ``title``, ``meta_row`` (label and value elements),
-  ``person_list`` with ``person_list_title``, ``person`` cards with
-  ``person_name``, ``person_title`` (the affiliation; several are joined
-  with "; ") and ``person_link``, ``stream_link`` (the address to attend
-  online) and ``description`` (the abstract).
-* ``detail_meta_labels``: the labels of the ``date`` (its end time fills in
-  a missing end), ``location``, ``status`` ("cancelled" or "postponed"
-  cancel the event) and ``topics`` rows.
-* ``speaker_list_titles``: headings of the person lists that are speakers
-  (compared without case); other lists (moderators) are not.
+* ``times_are_local``: the times of the payload carry an offset ("Z") but are wall times of
+  the source; the offset is dropped.
+* ``type_labels``: type label -> event type. ``keep_type_labels``: only events with one of
+  these labels are returned (empty: all).
+* ``title_separator``: in a title "<prefix><separator><rest>" the prefix is the speakers
+  when it names those of the detail page or, without them, reads like person names (then it
+  is the speaker text, for normalization to split); otherwise it is the series. The title is
+  the rest.
+* ``card_selectors`` (``item``, ``title``, ``link``, ``type``, ``date``, ``time``,
+  ``summary``), ``card_date_format`` and ``card_time_pattern`` (groups ``start`` and
+  ``end``): the cards, read when the payload cannot be. A card without a time is an all-day
+  event.
+* ``fetch_details`` (``upcoming`` or ``never``, default) and ``max_detail_pages`` (default
+  10).
+* ``detail_redirect_selector``: a page with a match only forwards elsewhere. Such a page,
+  one without ``detail_selectors.title`` and a failed request leave the event as the list
+  describes it.
+* ``detail_selectors``: ``title``, ``meta_row`` (label and value elements), ``person_list``
+  with ``person_list_title``, ``person`` cards with ``person_name``, ``person_title`` (the
+  affiliation; several are joined with "; ") and ``person_link``, ``stream_link`` (the
+  address to attend online) and ``description`` (the abstract).
+* ``detail_meta_labels``: the labels of the ``date`` (its end time fills in a missing end),
+  ``location``, ``status`` ("cancelled" or "postponed" cancel the event) and ``topics``
+  rows.
+* ``speaker_list_titles``: headings of the person lists that are speakers (compared without
+  case); other lists (moderators) are not.
 
-An event's ``url`` is its page on the site, also when it has an organiser
-address, which several events can share. Times without an offset are wall
-times of the source.
+An event's ``url`` is its page on the site, also when it has an organiser address, which
+several events can share. Times without an offset are wall times of the source.
 """
 
 from __future__ import annotations
@@ -480,7 +471,8 @@ class Listed:
 
     @property
     def detail_url(self) -> str | None:
-        return self.organiser_url or self.link
+        """The event's own page; ``None`` when it only forwards to the organiser address."""
+        return None if self.organiser_url else self.link
 
 
 def kind(value: datetime | date) -> tuple[bool, bool]:

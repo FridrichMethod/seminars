@@ -245,10 +245,11 @@ sources:
       card_time_pattern: '^(?P<start>\d{1,2}:\d{2} [AP]M)(?: - (?P<end>\d{1,2}:\d{2} [AP]M))?$'
       # Location and speakers are only on the detail page of an event. Detail pages
       # are requested for upcoming events in the run window only, at most this many per
-      # run. An event with a promo_url (flight.keys.organiser_url) has no page of its
-      # own here: its page only forwards to the promo_url, so the promo_url is its
-      # detail page, requested only when its host is a host of this source (none of
-      # them is: marlowe-research, digitaleconomy, events.stanford.edu, stanford.zoom.us).
+      # run. An event with a promo_url (flight.keys.organiser_url) has no detail page:
+      # its page here only forwards to the promo_url, the organiser's own page in
+      # another layout (marlowe-research, digitaleconomy, events.stanford.edu,
+      # stanford.zoom.us). Neither is requested, even when extra_hosts lists that host;
+      # such an event comes from the list alone.
       fetch_details: upcoming
       max_detail_pages: 15
       # A page with this element is such a forwarding page. It, a failed detail request

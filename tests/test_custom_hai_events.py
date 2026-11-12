@@ -146,7 +146,7 @@ class TestRecordedPages:
     def test_the_list_and_the_detail_pages_of_its_upcoming_seminars(self) -> None:
         http = offline_client(SOURCE.id)
         drafts = run(SOURCE, http)
-        # Events with a promo_url forward to other hosts: no request for them. The
+        # Events with a promo_url only forward to it: no request for them. The
         # conference in May 2027 is after the run window.
         assert http.requests == [LIST_URL, AI100, CHRISTIN]
         # 20 events in the payload; 5 are tagged Event or Event Promo and are left out.
@@ -230,20 +230,18 @@ class TestRecordedPages:
         assert conference.speakers == []
         assert conference.event_type_hint == "conference"
 
-    def test_a_listed_promo_host_is_requested_and_a_forwarding_page_is_ignored(self) -> None:
-        source = with_params(extra_hosts=["events.stanford.edu"])
-        target = "https://events.stanford.edu/event/cnds-seminar-youngju-jo"
-        pages = {
-            LIST_URL: fixture("events-ba2e38a4.html"),
-            AI100: fixture("events-hai-seminar-the-ai-100-43da3f5a.html"),
-            CHRISTIN: fixture("events-angele-christin-hannah-zeavin-gur-29ce1f27.html"),
-            target: fixture("events-youngju-jo-data-driven-discovery-c915b628.html"),
-        }
-        http = serve(pages)
-        drafts = run(source, http)
-        assert target in http.requests
+    def test_a_promo_url_is_not_requested_even_when_its_host_is_listed(self) -> None:
+        # The organiser's page has another layout: requesting it would only spend the
+        # budget of that host, which other sources share.
+        http = offline_client(SOURCE.id)
+        drafts = run(with_params(extra_hosts=["events.stanford.edu"]), http)
+        assert http.requests == [LIST_URL, AI100, CHRISTIN]
         talk = by_title(drafts, "Data-driven Discovery and Control of Neural Computations")
-        assert (talk.speaker_text, talk.location) == ("YoungJu Jo", None)
+        assert (talk.speaker_text, talk.location, talk.speakers) == ("YoungJu Jo", None, [])
+        assert (
+            talk.url
+            == f"{SITE}/events/youngju-jo-data-driven-discovery-and-control-of-neural-computations"
+        )
 
     def test_the_cards_when_the_payload_cannot_be_read(
         self, caplog: pytest.LogCaptureFixture
@@ -497,6 +495,7 @@ class TestDetailPages:
         upcoming = [
             event("Past", "2026-11-01T12:00:00Z"),
             event("Promo", "2026-11-20T12:00:00Z", promo="https://other.example.org/x"),
+            event("Own promo", "2026-11-20T13:00:00Z", promo=f"{SITE}/promo"),
             event("Elsewhere", "2026-11-21T12:00:00Z", href="https://other.example.org/y"),
             event("Policy", "2026-11-22T12:00:00Z", tag="Event"),
             event("Far", "2027-09-01T12:00:00Z"),
@@ -507,8 +506,9 @@ class TestDetailPages:
         with caplog.at_level(logging.WARNING):
             drafts = run(with_params(max_detail_pages=1), http)
         assert http.requests == [LIST_URL, f"{SITE}/events/soon"]
-        assert "2 event(s) have their details on a host" in caplog.text
-        assert [d.title for d in drafts] == ["Past", "Promo", "Elsewhere", "Far", "Soon", "Later"]
+        assert "1 event(s) have their details on a host" in caplog.text  # Elsewhere
+        titles = ["Past", "Promo", "Own promo", "Elsewhere", "Far", "Soon", "Later"]
+        assert [d.title for d in drafts] == titles
 
     def test_no_detail_requests_when_they_are_not_wanted(self) -> None:
         http = serve({LIST_URL: payload_page(self.rows())})
