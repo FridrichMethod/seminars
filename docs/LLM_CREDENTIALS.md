@@ -192,7 +192,10 @@ What keeps the cost down, all set in `config/llm.yaml`:
   the normalized input. Model and provider are not part of it, so a new key, plan or model
   never repeats a request. An entry that has not been used for `cache_ttl_days` (180) is
   removed. A page reading is stored with only the text values that are on the page, so
-  whatever else a page makes the model write never reaches the committed cache.
+  whatever else a page makes the model write never reaches the committed cache. Nor does a
+  text value in which the secret scan finds a credential-shaped string, even one that the
+  page itself shows: it is left out before the answer is stored, and the rest of the talk
+  is kept.
 
 The run report lists the requests, the tokens and the result of every provider, and the
 cost where the backend reports one, which only `claude-cli` does. `codex-cli` and the API
@@ -218,12 +221,48 @@ run the same way:
 * the command is a list of arguments and never goes through a shell;
 * the prompt with the page text goes to standard input, never into an argument;
 * the environment holds only `PATH`, `HOME`, `LANG`, `LC_ALL`, `TMPDIR` and what the
-  provider itself needs, so no other credential is visible to the CLI;
+  provider itself needs (see the next section), so no other credential is visible to the
+  CLI;
 * the working directory is a new, empty temporary directory;
 * a timeout (`timeout_seconds`, 120 s) ends the CLI and everything it started;
 * only the final JSON on standard output is read, and the answer must match the schema;
 * standard error is read only to tell an expired credential from a rate limit and is then
   dropped: it can name the account, so it never reaches a log, a report or an error message.
+
+### What the CLIs get of the environment
+
+The environment of a CLI is an allow-list: of the environment of `seminars run` it gets
+only the variables in this table, and only those that are set and not empty. The same
+holds for `--version` and `codex login status`.
+
+| Variable | `claude-cli` | `codex-cli` | Why |
+|---|---|---|---|
+| `PATH` | yes | yes | to find the CLI and whatever it starts |
+| `HOME` | yes | yes | the home directory; `codex-cli` finds its login in `~/.codex` there unless `CODEX_HOME` is set |
+| `LANG`, `LC_ALL` | yes | yes | the locale, so that the page text and the answer are read and written as UTF-8 |
+| `TMPDIR` | yes | yes | the place for temporary files |
+| `CLAUDE_CODE_OAUTH_TOKEN` | yes | no | the login of `claude-cli`, and the only credential a CLI gets |
+| `CLAUDE_CONFIG_DIR` | yes | no | a new, empty temporary directory, removed after the request: the CLI neither reads nor changes the configuration in the home directory |
+| `DISABLE_AUTOUPDATER`, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | yes | no | set to 1 by `seminars`, not passed on: no self-update, nothing sent on the side |
+| `CODEX_HOME` | no | when set | the directory of the ChatGPT login of `codex-cli` (`auth.json`) |
+
+`--version` of `claude-cli` gets neither the token nor `CLAUDE_CONFIG_DIR`. Everything else
+stays out, in particular:
+
+* `GITHUB_TOKEN` and `GH_TOKEN`. The update workflow gives `GITHUB_TOKEN` to `seminars run`
+  for the health issues; no CLI ever sees it.
+* `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` and `LLM_API_KEY`, the keys of the API providers.
+  With an API key in its environment a CLI would bill the API instead of the subscription.
+* What would send a CLI elsewhere or let someone else read its traffic: `ANTHROPIC_BASE_URL`,
+  `OPENAI_BASE_URL`, `HTTPS_PROXY` and the other proxy variables (a proxy address can hold
+  a password), `SSL_CERT_FILE` and `NODE_EXTRA_CA_CERTS`. A network that needs a proxy or
+  its own certificate authority cannot use the CLI providers, just as the HTTP client of
+  this project ignores these variables.
+* `NODE_OPTIONS`, which can load code into a program that runs on node, and the sockets of
+  agents and key rings, such as `SSH_AUTH_SOCK` and `DBUS_SESSION_BUS_ADDRESS`.
+
+The tests start both CLIs, replaced by stand-ins, from an environment that holds all of
+these and compare what each child process gets with this table.
 
 ### claude-cli: Claude Code 2.1.322
 
@@ -340,4 +379,6 @@ Whatever the provider, a page cannot steer the result:
   names a marker; only links that are really on the page can come out.
 * Before anything is written to `data/` or `public/`, a secret scan looks for API keys,
   OAuth tokens, JWTs and similar strings. A finding stops the run: nothing is committed or
-  deployed.
+  deployed. The page reader runs the same scan over every text value of an answer before it
+  is cached, so a token that a page shows never reaches `data/llm_cache/`; the rest of the
+  talk is kept.

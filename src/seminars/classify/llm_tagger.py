@@ -21,6 +21,13 @@ numbers, booleans and the seven field ids, an answer that breaks the schema
 is discarded as a whole, and a result for an index that was not asked for is
 ignored. That closed vocabulary is also why the tag-only provider (the codex
 CLI) may serve these requests.
+
+Secrets. The cache holds no text of an event: an entry is the answer for one
+event, field ids of the closed vocabulary and the yes or no of ``is_talk``
+(``LLMTagResult``). A token that a page shows can therefore never reach
+data/llm_cache/ through tagging, which is why the tagger needs none of the
+secret filtering of the page extractor (``seminars.llm.secret_filter``). An
+entry that ever takes free text has to take that filter with it.
 """
 
 from __future__ import annotations
