@@ -410,7 +410,7 @@ class TestUntrustedText:
         assert overnight == "10:00 PM - Nov 12, 2026, 1:00 AM PST"
         strange = page.locator('article[data-uid="odd"]')
         assert strange.locator(".event-when").text_content() == "9:00 AM"
-        assert strange.locator(".badges li").all_text_contents() == ["Pick", "AI / ML"]
+        assert strange.locator(".badges li").all_text_contents() == ["Pick", "AI/ML"]
         assert strange.locator(".speakers li").all_text_contents() == ["Real Person"]
         assert strange.locator(".reasons li").all_text_contents() == ["kept"]
         feeds = page.eval_on_selector_all("#feeds li", "es => es.map((e) => e.dataset.feed)")

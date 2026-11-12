@@ -2,7 +2,7 @@
   "fields": {
     "math": "数学",
     "cs": "计算机科学",
-    "ai-ml": "AI / 机器学习",
+    "ai-ml": "AI/机器学习",
     "chem": "化学",
     "bio": "生物",
     "physics": "物理",
@@ -26,7 +26,7 @@
       "description": "计算机科学方向的报告。"
     },
     "ai-ml": {
-      "name": "学术报告 - AI / 机器学习",
+      "name": "学术报告 - AI/机器学习",
       "description": "人工智能和机器学习方向的报告。"
     },
     "chem": {
@@ -74,6 +74,17 @@
       "tba": "待公布",
       "details": "详情",
       "more": "另有 {count} 场"
+    },
+    "reasons": {
+      "keyword": "{place}含\"{term}\"（{points}）",
+      "series": "系列\"{term}\"（{points}）",
+      "speaker": "报告人\"{term}\"（{points}）",
+      "penalty": "扣分词\"{term}\"（{points}）",
+      "places": {
+        "title": "标题",
+        "series": "系列名",
+        "abstract": "摘要"
+      }
     },
     "empty": {
       "picks": "本周没有精选报告。",

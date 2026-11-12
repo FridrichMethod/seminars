@@ -2,7 +2,7 @@
   "fields": {
     "math": "Math",
     "cs": "Computer Science",
-    "ai-ml": "AI / ML",
+    "ai-ml": "AI/ML",
     "chem": "Chemistry",
     "bio": "Biology",
     "physics": "Physics",
@@ -26,7 +26,7 @@
       "description": "Talks in computer science."
     },
     "ai-ml": {
-      "name": "Seminars - AI / ML",
+      "name": "Seminars - AI/ML",
       "description": "Talks in artificial intelligence and machine learning."
     },
     "chem": {
@@ -74,6 +74,17 @@
       "tba": "TBA",
       "details": "Details",
       "more": "{count} more"
+    },
+    "reasons": {
+      "keyword": "\"{term}\" in {place} ({points})",
+      "series": "series \"{term}\" ({points})",
+      "speaker": "speaker \"{term}\" ({points})",
+      "penalty": "penalty \"{term}\" ({points})",
+      "places": {
+        "title": "title",
+        "series": "series",
+        "abstract": "abstract"
+      }
     },
     "empty": {
       "picks": "No picks this week.",

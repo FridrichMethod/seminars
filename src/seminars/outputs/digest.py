@@ -14,8 +14,13 @@ functions read no clock: the same arguments give the same document.
 Language. The issue title is English and has to stay as it is (it is what
 makes a week idempotent). Inside the body every heading, table header and
 label is given in both languages, English first, and every sentence on two
-lines. All of that text comes from the locale files; this module holds none.
-Event content is not translated.
+lines. A table cell that holds our own words besides labels, the field
+names and the picks reasons, has an English line and a Chinese line. The
+picks reasons are read back from the lines the picks scorer stored
+(``seminars.models.public.PickReason``) and said with the messages of the
+locale files; the terms of the configuration in them stay as they are. All
+of that text comes from the locale files; this module holds none. Event
+content is not translated.
 
 Text from the web. Titles, names, places and error messages are untrusted
 and must come out as literal text: no markup, no link, no image, no heading,
@@ -62,6 +67,7 @@ from seminars.models import (
     Speaker,
     ascii_url,
 )
+from seminars.models.public import PickReason, signed_points
 from seminars.textrules import ascii_printable, clean_text
 
 ROW_LIMITS: Final = (40, 30, 20, 15, 10, 5, 2, 1)
@@ -112,6 +118,11 @@ class _Context:
     zone: ZoneInfo
     week_start: date
     picks_threshold: float
+
+    @property
+    def locales(self) -> tuple[Locale, Locale]:
+        """Both languages, the primary one first."""
+        return self.primary, self.secondary
 
     def both(self, key: str, /, **params: object) -> str:
         """A heading or label in both languages on one line."""
@@ -176,6 +187,20 @@ def _cell(text: str | None, limit: int) -> str:
     return " ".join(words)
 
 
+def _lines(lines: Sequence[str]) -> str:
+    """The lines of a cell in both languages, each once; empty when there is none."""
+    return "<br>".join(dict.fromkeys(line for line in lines if line))
+
+
+def _reason(reason: PickReason, locale: Locale) -> str:
+    """One picks reason in one language; a line of no known form stays as it is."""
+    if reason.kind == "other":
+        return reason.term
+    place = locale.t(f"digest.reasons.places.{reason.place}") if reason.place else ""
+    points = signed_points(reason.points or 0.0)
+    return locale.t(f"digest.reasons.{reason.kind}", term=reason.term, place=place, points=points)
+
+
 def _speaker(speaker: Speaker) -> str:
     name, affiliation = _one_line(speaker.name), _one_line(speaker.affiliation)
     return f"{name} ({affiliation})" if name and affiliation else name
@@ -234,11 +259,19 @@ def _location_cell(event: Event, ctx: _Context) -> str:
 
 
 def _field_cell(event: Event, ctx: _Context) -> str:
-    return ", ".join(ctx.primary.t(f"fields.{field}") for field in event.fields) or EMPTY_CELL
+    names = [
+        ", ".join(locale.t(f"fields.{field}") for field in event.fields) for locale in ctx.locales
+    ]
+    return _lines(names) or EMPTY_CELL
 
 
 def _reasons_cell(event: Event, ctx: _Context) -> str:
-    return _cell("; ".join(event.picks_reasons), REASONS_MAX_CHARS) or EMPTY_CELL
+    reasons = [PickReason.parse(text) for text in event.picks_reasons if text]
+    lines = [
+        _cell("; ".join(_reason(reason, locale) for reason in reasons), REASONS_MAX_CHARS)
+        for locale in ctx.locales
+    ]
+    return _lines(lines) or EMPTY_CELL
 
 
 def _link_cell(event: Event, ctx: _Context) -> str:

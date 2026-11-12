@@ -329,7 +329,7 @@ class TestCalendarHeader:
         assert "X-WR-CALDESC:Alles\\, was rechnet" in content_lines(feeds["math"])
         by_uid = {str(part["uid"]).split("@")[0]: part for part in vevents(feeds["all"])}
         pick = by_uid["golden-pick"]
-        assert [str(name) for name in pick.categories] == ["AI / ML", "Life science"]
+        assert [str(name) for name in pick.categories] == ["AI/ML", "Life science"]
         assert str(pick["description"]).split("\n") == [
             "Presenter: Jane Doe (Stanford University); Li Wu",
             "Bioengineering Seminar",
@@ -492,7 +492,7 @@ class TestEventProperties:
     def test_url_categories_and_status(self, one: Any) -> None:
         component = one(make_event(fields=["physics", "ai-ml", "math"], status="tentative"))
         assert str(component["url"]) == DETAIL_URL
-        assert [str(name) for name in component.categories] == ["Math", "AI / ML", "Physics"]
+        assert [str(name) for name in component.categories] == ["Math", "AI/ML", "Physics"]
         assert str(component["status"]) == "TENTATIVE"
         assert str(one(make_event())["status"]) == "CONFIRMED"
         assert str(one(make_event(status="cancelled"))["status"]) == "CANCELLED"
