@@ -23,6 +23,8 @@ publishes, so this is where the rules for stored data are applied:
   not when output is written;
 * the title "TBA" stands for every way of saying that there is none yet,
   and "Cancelled:" or "(postponed)" in a title sets the status instead;
+  an abstract that is only its heading or says that there is none yet
+  ("Abstract", "Abstract: TBA") is no abstract;
 * a speaker line is split into people (``seminars.pipeline.speakers``);
 * the event gets its source key and uid (``seminars.pipeline.ids``).
 
@@ -64,6 +66,7 @@ from seminars.pipeline.speakers import ParsedSpeaker, split_speakers
 from seminars.pipeline.text import (
     canonical_name,
     fold,
+    is_empty_abstract,
     is_tba,
     one_line,
     paragraphs,
@@ -191,6 +194,16 @@ class _Cleaner:
             self.redactions += 1
             return None
         return public
+
+
+def _abstract(draft: EventDraft, cleaner: _Cleaner) -> str | None:
+    """The plain abstract of ``draft``, else its HTML one, unless it says nothing."""
+    limit = cleaner.context.settings.events.abstract_max_chars
+    for text, is_html in ((draft.abstract, False), (draft.abstract_html, True)):
+        block = cleaner.block(text, limit, is_html=is_html)
+        if block is not None and not is_empty_abstract(block):
+            return block
+    return None
 
 
 def _title_and_status(draft: EventDraft, cleaner: _Cleaner) -> tuple[str, EventStatus]:
@@ -329,10 +342,7 @@ def _event(
         shared=shared,
         is_secret=context.is_secret,
     )
-    limit = context.settings.events.abstract_max_chars
-    abstract = cleaner.block(draft.abstract, limit) or cleaner.block(
-        draft.abstract_html, limit, is_html=True
-    )
+    abstract = _abstract(draft, cleaner)
     seen = context.now.astimezone(UTC)
     return Event(
         uid=resolve_uid(key, context.uid_map),

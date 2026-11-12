@@ -14,6 +14,7 @@ from seminars.pipeline.text import (
     drop_hidden,
     fold,
     html_to_text,
+    is_empty_abstract,
     is_tba,
     one_line,
     paragraphs,
@@ -161,6 +162,27 @@ class TestTitles:
     @pytest.mark.parametrize("title", ["TBA - Jane Doe", "Protein design", "Title IX and science"])
     def test_real_titles(self, title: str) -> None:
         assert not is_tba(title)
+
+    @pytest.mark.parametrize(
+        "text",
+        [*["Abstract", "Abstract:", "ABSTRACT: TBA", "Abstract TBD", "Summary", "TBA", "tbd."]],
+    )
+    def test_abstracts_that_say_nothing(self, text: str) -> None:
+        assert is_empty_abstract(text)
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            *[
+                "Abstract: we study knots.",
+                "Abstracts of the posters",
+                "More information forthcoming",
+            ],
+            *["Host: Jane Doe", "Lunch provided", "A summary of recent work"],
+        ],
+    )
+    def test_abstracts_that_say_something(self, text: str) -> None:
+        assert not is_empty_abstract(text)
 
     @pytest.mark.parametrize(
         ("title", "expected"),

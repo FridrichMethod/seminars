@@ -224,6 +224,16 @@ class TestText:
         draft = make_draft(abstract=" Plain  text ", abstract_html="<p>HTML text</p>")
         assert one(draft).event.abstract == "Plain text"
 
+    @pytest.mark.parametrize("placeholder", ["Abstract", "<p><strong>Abstract</strong></p>", "TBA"])
+    def test_an_abstract_that_says_nothing_is_none(self, placeholder: str) -> None:
+        # The Stanford Sites body of a talk without an abstract yet is often just its heading.
+        draft = make_draft(abstract=None, abstract_html=placeholder)
+        assert one(draft).event.abstract is None
+
+    def test_an_empty_plain_abstract_gives_way_to_the_html_one(self) -> None:
+        draft = make_draft(abstract="Abstract", abstract_html="<p>We study knots.</p>")
+        assert one(draft).event.abstract == "We study knots."
+
     def test_the_abstract_is_cut_to_the_configured_length(self) -> None:
         event = one(make_draft(abstract="word " * 2000)).event
         assert event.abstract is not None
