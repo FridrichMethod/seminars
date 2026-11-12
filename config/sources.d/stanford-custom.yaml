@@ -87,8 +87,9 @@ sources:
         venue: 'Venue:\s*(?P<venue>.+?)\s*$'
       # "April 2nd", "Jan 22nd", "Jul 13"; the ordinal suffix can be wrong ("April 9nd").
       date_pattern: '^(?P<month>[A-Z][a-z]{2,8})\.?\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?$'
-      # The title cell ends with "(details)" or "(details, slides)".
-      title_suffix_pattern: '\s*\((?:details|slides)(?:,\s*(?:details|slides))*\)\s*$'
+      # The title cell ends with "(details)" or "(details, slides)", in older terms also
+      # followed by "(registration)".
+      title_suffix_pattern: '(?:\s*\((?:details|slides|registration)(?:,\s*(?:details|slides|registration))*\))+\s*$'
       detail_selectors:
         root: "div.container.content"
         title: "h2"
