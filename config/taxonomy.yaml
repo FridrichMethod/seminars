@@ -322,6 +322,8 @@ fields:
       foundation model: 1.0
       GPT: 1.0
       ChatGPT: 1.0
+      # the lab, as in a title such as "The View Inside OpenAI"
+      OpenAI: 1.0
       transformer: 0.5
       attention mechanism: 1.0
       embedding: 0.5
@@ -751,7 +753,10 @@ fields:
       phonon: 1.0
       electron: 0.5
       photon: 0.5
+      # "semiconductor" alone is also the industry ("Semiconductor Manufacturing:
+      # Supply Chain Resiliency"); a semiconductor material is research
       semiconductor: 0.5
+      diamond semiconductor: 1.0
       graphene: 1.0
       2D materials: 1.0
       moire: 1.0

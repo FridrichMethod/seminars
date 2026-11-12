@@ -240,6 +240,7 @@ FIELD_CASES: list[tuple[str, str, str | None]] = [
     ("ai-ml", "Flow matching on Riemannian manifolds", None),
     ("ai-ml", "Self-supervised representation learning for medical images", None),
     ("ai-ml", "Machine-learning interatomic potentials", None),
+    ("ai-ml", "Research Acceleration: The View Inside OpenAI", None),
     # chem
     ("chem", "Enantioselective catalysis with earth-abundant metals", None),
     ("chem", "Total synthesis of complex alkaloids", None),
@@ -272,6 +273,7 @@ FIELD_CASES: list[tuple[str, str, str | None]] = [
     ("physics", "Turbulence in astrophysical plasmas", None),
     ("physics", "Topological insulators and Majorana modes", None),
     ("physics", "Photonic integrated circuits", None),
+    ("physics", "Building Diamond Semiconductors for Decommissioning and Beyond", None),
     # med
     ("med", "Immunotherapy resistance in melanoma", None),
     ("med", "Clinical trials of gene therapy for sickle cell disease", None),
@@ -331,6 +333,12 @@ NEAR_MISSES: list[tuple[str, str, str | None]] = [
     ("physics", "Blood plasma proteomics", None),
     ("physics", "Physics education research in large lectures", None),
     ("physics", "The optic nerve in glaucoma", None),
+    (
+        "physics",
+        "Energy, Materials, and Water Use in Semiconductor Manufacturing: Challenges and "
+        "Opportunities for Supply Chain Resiliency",
+        None,
+    ),
     # med
     ("med", "Mediterranean trade networks in antiquity", None),
     ("med", "Financial health of local governments", None),

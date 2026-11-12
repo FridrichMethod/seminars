@@ -280,6 +280,48 @@ def test_the_oceans_seminar_series_is_bio_without_hopkins(recorded: dict[str, Ou
     assert outcome.decision.reasons == ['bio: series "Oceans Seminar"']
 
 
+@pytest.mark.parametrize(
+    ("native_id", "field", "keyword"),
+    [
+        ("54408950715393", "ai-ml", "OpenAI"),  # Research Acceleration: The View Inside OpenAI
+        ("54437336521132", "physics", "diamond semiconductor"),  # Building Diamond Semiconductors
+    ],
+)
+def test_a_title_word_places_a_talk_of_an_unmapped_unit(
+    recorded: dict[str, Outcome], native_id: str, field: str, keyword: str
+) -> None:
+    """Talks of units outside the department map, placed by a word of their title."""
+    outcome = recorded[native_id]
+    assert outcome.candidate.hints.field_hints == []
+    assert keyword.casefold() in outcome.candidate.event.title.casefold()
+    assert outcome.reason is None
+    assert outcome.fields == (field,)
+    assert outcome.decision is not None
+    (reason,) = outcome.decision.reasons
+    assert reason.startswith(f"{field}: keywords ")
+    assert f'"{keyword}"' in reason
+
+
+@pytest.mark.parametrize(
+    "native_id",
+    [
+        "54444054768103",  # Earth System Science Seminar Series: Dr. Jenan Kharbush
+        "54471918308209",  # Earth & Planetary Sciences Seminar - Prof. Peng Ni
+        "54480326046124",  # ESE Seminar - Ruben Juanes: "Photoporomechanics ..."
+    ],
+)
+def test_earth_and_planetary_seminars_are_left_to_the_llm(
+    recorded: dict[str, Outcome], native_id: str
+) -> None:
+    """Their titles name no field of the seven; only the abstract does, and it never decides
+    alone. Without an LLM they are out of scope.
+    """
+    outcome = recorded[native_id]
+    assert outcome.decision is not None
+    assert outcome.decision.needs_llm
+    assert (outcome.reason, outcome.detail) == ("out_of_scope", OUT_OF_SCOPE_DETAIL)
+
+
 # --- records written here ----------------------------------------------------------------------
 
 
