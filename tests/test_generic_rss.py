@@ -90,9 +90,35 @@ class TestRecordedSources:
         )
         assert defense.event_type_hint == "defense"
         assert defense.categories == ["PhD Defense"]
-        # Neither the feed nor the cards name a speaker apart from the title, which
-        # normalization reads; the adapter invents none.
+        # Neither the feed nor the cards have a speaker field. The titles of the energy
+        # seminars name the speaker, but without params.title_patterns the adapter reads
+        # no speaker from a title, and nothing downstream does: these drafts have none.
         assert all(d.speakers == [] and d.speaker_text is None for d in drafts)
+
+    def test_bioengineering_speakers_from_the_title_with_title_patterns(self) -> None:
+        # A proposal for the YAML, which does not set title_patterns yet.
+        pattern = (
+            r"^(?P<series>[^|]+?)\s*\|\s*(?P<title>.+?)\s*\|\s*(?P<speaker>[^|,]+?)\s*,"
+            r"\s*(?P<affiliation>[^|]+?)\s*$"
+        )
+        source = with_params(SOURCES["sites-bioengineering"], title_patterns=[pattern])
+        drafts = run(source)
+        assert len(drafts) == 4
+        talk = by_title(
+            drafts, "Electrified metamaterial reactors for process intensified thermochemistry"
+        )
+        assert names(talk) == [("Jonathan Fan", "Stanford University")]
+        assert talk.series == "Stanford Energy Seminar"
+        assert talk.start == datetime(2026, 11, 16, 16, 30, tzinfo=PST)
+        assert talk.location == "Shriram Center"
+        energy = [d for d in drafts if d.series == "Stanford Energy Seminar"]
+        assert [names(d) for d in energy] == [
+            [("Jonathan Fan", "Stanford University")],
+            [("Carlos Diaz-Marin", "Stanford University")],
+        ]
+        # Titles without the two bars keep their text and have no speaker.
+        defense = by_title(drafts, "PhD Dissertation Defense: Danielle Klinger")
+        assert (defense.series, defense.speakers) == (None, [])
 
     def test_cheme_colloquium_fields_and_the_detail_page(self) -> None:
         http = offline_client("sites-cheme")
@@ -151,11 +177,36 @@ class TestRecordedSources:
         )
         assert talk.start == datetime(2026, 12, 9, 12, 0, tzinfo=PST)
         assert talk.location == "Gates Computer Science Building"
-        # The speakers are named in the title only, which normalization reads.
+        # The speakers are named in the title only. Without params.title_patterns the
+        # adapter reads no speaker from a title, and nothing downstream does.
         assert (talk.speakers, talk.speaker_text) == ([], None)
+        neural = by_title(
+            drafts, "YoungJu Jo | Data-driven discovery and control of neural computations"
+        )
+        assert neural.speakers == []
         sessions = [d for d in drafts if d.title == "CS Program Sheet Workshop & Advising"]
         assert [d.event_type_hint for d in sessions].count(None) == 1  # the card without a type
         assert {d.event_type_hint for d in sessions} == {"other", None}
+
+    def test_cs_speaker_from_the_title_with_title_patterns(self) -> None:
+        # A proposal for the YAML, which does not set title_patterns yet.
+        pattern = r"^(?P<speaker>[^|]+?)\s*\|\s*(?P<title>[^|]+?)\s*$"
+        source = with_params(
+            SOURCES["sites-cs"], detail_page={"fetch": "never"}, title_patterns=[pattern]
+        )
+        drafts = run(source)
+        assert len(drafts) == 9
+        talk = by_title(drafts, "Data-driven discovery and control of neural computations")
+        assert names(talk) == [("YoungJu Jo", None)]
+        assert talk.series is None
+        assert talk.start == datetime(2026, 12, 14, 16, 0, tzinfo=PST)
+        assert talk.location == "Stanford Neurosciences Building"
+        # A title without a bar is left alone: the HAI seminar still has no speaker.
+        hai = by_title(
+            drafts, "HAI Seminar with Ang\u00e8le Christin in Conversation with Hannah Zeavin"
+        )
+        assert hai.speakers == []
+        assert sum(1 for d in drafts if d.speakers) == 1
 
     def test_cs_detail_pages_that_fail_do_not_lose_the_events(self) -> None:
         http = offline_client("sites-cs")
