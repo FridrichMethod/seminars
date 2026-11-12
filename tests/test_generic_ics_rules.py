@@ -31,7 +31,7 @@ WINDOW = TimeWindow(
     start=datetime(2026, 10, 20, 7, 0, tzinfo=UTC),  # 2026-10-20 00:00 PDT
     end=datetime(2026, 11, 17, 8, 0, tzinfo=UTC),  # 2026-11-17 00:00 PST
 )
-PLENTY = Allowance(steps=10**9, rules=10**6, filtered=10**6)
+PLENTY = Allowance(steps=10**9, rules=10**6)
 START = datetime(2026, 10, 20, 23, 0, tzinfo=UTC)
 
 
@@ -249,7 +249,7 @@ def test_a_rule_that_never_matches_costs_only_the_periods_of_the_window(
     # 200 times. The walk takes the days of the periods up to the end of the window.
     expansion = run(rule)
     assert expansion.starts == (START,)  # DTSTART is always an occurrence
-    assert (expansion.rules, expansion.filtered, expansion.exceeded) == (1, 1, None)
+    assert (expansion.rules, expansion.exceeded) == (1, None)
     assert expansion.steps <= bound
 
 
@@ -314,28 +314,27 @@ def test_the_times_of_a_day_are_not_listed_before_they_are_needed() -> None:
 def test_every_rrule_line_is_counted_and_walked() -> None:
     single = run(f"{NEVER};BYSETPOS=2")
     triple = run(*[f"{NEVER};BYSETPOS=2"] * 3)
-    assert (triple.rules, triple.filtered, triple.steps) == (3, 3, 3 * single.steps)
+    assert (triple.rules, triple.steps) == (3, 3 * single.steps)
     plain = run("FREQ=WEEKLY", f"{NEVER};BYSETPOS=2")
-    assert (plain.rules, plain.filtered) == (2, 1)
+    assert plain.rules == 2
 
 
 @pytest.mark.parametrize(
     ("allowance", "exceeded", "walked"),
     [
-        (Allowance(steps=10**9, rules=2, filtered=10), "rules", 2),
-        (Allowance(steps=10**9, rules=10, filtered=1), "filtered", 1),
-        (Allowance(steps=1, rules=10, filtered=10), "steps", 1),
-        (Allowance(steps=10**9, rules=3, filtered=3), None, 3),
+        (Allowance(steps=10**9, rules=2), "rules", 2),
+        (Allowance(steps=1, rules=10), "steps", 1),
+        (Allowance(steps=10**9, rules=3), None, 3),
     ],
 )
 def test_an_expansion_stops_at_the_allowance_of_the_feed(
     allowance: Allowance, exceeded: str | None, walked: int
 ) -> None:
-    # Every line of this VEVENT filters; a walk may finish the period it has started.
+    # Three lines of one VEVENT; a walk may finish the period it has started.
     single = run(f"{NEVER};BYSETPOS=2")
     expansion = run(*[f"{NEVER};BYSETPOS=2"] * 3, allowance=allowance)
     assert expansion.exceeded == exceeded
-    assert expansion.rules == (walked + 1 if exceeded in ("rules", "filtered") else walked)
+    assert expansion.rules == (walked + 1 if exceeded == "rules" else walked)
     assert expansion.steps <= walked * single.steps
 
 
@@ -344,9 +343,7 @@ def test_the_cap_of_one_rule_stops_it_quietly(monkeypatch: pytest.MonkeyPatch) -
     daily = "FREQ=DAILY;COUNT=40"
     early = datetime(2026, 10, 1, 23, tzinfo=UTC)
     assert run(daily, start=early).starts == ()  # the window is more than 10 steps away
-    assert run(daily, start=early, allowance=Allowance(steps=10, rules=1, filtered=0)).exceeded == (
-        "steps"
-    )
+    assert run(daily, start=early, allowance=Allowance(steps=10, rules=1)).exceeded == "steps"
     # Ten times of day: the cap is reached between two occurrences of one day.
     hourly = run(
         "FREQ=DAILY;BYHOUR=1,2,3,4,5,6,7,8,9,10", start=datetime(2026, 10, 21, 1, tzinfo=UTC)

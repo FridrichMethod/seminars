@@ -31,12 +31,10 @@ Times, as the draft conventions want them:
   and one whose ``UNTIL`` lies before the window is not walked (all in
   ``seminars.sources.generic.ics_rules``, which states the cost). A feed
   whose RRULE lines need more than ``MAX_FEED_STEPS`` steps, or that walks
-  more than ``MAX_RECURRING_EVENTS`` RRULE lines, or more than
-  ``MAX_FILTERED_EVENTS`` lines that filter (``ics_rules._filters``), is a
-  ``ParseError``: a part of it would make the events left out count as
-  gone. The lines are counted, not the events: one VEVENT with many RRULE
-  properties costs as much as many VEVENTs. An occurrence keeps the
-  duration of the first one.
+  more than ``MAX_RECURRING_EVENTS`` RRULE lines, is a ``ParseError``: a
+  part of it would make the events left out count as gone. The lines are
+  counted, not the events: one VEVENT with many RRULE properties costs as
+  much as many VEVENTs. An occurrence keeps the duration of the first one.
 * A VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names (also
   the only one of an event without recurrence, which keeps its native id);
   without ``DTSTART`` it keeps the original times, and one whose times
@@ -132,11 +130,12 @@ NOTE_PARAMS: Final = frozenset({"calendar_ids", "embed_selector"})
 MAX_FEED_STEPS: Final = 500_000
 """Most steps through the recurrence rules of one feed (0.5 to 0.8 s in all)."""
 
-MAX_FILTERED_EVENTS: Final = 100
-"""Most RRULE lines of one feed that filter and do not end before the window."""
-
 MAX_RECURRING_EVENTS: Final = 500
-"""Most RRULE lines of one feed that do not end before the window (all VEVENTs together)."""
+"""Most RRULE lines of one feed that do not end before the window (all VEVENTs together).
+
+The steps bound what the walks cost; this bounds the drafts, up to
+``MAX_OCCURRENCES`` per line.
+"""
 
 MAX_PATTERN_INPUT: Final = 20_000
 """Longest text a configured regular expression is applied to."""
@@ -353,10 +352,9 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
     ``timezone`` is the zone of floating times (``calendar.timezone`` or the
     source's). VEVENTs that cannot be used are left out; see the module
     docstring for the limits of the expansion. Raises ``ParseError`` when
-    the RRULE lines of the feed need more than ``MAX_FEED_STEPS`` steps, when
-    more than ``MAX_RECURRING_EVENTS`` lines are walked or when more than
-    ``MAX_FILTERED_EVENTS`` of those filter: a part of the feed would make
-    the events left out count as gone.
+    the RRULE lines of the feed need more than ``MAX_FEED_STEPS`` steps or
+    when more than ``MAX_RECURRING_EVENTS`` lines are walked: a part of the
+    feed would make the events left out count as gone.
     """
     overrides: dict[tuple[str, str], _Override] = {}
     masters: list[icalendar.Component] = []
@@ -371,13 +369,9 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
         else:
             masters.append(vevent)
     found: list[IcsOccurrence] = []
-    steps = rules = filtered = 0
+    steps = rules = 0
     for vevent in masters:
-        allowance = Allowance(
-            steps=MAX_FEED_STEPS - steps,
-            rules=MAX_RECURRING_EVENTS - rules,
-            filtered=MAX_FILTERED_EVENTS - filtered,
-        )
+        allowance = Allowance(steps=MAX_FEED_STEPS - steps, rules=MAX_RECURRING_EVENTS - rules)
         try:
             items, expansion = _occurrences_of(
                 vevent, window, timezone, overrides, allowance=allowance
@@ -388,7 +382,6 @@ def occurrences(calendar: IcsCalendar, window: TimeWindow, *, timezone: str) -> 
             raise ParseError(_limit_message(expansion.exceeded))
         steps += expansion.steps
         rules += expansion.rules
-        filtered += expansion.filtered
         found += items
     for (uid, key), (vevent, original) in overrides.items():
         single = _replacement(vevent, original, None, f"{uid}/{key}")
@@ -401,14 +394,9 @@ def _limit_message(limit: Limit) -> str:
     """Why a feed whose expansion needed more than ``limit`` allows cannot be read."""
     if limit == "steps":
         return f"the recurrence rules of the feed need more than {MAX_FEED_STEPS} steps"
-    if limit == "rules":
-        return (
-            f"the feed has more than {MAX_RECURRING_EVENTS} recurrence rules (RRULE lines)"
-            " that do not end before the run window"
-        )
     return (
-        f"the feed has more than {MAX_FILTERED_EVENTS} recurrence rules (RRULE lines)"
-        " that filter and do not end before the run window"
+        f"the feed has more than {MAX_RECURRING_EVENTS} recurrence rules (RRULE lines)"
+        " that do not end before the run window"
     )
 
 

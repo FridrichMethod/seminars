@@ -59,14 +59,13 @@ MAX_EXPANSION_STEPS: Final = 50_000
 """Most steps through one recurrence rule; more stop its walk where it is."""
 
 Moment = date | datetime
-Limit = Literal["steps", "rules", "filtered"]
+Limit = Literal["steps", "rules"]
 """Which allowance of a feed an expansion needed more of."""
 
 _RULE_PARTS: Final = frozenset(
     {"FREQ", "UNTIL", "COUNT", "INTERVAL", "WKST", "BYMONTH", "BYMONTHDAY", "BYDAY"}
     | {"BYSETPOS", "BYHOUR", "BYMINUTE", "BYSECOND"}
 )
-_FILTER_PARTS: Final = frozenset({"BYMONTH", "BYMONTHDAY", "BYSETPOS"})
 _DAYS_IN_MONTH: Final = {
     month: 29 if month == 2 else 30 if month in (4, 6, 9, 11) else 31 for month in range(1, 13)
 }
@@ -275,22 +274,6 @@ def _month_bound(month: int, in_month: int | None, monthdays: set[int]) -> int:
     return min(counts, default=1)
 
 
-def _filters(parts: dict[str, list[Any]]) -> bool:
-    """Whether an accepted rule may step through many periods without an occurrence.
-
-    It may when it filters by month, day of the month or set position, or
-    asks for the fifth (or a later) weekday of a period. Every other rule
-    that ``check_rule`` accepts has an occurrence within a dozen periods or
-    so: its BYDAY is plain weekdays or ordinals up to 4, never a mix of the
-    two, and without BYDAY it repeats the day of DTSTART, which comes back
-    (the 31st in seven months of twelve, the 29th of February in leap
-    years). The feed counts the rules that filter (``ics.MAX_FILTERED_EVENTS``).
-    """
-    keys = {str(key).upper(): value for key, value in parts.items()}
-    _, ordinals = _weekdays(keys)
-    return bool(set(keys) & _FILTER_PARTS) or any(ordinal >= 5 for ordinal in ordinals)
-
-
 # --- one rule ------------------------------------------------------------------------------
 
 
@@ -317,7 +300,6 @@ class _Rule:
     hours: tuple[int, ...]
     minutes: tuple[int, ...]
     seconds: tuple[int, ...]
-    filtered: bool
 
     @property
     def times_per_day(self) -> int:
@@ -379,7 +361,6 @@ def _read_rule(value: object, anchor: datetime, timezone: str) -> _Rule:
         hours=clock["BYHOUR"],
         minutes=clock["BYMINUTE"],
         seconds=clock["BYSECOND"],
-        filtered=_filters(parts),
     )
 
 
@@ -561,11 +542,10 @@ class RecurrenceProperties:
 
 @dataclass(frozen=True)
 class Allowance:
-    """What a feed has left for its expansions: steps, RRULE lines and lines that filter."""
+    """What a feed has left for its expansions: steps and RRULE lines."""
 
     steps: int
     rules: int
-    filtered: int
 
 
 @dataclass(frozen=True)
@@ -573,15 +553,14 @@ class Expansion:
     """The starts that the recurrence of a VEVENT gives inside the window, and their cost.
 
     ``rules`` counts its RRULE lines that were walked (all but those whose
-    UNTIL lies before the window), ``filtered`` those of them that filter
-    (``_filters``), ``steps`` the steps they took. ``exceeded`` names the
-    allowance of the feed that the expansion needed more of; it stopped there.
+    UNTIL lies before the window), ``steps`` the steps they took.
+    ``exceeded`` names the allowance of the feed that the expansion needed
+    more of; it stopped there.
     """
 
     starts: tuple[Moment, ...] = ()
     steps: int = 0
     rules: int = 0
-    filtered: int = 0
     exceeded: Limit | None = None
 
 
@@ -607,32 +586,25 @@ def expand(
     rules = [_read_rule(value, anchor, timezone) for value in recurrence.rules]
     low, high = _window_bounds(window, anchor, timezone)
     found: set[datetime] = set()
-    steps = walked = filtered = 0
+    steps = walked = 0
     for rule in rules:
         if rule.until is not None and rule.until < low:
             continue  # ends before the window
-        walked, filtered = walked + 1, filtered + rule.filtered
+        walked += 1
+        if walked > allowance.rules:
+            return Expansion(steps=steps, rules=walked, exceeded="rules")
         left = allowance.steps - steps
-        exceeded = _exceeded(allowance, walked, filtered)
-        if exceeded is None:
-            walk = _walk(rule, anchor, low, high, limit=max(0, min(MAX_EXPANSION_STEPS, left)))
-            steps += walk.steps
-            found.update(walk.starts)
-            exceeded = "steps" if walk.stopped and left <= MAX_EXPANSION_STEPS else None
-        if exceeded is not None:
-            return Expansion(steps=steps, rules=walked, filtered=filtered, exceeded=exceeded)
+        walk = _walk(rule, anchor, low, high, limit=max(0, min(MAX_EXPANSION_STEPS, left)))
+        steps += walk.steps
+        found.update(walk.starts)
+        if walk.stopped and left <= MAX_EXPANSION_STEPS:
+            return Expansion(steps=steps, rules=walked, exceeded="steps")
     extra = (anchor, *(_align(moment, anchor, timezone) for moment in recurrence.rdates))
     found.update(moment for moment in extra if low <= moment < high)
     excluded = {_align(moment, anchor, timezone) for moment in recurrence.exdates}
     starts = sorted(found - excluded)[:MAX_OCCURRENCES]
     moments = tuple(moment.date() if is_date else moment for moment in starts)
-    return Expansion(moments, steps, walked, filtered)
-
-
-def _exceeded(allowance: Allowance, rules: int, filtered: int) -> Limit | None:
-    if rules > allowance.rules:
-        return "rules"
-    return "filtered" if filtered > allowance.filtered else None
+    return Expansion(moments, steps, walked)
 
 
 def _local_naive(moment: datetime, timezone: str) -> datetime:
