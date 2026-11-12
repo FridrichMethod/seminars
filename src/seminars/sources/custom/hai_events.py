@@ -85,7 +85,7 @@ import json
 import logging
 import re
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Annotated, Any, Final, Literal
 from zoneinfo import ZoneInfo
@@ -137,10 +137,12 @@ from seminars.textrules import ascii_printable, without_surrogates
 logger = logging.getLogger(__name__)
 
 MAX_REFERENCE_DEPTH: Final = 8
-"""References followed from one value; deeper chains (or cycles) count as missing."""
+"""References resolved inside one another; a deeper one counts as missing."""
 MAX_REFERENCE_LENGTH: Final = 256
 MAX_LIST_ITEMS: Final = 500
 """Items of one list in the payload that are looked at."""
+MAX_EVENTS: Final = 1000  # events taken from one payload (the page shows 20)
+_PENDING: Final = object()  # marks a reference that is being resolved
 _STATUS_CANCELLED: Final = re.compile(r"cancel|postpone", re.IGNORECASE)
 _NAME_SEPARATOR: Final = re.compile(r"\s*(?:&|,|\band\b)\s*", re.IGNORECASE)
 _NICKNAME: Final = re.compile(r"\([^()]{0,40}\)")
@@ -353,10 +355,15 @@ def cut_rows(params: FlightParams, text: str | None) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class Flight:
-    """The rows of a payload and the rules for its string values."""
+    """The rows of a payload and the rules for its string values.
+
+    Each reference is resolved once, so the work stays linear in the payload. A cycle
+    is missing, and so is a reference not yet resolved when met MAX_REFERENCE_DEPTH deep.
+    """
 
     params: FlightParams
     rows: Mapping[str, Any]
+    resolved: dict[str, Any] = field(default_factory=dict, init=False, repr=False, compare=False)
 
     def value(self, value: Any, depth: int = 0) -> Any:
         """``value`` with a reference resolved; ``None`` for markers and tree values."""
@@ -364,11 +371,18 @@ class Flight:
             return value
         if value.startswith(self.params.escaped_dollar_prefix):
             return value[1:]
-        if value == self.params.undefined_marker or depth >= MAX_REFERENCE_DEPTH:
+        if value == self.params.undefined_marker or len(value) > MAX_REFERENCE_LENGTH:
             return None
-        if len(value) > MAX_REFERENCE_LENGTH:
-            return None
-        match = self.params.reference_pattern.fullmatch(value)
+        if value not in self.resolved:
+            if depth >= MAX_REFERENCE_DEPTH:
+                return None
+            self.resolved[value] = _PENDING
+            self.resolved[value] = self.resolve(value, depth)
+        found = self.resolved[value]
+        return None if found is _PENDING else found
+
+    def resolve(self, reference: str, depth: int) -> Any:
+        match = self.params.reference_pattern.fullmatch(reference)
         if match is None or match["id"] not in self.rows:
             return None
         target = self.rows[match["id"]]
@@ -407,26 +421,27 @@ class Flight:
         return [text for value in values if isinstance(value, str) and (text := collapse(value))]
 
     def events(self) -> list[dict[str, Any]] | None:
-        """Event objects of the lists at ``upcoming_key`` / ``previous_key``; ``None``: no list."""
-        found: list[dict[str, Any]] = []
-        lists = 0
+        """Event objects of the lists at ``upcoming_key`` / ``previous_key``; ``None``: no list.
+
+        A list or event that several objects refer to counts once; at most
+        MAX_EVENTS events are taken.
+        """
+        found: dict[int, dict[str, Any]] = {}
+        lists: set[int] = set()
         marker = self.params.event_marker_key
         for root in self.rows.values():
             for node in walk(root):
-                if not isinstance(node, dict):
-                    continue
                 for path in (self.params.upcoming_key, self.params.previous_key):
-                    if path.split(".", 1)[0] not in node:
+                    if not isinstance(node, dict) or path.split(".", 1)[0] not in node:
                         continue
                     target = self.at(node, path)
-                    if not isinstance(target, list):
+                    if not isinstance(target, list) or id(target) in lists:
                         continue
-                    lists += 1
-                    items = (self.value(item) for item in target[:MAX_LIST_ITEMS])
-                    found.extend(
-                        item for item in items if isinstance(item, dict) and marker in item
-                    )
-        return found if lists else None
+                    lists.add(id(target))
+                    for item in map(self.value, target[:MAX_LIST_ITEMS]):
+                        if isinstance(item, dict) and marker in item and len(found) < MAX_EVENTS:
+                            found.setdefault(id(item), item)
+        return list(found.values()) if lists else None
 
     def at(self, node: Any, path: str) -> Any:
         """The resolved value at a dotted ``path`` (no fan-out) below ``node``."""

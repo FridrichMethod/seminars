@@ -18,6 +18,8 @@ from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig, SpeakerDraft
 from seminars.sources.base import ParseError, get_adapter
 from seminars.sources.custom.hai_events import (
+    MAX_EVENTS,
+    MAX_LIST_ITEMS,
     Flight,
     HaiEventsAdapter,
     HaiParams,
@@ -113,6 +115,21 @@ def text_row(ident: str, text: str) -> str:
 
 def parse_rows(rows: list[str], source: SourceConfig = SOURCE) -> list[EventDraft]:
     return run(source, serve({LIST_URL: payload_page(rows)}))
+
+
+def count_values(monkeypatch: pytest.MonkeyPatch, limit: int) -> None:
+    """Make ``Flight.value`` fail once it has been called more than ``limit`` times."""
+    original = Flight.value
+    calls = 0
+
+    def counted(self: Flight, value: Any, depth: int = 0) -> Any:
+        nonlocal calls
+        calls += 1
+        if calls > limit:
+            raise AssertionError(f"more than {limit} values resolved")
+        return original(self, value, depth)
+
+    monkeypatch.setattr(Flight, "value", counted)
 
 
 # --- the recorded pages --------------------------------------------------------------------
@@ -310,6 +327,41 @@ class TestPayload:
     def test_a_reference_cycle_counts_as_missing(self) -> None:
         rows = ['6:"$7"\n', '7:"$6"\n', events_row([event("$6", "2026-11-17")], [])]
         assert [draft.title for draft in parse_rows(rows)] == [None]
+
+    def test_nested_references_are_resolved_once(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Every step of the path of R(j) resolves R(j + 1) again: without memory the
+        # work grows as steps ** levels (about 35 million values here).
+        steps, levels = 12, 7
+
+        def ref(j: int) -> str:
+            return f"$f{j}" if j == levels else f"$d{j}" + ":x" * steps + ":y"
+
+        rows = [f"d{j}:{json.dumps({'x': ref(j + 1)})}\n" for j in range(levels)]
+        rows += [
+            f"f{j}:{json.dumps({'x': ref(j), 'y': f'$f{j - 1}' if j else 'leaf'})}\n"
+            for j in range(levels + 1)
+        ]
+        count_values(monkeypatch, limit=5_000)
+        [talk] = parse_rows([*rows, events_row([event(ref(0), "2026-11-17")], [])])
+        assert talk.title is None  # the reference is an object, not a text
+
+    def test_a_list_that_many_objects_refer_to_is_read_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        items = [event(f"T{n}", "2026-11-17") for n in range(MAX_LIST_ITEMS)]
+        holders = json.dumps([{"entries": "$5"} for _ in range(2_000)])
+        rows = [f"5:{json.dumps(items)}\n", f"6:{holders}\n", events_row([], [])]
+        count_values(monkeypatch, limit=100_000)
+        assert len(parse_rows(rows, with_params(fetch_details="never"))) == MAX_LIST_ITEMS
+
+    def test_at_most_max_events_are_taken(self) -> None:
+        lists = [
+            [event(f"T{n}-{m}", "2026-11-17") for m in range(MAX_LIST_ITEMS)]
+            for n in range(MAX_EVENTS // MAX_LIST_ITEMS + 1)
+        ]
+        rows = [f"{n}:{json.dumps({'entries': items})}\n" for n, items in enumerate(lists)]
+        drafts = parse_rows([*rows, events_row([], [])], with_params(fetch_details="never"))
+        assert len(drafts) == MAX_EVENTS
 
     def test_rows_that_are_not_json_are_skipped(self) -> None:
         rows = ["5:{not json\n", events_row([], [event("Old", "2026-10-01T12:00:00Z")])]
