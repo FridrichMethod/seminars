@@ -20,6 +20,10 @@ from seminars.sources.base import ParseError, get_adapter
 from seminars.sources.custom.hai_events import (
     MAX_EVENTS,
     MAX_LIST_ITEMS,
+    MAX_SUMMARY_LENGTH,
+    MAX_TEXT_LENGTH,
+    MAX_TOPIC_LENGTH,
+    MAX_TOPICS,
     Flight,
     HaiEventsAdapter,
     HaiParams,
@@ -360,6 +364,48 @@ class TestPayload:
         rows = [f"{n}:{json.dumps({'entries': items})}\n" for n, items in enumerate(lists)]
         drafts = parse_rows([*rows, events_row([], [])], with_params(fetch_details="never"))
         assert len(drafts) == MAX_EVENTS
+
+    def test_events_that_share_long_texts_keep_bounded_copies(self) -> None:
+        # Two lists of 500 events refer to one title of a million characters, one
+        # summary of as many and one list of 500 long topics. Without a cut each draft
+        # would hold its own copy of every one of them: gigabytes from a small page.
+        topics = [{"title": f"Topic {n} " + "x" * 4_000} for n in range(MAX_LIST_ITEMS)]
+        lists = [
+            [
+                event("$a", "2026-11-17", href=f"/events/{n}-{m}", dek="$b", contentMeta="$c")
+                for m in range(MAX_LIST_ITEMS)
+            ]
+            for n in range(2)
+        ]
+        rows = [
+            text_row("a", "Word " * 200_000),
+            text_row("b", "<p>" + "y" * 1_000_000 + "</p>"),
+            f"c:{json.dumps({'topics': topics})}\n",
+            *(f"{n}:{json.dumps({'entries': items})}\n" for n, items in enumerate(lists)),
+            events_row([], []),
+        ]
+        drafts = parse_rows(rows, with_params(fetch_details="never"))
+        assert len(drafts) == 2 * MAX_LIST_ITEMS
+        assert {len(draft.title or "") for draft in drafts} == {MAX_TEXT_LENGTH - 1}
+        assert {len(draft.abstract_html or "") for draft in drafts} == {MAX_SUMMARY_LENGTH}
+        assert {len(draft.categories) for draft in drafts} == {MAX_TOPICS}
+        assert max(len(topic) for draft in drafts for topic in draft.categories) == (
+            MAX_TOPIC_LENGTH
+        )
+
+    def test_an_escaped_text_is_cut_too(self) -> None:
+        upcoming = [event("$$" + "z" * 50_000, "2026-11-17")]
+        [talk] = parse_rows([events_row(upcoming, [])], with_params(fetch_details="never"))
+        assert talk.title == "$" + "z" * (MAX_TEXT_LENGTH - 1)
+
+    @pytest.mark.parametrize(
+        ("length", "kept"), [(MAX_TEXT_LENGTH, True), (MAX_TEXT_LENGTH + 1, False)]
+    )
+    def test_a_link_longer_than_the_limit_is_missing(self, length: int, kept: bool) -> None:
+        href = "/e/" + "x" * (length - 3)
+        upcoming = [event("Long link", "2026-11-17", href=href, promo=href)]
+        [talk] = parse_rows([events_row(upcoming, [])], with_params(fetch_details="never"))
+        assert talk.url == (f"{SITE}{href}" if kept else None)
 
     def test_rows_that_are_not_json_are_skipped(self) -> None:
         rows = ["5:{not json\n", events_row([], [event("Old", "2026-10-01T12:00:00Z")])]

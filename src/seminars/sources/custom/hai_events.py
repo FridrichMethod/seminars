@@ -78,6 +78,7 @@ import re
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from itertools import islice
 from typing import Annotated, Any, Final, Literal
 from zoneinfo import ZoneInfo
 
@@ -133,6 +134,12 @@ MAX_REFERENCE_LENGTH: Final = 256
 MAX_LIST_ITEMS: Final = 500
 """Items of one list in the payload that are looked at."""
 MAX_EVENTS: Final = 1000  # events taken from one payload (the page shows 20)
+# Characters kept of a text of an event, cut before anything else: many events can refer
+# to one long text and each keeps a copy (normalization keeps less). A longer link is missing.
+MAX_TEXT_LENGTH: Final = PATTERN_INPUT_LIMIT  # title, times, label, links
+MAX_SUMMARY_LENGTH: Final = 20_000
+MAX_TOPIC_LENGTH: Final = 200
+MAX_TOPICS: Final = 50  # of one event
 _PENDING: Final = object()  # marks a reference that is being resolved
 _STATUS_CANCELLED: Final = re.compile(r"cancel|postpone", re.IGNORECASE)
 _NAME_SEPARATOR: Final = re.compile(r"\s*(?:&|,|\band\b)\s*", re.IGNORECASE)
@@ -313,10 +320,8 @@ def cut_rows(params: FlightParams, text: str | None) -> dict[str, Any]:
     if text is None:
         raise FlightError("the page has no payload")
     data = text.encode("utf-8")
-    row_start, text_row = (
-        bytes_pattern(params.row_start_pattern),
-        bytes_pattern(params.text_row_pattern),
-    )
+    row_start = bytes_pattern(params.row_start_pattern)
+    text_row = bytes_pattern(params.text_row_pattern)
     rows: dict[str, Any] = {}
     position = 0
     while position < len(data):
@@ -348,8 +353,9 @@ def cut_rows(params: FlightParams, text: str | None) -> dict[str, Any]:
 class Flight:
     """The rows of a payload and the rules for its string values.
 
-    Each reference is resolved once, so the work stays linear in the payload. A cycle
-    is missing, and so is a reference not yet resolved when met MAX_REFERENCE_DEPTH deep.
+    Each reference is resolved once, so the work stays linear in the payload, and the
+    texts taken from it are cut, so events that share a long text hold short copies. A
+    cycle is missing, and so is a reference not yet resolved when met MAX_REFERENCE_DEPTH deep.
     """
 
     params: FlightParams
@@ -361,7 +367,7 @@ class Flight:
         if not isinstance(value, str) or not value.startswith("$"):
             return value
         if value.startswith(self.params.escaped_dollar_prefix):
-            return value[1:]
+            return value[1 : MAX_SUMMARY_LENGTH + 1]  # no text is kept longer
         if value == self.params.undefined_marker or len(value) > MAX_REFERENCE_LENGTH:
             return None
         if value not in self.resolved:
@@ -402,14 +408,14 @@ class Flight:
             current = found
         return [value for value in current if value is not None]
 
-    def text(self, node: Any, path: str | None) -> str | None:
-        return next(iter(self.texts(node, path)), None)
+    def text(self, node: Any, path: str | None, length: int = MAX_TEXT_LENGTH) -> str | None:
+        return next(iter(self.texts(node, path, length, 1)), None)
 
-    def texts(self, node: Any, path: str | None) -> list[str]:
-        if path is None:
-            return []
-        values = self.follow(node, path)
-        return [text for value in values if isinstance(value, str) and (text := collapse(value))]
+    def texts(self, node: Any, path: str | None, length: int, count: int) -> list[str]:
+        """The first ``count`` texts at ``path``, each cut to ``length`` characters first."""
+        values = self.follow(node, path) if path is not None else []
+        texts = (collapse(value[:length]) for value in values if isinstance(value, str))
+        return list(islice(filter(None, texts), count))
 
     def events(self) -> list[dict[str, Any]] | None:
         """Event objects of the lists at ``upcoming_key`` / ``previous_key``; ``None``: no list.
@@ -499,15 +505,20 @@ def from_flight(
     start = moment(params, flight.text(event, keys.start))
     if start is None:
         return None
+
+    def link(path: str | None) -> str | None:
+        text = flight.text(event, path, MAX_TEXT_LENGTH + 1)
+        return absolute_url(base, text) if text and len(text) <= MAX_TEXT_LENGTH else None
+
     return Listed(
         title=flight.text(event, keys.title),
         start=start,
         end=later(start, moment(params, flight.text(event, keys.end))),
-        link=absolute_url(base, flight.text(event, keys.link)),
-        organiser_url=absolute_url(base, flight.text(event, keys.organiser_url)),
-        summary_html=flight.text(event, keys.summary_html),
+        link=link(keys.link),
+        organiser_url=link(keys.organiser_url),
+        summary_html=flight.text(event, keys.summary_html, MAX_SUMMARY_LENGTH),
         type_label=flight.text(event, keys.type_label),
-        topics=tuple(flight.texts(event, keys.topics)),
+        topics=tuple(flight.texts(event, keys.topics, MAX_TOPIC_LENGTH, MAX_TOPICS)),
     )
 
 
