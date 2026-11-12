@@ -74,8 +74,10 @@ How a record (``events[].event``) becomes a draft:
   ``virtual`` true. ``stream_url``: ``stream_url`` (it may carry a meeting
   password, which normalization removes). ``stream_info`` holds joining
   instructions with passcodes and is never read.
-* ``abstract``: ``description_text``; ``abstract_html``: ``description``
-  when there is no plain text.
+* ``abstract_html``: ``description``, which keeps its headings and
+  paragraphs apart (``description_text`` runs them together: "OverviewThis
+  activity"); ``abstract``: ``description_text`` only when the HTML has no
+  text.
 * ``categories``: the names of the record's event types, subjects,
   audiences, departments and groups. ``tags``: its tags, which whoever
   posts an event chooses freely ("mathematics" on a talk on the history
@@ -89,6 +91,7 @@ How a record (``events[].event``) becomes a draft:
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Iterator
 from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Final
@@ -131,6 +134,7 @@ _STATUS_HINTS: Final[dict[str, EventStatus]] = {
     "postponed": "cancelled",
 }
 _CATEGORY_FILTERS: Final = ("event_types", "event_subject", "event_audience")
+_TAG: Final = re.compile(r"<[^>]*>")
 
 FieldList = Annotated[list[str], AfterValidator(canonical_fields)]
 """Field ids, validated and in canonical order."""
@@ -329,6 +333,7 @@ def _draft(
     start, end, all_day = _times(instance, source.timezone)
     departments = _names(record.get("departments"))
     groups = _names(record.get("groups"))
+    abstract, abstract_html = _abstracts(record)
     return EventDraft(
         source_id=source.id,
         extraction="api",
@@ -341,10 +346,8 @@ def _draft(
         location=_location(record),
         is_online=_ONLINE.get(str(record.get("experience"))),
         stream_url=absolute_url(document.final_url, _text(record.get("stream_url"))),
-        abstract=_text(record.get("description_text")),
-        abstract_html=None
-        if _text(record.get("description_text"))
-        else _text(record.get("description")),
+        abstract=abstract,
+        abstract_html=abstract_html,
         field_hints=_field_hints(departments, params.department_fields)
         + _field_hints(groups, params.group_fields),
         categories=_categories(record, departments, groups),
@@ -390,6 +393,14 @@ def _text(value: object) -> str | None:
     if not isinstance(value, str) or not value.strip():
         return None
     return value.strip()
+
+
+def _abstracts(record: dict[str, Any]) -> tuple[str | None, str | None]:
+    """``(abstract, abstract_html)``: the HTML description when it has text, else the plain one."""
+    markup = _text(record.get("description"))
+    if markup is not None and _TAG.sub("", markup).strip():
+        return None, markup
+    return _text(record.get("description_text")), None
 
 
 def _names(items: object) -> list[str]:
