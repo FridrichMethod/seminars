@@ -992,7 +992,9 @@ out_of_scope_categories:
 # tutoring systems), "welcome reception" but not "reception" (signal reception,
 # the reception of a text), "yoga class" but not "yoga" (a clinical trial of
 # yoga), "town hall with" but not "town hall" (a collaboration's town hall on
-# its experiments).
+# its experiments), "certificate program" but not "certificate" (proof
+# certificates), "coffee hour" but not "coffee" (coffee rust), "work in progress
+# session" but not "work in progress" (a talk that calls its results one).
 exclusions:
   course:
     - problem session
@@ -1014,6 +1016,10 @@ exclusions:
     - tutoring hours
     - class session
     - first day of class
+    # paid programs and courses for professionals, not talks
+    - certificate program
+    - certificate programme
+    - certificate course
   office_hours:
     - office hours
     - office hour
@@ -1083,6 +1089,7 @@ exclusions:
     - social mixer
     - student mixer
     - social hour
+    - coffee hour
     - ice cream social
     - coffee social
     - potluck
@@ -1157,6 +1164,9 @@ exclusions:
     - all hands meeting
     - business meeting
     - planning meeting
+    # internal meetings where residents and students present unfinished projects
+    - work in progress session
+    - works in progress session
     - town hall with
     - town hall meeting
     - community town hall
