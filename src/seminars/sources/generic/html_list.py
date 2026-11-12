@@ -31,8 +31,8 @@ Keys of ``params`` (an unknown key is an error that names it;
   ``start`` and ``end`` (times of day) and ``meridiem`` (one AM or PM for both
   times). The first pattern in field order that sets a group wins.
 * ``date_format``: ``strptime`` format of ``date`` and ``end_date``. Without
-  it a date is ISO 8601 or anything ``dateutil`` reads. A format without a
-  year gets the year that puts the date closest to the fetch.
+  it a date is ISO 8601 or anything ``dateutil`` reads. A date without a
+  year (in either case) gets the year that puts it closest to the fetch.
 * ``time_format``: ``strptime`` format of ``start`` and ``end``. Without it,
   "4:30", "4:30pm", "4:30 PM", "16:30", "4 p.m.", "noon", "12:00 noon" work. A
   ``time`` value without ``start`` / ``end`` groups is read as a range ("4:30
@@ -73,7 +73,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from typing import Annotated, Any, Final, Literal, get_args
@@ -344,20 +344,31 @@ def parse_day(text: str | None, fmt: str | None, reference: date) -> date | None
         if len(value) == 10:
             with contextlib.suppress(ValueError):
                 return date.fromisoformat(value)
-        try:
-            default = datetime(reference.year, 1, 1)
-            return date_parser.parse(value[:PATTERN_INPUT_LIMIT], default=default).date()
-        except (ValueError, OverflowError):
-            return None
+        text = value[:PATTERN_INPUT_LIMIT]
+        return closest_day(
+            lambda year: date_parser.parse(text, default=datetime(year, 1, 1)).date(), reference
+        )
     if "%Y" in fmt or "%y" in fmt:
         try:
             return datetime.strptime(value, fmt).date()
         except ValueError:
             return None
-    candidates = []
+    return closest_day(
+        lambda year: datetime.strptime(f"{value} {year}", f"{fmt} %Y").date(), reference
+    )
+
+
+def closest_day(read: Callable[[int], date], reference: date) -> date | None:
+    """Of the dates ``read`` gives for the years around ``reference``, the closest one.
+
+    A text with a year of its own gives the same date for every year; one
+    without gets the year that puts it closest to ``reference``.
+    """
+    candidates: list[date] = []
     for year in (reference.year - 1, reference.year, reference.year + 1):
-        with contextlib.suppress(ValueError):
-            candidates.append(datetime.strptime(f"{value} {year}", f"{fmt} %Y").date())
+        with contextlib.suppress(ValueError, OverflowError):
+            if (day := read(year)) not in candidates:
+                candidates.append(day)
     return min(candidates, key=lambda day: abs(day - reference), default=None)
 
 
