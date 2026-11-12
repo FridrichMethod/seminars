@@ -211,8 +211,10 @@ sources:
         # site, which runs the same theme): the list is empty, not broken.
         empty: div.c-view__empty
       # The home page: "Currently, the talks are in the hybrid format ... The in-person
-      # part takes place at the Kavli Auditorium". A card that names no place gets it.
-      default_location: Kavli Auditorium
+      # part takes place at the Kavli Auditorium". A card that names no place gets
+      # that, in the words of the past cards, which normalization reads as hybrid (in
+      # the room and online).
+      default_location: Kavli Auditorium and Zoom
       detail:
         # Below the event, every detail page shows the cards of 3 OTHER events in this
         # block (div.c-card with .c-card__date and .c-field--name-field-body, the same
@@ -254,8 +256,9 @@ sources:
         - The VEVENT is embedded per detail page, there is no ICS feed URL.
         - The upcoming cards and the detail pages name no place. Past cards have one in
           .c-card__location ("Kavli Auditorium", "Kavli Auditorium and zoom"; 6 of the 9
-          cards on /past-events), and the home page says that the in-person part of the
-          talks takes place at the Kavli Auditorium, hence default_location.
+          cards on /past-events), and the home page says that the talks are hybrid and
+          that their in-person part takes place at the Kavli Auditorium, hence
+          default_location.
         - Card date text looks like "Monday, November 16, 2026", a middle dot,
           "4:00 p.m.", an en dash, "5:00 p.m.", two no-break spaces, "PT"; the text of
           .c-card__date also starts with "Date", the title of its SVG icon.

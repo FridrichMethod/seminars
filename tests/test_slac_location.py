@@ -2,9 +2,10 @@
 
 A card can name its place in ``.c-card__location`` ("Kavli Auditorium and
 zoom", after a location icon whose title is "Location"). The upcoming cards
-of the SLAC Colloquium leave it out; its home page says that the in-person
-part of every talk is in the Kavli Auditorium, which ``default_location``
-gives a card that names no place.
+of the SLAC Colloquium leave it out; its home page says that the talks are
+hybrid and that their in-person part is in the Kavli Auditorium, which
+``default_location`` gives a card that names no place, in the words of the
+past cards.
 """
 
 from __future__ import annotations
@@ -16,9 +17,10 @@ from typing import Any
 
 from factories import make_source, make_window
 from fakes import FakeHttpClient
-from seminars.config import load_sources
+from seminars.config import load_settings, load_sources
 from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig
+from seminars.pipeline.normalize import NormalizeContext, normalize_drafts
 from seminars.sources.custom.slac_drupal import SlacDrupalAdapter
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -88,8 +90,17 @@ class TestCards:
 
 
 class TestRecordedColloquium:
-    def test_every_upcoming_talk_is_in_the_kavli_auditorium(self) -> None:
+    def test_every_upcoming_talk_is_in_the_kavli_auditorium_and_on_zoom(self) -> None:
         source = colloquium()
         drafts = run(source, offline_client(source.id))
         assert len(drafts) == 4
-        assert {draft.location for draft in drafts} == {"Kavli Auditorium"}
+        assert {draft.location for draft in drafts} == {"Kavli Auditorium and Zoom"}
+        settings = load_settings(REPO_ROOT / "config" / "settings.yaml")
+        context = NormalizeContext(settings=settings, now=RECORDED, window=make_window(RECORDED))
+        events = [
+            candidate.event for candidate in normalize_drafts(drafts, source, context).candidates
+        ]
+        assert len(events) == 4
+        assert {(event.location, event.is_online) for event in events} == {
+            ("Kavli Auditorium and Zoom", True)
+        }
