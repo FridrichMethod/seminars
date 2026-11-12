@@ -495,6 +495,29 @@ class TestEventProperties:
             ),
             ({"title": "Annals of knots", "speakers": people("Ann")}, "Annals of knots - Ann"),
             ({"title": "Jane Doe", "status": "cancelled"}, "Cancelled: Jane Doe"),
+            # speakers read from the title: the summary is the title alone
+            (
+                {"title": "Evolgenome Seminar: Ami Bhatt", "speakers": people("Ami Bhatt")},
+                "Evolgenome Seminar: Ami Bhatt",
+            ),
+            (
+                {
+                    "title": "Sunshine - Bryant Lin in conversation with Latha Palaniappan",
+                    "speakers": people("Bryant Lin", "Latha Palaniappan"),
+                },
+                "Sunshine - Bryant Lin in conversation with Latha Palaniappan",
+            ),
+            ({"title": "Knots", "speakers": people("Jane Doe")}, "Knots - Jane Doe"),
+            # the limit of three counts the speakers that are left after the title
+            (
+                {"title": "Panel: Ann Lee", "speakers": people("Ann Lee", "B", "C", "D")},
+                "Panel: Ann Lee - B, C, D",
+            ),
+            # the title of a talk without a title stays the series, with every speaker
+            (
+                {"title": "TBA", "series": "Ami Bhatt Lecture", "speakers": people("Ami Bhatt")},
+                "Ami Bhatt Lecture: Ami Bhatt",
+            ),
         ],
     )
     def test_summary(self, overrides: dict[str, Any], summary: str, one: Any) -> None:

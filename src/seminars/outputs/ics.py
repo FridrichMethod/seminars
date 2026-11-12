@@ -163,6 +163,11 @@ def _summary(event: Event, ctx: _Context) -> str:
 
     A speaker whose name the title holds already is left out after the
     title, so that "Thesis Defense: Jane Doe" does not end in "- Jane Doe".
+    The name counts when its words occur as whole words of the title, both
+    folded (no accents, no case, no punctuation); names are stored without
+    honorifics and degrees, so this is the comparison of their canonical
+    form. The limit of ``SUMMARY_MAX_SPEAKERS`` applies to the speakers that
+    are left, and without one the summary is the title alone.
     """
     title = _one_line(event.title)
     names = [name for speaker in event.speakers if (name := _one_line(speaker.name))]
