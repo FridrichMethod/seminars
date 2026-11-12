@@ -7,6 +7,8 @@ Chemical and Systems Biology); the page of the talk has the rest.
 from __future__ import annotations
 
 import logging
+import re
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -18,7 +20,8 @@ from factories import make_source, make_window
 from fakes import FakeHttpClient
 from seminars.config import load_sources
 from seminars.http import offline_client
-from seminars.models import EventDraft, FetchedDocument, SourceConfig
+from seminars.models import EventDraft, FetchedDocument, SourceConfig, SpeakerDraft
+from seminars.pipeline.normalize import MAX_SPEAKERS
 from seminars.sources.base import get_adapter
 from seminars.sources.generic import html_list
 from seminars.sources.generic.common import AdapterConfigError, make_speakers
@@ -333,6 +336,31 @@ class TestAffiliationsFromTheText:
             ("Jane Doe", "MIT"),
             ("John Roe", "Harvard"),
         ]
+
+    def test_only_the_speakers_the_pipeline_keeps_are_looked_for(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The text is walked once per kept speaker, not once per name of the page.
+
+        The name of a speaker past the cap still ends the affiliation above it.
+        """
+        speakers = [SpeakerDraft(name=f"Speaker{n} Doe") for n in range(5 * MAX_SPEAKERS)]
+        lines = [line for speaker in speakers for line in (f"{speaker.name}, PhD", "MIT")]
+        walks: list[str] = []
+        real_affiliation_after = html_list.affiliation_after
+
+        def counted(
+            lines: Sequence[str], name: str, names: Sequence[re.Pattern[str]] = ()
+        ) -> str | None:
+            walks.append(name)
+            return real_affiliation_after(lines, name, names)
+
+        monkeypatch.setattr(html_list, "affiliation_after", counted)
+        completed = html_list.with_affiliations(speakers, lines)
+        assert walks == [speaker.name for speaker in speakers[:MAX_SPEAKERS]]
+        rest = len(speakers) - MAX_SPEAKERS
+        assert [s.affiliation for s in completed] == ["MIT"] * MAX_SPEAKERS + [None] * rest
+        assert [s.name for s in completed] == [s.name for s in speakers]
 
     def test_a_sentence_that_mentions_the_speaker_is_not_the_line_of_the_name(self) -> None:
         post = (

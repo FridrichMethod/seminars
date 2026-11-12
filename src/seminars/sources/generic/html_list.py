@@ -89,12 +89,13 @@ before an empty line, a weekday ("Monday," "Thu."), a month and a day
 label ("Talk Title:", "Host:"), a heading of at most four words with a
 word such as "Abstract", "Bio" or "Talk" (a whole word: "Stanford Bio-X"
 is no heading), prose (more than 15 words, or a lowercase word and a
-period at the end), an e-mail address or a link, or a
-line that names the speaker again or another speaker of the talk (the
-next one of an announcement of several). The first line that names the
-speaker decides; when the line right after it names them too (a heading
-"Seminar: Jane Doe" above "Jane Doe, PhD"), that line is the line of the
-name.
+period at the end), an e-mail address or a link, or a line that names
+the speaker again or another speaker of the talk (the next one of an
+announcement of several). The first line that names the speaker decides;
+when the line right after it names them too (a heading "Seminar: Jane
+Doe" above "Jane Doe, PhD"), that line is the line of the name. Only as
+many speakers of a talk as the pipeline keeps are looked for (the first
+``seminars.pipeline.normalize.MAX_SPEAKERS``).
 
 Times are naive local wall times (the pipeline applies the source's
 timezone) unless the page states an offset. A row without a link has no
@@ -131,6 +132,7 @@ from seminars.models import (
     SpeakerDraft,
     TimeWindow,
 )
+from seminars.pipeline.normalize import MAX_SPEAKERS
 from seminars.sources.base import (
     ForeignHostError,
     ParseError,
@@ -486,14 +488,19 @@ def text_lines(node: LexborNode) -> list[str]:
     return [text for line in lines if (text := collapse("".join(line)))]
 
 
-def _name_in(line: str, name: str) -> re.Match[str] | None:
-    """Where ``line`` names ``name`` (its first and last word, at most two words between)."""
+def name_pattern(name: str) -> re.Pattern[str] | None:
+    """How a line names ``name``: its first and last word, at most two words between."""
     words = name.split()
     if not words:
         return None
     middle = r"(?:\s+\S+){0,2}?\s+" + re.escape(words[-1]) if len(words) > 1 else ""
-    pattern = rf"(?<!\w){re.escape(words[0])}{middle}(?!\w)"
-    return re.search(pattern, line[:PATTERN_INPUT_LIMIT], re.IGNORECASE)
+    return re.compile(rf"(?<!\w){re.escape(words[0])}{middle}(?!\w)", re.IGNORECASE)
+
+
+def _name_in(line: str, name: str) -> re.Match[str] | None:
+    """Where ``line`` names ``name`` (see ``name_pattern``)."""
+    pattern = name_pattern(name)
+    return None if pattern is None else pattern.search(line[:PATTERN_INPUT_LIMIT])
 
 
 def names_line(line: str, name: str) -> bool:
@@ -505,13 +512,13 @@ def names_line(line: str, name: str) -> bool:
     return len(re.findall(r"\w+", rest)) <= MAX_OTHER_WORDS
 
 
-def ends_affiliation(line: str, names: Sequence[str]) -> bool:
+def ends_affiliation(line: str, names: Sequence[re.Pattern[str]]) -> bool:
     """True when ``line`` cannot be part of an affiliation of the speakers ``names``.
 
     That is an empty line, a date, a time, a label, a heading ("Abstract",
     "Speaker Bio"), prose (a sentence, a long line), an e-mail address or a
     link, and a line that names one of the speakers (the same one again, or
-    another one).
+    another one); ``names`` are their ``name_pattern``.
     """
     words = line.split()
     return (
@@ -521,38 +528,51 @@ def ends_affiliation(line: str, names: Sequence[str]) -> bool:
         or len(words) > MAX_AFFILIATION_WORDS
         or _SENTENCE_END.search(line) is not None
         or any(mark in line for mark in _CONTACT)
-        or any(_name_in(line, other) is not None for other in names)
+        or any(name.search(line[:PATTERN_INPUT_LIMIT]) is not None for name in names)
     )
 
 
-def affiliation_after(lines: Sequence[str], name: str, names: Sequence[str] = ()) -> str | None:
+def affiliation_after(
+    lines: Sequence[str], name: str, names: Sequence[re.Pattern[str]] = ()
+) -> str | None:
     """The lines below the line that names ``name``; see the module docstring.
 
-    ``names`` are the speakers of the talk: a line that names one of them
-    ends the affiliation, like a line that names ``name`` again.
+    ``names`` are the ``name_pattern`` of the speakers of the talk: a line
+    that names one of them ends the affiliation, like a line that names
+    ``name`` again.
     """
-    speakers = (name, *names)
+    own = name_pattern(name)
+    if own is None:
+        return None
+    stops = (own, *names)
     found: list[str] | None = None  # None until a line names the speaker
     for line in lines:
         if not found and names_line(line, name):
             found = []  # the first line of the name, or the next one right after it
         elif found is not None:
-            if len(found) == MAX_AFFILIATION_LINES or ends_affiliation(line, speakers):
+            if len(found) == MAX_AFFILIATION_LINES or ends_affiliation(line, stops):
                 break
             found.append(line)
     return ", ".join(found) if found else None
 
 
 def with_affiliations(speakers: Sequence[SpeakerDraft], lines: Sequence[str]) -> list[SpeakerDraft]:
-    """``speakers``, each without an affiliation given the one the text has for them."""
+    """``speakers``, each without an affiliation given the one the text has for them.
+
+    Only the first ``MAX_SPEAKERS`` are looked for: the pipeline keeps no
+    more speakers of a talk, and a page that names thousands would otherwise
+    cost thousands of walks through its text. The others are kept as they
+    are. The names of all of them still end an affiliation, each compiled
+    once.
+    """
     if not lines:
         return list(speakers)
-    names = [speaker.name for speaker in speakers]
+    names = [pattern for speaker in speakers if (pattern := name_pattern(speaker.name))]
     completed: list[SpeakerDraft] = []
-    for speaker in speakers:
+    for speaker in speakers[:MAX_SPEAKERS]:
         found = None if speaker.affiliation else affiliation_after(lines, speaker.name, names)
         completed.append(speaker.evolve(affiliation=found) if found else speaker)
-    return completed
+    return [*completed, *speakers[MAX_SPEAKERS:]]
 
 
 def detail_speakers(params: DetailParams, tree: LexborHTMLParser) -> tuple[SpeakerDraft, ...]:
