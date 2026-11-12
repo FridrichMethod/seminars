@@ -21,7 +21,7 @@ from seminars.http import offline_client
 from seminars.models import EventDraft, FetchedDocument, SourceConfig
 from seminars.sources.base import get_adapter
 from seminars.sources.generic import html_list
-from seminars.sources.generic.common import AdapterConfigError
+from seminars.sources.generic.common import AdapterConfigError, make_speakers
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = REPO_ROOT / "tests" / "fixtures"
@@ -277,6 +277,12 @@ class TestAffiliationsFromTheText:
                 "MIT",
                 id="text-after-an-empty-block",
             ),
+            pytest.param(
+                "<div><b>Jane Doe, PhD</b></div><div><i>MIT</i></div><div><b>John Roe, PhD</b>"
+                "</div><div><i>Harvard</i></div><div>Monday, November 16</div>",
+                "MIT",
+                id="another-speaker-of-the-row",
+            ),
         ],
     )
     def test_the_affiliation_ends_where_the_announcement_goes_on(
@@ -284,8 +290,17 @@ class TestAffiliationsFromTheText:
     ) -> None:
         post = f"<html><body><article>{article}</article></body></html>"
         source = list_source(body="article", required=False)
-        [draft] = run(source, serve(list_page("Jane Doe"), post))
-        assert people(draft) == [("Jane Doe", affiliation)]
+        [draft] = run(source, serve(list_page("Jane Doe and John Roe"), post))
+        assert people(draft)[0] == ("Jane Doe", affiliation)
+
+    def test_each_speaker_of_the_row_takes_the_lines_below_their_own_name(self) -> None:
+        lines = ("Jane Doe, PhD", "MIT", "John Roe, PhD", "Harvard", "Monday, November 16")
+        speakers = make_speakers("Jane Doe and John Roe", None)
+        completed = html_list.with_affiliations(speakers, lines)
+        assert [(s.name, s.affiliation) for s in completed] == [
+            ("Jane Doe", "MIT"),
+            ("John Roe", "Harvard"),
+        ]
 
     def test_a_sentence_that_mentions_the_speaker_is_not_the_line_of_the_name(self) -> None:
         post = (

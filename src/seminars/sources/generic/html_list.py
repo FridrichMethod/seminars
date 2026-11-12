@@ -89,9 +89,11 @@ before an empty line, a weekday ("Monday," "Thu."), a month and a day
 label ("Talk Title:", "Host:"), a heading of at most four words with a
 word such as "Abstract", "Bio" or "Talk", prose (more than 15 words, or a
 lowercase word and a period at the end), an e-mail address or a link, or a
-line that names the speaker again. The first line that names the speaker
-decides; when the line right after it names them too (a heading "Seminar:
-Jane Doe" above "Jane Doe, PhD"), that line is the line of the name.
+line that names the speaker again or another speaker of the talk (the
+next one of an announcement of several). The first line that names the
+speaker decides; when the line right after it names them too (a heading
+"Seminar: Jane Doe" above "Jane Doe, PhD"), that line is the line of the
+name.
 
 Times are naive local wall times (the pipeline applies the source's
 timezone) unless the page states an offset. A row without a link has no
@@ -502,12 +504,13 @@ def names_line(line: str, name: str) -> bool:
     return len(re.findall(r"\w+", rest)) <= MAX_OTHER_WORDS
 
 
-def ends_affiliation(line: str, name: str) -> bool:
-    """True when ``line`` cannot be part of the affiliation of ``name``.
+def ends_affiliation(line: str, names: Sequence[str]) -> bool:
+    """True when ``line`` cannot be part of an affiliation of the speakers ``names``.
 
     That is an empty line, a date, a time, a label, a heading ("Abstract",
     "Speaker Bio"), prose (a sentence, a long line), an e-mail address or a
-    link, and a line that names the speaker again.
+    link, and a line that names one of the speakers (the same one again, or
+    another one).
     """
     words = line.split()
     return (
@@ -517,18 +520,23 @@ def ends_affiliation(line: str, name: str) -> bool:
         or len(words) > MAX_AFFILIATION_WORDS
         or _SENTENCE_END.search(line) is not None
         or any(mark in line for mark in _CONTACT)
-        or _name_in(line, name) is not None
+        or any(_name_in(line, other) is not None for other in names)
     )
 
 
-def affiliation_after(lines: Sequence[str], name: str) -> str | None:
-    """The lines below the line that names ``name``; see the module docstring."""
+def affiliation_after(lines: Sequence[str], name: str, names: Sequence[str] = ()) -> str | None:
+    """The lines below the line that names ``name``; see the module docstring.
+
+    ``names`` are the speakers of the talk: a line that names one of them
+    ends the affiliation, like a line that names ``name`` again.
+    """
+    speakers = (name, *names)
     found: list[str] | None = None  # None until a line names the speaker
     for line in lines:
         if not found and names_line(line, name):
             found = []  # the first line of the name, or the next one right after it
         elif found is not None:
-            if len(found) == MAX_AFFILIATION_LINES or ends_affiliation(line, name):
+            if len(found) == MAX_AFFILIATION_LINES or ends_affiliation(line, speakers):
                 break
             found.append(line)
     return ", ".join(found) if found else None
@@ -538,9 +546,10 @@ def with_affiliations(speakers: Sequence[SpeakerDraft], lines: Sequence[str]) ->
     """``speakers``, each without an affiliation given the one the text has for them."""
     if not lines:
         return list(speakers)
+    names = [speaker.name for speaker in speakers]
     completed: list[SpeakerDraft] = []
     for speaker in speakers:
-        found = None if speaker.affiliation else affiliation_after(lines, speaker.name)
+        found = None if speaker.affiliation else affiliation_after(lines, speaker.name, names)
         completed.append(speaker.evolve(affiliation=found) if found else speaker)
     return completed
 
