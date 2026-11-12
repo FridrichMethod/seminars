@@ -15,6 +15,7 @@ from fakes import FakeHttpClient
 from seminars.config import load_sources
 from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig
+from seminars.pipeline import times as normalization_times
 from seminars.sources.base import ForeignHostError, ParseError, get_adapter
 from seminars.sources.generic import html_list
 from seminars.sources.generic.html_list import (
@@ -140,6 +141,24 @@ class TestRecordedSources:
         assert webinar.event_type_hint == "seminar"
         assert webinar.speakers == []
         assert (webinar.abstract or "").startswith("Watch our webinar on long-context")
+
+    def test_biohub_without_upcoming_events_gives_no_drafts(self) -> None:
+        # Between seasons the upcoming block is empty and only past cards are listed.
+        source = with_params(SOURCES["bayarea-biohub"], allow_empty=True)
+        past = (
+            "<li class='multisite-query-loop-item'><h3 class='card-title'>Old</h3>"
+            "<div class='card-button'><a href='/events/old/'>More</a></div></li>"
+        )
+        http = FakeHttpClient()
+        http.add(
+            "https://biohub.org/events/",
+            "<html><body><ul class='content-type-events'></ul>"
+            f"<ul class='content-type-past_events'>{past}</ul></body></html>",
+        )
+        assert run(source, http) == []
+        assert http.requests == ["https://biohub.org/events/"]
+        with pytest.raises(ParseError, match="matches nothing"):
+            run(SOURCES["bayarea-biohub"], http)
 
     def test_suncat_rows_and_their_tags(self) -> None:
         source = SOURCES["bayarea-suncat"]
@@ -389,6 +408,20 @@ class TestRows:
         with pytest.raises(ParseError, match=r"no item .* has all of: title, date"):
             run(list_source(require=["title", "date"]), serve(page(row(title="", day=""))))
 
+    @pytest.mark.parametrize("allow_empty", [False, True])
+    def test_allow_empty_lets_a_list_without_items_give_no_drafts(self, allow_empty: bool) -> None:
+        empty = serve(page())
+        if allow_empty:
+            assert run(list_source(allow_empty=True), empty) == []
+        else:
+            with pytest.raises(ParseError, match=r"selectors\.item .* matches nothing"):
+                run(list_source(allow_empty=False), empty)
+
+    def test_allow_empty_still_needs_the_required_fields_when_there_are_items(self) -> None:
+        source = list_source(allow_empty=True, require=["title", "date"])
+        with pytest.raises(ParseError, match=r"no item .* has all of: title, date"):
+            run(source, serve(page(row(title="", day=""))))
+
     def test_a_payload_without_list_page_is_a_parse_error(self) -> None:
         source = list_source()
         payload = get_adapter("html_list").fetch(serve(page(row())), source, window=WINDOW)
@@ -553,6 +586,12 @@ def test_time_ranges(text: str, expected: tuple[time | None, time | None]) -> No
 def test_a_shared_meridiem_group() -> None:
     assert time_range("4:30", "5:30", meridiem="PM") == (time(16, 30), time(17, 30))
     assert time_range(None, "5:30", meridiem="pm") == (None, time(17, 30))
+
+
+def test_the_rollover_limit_is_the_one_of_normalization() -> None:
+    # Sources do not import the pipeline, so the adapter keeps a copy: an end it keeps must
+    # be one normalization keeps, and the other way round.
+    assert html_list.MAX_ROLLOVER == normalization_times.MAX_ROLLOVER
 
 
 def test_parse_clock_with_a_format() -> None:

@@ -17,6 +17,8 @@ Keys of ``params`` (an unknown key is an error that names it;
 * ``selectors.item``: one element per talk. On every list page it must match
   at least once, and at least one item must have every field of
   ``require``; otherwise the page is not understood (``ParseError``).
+* ``allow_empty`` (default false): a page where ``selectors.item`` matches nothing
+  gives no drafts, not a ``ParseError`` (an upcoming block that is often empty).
 * ``selectors.<field>``: evaluated inside the item, first match. The fields
   are ``title``, ``link`` (detail page), ``date``, ``time``, ``speaker``,
   ``affiliation``, ``location``, ``abstract``, ``stream_link`` (recording or
@@ -257,7 +259,7 @@ _RANGE: Final = re.compile(r"\s*[-\u2013\u2014]\s*|\s+to\s+", re.IGNORECASE)
 _TBA: Final = re.compile(r"\W*(?:tba|tbd|tbc|to be (?:announced|determined|confirmed))\W*", re.I)
 _NAMED_TIMES: Final = {"noon": time(12, 0), "midnight": time(0, 0)}
 _NOON: Final = re.compile(r"12(?:[:.h]00)?\s*noon", re.IGNORECASE)
-MAX_ROLLOVER: Final = timedelta(hours=6)  # longest talk with an end before its start
+MAX_ROLLOVER: Final = timedelta(hours=6)  # as in seminars.pipeline.times (a test pins it)
 
 
 def is_tba(text: str | None) -> bool:
@@ -386,10 +388,7 @@ def parse_moment(text: str | None) -> datetime | date | None:
 
 
 def local_day(moment: datetime | date, zone: ZoneInfo) -> date:
-    """The local calendar day of ``moment`` (a naive datetime is local already).
-
-    A moment at the very end of the calendar, which has no local day, keeps its own date.
-    """
+    """The local day of ``moment`` (a naive one is local; at the end of the calendar its own)."""
     if isinstance(moment, datetime) and moment.tzinfo is not None:
         with contextlib.suppress(OverflowError):
             return moment.astimezone(zone).date()
@@ -469,6 +468,7 @@ class HtmlListParams(Model):
     default_start_time: time | None = None
     default_end_time: time | None = None
     require: list[FieldName] = ["date"]
+    allow_empty: bool = False
     skip_title_patterns: list[Pattern] = []
     skip_summary_patterns: list[Pattern] = []
     exclude_regions: list[str] = []
@@ -699,12 +699,8 @@ def detail_targets(
             elif url not in wanted:
                 wanted.append(url)
     if foreign:
-        logger.warning(
-            "source %s: %d row(s) in the window dropped: their detail page is on a host "
-            "the source does not name (params.extra_hosts)",
-            source.id,
-            foreign,
-        )
+        why = "their detail page is on a host the source does not name (params.extra_hosts)"
+        logger.warning("source %s: %d row(s) in the window dropped: %s", source.id, foreign, why)
     return wanted[: detail.max_pages]
 
 
@@ -748,11 +744,11 @@ class HtmlListAdapter:
         params: HtmlListParams, source: SourceConfig, document: FetchedDocument, rows: list[Row]
     ) -> None:
         url, item = ascii_printable(document.url), params.selectors.item
-        if not rows:
+        if not rows and not params.allow_empty:
             raise ParseError(
                 f"source {source.id}: selectors.item {item!r} matches nothing on {url}"
             )
-        if not any(all(row.get(name) for name in params.required) for row in rows):
+        if rows and not any(all(row.get(name) for name in params.required) for row in rows):
             needed = ", ".join(params.required)
             raise ParseError(f"source {source.id}: no item on {url} has all of: {needed}")
 

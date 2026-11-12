@@ -11,7 +11,7 @@ import pytest
 from factories import make_document
 from seminars.models import TimeWindow
 from seminars.sources.base import ParseError
-from seminars.sources.generic import ics
+from seminars.sources.generic import ics, ics_rules
 from seminars.sources.generic.ics import IcsCalendar, instance_key, occurrences, read_calendar
 from seminars.sources.generic.ics_rules import MAX_OCCURRENCES, check_rule
 from test_generic_ics import FEED, LA, PACIFIC, WINDOW, calendar, expand, parse, vevent
@@ -216,8 +216,12 @@ class TestRecurrence:
         two_years = TimeWindow(start=WINDOW.start, end=WINDOW.start + timedelta(days=730))
         daily = vevent("RRULE:FREQ=DAILY", start="DTSTART:20261020T230000Z")
         assert len(parse(calendar(daily), window=two_years)) == MAX_OCCURRENCES
-        # from 1990 the window is more than MAX_EXPANSION_STEPS days away
-        assert expand(vevent("RRULE:FREQ=DAILY", start="DTSTART:19900101T230000Z")) == []
+        # Without COUNT the walk starts at the window, however old the series is.
+        assert len(expand(vevent("RRULE:FREQ=DAILY", start="DTSTART:19000101T230000Z"))) == 28
+        # With COUNT it starts at DTSTART, and from 1900 the window is more than
+        # MAX_EXPANSION_STEPS steps away: the walk of that rule stops on the way.
+        counted = vevent("RRULE:FREQ=DAILY;COUNT=100000", start="DTSTART:19000101T230000Z")
+        assert expand(counted) == []
 
     def test_a_calendar_that_keeps_its_past_series(self) -> None:
         # Exports keep every series: 55 quarters of weekly talks, ended by COUNT or UNTIL.
@@ -238,8 +242,8 @@ class TestRecurrence:
     def test_series_that_ended_before_the_window_are_not_expanded(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(ics, "MAX_FILTERED_EVENTS", 1)
-        monkeypatch.setattr(ics, "MAX_FEED_STEPS", 20)
+        monkeypatch.setattr(ics, "MAX_RECURRING_EVENTS", 2)
+        monkeypatch.setattr(ics, "MAX_FEED_STEPS", 100)
         old = "DTSTART:19990101"
         ended = [
             vevent(f"RRULE:FREQ=DAILY;BYMONTH=1;UNTIL={2000 + n}1231", uid=f"o{n}", start=old)
@@ -264,58 +268,102 @@ class TestRecurrence:
             "day/20261020T230000Z",
         ]
         second = monthly.replace("UID:day", "UID:other")
-        with pytest.raises(ParseError, match=r"example-talks: .*more than 1 recurring events"):
+        with pytest.raises(ParseError, match=r"example-talks: .*more than 2 recurrence rules"):
             expand(*ended, again, weekly, monthly, second)
 
     @pytest.mark.parametrize(
-        ("rule", "filtered"),
+        "rule",
         [
-            ("FREQ=WEEKLY;BYDAY=TU,TH", False),
-            ("FREQ=MONTHLY;BYDAY=-1FR", False),
-            ("FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR", False),
-            ("FREQ=YEARLY", False),
-            ("FREQ=MONTHLY;BYMONTHDAY=15", True),
-            ("FREQ=YEARLY;BYMONTH=6", True),
-            ("FREQ=MONTHLY;BYDAY=MO;BYSETPOS=-1", True),
-            ("FREQ=MONTHLY;BYDAY=5TU", True),
+            "FREQ=MONTHLY;BYMONTHDAY=15",
+            "FREQ=YEARLY;BYMONTH=6",
+            "FREQ=MONTHLY;BYDAY=MO;BYSETPOS=-1",
+            "FREQ=MONTHLY;BYMONTHDAY=13,31;BYDAY=TU,MO;BYSETPOS=2",
         ],
     )
-    def test_only_rules_that_filter_are_counted(
-        self, monkeypatch: pytest.MonkeyPatch, rule: str, filtered: bool
-    ) -> None:
-        monkeypatch.setattr(ics, "MAX_FILTERED_EVENTS", 0)
-        event = vevent(f"RRULE:{rule}", start="DTSTART:20261020T230000Z")
-        if filtered:
-            with pytest.raises(ParseError, match="more than 0 recurring events"):
-                expand(event)
-        else:
-            assert expand(event)
+    def test_many_rules_that_filter_are_fine(self, rule: str) -> None:
+        # The steps bound what a rule costs, whatever its filters; no cap counts filters.
+        events = [
+            vevent(f"RRULE:{rule}", uid=f"u{n}", start="DTSTART:20261020T230000Z")
+            for n in range(150)
+        ]
+        assert len({draft.native_id for draft in expand(*events)}) >= 150
 
     def test_a_feed_whose_recurrences_need_too_many_steps_fails(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(ics, "MAX_FEED_STEPS", 12)
-        expired = vevent("RRULE:FREQ=WEEKLY;COUNT=5", uid="old", start="DTSTART:20200107T230000Z")
+        # A daily rule takes two steps per day: the day, and the occurrence it hands out.
+        monkeypatch.setattr(ics, "MAX_FEED_STEPS", 24)
+        expired = vevent("RRULE:FREQ=DAILY;COUNT=5", uid="old", start="DTSTART:20200107T230000Z")
         current = vevent("RRULE:FREQ=DAILY;COUNT=7", uid="now", start="DTSTART:20261020T230000Z")
         assert len(expand(expired, current)) == 7
         more = vevent("RRULE:FREQ=DAILY;COUNT=2", uid="more", start="DTSTART:20261101T230000Z")
-        with pytest.raises(ParseError, match=r"more than 12 steps: https://calendar\.example"):
+        with pytest.raises(ParseError, match=r"more than 24 steps: https://calendar\.example"):
             expand(expired, current, more)
+
+    def test_long_series_with_count_fit_the_steps_of_a_feed(self) -> None:
+        # A rule with COUNT is walked from DTSTART, about two steps per period: a period reads
+        # only the days its rule can hit, one a year here, one a week there.
+        yearly = [
+            vevent("RRULE:FREQ=YEARLY;COUNT=200", uid=f"y{n}", start="DTSTART:19501101T170000Z")
+            for n in range(30)
+        ]
+        weekly = [
+            vevent("RRULE:FREQ=WEEKLY;COUNT=2000", uid=f"w{n}", start="DTSTART:20000104T170000Z")
+            for n in range(60)
+        ]
+        drafts = expand(*yearly, *weekly)
+        assert len(drafts) == 30 + 60 * 4
+        yearly_starts = {draft.start for draft in drafts if (draft.native_id or "")[:1] == "y"}
+        assert yearly_starts == {datetime(2026, 11, 1, 17, tzinfo=UTC)}
 
     def test_a_feed_with_too_many_recurring_events_fails(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # Every expanded series counts, also one that ends by COUNT or starts after the window,
-        # because the expansion may walk to the year 9999 before it knows; one ended by UNTIL
-        # before the window is not expanded.
+        # Every walked rule counts, also one that ends by COUNT or starts after the window,
+        # because only its walk tells; one ended by UNTIL before the window is not walked.
         monkeypatch.setattr(ics, "MAX_RECURRING_EVENTS", 2)
         ended = vevent("RRULE:FREQ=WEEKLY;UNTIL=20200101", uid="u", start="DTSTART:20191001")
         counted = vevent("RRULE:FREQ=WEEKLY;COUNT=5", uid="c", start="DTSTART:20200107T230000Z")
         later = vevent("RRULE:FREQ=WEEKLY", uid="later", start="DTSTART:20270105T230000Z")
         assert expand(ended, counted, later) == []
         current = vevent("RRULE:FREQ=WEEKLY;COUNT=2", uid="now", start="DTSTART:20261020T230000Z")
-        with pytest.raises(ParseError, match=r"more than 2 recurring events that do not end"):
+        with pytest.raises(ParseError, match=r"more than 2 recurrence rules .* that do not end"):
             expand(ended, counted, later, current)
+
+    @pytest.mark.parametrize(
+        "rule", ["FREQ=MONTHLY;BYMONTHDAY=13,31;BYDAY=TU,MO;BYSETPOS=2", "FREQ=WEEKLY;BYDAY=TU"]
+    )
+    def test_the_caps_count_rrule_lines_not_events(
+        self, monkeypatch: pytest.MonkeyPatch, rule: str
+    ) -> None:
+        # One VEVENT may carry many RRULE properties, each of them walked on its own.
+        monkeypatch.setattr(ics, "MAX_RECURRING_EVENTS", 3)
+        lines = [f"RRULE:{rule}"] * 3
+        assert [draft.start for draft in expand(vevent(*lines, start="DTSTART:20261020T230000Z"))]
+        one_more = vevent(*lines, f"RRULE:{rule}", start="DTSTART:20261020T230000Z")
+        with pytest.raises(ParseError, match=r"more than 3 recurrence rules .*do not end"):
+            expand(one_more)
+        split = [
+            vevent(f"RRULE:{rule}", uid=f"u{n}", start="DTSTART:20261020T230000Z") for n in range(4)
+        ]
+        with pytest.raises(ParseError, match=r"more than 3 recurrence rules .*do not end"):
+            expand(*split)
+
+    def test_the_steps_of_every_rrule_line_count(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Lines of a rule that never matches: each costs the periods of the window.
+        rule = "FREQ=MONTHLY;BYMONTHDAY=13,31;BYDAY=TU,MO;BYSETPOS=2"
+        one = ics_rules.expand(
+            ics_rules.RecurrenceProperties(rules=(icalendar.vRecur.from_ical(rule),)),
+            datetime(2026, 10, 20, 23, tzinfo=UTC),
+            WINDOW,
+            "UTC",
+            allowance=ics_rules.Allowance(steps=10**6, rules=10),
+        )
+        monkeypatch.setattr(ics, "MAX_FEED_STEPS", 3 * one.steps)
+        lines = [f"RRULE:{rule}"] * 3
+        assert expand(vevent(*lines, start="DTSTART:20261020T230000Z"))
+        with pytest.raises(ParseError, match=rf"more than {3 * one.steps} steps"):
+            expand(vevent(*lines, f"RRULE:{rule}", start="DTSTART:20261020T230000Z"))
 
     @pytest.mark.parametrize(
         "rule",
@@ -357,7 +405,7 @@ class TestRecurrence:
             "FREQ=MONTHLY;BYMONTH=11;BYMONTHDAY=30,-1;BYSETPOS=2",
         ],
     )
-    def test_rules_the_expansion_cannot_bound_are_skipped(self, rule: str) -> None:
+    def test_rules_the_expansion_does_not_support_are_skipped(self, rule: str) -> None:
         assert expand(vevent(f"RRULE:{rule}", start="DTSTART:20261020T230000Z")) == []
         with pytest.raises(ValueError, match=r"unsupported|BYSETPOS|BYMONTH|BYDAY"):
             check_rule(dict(icalendar.vRecur.from_ical(rule)))

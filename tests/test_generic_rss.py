@@ -653,6 +653,8 @@ class TestListPages:
             ("2026-11-16T16:30:00-08:00", "4:30 - 5:30pm", datetime(2026, 11, 16, 17, 30)),
             # A start in UTC falls on the next day there; the end is on the local day.
             ("2026-11-17T00:30:00Z", "4:30 - 5:30pm PT", datetime(2026, 11, 16, 17, 30)),
+            # Only the start says PM: the end is completed to 17:30, not dropped as 5:30.
+            ("2026-11-16T16:30:00-08:00", "4:30pm - 5:30", datetime(2026, 11, 16, 17, 30)),
             ("2026-11-16T16:30:00-08:00", "4:30pm", None),
             ("2026-11-16T16:30:00-08:00", "4:30 - 3:00pm", None),
         ],
