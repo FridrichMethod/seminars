@@ -45,24 +45,33 @@ becomes one event:
   without those of the series, of the speakers, degrees and titles of
   persons ("PhD", "MD", "Prof.") and fillers such as "seminar",
   "department", "Stanford" or "with". A title that names a speaker of the
-  talk gives way to one that does not when that one's words are all among
-  its own (a wrapper: 'Biology Seminar Series - Jane Doe, MD "Protein
-  design"' gives way to "Protein design") or when that one has strictly
-  more words (a host that announces a talk by its speaker, "CSB Special
-  Seminar & Open Discussion, David Garfield, PhD", gives way to the title
-  of the talk). So "Jane Doe: CRISPR screens" stays against "Genetics
-  Department Seminar Series", and "Jane Doe: Protein design with diffusion
-  models" against "Bioengineering Seminar". Of the rest, a title whose
-  words are strictly more than those of another wins ("Diffusion models
-  for protein design" over "Diffusion models", any title over the bare
-  name of its series), and so does, of two titles that both name a
-  speaker, the one with more words ("Tadashi Tokieda: Surprises from
-  rubbing the wrong way" over "MRC Public Lecture: Tadashi Tokieda");
-  otherwise the order below decides. That is the
-  one known weak spot: a host's generic title that no series name removes
-  ("Applied Physics Colloquium" without a series) shares no word with an
-  aggregator's "Protein design with diffusion models - Jane Doe (MIT)",
-  and the host's title stays;
+  talk gives way to one that does not in two cases. Either it wraps that
+  one: it holds all of that one's words and adds fewer words than it
+  holds ('Biology Seminar Series - Jane Doe, MD "Protein design"' adds one
+  word to the two of "Protein design" and gives way to it, while "Physics
+  Colloquium: Jane Doe, Quantum materials" adds two words to the one of
+  "Physics Colloquium" and stays). Or that one has strictly more words (a
+  host that announces a talk by its speaker, "CSB Special Seminar & Open
+  Discussion, David Garfield, PhD", gives way to the title of the talk).
+  Of the rest, a title whose words are strictly more than those of
+  another wins ("Diffusion models for protein design" over "Diffusion
+  models", any title over the bare name of its series), and so does, of
+  two titles that both name a speaker, the one with more words ("Tadashi
+  Tokieda: Surprises from rubbing the wrong way" over "MRC Public
+  Lecture: Tadashi Tokieda"); otherwise the order below decides.
+  The rules only count words, and a generic title that no series name
+  removes can still stay against the title of the talk in three known
+  cases: (1) it shares no word with a talk title that names the speaker
+  ("Applied Physics Colloquium" against "Protein design with diffusion
+  models - Jane Doe (MIT)"), so the order decides and the host's title
+  stays, whichever it is; (2) it has more words than a talk title that
+  names the speaker ("Genetics and Genomics Seminar Series" against "Jane
+  Doe: CRISPR") and wins as an announcement would; (3) it begins a talk
+  title that names the speaker and holds more words than that title adds
+  ("Applied Physics Colloquium" against "Applied Physics Colloquium: Jane
+  Doe, Materials") and wins as a wrapped title would. The other way
+  round, a talk title of few words stays behind a wrapper that adds as
+  many words as it holds ("Jane Doe (MIT): Diffusion" over "Diffusion");
 * the longest abstract wins, speakers are united, and every source key and
   source address is kept;
 * the remaining values come from the listing of the host rather than from
@@ -380,14 +389,15 @@ def _title(events: Sequence[Event], speakers: Sequence[Speaker]) -> str:
     words = [frozenset(fold(event.title).split()) - known for event in titled]
     naming = [_names_a_speaker(event.title, names) for event in titled]
 
+    def wraps(index: int, other: int) -> bool:
+        """Whether the title at ``index`` holds all words of ``other`` and adds fewer."""
+        inner = words[other]
+        return bool(inner) and inner <= words[index] and len(inner) > len(words[index] - inner)
+
     def gives_way(index: int) -> bool:
         """Whether the title at ``index``, which names a speaker, yields to one without."""
         return any(
-            not naming[other]
-            and (
-                (bool(words[other]) and words[other] <= words[index])
-                or len(words[other]) > len(words[index])
-            )
+            not naming[other] and (wraps(index, other) or len(words[other]) > len(words[index]))
             for other in range(len(titled))
         )
 

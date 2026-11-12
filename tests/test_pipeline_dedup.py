@@ -551,6 +551,58 @@ class TestMerge:
         for order in ((site, aggregator), (aggregator, site)):
             assert self.merged(*order).event.title == talk
 
+    @pytest.mark.parametrize(
+        ("generic", "talk"),
+        [
+            ("Physics Colloquium", "Physics Colloquium: Jane Doe, Quantum materials"),
+            ("Biology Seminar", "Biology Seminar - Jane Doe: Protein design"),
+            ("Genetics Seminar", "Genetics Seminar: Jane Doe on CRISPR screens"),
+        ],
+    )
+    def test_a_talk_title_that_begins_with_a_generic_title_does_not_give_way_to_it(
+        self, generic: str, talk: str
+    ) -> None:
+        # The talk title adds more words to the generic one than the two share: no wrapper.
+        speakers = [Speaker(name="Jane Doe")]
+        for talk_by_host in (True, False):
+            site = self.site(
+                title=talk if talk_by_host else generic, series=None, speakers=speakers
+            )
+            aggregator = self.aggregator(
+                title=generic if talk_by_host else talk, series=None, speakers=speakers
+            )
+            for order in ((site, aggregator), (aggregator, site)):
+                assert self.merged(*order).event.title == talk, talk_by_host
+
+    @pytest.mark.parametrize(
+        ("plain", "naming", "kept"),
+        [
+            # (2) A generic title with more words than the talk title wins as an announcement.
+            ("Genetics and Genomics Seminar Series", "Jane Doe: CRISPR", "plain"),
+            # (3) A generic title that holds more words than the talk title adds wins.
+            (
+                "Applied Physics Colloquium",
+                "Applied Physics Colloquium: Jane Doe, Materials",
+                "plain",
+            ),
+            # A wrapper that adds as many words as it holds stays.
+            ("Diffusion", "Jane Doe (MIT): Diffusion", "naming"),
+        ],
+    )
+    def test_the_known_limits_of_counting_words(self, plain: str, naming: str, kept: str) -> None:
+        # Pinned so that a change of the rules is deliberate (see the module docstring).
+        speakers = [Speaker(name="Jane Doe")]
+        expected = plain if kept == "plain" else naming
+        for plain_by_host in (True, False):
+            site = self.site(
+                title=plain if plain_by_host else naming, series=None, speakers=speakers
+            )
+            aggregator = self.aggregator(
+                title=naming if plain_by_host else plain, series=None, speakers=speakers
+            )
+            for order in ((site, aggregator), (aggregator, site)):
+                assert self.merged(*order).event.title == expected, plain_by_host
+
     def test_without_a_series_a_generic_host_title_still_beats_the_aggregator(self) -> None:
         # Known limit: no rule tells "Applied Physics Colloquium" from a talk title, so the
         # titles are incomparable and the host listing decides.
