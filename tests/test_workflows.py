@@ -4,7 +4,8 @@ A workflow only runs on GitHub, after a push, so this file checks
 everything about them that can be checked on one machine:
 
 * the security rules, by parsing the YAML: triggers, permissions, where
-  secrets and the token go, pinned actions, no expression inside a script;
+  secrets and the token go, which job may push and what it runs, actions
+  pinned to commits, no expression inside a script;
 * the schedules, the concurrency groups, the Pages deployment and the
   commands each job runs;
 * the shell scripts of the steps that decide what is committed and
@@ -52,14 +53,23 @@ WORKFLOWS_DIR: Final = ROOT / ".github" / "workflows"
 WORKFLOW_NAMES: Final = ("ci.yml", "update.yml", "digest.yml")
 
 SETUP_UV: Final = "astral-sh/setup-uv"
-MAJOR_PINS: Final = {
-    "actions/checkout": "v7",
-    "actions/setup-node": "v7",
-    "actions/configure-pages": "v6",
-    "actions/upload-pages-artifact": "v5",
-    "actions/deploy-pages": "v5",
+ACTION_PINS: Final = {
+    "actions/checkout": ("3d3c42e5aac5ba805825da76410c181273ba90b1", "v7.0.1"),
+    "actions/setup-node": ("949feb2413d6458794dcd2491c4babbbce0c15c1", "v7.1.0"),
+    "actions/upload-artifact": ("cf430e030ddbb5b0abf93d22962f4752f3646cd9", "v7.0.2"),
+    "actions/download-artifact": ("9000827ccba6bdab643e8b6fd33ac0654aef8333", "v8.0.2"),
+    "actions/configure-pages": ("45bfe0192ca1faeb007ade9deae92b16b8254a0d", "v6.0.0"),
+    "actions/upload-pages-artifact": ("fc324d3547104276b827a68afc52ff2a11cc49c9", "v5.0.0"),
+    "actions/deploy-pages": ("368f82528645a54fb793d4d04e342629a3f51346", "v5.0.1"),
+    SETUP_UV: ("68559e99cc807c1eb7e9238fd43a15bba460eec2", "v10.3.3"),
 }
-"""First-party actions and the major version tag each one is pinned to."""
+"""Every action, the commit it is pinned to and the release of that commit.
+
+Each SHA was read from the tag of the release with the GitHub API
+(``gh api repos/<owner>/<repo>/git/ref/tags/<release>``, following an
+annotated tag to its commit). A new release is a change of this table and of
+the workflows together.
+"""
 
 RUNNER_IMAGE: Final = "ubuntu-24.04"
 FORBIDDEN_SECRET_NAMES: Final = ("CODEX_AUTH_JSON", "SECRETS_WRITER_PAT")
@@ -72,19 +82,24 @@ LLM_VARIABLE_NAMES: Final = sorted(
 EXPECTED_JOB_PERMISSIONS: Final[dict[tuple[str, str], dict[str, str] | None]] = {
     ("ci.yml", "checks"): None,
     ("ci.yml", "browser"): None,
-    ("update.yml", "update"): {"contents": "write", "issues": "write"},
+    ("update.yml", "fetch"): {"contents": "read", "issues": "write"},
+    ("update.yml", "commit"): {"contents": "write"},
+    ("update.yml", "build"): None,
     ("update.yml", "deploy"): {"pages": "write", "id-token": "write"},
+    ("update.yml", "outage"): None,
     ("update.yml", "llm-smoke"): {"contents": "read"},
     ("digest.yml", "digest"): {"contents": "read", "issues": "write"},
 }
 """Every job of every workflow and the token permissions it raises (None: inherits read)."""
 
-LLM_SECRET_STEPS: Final = {("update.yml", "update", "run"), ("update.yml", "llm-smoke", "smoke")}
+LLM_SECRET_STEPS: Final = {("update.yml", "fetch", "run"), ("update.yml", "llm-smoke", "smoke")}
 TOKEN_STEPS: Final = {
-    ("update.yml", "update", "run"),
-    ("update.yml", "update", "commit"),
+    ("update.yml", "fetch", "run"),
+    ("update.yml", "commit", "commit"),
     ("digest.yml", "digest", "digest"),
 }
+WITHOUT_CHECKOUT: Final = {("update.yml", "deploy"), ("update.yml", "outage")}
+"""Jobs that need nothing of the repository."""
 
 EXPRESSION: Final = re.compile(r"\$\{\{(.*?)\}\}", re.DOTALL)
 CONTEXT_REFERENCE: Final = re.compile(
@@ -95,6 +110,7 @@ ALLOWED_REFERENCE: Final = re.compile(
     r"github\.(?:ref|event_name|token)"
     r"|inputs\.[a-z_]+|secrets\.[A-Z0-9_]+|vars\.[A-Z0-9_]+|env\.[A-Z0-9_]+"
     r"|steps\.[a-z-]+\.outputs\.[a-z_]+|needs\.[a-z-]+\.outputs\.[a-z_]+"
+    r"|runner\.temp"
 )
 """Context values the workflows may use. Nothing an outsider controls (github.event.*,
 branch names, titles) is on the list."""
@@ -306,14 +322,14 @@ def checkouts() -> Iterator[tuple[str, str, dict[str, Any]]]:
 
 def test_every_job_that_checks_out_does_it_once() -> None:
     found = Counter((name, job_id) for name, job_id, _ in checkouts())
-    expected = {key for key in EXPECTED_JOB_PERMISSIONS if key != ("update.yml", "deploy")}
+    expected = set(EXPECTED_JOB_PERMISSIONS) - WITHOUT_CHECKOUT
     assert set(found) == expected
     assert set(found.values()) == {1}
 
 
 def test_no_checkout_keeps_the_token() -> None:
-    # Otherwise every later step, the package installs included, could read it from
-    # .git/config. The commit step hands the token to git itself.
+    # Otherwise every later step could read it from .git/config. The commit step hands
+    # the token to git itself.
     for name, job_id, entry in checkouts():
         assert entry["with"]["persist-credentials"] is False, (name, job_id)
 
@@ -371,7 +387,7 @@ def test_the_token_reaches_only_the_steps_that_open_issues() -> None:
     assert steps_with_env_value(r"github\.token") == TOKEN_STEPS
 
 
-@pytest.mark.parametrize(("job_id", "step_id"), [("update", "run"), ("llm-smoke", "smoke")])
+@pytest.mark.parametrize(("job_id", "step_id"), [("fetch", "run"), ("llm-smoke", "smoke")])
 def test_llm_steps_get_every_credential_and_variable_of_the_contract(
     job_id: str, step_id: str
 ) -> None:
@@ -385,7 +401,7 @@ def test_llm_steps_get_every_credential_and_variable_of_the_contract(
 
 
 def test_the_claude_flag_is_computed_from_the_claude_secret_only() -> None:
-    for job_id in ("update", "llm-smoke"):
+    for job_id in ("fetch", "llm-smoke"):
         env = jobs_of("update.yml")[job_id]["env"]
         assert env == {"HAS_CLAUDE_TOKEN": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}"}
 
@@ -414,32 +430,38 @@ def test_expressions_use_only_trusted_context_values(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", WORKFLOW_NAMES)
-def test_every_action_is_pinned(name: str) -> None:
+def test_every_action_is_pinned_to_the_commit_of_its_release(name: str) -> None:
     for action, ref in uses_of(name):
-        if action == SETUP_UV:
-            assert re.fullmatch(r"[0-9a-f]{40}", ref), ref
-        else:
-            assert MAJOR_PINS.get(action) == ref, (action, ref)
+        assert action in ACTION_PINS, action
+        assert ref == ACTION_PINS[action][0], (action, ref)
 
 
-def test_setup_uv_is_pinned_to_one_commit_with_its_release_in_a_comment() -> None:
-    pins: set[str] = set()
+USES_LINE: Final = re.compile(r"\s+uses: ([\w.-]+/[\w.-]+)@([0-9a-f]{40}) # (v\d+\.\d+\.\d+)")
+
+
+@pytest.mark.parametrize("name", WORKFLOW_NAMES)
+def test_each_pin_names_its_release_in_a_comment(name: str) -> None:
+    lines = [line for line in workflow_text(name).splitlines() if "uses:" in line]
+    assert lines
+    for line in lines:
+        match = USES_LINE.fullmatch(line)
+        assert match, line
+        action, sha, release = match.groups()
+        assert ACTION_PINS[action] == (sha, release), line
+
+
+def test_no_action_is_left_on_a_tag_or_a_branch() -> None:
+    # Before the pins, the actions of GitHub stood on major version tags such as v7.
     for name in WORKFLOW_NAMES:
-        for line in workflow_text(name).splitlines():
-            if f"{SETUP_UV}@" in line:
-                match = re.fullmatch(
-                    rf"\s+uses: {SETUP_UV}@([0-9a-f]{{40}}) # v\d+\.\d+\.\d+", line
-                )
-                assert match, line
-                pins.add(line.strip())
-    assert len(pins) == 1
+        assert not re.search(r"uses: [^#\n]*@v\d", workflow_text(name)), name
+        assert "@main" not in workflow_text(name), name
 
 
 @pytest.mark.parametrize("name", WORKFLOW_NAMES)
 def test_the_header_says_why_each_action_is_used(name: str) -> None:
     header = header_comment(name)
     for action, _ in uses_of(name):
-        assert f"{action} " in header, action
+        assert f"{action} ({ACTION_PINS[action][1]}" in header, action
 
 
 @pytest.mark.parametrize("name", ["update.yml", "digest.yml"])
@@ -529,7 +551,7 @@ def test_dispatch_offers_the_full_and_the_llm_smoke_mode() -> None:
 def test_jobs_run_on_main_only_and_by_mode() -> None:
     on_main = "github.ref == 'refs/heads/main'"
     jobs = jobs_of("update.yml")
-    assert jobs["update"]["if"] == (
+    assert jobs["fetch"]["if"] == (
         f"{on_main} && (github.event_name == 'schedule' || inputs.mode == 'full')"
     )
     assert jobs["llm-smoke"]["if"] == (
@@ -547,42 +569,143 @@ def test_the_smoke_job_only_probes_the_providers() -> None:
     assert "git " not in commands
 
 
-def test_update_steps_after_the_run_wait_for_a_real_run() -> None:
-    entries = steps_of("update.yml", "update")
+def holds_a_credential(entry: Mapping[str, Any]) -> bool:
+    return any(
+        re.search(r"\bsecrets\.|github\.token", str(value))
+        for value in entry.get("env", {}).values()
+    )
+
+
+SYNC: Final = "uv sync --locked"
+
+
+def test_the_project_is_built_before_any_step_that_holds_a_credential() -> None:
+    # The build of the project and every package install run in a step of their own,
+    # without a credential in its environment; a step that holds one only runs.
+    checked = 0
+    for name in WORKFLOW_NAMES:
+        for job_id, job in jobs_of(name).items():
+            entries = job["steps"]
+            for index, entry in enumerate(entries):
+                if not holds_a_credential(entry) or "uv " not in str(entry.get("run", "")):
+                    continue
+                syncs = [e for e in entries[:index] if str(e.get("run", "")).strip() == SYNC]
+                assert syncs, (name, job_id, entry.get("id"))
+                assert all(not holds_a_credential(e) for e in syncs), (name, job_id)
+                checked += 1
+    assert checked == 3  # the pipeline, the smoke step and the digest
+
+
+def test_the_sync_comes_right_after_uv_is_installed() -> None:
+    for name, job_id in [
+        ("update.yml", "fetch"),
+        ("update.yml", "build"),
+        ("update.yml", "llm-smoke"),
+        ("digest.yml", "digest"),
+    ]:
+        entries = steps_of(name, job_id)
+        index = next(i for i, e in enumerate(entries) if SETUP_UV in str(e.get("uses", "")))
+        assert entries[index + 1] == {
+            "name": "Install the locked dependencies",
+            "id": "sync",
+            "run": SYNC,
+        }, (name, job_id)
+
+
+def test_the_job_that_can_push_runs_nothing_but_git() -> None:
+    commit = jobs_of("update.yml")["commit"]
+    actions = [str(entry["uses"]).partition("@")[0] for entry in commit["steps"] if "uses" in entry]
+    assert actions == ["actions/checkout", "actions/download-artifact"]
+    (script,) = commands_of("update.yml", "commit")
+    for word in ("uv", "uvx", "npm", "node", "python", "pip", "seminars", "make", "sudo"):
+        assert not re.search(rf"(^|[\s;|&(]){word}\b", script, re.MULTILINE), word
+    assert "needs.fetch.outputs" not in str(commit["steps"][0])
+
+
+def test_only_the_commit_job_may_write_the_repository() -> None:
+    writers = {
+        key
+        for key, permissions in EXPECTED_JOB_PERMISSIONS.items()
+        if permissions and permissions.get("contents") == "write"
+    }
+    assert writers == {("update.yml", "commit")}
+
+
+def test_the_fetch_job_runs_validates_and_hands_on_its_data() -> None:
+    entries = steps_of("update.yml", "fetch")
     index = next(i for i, entry in enumerate(entries) if entry.get("id") == "run")
     later = entries[index + 1 :]
-    assert [entry.get("id") for entry in later] == ["validate", "commit", "build", "upload"]
-    for entry in later:
-        assert entry["if"] == "steps.run.outputs.ran == 'true'"
-    assert step("update.yml", "update", "validate")["run"].strip() == (
-        "uv run --locked seminars validate"
+    assert [entry.get("id") for entry in later] == ["validate", "upload"]
+    assert later[0]["if"] == (
+        "steps.run.outputs.ran == 'true' && steps.run.outputs.outcome == 'ok'"
     )
-    assert step("update.yml", "update", "build")["run"].strip() == (
-        "uv run --locked seminars build-site"
-    )
-    upload = step("update.yml", "update", "upload")
-    assert upload["uses"] == "actions/upload-pages-artifact@v5"
-    assert upload["with"] == {"path": "public"}
+    assert later[0]["run"].strip() == "uv run --locked seminars validate"
+    assert later[1]["if"] == "steps.run.outputs.ran == 'true'"
+    assert later[1]["uses"].partition("@")[0] == "actions/upload-artifact"
+    assert later[1]["with"] == {
+        "name": "run-data",
+        "path": "data",
+        "if-no-files-found": "error",
+        "retention-days": 1,
+    }
+    assert jobs_of("update.yml")["fetch"]["outputs"] == {
+        "ran": "${{ steps.run.outputs.ran }}",
+        "outcome": "${{ steps.run.outputs.outcome }}",
+        "base": "${{ steps.run.outputs.base }}",
+    }
 
 
-def test_pages_are_deployed_by_their_own_job_after_a_real_run() -> None:
+def test_the_commit_job_takes_the_data_of_a_real_run() -> None:
+    commit = jobs_of("update.yml")["commit"]
+    assert commit["needs"] == "fetch"
+    assert commit["if"] == "needs.fetch.outputs.ran == 'true'"
+    download = step("update.yml", "commit", "download")
+    assert download["uses"].partition("@")[0] == "actions/download-artifact"
+    assert download["with"] == {"name": "run-data", "path": "${{ runner.temp }}/run-data"}
+    env = step("update.yml", "commit", "commit")["env"]
+    assert env["RUN_OUTCOME"] == "${{ needs.fetch.outputs.outcome }}"
+    assert env["RUN_BASE"] == "${{ needs.fetch.outputs.base }}"
+
+
+def test_the_site_is_built_from_the_new_main_and_then_deployed() -> None:
     jobs = jobs_of("update.yml")
-    assert jobs["update"]["outputs"] == {"ran": "${{ steps.run.outputs.ran }}"}
+    assert jobs["build"]["needs"] == "commit"
+    assert "if" not in jobs["build"]
+    assert commands_of("update.yml", "build") == [
+        SYNC,
+        "uv run --locked seminars build-site",
+        "uv run --locked seminars validate",
+    ]
+    upload = step("update.yml", "build", "upload")
+    assert upload["uses"].partition("@")[0] == "actions/upload-pages-artifact"
+    assert upload["with"] == {"path": "public"}
     deploy = jobs["deploy"]
-    assert deploy["needs"] == "update"
-    assert deploy["if"] == "needs.update.outputs.ran == 'true'"
+    assert deploy["needs"] == "build"
+    assert "if" not in deploy
     assert deploy["environment"] == {
         "name": "github-pages",
         "url": "${{ steps.deployment.outputs.page_url }}",
     }
-    assert [entry["uses"] for entry in deploy["steps"]] == [
-        "actions/configure-pages@v6",
-        "actions/deploy-pages@v5",
+    assert [entry["uses"].partition("@")[0] for entry in deploy["steps"]] == [
+        "actions/configure-pages",
+        "actions/deploy-pages",
     ]
     assert deploy["steps"][-1]["id"] == "deployment"
 
 
-@pytest.mark.parametrize("job_id", ["update", "llm-smoke"])
+def test_a_total_outage_fails_the_run_after_it_is_recorded_and_deployed() -> None:
+    outage = jobs_of("update.yml")["outage"]
+    assert outage["needs"] == ["fetch", "deploy"]
+    assert outage["if"] == "needs.fetch.outputs.outcome == 'outage'"
+    (script,) = commands_of("update.yml", "outage")
+    assert script.startswith('echo "::error::')
+    assert script.endswith("exit 1")
+    # Exit status 1 after the run recorded itself has two causes; the message names both.
+    assert "every source failed" in script
+    assert "the feeds could not be written" in script
+
+
+@pytest.mark.parametrize("job_id", ["fetch", "llm-smoke"])
 def test_claude_code_is_installed_only_when_its_token_is_set(job_id: str) -> None:
     flagged = "env.HAS_CLAUDE_TOKEN == 'true'"
     node = [e for e in steps_of("update.yml", job_id) if "setup-node" in str(e.get("uses"))]
@@ -593,9 +716,21 @@ def test_claude_code_is_installed_only_when_its_token_is_set(job_id: str) -> Non
 
 
 def test_both_jobs_install_claude_code_the_same_way() -> None:
-    first = step("update.yml", "update", "claude")
+    first = step("update.yml", "fetch", "claude")
     second = step("update.yml", "llm-smoke", "claude")
     assert first == second
+
+
+def test_npm_runs_no_install_script() -> None:
+    installs = [
+        line.strip()
+        for _, _, script in run_scripts()
+        for line in script.splitlines()
+        if re.search(r"\bnpm (install|i|ci)\b", line)
+    ]
+    assert len(installs) == 2
+    for line in installs:
+        assert "--ignore-scripts" in line, line
 
 
 # --- the scripts, run with bash --------------------------------------------------------------
@@ -620,7 +755,7 @@ if [ "$1 $2 $3" = "run --locked python" ]; then
 fi
 if [ -n "${STUB_UV_TOUCH:-}" ]; then
   mkdir -p "$(dirname "$STUB_UV_TOUCH")"
-  printf '{"changed": true}\\n' > "$STUB_UV_TOUCH"
+  printf '%s\\n' "${STUB_UV_RECORD:-changed}" > "$STUB_UV_TOUCH"
 fi
 exit "${STUB_UV_STATUS:-0}"
 """
@@ -628,6 +763,31 @@ exit "${STUB_UV_STATUS:-0}"
 STUB_LOGGER: Final = """#!/bin/sh
 printf '%s %s\\n' "$(basename "$0")" "$*" >> "$STUB_LOG"
 """
+
+STUB_NPM: Final = """#!/bin/sh
+printf 'npm %s\\n' "$*" >> "$STUB_LOG"
+case "$1" in
+  root) echo "$STUB_NPM_PREFIX/lib/node_modules" ;;
+  prefix) echo "$STUB_NPM_PREFIX" ;;
+  install)
+    if [ -z "${STUB_NPM_NO_BINARY:-}" ]; then
+      native="$STUB_NPM_PREFIX/lib/node_modules/@anthropic-ai/claude-code-linux-x64/claude"
+      mkdir -p "$(dirname "$native")" "$STUB_NPM_PREFIX/bin"
+      cp "$STUB_NATIVE" "$native"
+      chmod 755 "$native"
+    fi
+    exit "${STUB_NPM_STATUS:-0}"
+    ;;
+esac
+"""
+"""npm as far as the install step uses it: a global prefix, and an install that puts the
+binary of the platform package where the real one does (and runs no script)."""
+
+STUB_NATIVE: Final = """#!/bin/sh
+printf 'native %s\\n' "$*" >> "$STUB_LOG"
+exit "${STUB_NATIVE_STATUS:-0}"
+"""
+"""The binary of the platform package, as the stub npm installs it."""
 
 STUB_DAY: Final = "2026-11-02"
 STUB_DATE: Final = f"""#!/bin/sh
@@ -656,10 +816,15 @@ class Sandbox:
         self.root = root
         self.bin = root / "bin"
         self.bin.mkdir()
+        self.npm_prefix = root / "npm-global"
+        self.runner_temp = root / "runner-temp"
+        self.runner_temp.mkdir()
         self.log = root / "calls.log"
         self.log.touch()
         self.stub("uv", STUB_UV)
-        self.stub("npm", STUB_LOGGER)
+        self.stub("npm", STUB_NPM)
+        self.native = root / "native-claude"
+        self.native.write_text(STUB_NATIVE, encoding="utf-8")
         self.stub("claude", STUB_LOGGER)
         self.stub("date", STUB_DATE)
 
@@ -669,14 +834,19 @@ class Sandbox:
         path.chmod(0o755)
 
     def env(self, extra: Mapping[str, str] = {}) -> dict[str, str]:
+        # The global bin of npm comes first, as setup-node puts it on PATH.
+        path = os.pathsep.join([str(self.npm_prefix / "bin"), str(self.bin), os.environ["PATH"]])
         return {
-            "PATH": f"{self.bin}{os.pathsep}{os.environ.get('PATH', '')}",
+            "PATH": path,
             "HOME": str(self.root),
             "LC_ALL": "C",
             "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_CONFIG_NOSYSTEM": "1",
             "STUB_LOG": str(self.log),
             "STUB_PYTHON": sys.executable,
+            "STUB_NPM_PREFIX": str(self.npm_prefix),
+            "STUB_NATIVE": str(self.native),
+            "RUNNER_TEMP": str(self.runner_temp),
             **extra,
         }
 
@@ -706,6 +876,24 @@ class Sandbox:
     def clone(self, remote: Path, name: str) -> Path:
         self.git(self.root, "clone", "--quiet", str(remote), name)
         return self.root / name
+
+    def push_from_other(self, remote: Path, files: Mapping[str, str], message: str) -> str:
+        """Push a commit that changes ``files`` from another clone; returns its SHA."""
+        other = self.root / f"other-{len(list(self.root.glob('other-*')))}"
+        self.git(self.root, "clone", "--quiet", str(remote), other.name)
+        for relative, text in files.items():
+            write(other / relative, text)
+        self.git(other, "add", "--all")
+        self.git(other, "commit", "--quiet", "--message", message)
+        self.git(other, "push", "--quiet", "origin", "main")
+        return self.git(other, "rev-parse", "HEAD")
+
+    def run_data(self, files: Mapping[str, str]) -> Path:
+        """What the commit job downloads: the data/ of the fetch job, as ``files``."""
+        target = self.runner_temp / "run-data"
+        for relative, text in files.items():
+            write(target / relative, text)
+        return target
 
     def run_step(
         self, workflow: str, job_id: str, step_id: str, cwd: Path, extra: Mapping[str, str] = {}
@@ -746,39 +934,130 @@ def sandbox(tmp_path: Path) -> Sandbox:
     return Sandbox(tmp_path)
 
 
-BASE_FILES: Final = {"data/last_run.json": "{}\n", "data/events.json": "[]\n", "README.md": "x\n"}
+BASE_FILES: Final = {
+    "data/last_run.json": "{}\n",
+    "data/health.json": "{}\n",
+    "data/run_report.json": "{}\n",
+    "data/events.json": "[]\n",
+    "data/uid_map.json": "{}\n",
+    "README.md": "x\n",
+}
 STUB_TOKEN: Final = "stub-workflow-token"
 PUSH_ENV: Final = {"GITHUB_TOKEN": STUB_TOKEN, "GITHUB_SERVER_URL": "https://github.com"}
 
 
+def data_of(files: Mapping[str, str]) -> dict[str, str]:
+    """``files`` below data/, as the run data of the commit job holds them."""
+    return {
+        key.removeprefix("data/"): text for key, text in files.items() if key.startswith("data/")
+    }
+
+
+def commit_env(sandbox: Sandbox, work: Path, outcome: str = "ok", **extra: str) -> dict[str, str]:
+    base = sandbox.git(work, "rev-parse", "HEAD")
+    return {**PUSH_ENV, "RUN_OUTCOME": outcome, "RUN_BASE": base, **extra}
+
+
+def changed_files(sandbox: Sandbox, remote: Path) -> list[str]:
+    shown = sandbox.git(remote, "show", "--no-renames", "--name-status", "--format=", "main")
+    return sorted(shown.splitlines())
+
+
+# --- the pipeline step
+
+
 @needs_shell
-@pytest.mark.parametrize("status", [1, 3])
+@pytest.mark.parametrize("status", [2, 3, 4])
 def test_a_failed_run_stops_the_job_before_anything_is_committed(
     sandbox: Sandbox, status: int
 ) -> None:
     _, work = sandbox.repo(BASE_FILES)
+    touch = str(work / "data" / "last_run.json")
     result = sandbox.run_step(
         "update.yml",
-        "update",
+        "fetch",
         "run",
         work,
-        {"GITHUB_EVENT_NAME": "schedule", "STUB_UV_STATUS": str(status)},
+        {"GITHUB_EVENT_NAME": "schedule", "STUB_UV_STATUS": str(status), "STUB_UV_TOUCH": touch},
     )
     assert result.status == status
-    assert "ran" not in result.outputs
+    assert set(result.outputs) == {"base"}
     assert "::error" in result.stdout
     if status == 3:
         assert "Output check failed" in result.stdout
 
 
 @needs_shell
+def test_a_run_that_could_not_start_stops_the_job(sandbox: Sandbox) -> None:
+    _, work = sandbox.repo(BASE_FILES)
+    extra = {"GITHUB_EVENT_NAME": "schedule", "STUB_UV_STATUS": "1"}
+    result = sandbox.run_step("update.yml", "fetch", "run", work, extra)
+    assert result.status == 1
+    assert set(result.outputs) == {"base"}
+    assert "before it recorded the run" in result.stdout
+
+
+FAILED_RECORD: Final = '{"ok": false, "mode": "live"}'
+"""data/last_run.json of a run that failed: what makes exit status 1 an outage."""
+
+
+def failed_run(work: Path, record: str = FAILED_RECORD) -> dict[str, str]:
+    """The environment of a scheduled run that exits 1 after it wrote ``record``."""
+    touch = str(work / "data" / "last_run.json")
+    return {
+        "GITHUB_EVENT_NAME": "schedule",
+        "STUB_UV_STATUS": "1",
+        "STUB_UV_TOUCH": touch,
+        "STUB_UV_RECORD": record,
+    }
+
+
+@needs_shell
+def test_a_total_outage_is_handed_on_to_be_recorded(sandbox: Sandbox) -> None:
+    _, work = sandbox.repo(BASE_FILES)
+    result = sandbox.run_step("update.yml", "fetch", "run", work, failed_run(work))
+    assert result.status == 0, result.stdout
+    assert result.outputs == {
+        "base": sandbox.git(work, "rev-parse", "HEAD"),
+        "ran": "true",
+        "outcome": "outage",
+    }
+    assert "::warning::seminars run failed with exit status 1" in result.stdout
+    assert "every source failed, or the feeds could not be written" in result.stdout
+
+
+@needs_shell
+@pytest.mark.parametrize(
+    "record",
+    [
+        '{"ok": true, "mode": "live"}',
+        '{"mode": "live"}',
+        '{"ok": "false"}',
+        "[]",
+        "not json",
+    ],
+)
+def test_status_1_without_a_record_of_a_failed_run_stops_the_job(
+    sandbox: Sandbox, record: str
+) -> None:
+    # Python exits with 1 for an error that nothing caught, also after the record of a
+    # successful run was written: that run could not finish and must not be committed.
+    _, work = sandbox.repo(BASE_FILES)
+    result = sandbox.run_step("update.yml", "fetch", "run", work, failed_run(work, record))
+    assert result.status == 1
+    assert set(result.outputs) == {"base"}
+    assert "does not record a failed run" in result.stdout
+    assert "nothing is committed or deployed" in result.stdout
+
+
+@needs_shell
 def test_a_scheduled_run_may_skip_and_then_nothing_is_published(sandbox: Sandbox) -> None:
     _, work = sandbox.repo(BASE_FILES)
     scheduled = {"GITHUB_EVENT_NAME": "schedule"}
-    result = sandbox.run_step("update.yml", "update", "run", work, scheduled)
+    result = sandbox.run_step("update.yml", "fetch", "run", work, scheduled)
     assert result.status == 0
     assert result.calls == ["uv run --locked seminars run --skip-if-done-today"]
-    assert result.outputs == {"ran": "false"}
+    assert result.outputs == {"base": sandbox.git(work, "rev-parse", "HEAD"), "ran": "false"}
 
 
 @needs_shell
@@ -795,11 +1074,15 @@ def test_a_run_that_wrote_its_record_is_published(
     _, work = sandbox.repo(BASE_FILES)
     touch = str(work / "data" / "last_run.json")
     result = sandbox.run_step(
-        "update.yml", "update", "run", work, {"GITHUB_EVENT_NAME": event, "STUB_UV_TOUCH": touch}
+        "update.yml", "fetch", "run", work, {"GITHUB_EVENT_NAME": event, "STUB_UV_TOUCH": touch}
     )
     assert result.status == 0
     assert result.calls == [command]
-    assert result.outputs == {"ran": "true"}
+    assert result.outputs == {
+        "base": sandbox.git(work, "rev-parse", "HEAD"),
+        "ran": "true",
+        "outcome": "ok",
+    }
 
 
 @needs_shell
@@ -807,55 +1090,86 @@ def test_the_first_record_of_a_new_repository_counts_as_a_run(sandbox: Sandbox) 
     _, work = sandbox.repo({"README.md": "x\n"})
     touch = str(work / "data" / "last_run.json")
     extra = {"GITHUB_EVENT_NAME": "schedule", "STUB_UV_TOUCH": touch}
-    result = sandbox.run_step("update.yml", "update", "run", work, extra)
-    assert result.outputs == {"ran": "true"}
+    result = sandbox.run_step("update.yml", "fetch", "run", work, extra)
+    assert result.outputs["ran"] == "true"
+
+
+# --- the commit step
 
 
 @needs_shell
-def test_the_commit_holds_only_data_and_is_pushed_by_the_bot(sandbox: Sandbox) -> None:
+def test_the_commit_mirrors_the_data_of_the_run_and_is_pushed_by_the_bot(
+    sandbox: Sandbox,
+) -> None:
     remote, work = sandbox.repo(BASE_FILES)
-    write(work / "data" / "events.json", "[1]\n")
-    write(work / "data" / "archive" / "2026.jsonl", "{}\n")
-    (work / "data" / "last_run.json").unlink()
+    run = {**data_of(BASE_FILES), "events.json": "[1]\n", "archive/2026.jsonl": "{}\n"}
+    del run["uid_map.json"]
+    sandbox.run_data(run)
     write(work / "README.md", "changed by a bug\n")
     write(work / "stray.txt", "not data\n")
-    result = sandbox.run_step("update.yml", "update", "commit", work, PUSH_ENV)
+    result = sandbox.run_step("update.yml", "commit", "commit", work, commit_env(sandbox, work))
     assert result.status == 0, result.stdout
     head = sandbox.git(remote, "log", "-1", "--format=%an <%ae>|%cn|%s", "main")
     author, committer, subject = head.split("|")
     assert author == "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
     assert committer == "github-actions[bot]"
     assert subject == f"chore(data): daily update {STUB_DAY}"
-    changed = sandbox.git(
-        remote, "show", "--no-renames", "--name-status", "--format=", "main"
-    ).splitlines()
-    assert sorted(changed) == [
+    assert changed_files(sandbox, remote) == [
         "A\tdata/archive/2026.jsonl",
-        "D\tdata/last_run.json",
+        "D\tdata/uid_map.json",
         "M\tdata/events.json",
     ]
 
 
 @needs_shell
-def test_nothing_is_committed_when_data_is_unchanged(sandbox: Sandbox) -> None:
+def test_a_total_outage_commits_only_the_records_of_the_run(sandbox: Sandbox) -> None:
+    remote, work = sandbox.repo(BASE_FILES)
+    records = dict.fromkeys(("health.json", "last_run.json"), '{"failed": true}\n')
+    run = {**data_of(BASE_FILES), **records, "events.json": "[]\n[]\n", "new.json": "{}\n"}
+    del run["uid_map.json"]
+    sandbox.run_data(run)
+    result = sandbox.run_step(
+        "update.yml", "commit", "commit", work, commit_env(sandbox, work, "outage")
+    )
+    assert result.status == 0, result.stdout
+    subject = sandbox.git(remote, "log", "-1", "--format=%s", "main")
+    assert subject == f"chore(data): record a failed update {STUB_DAY}"
+    assert changed_files(sandbox, remote) == ["M\tdata/health.json", "M\tdata/last_run.json"]
+
+
+@needs_shell
+def test_a_total_outage_of_a_new_repository_commits_its_records(sandbox: Sandbox) -> None:
+    remote, work = sandbox.repo({"README.md": "x\n"})
+    sandbox.run_data({"last_run.json": "{}\n", "run_report.json": "{}\n", "events.json": "[]\n"})
+    result = sandbox.run_step(
+        "update.yml", "commit", "commit", work, commit_env(sandbox, work, "outage")
+    )
+    assert result.status == 0, result.stdout
+    assert changed_files(sandbox, remote) == ["A\tdata/last_run.json", "A\tdata/run_report.json"]
+
+
+@needs_shell
+@pytest.mark.parametrize("outcome", ["ok", "outage"])
+def test_nothing_is_committed_when_data_is_unchanged(sandbox: Sandbox, outcome: str) -> None:
     remote, work = sandbox.repo(BASE_FILES)
     before = sandbox.git(remote, "rev-parse", "main")
+    sandbox.run_data(data_of(BASE_FILES))
     write(work / "README.md", "changed outside data\n")
-    result = sandbox.run_step("update.yml", "update", "commit", work, PUSH_ENV)
+    result = sandbox.run_step(
+        "update.yml", "commit", "commit", work, commit_env(sandbox, work, outcome)
+    )
     assert result.status == 0
     assert sandbox.git(remote, "rev-parse", "main") == before
     assert "nothing to commit" in result.stdout
 
 
 @needs_shell
-def test_the_data_commit_is_rebased_when_main_moved_during_the_run(sandbox: Sandbox) -> None:
+def test_the_data_commit_is_rebased_when_main_moved_during_the_push(sandbox: Sandbox) -> None:
     remote, work = sandbox.repo(BASE_FILES)
-    other = sandbox.clone(remote, "other")
-    write(other / "README.md", "pushed meanwhile\n")
-    sandbox.git(other, "commit", "--quiet", "--all", "--message", "docs: meanwhile")
-    sandbox.git(other, "push", "--quiet", "origin", "main")
-    write(work / "data" / "events.json", "[1]\n")
-    result = sandbox.run_step("update.yml", "update", "commit", work, PUSH_ENV)
+    env = commit_env(sandbox, work)
+    sandbox.push_from_other(remote, {"README.md": "pushed meanwhile\n"}, "docs: meanwhile")
+    sandbox.run_data({**data_of(BASE_FILES), "events.json": "[1]\n"})
+    result = sandbox.run_step("update.yml", "commit", "commit", work, env)
     assert result.status == 0, result.stdout
     subjects = sandbox.git(remote, "log", "--format=%s", "main").splitlines()
     assert subjects == [f"chore(data): daily update {STUB_DAY}", "docs: meanwhile", "seed"]
@@ -865,13 +1179,12 @@ def test_the_data_commit_is_rebased_when_main_moved_during_the_run(sandbox: Sand
 @needs_shell
 def test_a_data_commit_that_conflicts_with_main_fails_cleanly(sandbox: Sandbox) -> None:
     remote, work = sandbox.repo(BASE_FILES)
-    other = sandbox.clone(remote, "other")
-    write(other / "data" / "last_run.json", '{"by": "other"}\n')
-    sandbox.git(other, "commit", "--quiet", "--all", "--message", "chore(data): other")
-    sandbox.git(other, "push", "--quiet", "origin", "main")
-    pushed = sandbox.git(remote, "rev-parse", "main")
-    write(work / "data" / "last_run.json", '{"by": "work"}\n')
-    result = sandbox.run_step("update.yml", "update", "commit", work, PUSH_ENV)
+    env = commit_env(sandbox, work)
+    pushed = sandbox.push_from_other(
+        remote, {"data/last_run.json": '{"by": "other"}\n'}, "chore(data): other"
+    )
+    sandbox.run_data({**data_of(BASE_FILES), "last_run.json": '{"by": "work"}\n'})
+    result = sandbox.run_step("update.yml", "commit", "commit", work, env)
     assert result.status == 1, result.stdout
     assert "::error::The data commit could not be rebased onto main" in result.stdout
     assert sandbox.git(remote, "rev-parse", "main") == pushed
@@ -882,10 +1195,113 @@ def test_a_data_commit_that_conflicts_with_main_fails_cleanly(sandbox: Sandbox) 
 
 
 @needs_shell
+def test_main_that_moved_during_the_run_takes_the_data_when_it_left_data_alone(
+    sandbox: Sandbox,
+) -> None:
+    remote, first = sandbox.repo(BASE_FILES)
+    base = sandbox.git(first, "rev-parse", "HEAD")
+    sandbox.push_from_other(remote, {"README.md": "pushed meanwhile\n"}, "docs: meanwhile")
+    work = sandbox.clone(remote, "late")
+    sandbox.run_data({**data_of(BASE_FILES), "events.json": "[1]\n"})
+    env = {**PUSH_ENV, "RUN_OUTCOME": "ok", "RUN_BASE": base}
+    result = sandbox.run_step("update.yml", "commit", "commit", work, env)
+    assert result.status == 0, result.stdout
+    subjects = sandbox.git(remote, "log", "--format=%s", "main").splitlines()
+    assert subjects == [f"chore(data): daily update {STUB_DAY}", "docs: meanwhile", "seed"]
+    assert changed_files(sandbox, remote) == ["M\tdata/events.json"]
+
+
+@needs_shell
+def test_main_that_changed_data_during_the_run_gets_nothing(sandbox: Sandbox) -> None:
+    # Copying the data of the run over the new main would undo that change of data/.
+    remote, first = sandbox.repo(BASE_FILES)
+    base = sandbox.git(first, "rev-parse", "HEAD")
+    pushed = sandbox.push_from_other(
+        remote, {"data/uid_map.json": '{"fixed": "by hand"}\n'}, "fix(data): by hand"
+    )
+    work = sandbox.clone(remote, "late")
+    sandbox.run_data({**data_of(BASE_FILES), "events.json": "[1]\n"})
+    env = {**PUSH_ENV, "RUN_OUTCOME": "ok", "RUN_BASE": base}
+    result = sandbox.run_step("update.yml", "commit", "commit", work, env)
+    assert result.status == 1, result.stdout
+    assert "::error::main changed data/ while the pipeline ran" in result.stdout
+    assert sandbox.git(remote, "rev-parse", "main") == pushed
+
+
+@needs_shell
+@pytest.mark.parametrize(
+    "base", ["", "main", "HEAD~1", "--upload-pack=touch pwned", "0" * 39, "A" * 40]
+)
+def test_a_base_that_is_not_a_commit_sha_is_refused(sandbox: Sandbox, base: str) -> None:
+    remote, work = sandbox.repo(BASE_FILES)
+    before = sandbox.git(remote, "rev-parse", "main")
+    sandbox.run_data({**data_of(BASE_FILES), "events.json": "[1]\n"})
+    env = {**PUSH_ENV, "RUN_OUTCOME": "ok", "RUN_BASE": base}
+    result = sandbox.run_step("update.yml", "commit", "commit", work, env)
+    assert result.status == 1
+    assert "::error::The fetch job named no commit" in result.stdout
+    assert sandbox.git(remote, "rev-parse", "main") == before
+    assert not list(sandbox.root.rglob("pwned"))
+    assert result.calls == []
+
+
+@needs_shell
+@pytest.mark.parametrize("outcome", ["", "OK", "failed", "ok; touch pwned"])
+def test_an_unknown_outcome_is_refused(sandbox: Sandbox, outcome: str) -> None:
+    remote, work = sandbox.repo(BASE_FILES)
+    before = sandbox.git(remote, "rev-parse", "main")
+    sandbox.run_data({**data_of(BASE_FILES), "events.json": "[1]\n"})
+    result = sandbox.run_step(
+        "update.yml", "commit", "commit", work, commit_env(sandbox, work, outcome)
+    )
+    assert result.status == 1
+    assert "::error::The fetch job reported no known outcome" in result.stdout
+    assert sandbox.git(remote, "rev-parse", "main") == before
+    assert not list(sandbox.root.rglob("pwned"))
+
+
+@needs_shell
+def test_run_data_without_its_record_is_refused(sandbox: Sandbox) -> None:
+    remote, work = sandbox.repo(BASE_FILES)
+    before = sandbox.git(remote, "rev-parse", "main")
+    sandbox.run_data({"events.json": "[1]\n"})
+    result = sandbox.run_step("update.yml", "commit", "commit", work, commit_env(sandbox, work))
+    assert result.status == 1
+    assert "::error::The data of the run is missing" in result.stdout
+    assert sandbox.git(remote, "rev-parse", "main") == before
+
+
+@needs_shell
+def test_run_data_with_a_link_is_refused(sandbox: Sandbox) -> None:
+    remote, work = sandbox.repo(BASE_FILES)
+    before = sandbox.git(remote, "rev-parse", "main")
+    target = sandbox.run_data(data_of(BASE_FILES))
+    (target / "events.json").unlink()
+    (target / "events.json").symlink_to(work / ".git" / "config")
+    result = sandbox.run_step("update.yml", "commit", "commit", work, commit_env(sandbox, work))
+    assert result.status == 1
+    assert "holds something other than plain files and directories" in result.stdout
+    assert sandbox.git(remote, "rev-parse", "main") == before
+
+
+@needs_shell
+@pytest.mark.parametrize("hidden", [".git/config", "llm_cache/.hidden.json", ".gitattributes"])
+def test_run_data_with_a_hidden_name_is_refused(sandbox: Sandbox, hidden: str) -> None:
+    remote, work = sandbox.repo(BASE_FILES)
+    before = sandbox.git(remote, "rev-parse", "main")
+    sandbox.run_data({**data_of(BASE_FILES), hidden: "x\n"})
+    result = sandbox.run_step("update.yml", "commit", "commit", work, commit_env(sandbox, work))
+    assert result.status == 1
+    assert "holds something other than plain files and directories" in result.stdout
+    assert sandbox.git(remote, "rev-parse", "main") == before
+
+
+@needs_shell
 def test_the_push_gets_the_token_only_through_the_environment(sandbox: Sandbox) -> None:
     real_git = shutil.which("git")
     assert real_git
     remote, work = sandbox.repo(BASE_FILES)
+    env = commit_env(sandbox, work)
     headers = sandbox.root / "headers.log"
     # A git in front of the real one: logs every command line and, at the push, the
     # header that git itself sees.
@@ -898,9 +1314,9 @@ def test_the_push_gets_the_token_only_through_the_environment(sandbox: Sandbox) 
         "fi\n"
         'exec "$REAL_GIT" "$@"\n',
     )
-    write(work / "data" / "events.json", "[1]\n")
-    extra = {**PUSH_ENV, "REAL_GIT": real_git, "STUB_HEADERS": str(headers)}
-    result = sandbox.run_step("update.yml", "update", "commit", work, extra)
+    sandbox.run_data({**data_of(BASE_FILES), "events.json": "[1]\n"})
+    extra = {**env, "REAL_GIT": real_git, "STUB_HEADERS": str(headers)}
+    result = sandbox.run_step("update.yml", "commit", "commit", work, extra)
     assert result.status == 0, result.stdout
     basic = base64.b64encode(f"x-access-token:{STUB_TOKEN}".encode()).decode()
     assert headers.read_text(encoding="utf-8") == f"AUTHORIZATION: basic {basic}\n"
@@ -917,29 +1333,40 @@ def test_the_push_gets_the_token_only_through_the_environment(sandbox: Sandbox) 
 def test_the_commit_step_stops_without_the_token(sandbox: Sandbox) -> None:
     remote, work = sandbox.repo(BASE_FILES)
     before = sandbox.git(remote, "rev-parse", "main")
-    write(work / "data" / "events.json", "[1]\n")
-    result = sandbox.run_step("update.yml", "update", "commit", work, {"GITHUB_TOKEN": ""})
+    sandbox.run_data({**data_of(BASE_FILES), "events.json": "[1]\n"})
+    env = commit_env(sandbox, work, GITHUB_TOKEN="")
+    result = sandbox.run_step("update.yml", "commit", "commit", work, env)
     assert result.status == 1
     assert "::error::The workflow token is missing" in result.stdout
     assert sandbox.git(remote, "rev-parse", "main") == before
     assert sandbox.git(work, "rev-parse", "HEAD") == before
 
 
+# --- installing Claude Code
+
+
 def claude_config(work: Path, version: str | None) -> None:
     write(work / "config" / "llm.yaml", f"cli_versions:\n  claude-cli: {json.dumps(version)}\n")
 
 
+INSTALL_CALL: Final = (
+    "npm install --global --ignore-scripts --no-audit --no-fund @anthropic-ai/claude-code@2.1.322"
+)
+INSTALL_CALLS: Final = [INSTALL_CALL, "npm root --global", "npm prefix --global"]
+
+
 @needs_shell
-@pytest.mark.parametrize("job_id", ["update", "llm-smoke"])
+@pytest.mark.parametrize("job_id", ["fetch", "llm-smoke"])
 def test_claude_code_is_installed_at_the_recorded_version(sandbox: Sandbox, job_id: str) -> None:
     work = sandbox.root / "work"
     claude_config(work, "2.1.322")
     result = sandbox.run_step("update.yml", job_id, "claude", work)
     assert result.status == 0, result.stdout
-    assert result.calls[1:] == [
-        "npm install --global --no-audit --no-fund @anthropic-ai/claude-code@2.1.322",
-        "claude --version",
-    ]
+    # "claude" on PATH is now the binary of the platform package.
+    assert result.calls[1:] == [*INSTALL_CALLS, "native --version"]
+    linked = sandbox.npm_prefix / "bin" / "claude"
+    native = "lib/node_modules/@anthropic-ai/claude-code-linux-x64/claude"
+    assert linked.resolve() == (sandbox.npm_prefix / native).resolve()
 
 
 @needs_shell
@@ -949,38 +1376,39 @@ def test_claude_code_is_skipped_without_a_plain_recorded_version(
 ) -> None:
     work = sandbox.root / "work"
     claude_config(work, version)
-    result = sandbox.run_step("update.yml", "update", "claude", work)
+    result = sandbox.run_step("update.yml", "fetch", "claude", work)
     assert result.status == 0, result.stdout
     assert [call for call in result.calls if not call.startswith("uv ")] == []
     assert "::warning" in result.stdout
     assert not (work / "pwned").exists()
 
 
-INSTALL_CALL: Final = "npm install --global --no-audit --no-fund @anthropic-ai/claude-code@2.1.322"
-
-
 @needs_shell
-@pytest.mark.parametrize("job_id", ["update", "llm-smoke"])
+@pytest.mark.parametrize("job_id", ["fetch", "llm-smoke"])
 @pytest.mark.parametrize(
     ("broken", "calls"),
-    [("npm", [INSTALL_CALL]), ("claude", [INSTALL_CALL, "claude --version"])],
+    [
+        ({"STUB_NPM_STATUS": "1"}, [INSTALL_CALL]),
+        ({"STUB_NPM_NO_BINARY": "1"}, INSTALL_CALLS[:2]),
+        ({"STUB_NATIVE_STATUS": "1"}, [*INSTALL_CALLS, "native --version"]),
+    ],
 )
 def test_a_failed_claude_code_install_only_warns(
-    sandbox: Sandbox, job_id: str, broken: str, calls: list[str]
+    sandbox: Sandbox, job_id: str, broken: dict[str, str], calls: list[str]
 ) -> None:
-    # A version missing on npm, or a registry outage, must not cost the day's update:
-    # the LLM is optional and the provider chain copes without the claude binary.
+    # A version missing on npm, a package without the binary, or a registry outage must
+    # not cost the day's update: the LLM is optional and the provider chain copes
+    # without the claude binary.
     work = sandbox.root / "work"
     claude_config(work, "2.1.322")
-    sandbox.stub(broken, STUB_LOGGER + "exit 1\n")
-    result = sandbox.run_step("update.yml", job_id, "claude", work)
+    result = sandbox.run_step("update.yml", job_id, "claude", work, broken)
     assert result.status == 0, result.stdout
     assert result.calls[1:] == calls
     assert "::warning::Claude Code 2.1.322 could not be installed" in result.stdout
 
 
 @needs_shell
-@pytest.mark.parametrize("job_id", ["update", "llm-smoke"])
+@pytest.mark.parametrize("job_id", ["fetch", "llm-smoke"])
 def test_an_unreadable_llm_config_only_warns_at_the_install(sandbox: Sandbox, job_id: str) -> None:
     work = sandbox.root / "work"
     write(work / "config" / "llm.yaml", "cli_versions: [unclosed\n")
@@ -988,6 +1416,9 @@ def test_an_unreadable_llm_config_only_warns_at_the_install(sandbox: Sandbox, jo
     assert result.status == 0, result.stdout
     assert [call for call in result.calls if not call.startswith("uv ")] == []
     assert "::warning::The claude-cli version could not be read" in result.stdout
+
+
+# --- the digest
 
 
 @needs_shell

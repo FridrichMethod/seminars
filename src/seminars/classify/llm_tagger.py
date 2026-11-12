@@ -5,12 +5,16 @@
 cases (``needs_llm`` or uncertain) and gets one ``LLMTagResult`` per event
 uid, or nothing for an event when no answer could be had.
 
-Cost. Events are sent in batches (``LLMConfig.batch_size`` per request, and
-never more text than ``max_input_chars``), and every answer is stored in the
-cache under a key made of the prompt version, the task and the text of the
-event. Neither the model nor the provider is part of the key, so a new
-credential, plan or model does not ask again, and the same event under
-another uid is a hit as well.
+Cost. Every answer that is used is stored in the cache under a key made of
+the prompt version, the task and the text of the event. Neither the model
+nor the provider is part of the key, so a new credential, plan or model does
+not ask again, and the same event under another uid is a hit as well. Events
+with fields from their source are sent in batches (``LLMConfig.batch_size``
+per request, and never more text than ``max_input_chars``). An event without
+them is asked in a request of its own (see below), so over an empty cache a
+run makes about one request per such event; the provider chain stops at
+``LLMConfig.max_calls_per_run``, and the next runs ask for the rest. These
+requests go first, because the feeds depend on their answers.
 
 Hostile input. Titles and abstracts are text from web pages. They reach the
 model as a JSON list between two marker lines, and the system prompt says
@@ -21,6 +25,30 @@ numbers, booleans and the seven field ids, an answer that breaks the schema
 is discarded as a whole, and a result for an index that was not asked for is
 ignored. That closed vocabulary is also why the tag-only provider (the codex
 CLI) may serve these requests.
+
+One event of a batch cannot decide about another. The system prompt forbids
+it, but a model may still obey an instruction in one event about the others
+of its request, and the answer would be cached under the key of each
+victim. Two rules keep such an answer from deciding anything:
+
+* An event without fields from its source (``source_fields``) is always
+  asked alone, in a request of its own (``_alone``). These are the events
+  whose fields the LLM decides: an event that the rules cannot place has
+  no fields from its source. No other event is ever in the request that
+  decides them.
+* An answer from a request of several events is used as it is only when
+  it says what the source says anyway (``_settled``: a talk, with exactly
+  the fields of the source). Any other answer (no talk, other fields) is
+  asked again for that event alone, and only the answer of that request
+  is used and cached; when that request fails, the event has no answer.
+
+What remains: a hostile event can still make the batch answer of a
+neighbour with source fields say just what its source says. The pipeline
+takes fields from an answer only for an event that the rules cannot place,
+which never shares a request, so such a neighbour keeps the fields the
+rules give it, as if the LLM had not been asked; one that is no talk stays
+in the feeds, for as long as its text stays the same. No batch answer can
+leave an event out or take its fields away.
 
 Secrets. The cache holds no text of an event: an entry is the answer for one
 event, field ids of the closed vocabulary and the yes or no of ``is_talk``
@@ -190,6 +218,23 @@ class _Open:
     uids: tuple[str, ...]
 
 
+def _alone(item: _Open) -> bool:
+    """Whether ``item`` is asked in a request of its own: it has no fields from its source."""
+    return not item.payload.get("source_fields")
+
+
+def _settled(item: _Open, result: LLMTagResult) -> bool:
+    """Whether a batch answer may stand for ``item`` without asking about it alone.
+
+    It may when it changes nothing that the source does not say anyway: a
+    talk, with exactly the fields the source gives (``source_fields`` of the
+    payload, in any order). Only events with source fields are ever in a
+    batch (``_alone``), so the answer "a talk, with no fields" never stands.
+    """
+    source_fields = item.payload.get("source_fields", [])
+    return bool(source_fields) and result.is_talk and set(result.fields) == set(source_fields)
+
+
 class LLMTagger:
     """``LLMFieldTagger`` over any ``LLMClient``; see the module docstring."""
 
@@ -226,13 +271,20 @@ class LLMTagger:
             record_skipped_too_long(self._client, skipped)
         return fitting
 
-    def _batches(self, pending: Sequence[_Open]) -> Iterator[list[_Open]]:
-        """Split ``pending`` into requests within the batch size and the input limit.
+    def _requests(self, pending: Sequence[_Open]) -> Iterator[list[_Open]]:
+        """The requests for ``pending``: each event without source fields alone, then batches.
 
-        Every event of ``pending`` fits into a request of its own (``_fitting``).
+        A batch holds only events with source fields and stays within the
+        batch size and the input limit. Every event of ``pending`` fits into
+        a request of its own (``_fitting``).
         """
+        for item in pending:
+            if _alone(item):
+                yield [item]
         batch: list[_Open] = []
         for item in pending:
+            if _alone(item):
+                continue
             trial = [*batch, item]
             prompt = build_user_prompt([entry.payload for entry in trial])
             if len(trial) > self._batch_size or len(prompt) > self._max_input_chars:
@@ -259,22 +311,61 @@ class LLMTagger:
                 )
         return answers
 
-    def _collect(self, pending: Sequence[_Open]) -> dict[str, LLMTagResult]:
-        """Ask for everything in ``pending`` and store the answers; never raises ``LLMError``."""
+    def _store(self, answers: Mapping[str, LLMTagResult]) -> None:
+        if self._cache is not None:
+            for key, result in answers.items():
+                self._cache.put(key, result.model_dump(mode="json"))
+
+    def _answer(self, batch: Sequence[_Open]) -> tuple[dict[str, LLMTagResult], bool]:
+        """The answers for one batch, stored, and whether tagging has to stop.
+
+        Batch answers that are not ``_settled`` are asked again, one event
+        per request (see the module docstring). Never raises ``LLMError``:
+        an answer that is discarded leaves its events without one, and any
+        other error stops the tagging.
+        """
+        try:
+            found = self._ask(batch)
+        except LLMInvalidOutputError:
+            logger.info("LLM tagging: the answer for %d event(s) was discarded", len(batch))
+            return {}, False
+        except LLMError as error:
+            logger.info("LLM tagging stopped: %s", type(error).__name__)
+            return {}, True
         answers: dict[str, LLMTagResult] = {}
-        for batch in self._batches(self._fitting(pending)):
+        doubtful: list[_Open] = []
+        for item in batch:
+            result = found.get(item.key)
+            if result is None:
+                continue
+            if len(batch) == 1 or _settled(item, result):
+                answers[item.key] = result
+            else:
+                doubtful.append(item)
+        self._store(answers)
+        if doubtful:
+            logger.info("LLM tagging: %d batch answer(s) are asked again alone", len(doubtful))
+        for item in doubtful:
             try:
-                found = self._ask(batch)
+                alone = self._ask([item])
             except LLMInvalidOutputError:
-                logger.info("LLM tagging: the answer for %d event(s) was discarded", len(batch))
+                logger.info("LLM tagging: the answer for 1 event was discarded")
                 continue
             except LLMError as error:
                 logger.info("LLM tagging stopped: %s", type(error).__name__)
-                break
-            for key, result in found.items():
-                if self._cache is not None:
-                    self._cache.put(key, result.model_dump(mode="json"))
+                return answers, True
+            self._store(alone)
+            answers.update(alone)
+        return answers, False
+
+    def _collect(self, pending: Sequence[_Open]) -> dict[str, LLMTagResult]:
+        """Ask for everything in ``pending`` and store the answers; never raises ``LLMError``."""
+        answers: dict[str, LLMTagResult] = {}
+        for batch in self._requests(self._fitting(pending)):
+            found, stop = self._answer(batch)
             answers.update(found)
+            if stop:
+                break
         return answers
 
     def tag_batch(self, candidates: Sequence[Candidate]) -> dict[str, LLMTagResult]:

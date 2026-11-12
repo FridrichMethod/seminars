@@ -13,11 +13,18 @@
 # UTC fallback, should the timezone key ever stop working: '23 12 * * *' and
 # '23 18 * * *' (04:23 and 10:23 PST, 05:23 and 11:23 PDT).
 #
-# Jobs and what each one may do with the workflow token (top level: read only):
-# - update: runs the pipeline, commits data/ as github-actions[bot] and builds the
-#   site artifact (contents: write for the push, issues: write for the health issues
-#   that the run opens and closes).
-# - deploy: deploys the artifact (pages: write and id-token: write, nothing else).
+# Jobs, in order, and what each one may do with the workflow token (top level: read
+# only). The job that runs code from the web and from package registries cannot push,
+# and the job that can push runs nothing but git:
+# - fetch: runs the pipeline with the LLM credentials, validates the result and
+#   uploads data/ as an artifact of the run (contents: read; issues: write for the
+#   health issues that the run opens and closes).
+# - commit: downloads that artifact and commits it as github-actions[bot] (contents:
+#   write for the push). It installs nothing and runs no project code, no uv and no npm.
+# - build: builds the site from the new tip of main and validates it (read only).
+# - deploy: deploys the site (pages: write and id-token: write, nothing else).
+# - outage (only after a failed run, see below): fails the workflow run once the
+#   failure is recorded, so that GitHub reports it.
 # - llm-smoke (manual, mode llm-smoke): probes every configured LLM provider and
 #   prints the result; it commits nothing and deploys nothing (contents: read).
 # All runs of this workflow share one concurrency group, so two of them never run at
@@ -26,39 +33,62 @@
 # Each job that checks out the repository takes the tip of main when it starts
 # (ref: main), not the commit the run was created for, so a run that waited starts
 # from the data commit of the run before it: a catch-up then sees that today's run is
-# done, and nothing is computed from old data. Should main still move during a run in a way that the data commit
-# cannot be rebased onto, the job fails before anything is deployed, and the next run
-# starts again from the new main.
+# done, and nothing is computed from old data. The commit job never checks out what
+# the fetch job names. It commits on the tip of main, and only when main has not
+# changed data/ since the fetch job started; should main move during the push in a
+# way that the data commit cannot be rebased onto, the job fails before anything is
+# deployed, and the next run starts again from the new main.
 #
 # Credentials: the LLM secrets CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY,
 # OPENAI_API_KEY and LLM_API_KEY reach only the step that runs the pipeline and the
 # smoke step, through env (empty when a secret is not set). The repository variables
 # LLM_PROVIDERS, LLM_MODEL_<PROVIDER> and LLM_BASE_URL go the same way. The workflow
 # token reaches only the pipeline step (for issues) and the commit step, which hands
-# it to git for the push. No checkout keeps it in .git/config, so the steps that
-# install packages (uv, npm) do not get it.
-# Nothing is ever interpolated into a script: scripts read values from env.
+# it to git for the push. No checkout keeps it in .git/config.
+# Environment variables are no fence inside one job: any step can read the memory of
+# the runner and write the environment of later steps. So before a step that holds a
+# credential, a step of its own without one runs "uv sync --locked": the build of the
+# project (the build backend is pinned by [tool.uv] build-constraint-dependencies in
+# pyproject.toml) and every package install happen there, and the job that can push
+# installs nothing at all.
+# Nothing is ever interpolated into a script: scripts read values from env, and the
+# commit step checks the outputs of the fetch job before it uses them.
 #
 # Exit status of seminars run: 0 ok or skipped, 1 failed, 3 an output check failed
 # (the secret scan found something, or a file below data/ breaks the charset rule).
-# Any non-zero status fails the job right there, before anything is committed or
-# deployed.
+# - 3, or any status but 0 and 1: the fetch job fails right there, and nothing is
+#   committed or deployed.
+# - 1 after the run recorded itself as failed (data/last_run.json rewritten, with
+#   "ok": false): a failed run. Every source failed (a total outage), or, rarely, the
+#   feeds and the site data could not be written. The commit job commits only
+#   data/health.json, data/last_run.json and data/run_report.json, not the events, so
+#   that the health history counts the failure, the health issues open after the usual
+#   number of bad runs, and the deployed status page shows the failed run. The outage
+#   job then fails the workflow run.
+# - 1 in any other case: the run could not start, or it stopped on an error that
+#   nothing caught (Python exits with 1 then, possibly after a record that says the
+#   run went well). The fetch job fails, and nothing is committed or deployed.
 #
-# Actions, and why each one is used:
-# - actions/checkout (major tag v7): fetches the tip of main and keeps no credential
-#   in the checkout (persist-credentials: false).
-# - astral-sh/setup-uv (third-party, without a floating major tag, so it is pinned to
-#   a full commit SHA with the release in a comment): installs uv, which installs the
-#   locked dependencies. Its cache is off here, so no cache entry can feed this
-#   privileged workflow.
-# - actions/setup-node (major tag v7): Node.js for the Claude Code CLI, installed only
-#   when CLAUDE_CODE_OAUTH_TOKEN is set, at the version recorded in config/llm.yaml.
-#   The LLM is optional, so when that install fails (an unknown version, a registry
-#   outage) the step only warns and the run goes on without Claude Code.
-# - actions/upload-pages-artifact (major tag v5): packs public/ for Pages.
-# - actions/configure-pages (major tag v6): checks that Pages is set up for this
-#   repository before the deployment.
-# - actions/deploy-pages (major tag v5): deploys the artifact to the github-pages
+# Actions, and why each one is used. Every action is pinned to the full commit SHA of
+# a release, with the release in a comment: a tag can be moved, a commit cannot.
+# - actions/checkout (v7.0.1): fetches the tip of main and keeps no credential in the
+#   checkout (persist-credentials: false).
+# - astral-sh/setup-uv (v10.3.3, third-party): installs uv, which installs the locked
+#   dependencies. Its cache is off here, so no cache entry can feed this privileged
+#   workflow.
+# - actions/setup-node (v7.1.0): Node.js for the Claude Code CLI, installed only when
+#   CLAUDE_CODE_OAUTH_TOKEN is set, at the version recorded in config/llm.yaml. npm
+#   runs no install script of any package (--ignore-scripts); the one script of the
+#   CLI package only puts the binary of its platform package in place of a
+#   placeholder, and the step links that binary itself. The LLM is optional, so when
+#   the install fails (an unknown version, a registry outage) the step only warns and
+#   the run goes on without Claude Code.
+# - actions/upload-artifact (v7.0.2) and actions/download-artifact (v8.0.2): carry
+#   data/ from the fetch job to the commit job, kept for one day.
+# - actions/upload-pages-artifact (v5.0.0): packs public/ for Pages.
+# - actions/configure-pages (v6.0.0): checks that Pages is set up for this repository
+#   before the deployment.
+# - actions/deploy-pages (v5.0.1): deploys the artifact to the github-pages
 #   environment.
 #
 # GitHub disables the schedule of a public repository after 60 days without activity.
@@ -97,23 +127,25 @@ defaults:
     shell: bash
 
 jobs:
-  update:
-    name: Fetch, commit and build
+  fetch:
+    name: Fetch and check
     if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || inputs.mode == 'full')
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:
-      contents: write
-      issues: write
+      contents: read
+      issues: write # the health issues that the run opens and closes
     env:
       # An "if:" cannot read the secrets context; this flag only says whether the
       # Claude token is set.
       HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
     outputs:
       ran: ${{ steps.run.outputs.ran }}
+      outcome: ${{ steps.run.outputs.outcome }}
+      base: ${{ steps.run.outputs.base }}
     steps:
       - name: Check out main
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           persist-credentials: false
@@ -121,16 +153,20 @@ jobs:
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: false
+      - name: Install the locked dependencies
+        id: sync
+        run: uv sync --locked
       - name: Install Node.js for Claude Code
         if: env.HAS_CLAUDE_TOKEN == 'true'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
       - name: Install Claude Code at the recorded version
         id: claude
         if: env.HAS_CLAUDE_TOKEN == 'true'
         # The LLM is optional: whatever goes wrong here is a warning, and the provider
-        # chain goes on without Claude Code.
+        # chain goes on without Claude Code. The runner is linux-x64, so the binary is
+        # the one of @anthropic-ai/claude-code-linux-x64.
         run: |
           if ! version="$(uv run --locked python -c 'from pathlib import Path; from seminars.config import load_llm_config; print(load_llm_config(Path("config/llm.yaml")).cli_versions.get("claude-cli") or "")')"; then
             echo "::warning::The claude-cli version could not be read from config/llm.yaml; Claude Code is not installed and the provider chain goes on without it."
@@ -140,7 +176,12 @@ jobs:
             echo "::warning::config/llm.yaml records no plain X.Y.Z version of claude-cli; Claude Code is not installed and the provider chain goes on without it."
             exit 0
           fi
-          if ! npm install --global --no-audit --no-fund "@anthropic-ai/claude-code@${version}" || ! claude --version; then
+          if ! npm install --global --ignore-scripts --no-audit --no-fund "@anthropic-ai/claude-code@${version}"; then
+            echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
+            exit 0
+          fi
+          native="$(npm root --global)/@anthropic-ai/claude-code-linux-x64/claude"
+          if [ ! -x "${native}" ] || ! ln -sf "${native}" "$(npm prefix --global)/bin/claude" || ! claude --version; then
             echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
             exit 0
           fi
@@ -163,55 +204,152 @@ jobs:
           if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
             args+=(--skip-if-done-today)
           fi
+          echo "base=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
           status=0
           uv run --locked seminars "${args[@]}" || status=$?
-          if [ "${status}" -eq 3 ]; then
-            echo "::error::Output check failed (secret scan or charset rule of data/): nothing is committed or deployed."
-            exit 3
-          fi
-          if [ "${status}" -ne 0 ]; then
-            echo "::error::seminars run failed with exit status ${status}: nothing is committed or deployed."
-            exit "${status}"
-          fi
+          case "${status}" in
+            0) outcome=ok ;;
+            1) outcome=outage ;;
+            3)
+              echo "::error::Output check failed (secret scan or charset rule of data/): nothing is committed or deployed."
+              exit 3
+              ;;
+            *)
+              echo "::error::seminars run failed with exit status ${status}: nothing is committed or deployed."
+              exit "${status}"
+              ;;
+          esac
           # Every run that is not skipped rewrites data/last_run.json.
-          if [ -n "$(git status --porcelain --untracked-files=all -- data/last_run.json)" ]; then
-            echo "ran=true" >> "${GITHUB_OUTPUT}"
-          else
+          if [ -z "$(git status --porcelain --untracked-files=all -- data/last_run.json)" ]; then
+            if [ "${outcome}" = "outage" ]; then
+              echo "::error::seminars run failed with exit status 1 before it recorded the run: nothing is committed or deployed."
+              exit 1
+            fi
             echo "Today's run had already succeeded; nothing to publish."
             echo "ran=false" >> "${GITHUB_OUTPUT}"
+            exit 0
           fi
+          # Python also exits with 1 for an error that nothing caught, even after the
+          # record of a successful run was written. Only a record of a failed run makes
+          # status 1 an outage whose records are committed.
+          if [ "${outcome}" = "outage" ]; then
+            if ! uv run --locked python -I -c 'import json, sys; record = json.load(open("data/last_run.json", encoding="utf-8")); sys.exit(0 if isinstance(record, dict) and record.get("ok") is False else 1)'; then
+              echo "::error::seminars run failed with exit status 1, but data/last_run.json does not record a failed run: the run could not finish, and nothing is committed or deployed."
+              exit 1
+            fi
+            echo "::warning::seminars run failed with exit status 1 (every source failed, or the feeds could not be written): only the records of the run are committed, the events stay as they are, and the workflow run fails at the end."
+          fi
+          echo "ran=true" >> "${GITHUB_OUTPUT}"
+          echo "outcome=${outcome}" >> "${GITHUB_OUTPUT}"
       - name: Validate data and feeds
         id: validate
-        if: steps.run.outputs.ran == 'true'
+        if: steps.run.outputs.ran == 'true' && steps.run.outputs.outcome == 'ok'
         run: uv run --locked seminars validate
+      - name: Upload the data of the run
+        id: upload
+        if: steps.run.outputs.ran == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: run-data
+          path: data
+          if-no-files-found: error
+          retention-days: 1
+
+  commit:
+    name: Commit data
+    needs: fetch
+    if: needs.fetch.outputs.ran == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # the push of the data commit
+    steps:
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Download the data of the run
+        id: download
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: run-data
+          path: ${{ runner.temp }}/run-data
       - name: Commit data
         id: commit
-        if: steps.run.outputs.ran == 'true'
         env:
           GIT_AUTHOR_NAME: github-actions[bot]
           GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GITHUB_TOKEN: ${{ github.token }}
-        # The token reaches git only here, as the HTTP header of the push and the pull,
-        # set through git's environment (GIT_CONFIG_*): never on a command line and
-        # never written to .git/config.
+          RUN_OUTCOME: ${{ needs.fetch.outputs.outcome }}
+          RUN_BASE: ${{ needs.fetch.outputs.base }}
+        # The token reaches git only here, as the HTTP header of the fetch, the push and
+        # the pull, set through git's environment (GIT_CONFIG_*): never on a command
+        # line and never written to .git/config. The fetch job ran code from the web, so
+        # its outputs and its artifact are checked before they are used, and only paths
+        # below data/ are ever staged.
         run: |
           if [ -z "${GITHUB_TOKEN:-}" ]; then
             echo "::error::The workflow token is missing: the data commit cannot be pushed."
             exit 1
           fi
-          git add --all -- data
+          if [[ ! "${RUN_BASE:-}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::The fetch job named no commit it started from: nothing is committed."
+            exit 1
+          fi
+          run_data="${RUNNER_TEMP:?}/run-data"
+          # The pipeline writes plain files only, and none whose name starts with a dot.
+          if [ ! -f "${run_data}/last_run.json" ] || [ -n "$(find "${run_data}" -mindepth 1 \( -name '.*' -o \( ! -type f ! -type d \) \) -print -quit)" ]; then
+            echo "::error::The data of the run is missing or holds something other than plain files and directories: nothing is committed."
+            exit 1
+          fi
+          basic="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 --wrap=0)"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL:-https://github.com}/.extraheader"
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${basic}"
+          if [ "$(git rev-parse HEAD)" != "${RUN_BASE}" ]; then
+            # main moved while the pipeline ran: the data of the run fits only when
+            # data/ is still what the pipeline started from.
+            if ! git fetch --quiet --depth=1 origin "${RUN_BASE}" || ! git diff --quiet "${RUN_BASE}" HEAD -- data; then
+              echo "::error::main changed data/ while the pipeline ran (or the fetch failed): nothing is committed or deployed, and the next run starts from the new main."
+              exit 1
+            fi
+          fi
+          case "${RUN_OUTCOME:-}" in
+            ok)
+              # The run decides all of data/: what it removed is removed here as well.
+              rm -rf data
+              cp -R "${run_data}" data
+              git add --all -- data
+              subject="chore(data): daily update"
+              ;;
+            outage)
+              # The run failed: only the records of the run, so that health and the
+              # status page see the failure, while the events stay as they are.
+              mkdir -p data
+              records=()
+              for name in health.json last_run.json run_report.json; do
+                if [ -f "${run_data}/${name}" ]; then
+                  cp "${run_data}/${name}" "data/${name}"
+                  records+=("data/${name}")
+                fi
+              done
+              git add -- "${records[@]}"
+              subject="chore(data): record a failed update"
+              ;;
+            *)
+              echo "::error::The fetch job reported no known outcome: nothing is committed."
+              exit 1
+              ;;
+          esac
           if git diff --cached --quiet; then
             echo "data/ is unchanged: nothing to commit."
             exit 0
           fi
           day="$(TZ=America/Los_Angeles date +%F)"
-          git commit --quiet --message "chore(data): daily update ${day}"
-          basic="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 --wrap=0)"
-          export GIT_CONFIG_COUNT=1
-          export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL:-https://github.com}/.extraheader"
-          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${basic}"
+          git commit --quiet --message "${subject} ${day}"
           attempt=1
           until git push --quiet origin HEAD:main; do
             if [ "${attempt}" -ge 3 ]; then
@@ -226,35 +364,67 @@ jobs:
             fi
             attempt=$((attempt + 1))
           done
+
+  build:
+    name: Build the site
+    needs: commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      - name: Install the locked dependencies
+        id: sync
+        run: uv sync --locked
       - name: Build the site
         id: build
-        if: steps.run.outputs.ran == 'true'
         run: uv run --locked seminars build-site
+      - name: Validate data, site and feeds
+        id: validate
+        run: uv run --locked seminars validate
       - name: Upload the site artifact
         id: upload
-        if: steps.run.outputs.ran == 'true'
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: public
 
   deploy:
     name: Deploy to GitHub Pages
-    needs: update
-    if: needs.update.outputs.ran == 'true'
+    needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      pages: write
-      id-token: write
+      pages: write # the deployment of the site
+      id-token: write # the token that proves the deployment to Pages
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Configure Pages
-        uses: actions/configure-pages@v6
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - name: Deploy the artifact
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  outage:
+    name: Report the failed run
+    needs: [fetch, deploy]
+    if: needs.fetch.outputs.outcome == 'outage'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fail the run
+        id: fail
+        run: |
+          echo "::error::seminars run failed: every source failed, or the feeds could not be written. The records of the run were committed and the status page shows the failed run; the events are unchanged."
+          exit 1
 
   llm-smoke:
     name: Probe the LLM providers
@@ -269,7 +439,7 @@ jobs:
       HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
     steps:
       - name: Check out main
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           persist-credentials: false
@@ -277,16 +447,20 @@ jobs:
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: false
+      - name: Install the locked dependencies
+        id: sync
+        run: uv sync --locked
       - name: Install Node.js for Claude Code
         if: env.HAS_CLAUDE_TOKEN == 'true'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
       - name: Install Claude Code at the recorded version
         id: claude
         if: env.HAS_CLAUDE_TOKEN == 'true'
         # The LLM is optional: whatever goes wrong here is a warning, and the provider
-        # chain goes on without Claude Code.
+        # chain goes on without Claude Code. The runner is linux-x64, so the binary is
+        # the one of @anthropic-ai/claude-code-linux-x64.
         run: |
           if ! version="$(uv run --locked python -c 'from pathlib import Path; from seminars.config import load_llm_config; print(load_llm_config(Path("config/llm.yaml")).cli_versions.get("claude-cli") or "")')"; then
             echo "::warning::The claude-cli version could not be read from config/llm.yaml; Claude Code is not installed and the provider chain goes on without it."
@@ -296,7 +470,12 @@ jobs:
             echo "::warning::config/llm.yaml records no plain X.Y.Z version of claude-cli; Claude Code is not installed and the provider chain goes on without it."
             exit 0
           fi
-          if ! npm install --global --no-audit --no-fund "@anthropic-ai/claude-code@${version}" || ! claude --version; then
+          if ! npm install --global --ignore-scripts --no-audit --no-fund "@anthropic-ai/claude-code@${version}"; then
+            echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
+            exit 0
+          fi
+          native="$(npm root --global)/@anthropic-ai/claude-code-linux-x64/claude"
+          if [ ! -x "${native}" ] || ! ln -sf "${native}" "$(npm prefix --global)/bin/claude" || ! claude --version; then
             echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
             exit 0
           fi

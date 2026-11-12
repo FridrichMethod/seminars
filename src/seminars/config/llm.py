@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import ipaddress
 from collections.abc import Mapping, Sequence
 from typing import Annotated, Final, Literal, get_args
+from urllib.parse import urlsplit
 
-from pydantic import Field
+from pydantic import AfterValidator, Field
 
 from seminars.models import Model
 from seminars.models.base import HttpUrlStr
@@ -47,6 +49,41 @@ ENV_LLM_MODEL_PREFIX: Final = "LLM_MODEL_"
 ENV_GITHUB_ACTIONS: Final = "GITHUB_ACTIONS"
 
 
+def _is_this_machine(host: str) -> bool:
+    """Whether ``host`` names this machine: ``localhost`` or a loopback address."""
+    from seminars.http import canonical_host  # seminars.http imports seminars.config
+
+    try:
+        name = canonical_host(host)
+    except ValueError:
+        return False
+    if name == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(name).is_loopback
+    except ValueError:
+        return False
+
+
+def check_endpoint_url(value: str) -> str:
+    """Refuse an endpoint that would carry the API key in clear text; return it unchanged.
+
+    The openai-compat provider sends LLM_API_KEY to this URL with every
+    request, so it must be https. Plain http is accepted only for this
+    machine (``localhost`` or a loopback address), where nothing leaves it.
+    """
+    parts = urlsplit(value)
+    if parts.scheme == "https" or _is_this_machine(parts.hostname or ""):
+        return value
+    raise ValueError(
+        "the LLM endpoint must use https (plain http only for localhost or a loopback address)"
+    )
+
+
+EndpointUrl = Annotated[HttpUrlStr, AfterValidator(check_endpoint_url)]
+"""An absolute https URL, or an http URL of this machine (``check_endpoint_url``)."""
+
+
 def model_env_var(provider: str) -> str:
     """Name of the variable that overrides a provider's model, e.g. LLM_MODEL_CLAUDE_CLI."""
     return ENV_LLM_MODEL_PREFIX + provider.upper().replace("-", "_")
@@ -61,7 +98,9 @@ class LLMConfig(Model):
       providers are skipped). Model names never live in code.
     * ``cli_versions``: the CLI version each CLI provider was verified with;
       Claude Code is installed at exactly this version in CI.
-    * ``base_url``: endpoint of the ``openai-compat`` provider.
+    * ``base_url``: endpoint of the ``openai-compat`` provider; https, or
+      plain http on this machine only (``check_endpoint_url``), because the
+      API key goes there with every request.
     * ``batch_size``: events per tagging request.
     * ``max_calls_per_run``: hard cap of provider requests in one run.
     * ``max_input_chars``: longest user prompt that is sent; longer inputs are
@@ -80,7 +119,7 @@ class LLMConfig(Model):
     providers: list[ProviderId] = list(PROVIDER_IDS)
     models: dict[ProviderId, str | None] = {}
     cli_versions: dict[CliProviderId, str | None] = {}
-    base_url: HttpUrlStr | None = None
+    base_url: EndpointUrl | None = None
     batch_size: Annotated[int, Field(ge=1)] = 20
     max_calls_per_run: Annotated[int, Field(ge=0)] = 60
     max_input_chars: Annotated[int, Field(ge=1)] = 12000

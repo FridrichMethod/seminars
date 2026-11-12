@@ -34,6 +34,8 @@ cli_versions:
   codex-cli: "0.167.0"
 
 # Endpoint of openai-compat, e.g. https://llm.example.org/v1 (or set LLM_BASE_URL).
+# It must be https: LLM_API_KEY goes there with every request. Plain http is accepted
+# only for this machine (localhost or a loopback address).
 base_url: null
 
 batch_size: 20              # events per tagging request
