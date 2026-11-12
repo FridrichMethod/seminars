@@ -291,6 +291,22 @@ class TestFields:
         [draft] = parse_page(event(eventStatus=status))
         assert (draft.status_hint, draft.is_online) == (hint, online)
 
+    @pytest.mark.parametrize(
+        ("status", "mode", "hint", "online"),
+        [
+            ({"@id": "https://schema.org/EventCancelled"}, None, "cancelled", None),
+            ({"@id": "schema:EventMovedOnline"}, None, "confirmed", True),
+            (None, {"@id": "https://schema.org/OfflineEventAttendanceMode"}, None, False),
+            (None, [{"@id": "https://schema.org/MixedEventAttendanceMode"}], None, True),
+            ({"@value": "EventPostponed"}, {"@id": 7}, "cancelled", None),
+        ],
+    )
+    def test_statuses_and_modes_as_node_references(
+        self, status: Any, mode: Any, hint: str | None, online: bool | None
+    ) -> None:
+        [draft] = parse_page(event(eventStatus=status, eventAttendanceMode=mode))
+        assert (draft.status_hint, draft.is_online) == (hint, online)
+
     def test_performers_organizers_and_series(self) -> None:
         talk = event(
             performer=[

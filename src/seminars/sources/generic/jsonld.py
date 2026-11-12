@@ -23,6 +23,8 @@ How an Event maps to a draft:
   VirtualLocation (online; its url is the stream url) or a list of them
   (hybrid).
 * ``eventAttendanceMode``: Online and Mixed mean online, Offline means not.
+  This and ``eventStatus`` may be text, an IRI or a node reference
+  (``{"@id": "https://schema.org/EventCancelled"}``).
 * ``eventStatus``: EventCancelled and EventPostponed mean cancelled (a
   postponed date does not take place), EventScheduled, EventRescheduled and
   EventMovedOnline confirmed (the last one also online).
@@ -129,6 +131,15 @@ def last_segment(value: object) -> str | None:
     if not isinstance(value, str):
         return None
     return re.split(r"[/#:]", value.strip())[-1] or None
+
+
+def term_of(value: Any) -> str | None:
+    """The last segment of a term written as text, ``{"@id": ...}`` or ``{"@value": ...}``."""
+    if isinstance(value, list):
+        value = value[0] if value else None
+    if isinstance(value, dict):
+        value = value.get("@id") or value.get("@value")
+    return last_segment(value)
 
 
 def types_of(node: Mapping[str, Any]) -> list[str]:
@@ -290,8 +301,8 @@ def event_draft(
         return None
     base = page.final_url
     location, stream, virtual = read_location(event.get("location"), ids, base)
-    mode = last_segment(text_of(event.get("eventAttendanceMode")))
-    status = last_segment(text_of(event.get("eventStatus")))
+    mode = term_of(event.get("eventAttendanceMode"))
+    status = term_of(event.get("eventStatus"))
     online = _ONLINE_MODES.get(mode or "")
     if virtual or status == "EventMovedOnline":
         online = True
