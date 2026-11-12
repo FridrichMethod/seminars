@@ -62,7 +62,8 @@ The field tagger (``build_field_tagger``) decides the fields of a candidate:
    passing, in a speaker's biography or a list of words, and a decision of
    the rules is final when no LLM is configured, so such a field is only
    reported. For an event that has source fields, and so is known to be a
-   talk of the seven fields, the abstract counts in full and can add fields.
+   talk of the seven fields, the talk part of the abstract counts like the
+   title and can add fields.
 4. The fields are the union of source and rule fields. The method is
    ``"source"`` when there are source fields and the rules add nothing to
    them, else ``"rules"``. ``needs_llm`` is set when there is no field at
