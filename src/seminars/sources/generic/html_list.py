@@ -138,9 +138,8 @@ class AdapterConfigError(AdapterError, ValueError):
 
 def _describe(problem: Mapping[str, Any]) -> str:
     location = ".".join(["params", *(str(part) for part in problem["loc"])])
-    if problem["type"] == "extra_forbidden":
-        return f"{location}: unknown key"
-    return f"{location}: {problem['msg']}"
+    detail = "unknown key" if problem["type"] == "extra_forbidden" else problem["msg"]
+    return f"{location}: {detail}"
 
 
 def load_params[P: Model](model: type[P], source: SourceConfig) -> P:
@@ -172,9 +171,7 @@ Pattern = re.Pattern[str]
 
 def collapse(text: str | None) -> str | None:
     """Runs of whitespace as one space, stripped; ``None`` for empty text."""
-    if text is None:
-        return None
-    return " ".join(text.split()) or None
+    return None if text is None else " ".join(text.split()) or None
 
 
 def node_text(node: LexborNode | None) -> str | None:
@@ -198,9 +195,7 @@ def node_lines(node: LexborNode | None) -> str | None:
 
 def node_value(node: LexborNode | None, attribute: str | None) -> str | None:
     """The attribute ``attribute`` of ``node`` (collapsed), or its text without one."""
-    if node is None:
-        return None
-    if attribute is None:
+    if node is None or attribute is None:
         return node_text(node)
     return collapse(node.attributes.get(attribute))
 
@@ -357,10 +352,9 @@ def parse_day(text: str | None, fmt: str | None, reference: date) -> date | None
             lambda year: date_parser.parse(text, default=datetime(year, 1, 1)).date(), reference
         )
     if "%Y" in fmt or "%y" in fmt:
-        try:
+        with contextlib.suppress(ValueError):
             return datetime.strptime(value, fmt).date()
-        except ValueError:
-            return None
+        return None
     return closest_day(
         lambda year: datetime.strptime(f"{value} {year}", f"{fmt} %Y").date(), reference
     )
@@ -510,8 +504,7 @@ class HtmlListParams(Model):
         if missing and self.require != ["date"]:
             raise ValueError(f"require names fields without a selector: {', '.join(missing)}")
         for name, pattern in self.patterns.items():
-            unknown = sorted(set(pattern.groupindex) - {*FIELDS, *EXTRA_GROUPS})
-            if unknown:
+            if unknown := sorted(set(pattern.groupindex) - {*FIELDS, *EXTRA_GROUPS}):
                 raise ValueError(f"{name}_pattern has unknown groups: {', '.join(unknown)}")
         if "date" not in configured and (self.detail_page is None or not self.detail_page.times):
             raise ValueError("a source needs selectors.date or detail_page.times")
@@ -754,11 +747,10 @@ class HtmlListAdapter:
     def _check_page(
         params: HtmlListParams, source: SourceConfig, document: FetchedDocument, rows: list[Row]
     ) -> None:
-        url = ascii_printable(document.url)
+        url, item = ascii_printable(document.url), params.selectors.item
         if not rows:
             raise ParseError(
-                f"source {source.id}: selectors.item {params.selectors.item!r} matches "
-                f"nothing on {url}"
+                f"source {source.id}: selectors.item {item!r} matches nothing on {url}"
             )
         if not any(all(row.get(name) for name in params.required) for row in rows):
             needed = ", ".join(params.required)
