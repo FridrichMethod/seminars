@@ -1,0 +1,316 @@
+# Daily update: fetch every source, commit data/ and deploy the site to GitHub Pages.
+#
+# Triggers: the schedule and a manual run on main only. Never pull_request or
+# pull_request_target: code from a fork must not reach the LLM credentials (GitHub
+# passes no secrets to runs started from a fork, and this workflow never runs one).
+#
+# Schedule: 04:23 Pacific time every day, and a catch-up run six hours later, because
+# GitHub delays or drops scheduled runs at times of high load. "timezone" is the IANA
+# zone of the schedule, a sibling of "cron" (checked against the GitHub documentation of
+# on.schedule). A scheduled run starts with "seminars run --skip-if-done-today", so the
+# catch-up does nothing when the first run of the day (Pacific) already succeeded, and
+# then nothing is committed or deployed. A manual run always runs.
+# UTC fallback, should the timezone key ever stop working: '23 12 * * *' and
+# '23 18 * * *' (04:23 and 10:23 PST, 05:23 and 11:23 PDT).
+#
+# Jobs and what each one may do with the workflow token (top level: read only):
+# - update: runs the pipeline, commits data/ as github-actions[bot] and builds the
+#   site artifact (contents: write for the push, issues: write for the health issues
+#   that the run opens and closes).
+# - deploy: deploys the artifact (pages: write and id-token: write, nothing else).
+# - llm-smoke (manual, mode llm-smoke): probes every configured LLM provider and
+#   prints the result; it commits nothing and deploys nothing (contents: read).
+# All runs of this workflow share one concurrency group, so two of them never run at
+# the same time. A run in progress is never cancelled (cancel-in-progress: false), but
+# GitHub keeps at most one waiting run per group: a newer run replaces a waiting one.
+# Each job that checks out the repository takes the tip of main when it starts
+# (ref: main), not the commit the run was created for, so a run that waited starts
+# from the data commit of the run before it: a catch-up then sees that today's run is
+# done, and nothing is computed from old data. Should main still move during a run in a way that the data commit
+# cannot be rebased onto, the job fails before anything is deployed, and the next run
+# starts again from the new main.
+#
+# Credentials: the LLM secrets CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY,
+# OPENAI_API_KEY and LLM_API_KEY reach only the step that runs the pipeline and the
+# smoke step, through env (empty when a secret is not set). The repository variables
+# LLM_PROVIDERS, LLM_MODEL_<PROVIDER> and LLM_BASE_URL go the same way. The workflow
+# token reaches only the pipeline step (for issues) and the commit step, which hands
+# it to git for the push. No checkout keeps it in .git/config, so the steps that
+# install packages (uv, npm) do not get it.
+# Nothing is ever interpolated into a script: scripts read values from env.
+#
+# Exit status of seminars run: 0 ok or skipped, 1 failed, 3 an output check failed
+# (the secret scan found something, or a file below data/ breaks the charset rule).
+# Any non-zero status fails the job right there, before anything is committed or
+# deployed.
+#
+# Actions, and why each one is used:
+# - actions/checkout (major tag v7): fetches the tip of main and keeps no credential
+#   in the checkout (persist-credentials: false).
+# - astral-sh/setup-uv (third-party, without a floating major tag, so it is pinned to
+#   a full commit SHA with the release in a comment): installs uv, which installs the
+#   locked dependencies. Its cache is off here, so no cache entry can feed this
+#   privileged workflow.
+# - actions/setup-node (major tag v7): Node.js for the Claude Code CLI, installed only
+#   when CLAUDE_CODE_OAUTH_TOKEN is set, at the version recorded in config/llm.yaml.
+#   The LLM is optional, so when that install fails (an unknown version, a registry
+#   outage) the step only warns and the run goes on without Claude Code.
+# - actions/upload-pages-artifact (major tag v5): packs public/ for Pages.
+# - actions/configure-pages (major tag v6): checks that Pages is set up for this
+#   repository before the deployment.
+# - actions/deploy-pages (major tag v5): deploys the artifact to the github-pages
+#   environment.
+#
+# GitHub disables the schedule of a public repository after 60 days without activity.
+# The daily data commit should prevent that; if GitHub ever sends the notice, enable
+# the workflow again on the Actions page.
+name: Daily update
+
+on:
+  schedule:
+    - cron: '23 4 * * *'
+      timezone: America/Los_Angeles
+    - cron: '23 10 * * *'
+      timezone: America/Los_Angeles
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "full: fetch, commit and deploy. llm-smoke: only probe the LLM providers."
+        type: choice
+        options:
+          - full
+          - llm-smoke
+        default: full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+env:
+  PYTHONUTF8: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  update:
+    name: Fetch, commit and build
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || inputs.mode == 'full')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      issues: write
+    env:
+      # An "if:" cannot read the secrets context; this flag only says whether the
+      # Claude token is set.
+      HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    outputs:
+      ran: ${{ steps.run.outputs.ran }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      - name: Install Node.js for Claude Code
+        if: env.HAS_CLAUDE_TOKEN == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Install Claude Code at the recorded version
+        id: claude
+        if: env.HAS_CLAUDE_TOKEN == 'true'
+        # The LLM is optional: whatever goes wrong here is a warning, and the provider
+        # chain goes on without Claude Code.
+        run: |
+          if ! version="$(uv run --locked python -c 'from pathlib import Path; from seminars.config import load_llm_config; print(load_llm_config(Path("config/llm.yaml")).cli_versions.get("claude-cli") or "")')"; then
+            echo "::warning::The claude-cli version could not be read from config/llm.yaml; Claude Code is not installed and the provider chain goes on without it."
+            exit 0
+          fi
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::warning::config/llm.yaml records no plain X.Y.Z version of claude-cli; Claude Code is not installed and the provider chain goes on without it."
+            exit 0
+          fi
+          if ! npm install --global --no-audit --no-fund "@anthropic-ai/claude-code@${version}" || ! claude --version; then
+            echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
+            exit 0
+          fi
+      - name: Run the pipeline
+        id: run
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_PROVIDERS: ${{ vars.LLM_PROVIDERS }}
+          LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+          LLM_MODEL_CLAUDE_CLI: ${{ vars.LLM_MODEL_CLAUDE_CLI }}
+          LLM_MODEL_ANTHROPIC: ${{ vars.LLM_MODEL_ANTHROPIC }}
+          LLM_MODEL_OPENAI: ${{ vars.LLM_MODEL_OPENAI }}
+          LLM_MODEL_OPENAI_COMPAT: ${{ vars.LLM_MODEL_OPENAI_COMPAT }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          args=(run)
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+            args+=(--skip-if-done-today)
+          fi
+          status=0
+          uv run --locked seminars "${args[@]}" || status=$?
+          if [ "${status}" -eq 3 ]; then
+            echo "::error::Output check failed (secret scan or charset rule of data/): nothing is committed or deployed."
+            exit 3
+          fi
+          if [ "${status}" -ne 0 ]; then
+            echo "::error::seminars run failed with exit status ${status}: nothing is committed or deployed."
+            exit "${status}"
+          fi
+          # Every run that is not skipped rewrites data/last_run.json.
+          if [ -n "$(git status --porcelain --untracked-files=all -- data/last_run.json)" ]; then
+            echo "ran=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Today's run had already succeeded; nothing to publish."
+            echo "ran=false" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Validate data and feeds
+        id: validate
+        if: steps.run.outputs.ran == 'true'
+        run: uv run --locked seminars validate
+      - name: Commit data
+        id: commit
+        if: steps.run.outputs.ran == 'true'
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GITHUB_TOKEN: ${{ github.token }}
+        # The token reaches git only here, as the HTTP header of the push and the pull,
+        # set through git's environment (GIT_CONFIG_*): never on a command line and
+        # never written to .git/config.
+        run: |
+          if [ -z "${GITHUB_TOKEN:-}" ]; then
+            echo "::error::The workflow token is missing: the data commit cannot be pushed."
+            exit 1
+          fi
+          git add --all -- data
+          if git diff --cached --quiet; then
+            echo "data/ is unchanged: nothing to commit."
+            exit 0
+          fi
+          day="$(TZ=America/Los_Angeles date +%F)"
+          git commit --quiet --message "chore(data): daily update ${day}"
+          basic="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 --wrap=0)"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL:-https://github.com}/.extraheader"
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${basic}"
+          attempt=1
+          until git push --quiet origin HEAD:main; do
+            if [ "${attempt}" -ge 3 ]; then
+              echo "::error::The data commit could not be pushed."
+              exit 1
+            fi
+            echo "::warning::main moved during the run (push ${attempt} refused); rebasing the data commit."
+            if ! git pull --quiet --rebase --autostash origin main; then
+              git rebase --abort 2> /dev/null || true
+              echo "::error::The data commit could not be rebased onto main (it conflicts with a commit that reached main during the run, or the fetch failed): nothing is pushed or deployed, and the next run starts from the new main."
+              exit 1
+            fi
+            attempt=$((attempt + 1))
+          done
+      - name: Build the site
+        id: build
+        if: steps.run.outputs.ran == 'true'
+        run: uv run --locked seminars build-site
+      - name: Upload the site artifact
+        id: upload
+        if: steps.run.outputs.ran == 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: public
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: update
+    if: needs.update.outputs.ran == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+      - name: Deploy the artifact
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+  llm-smoke:
+    name: Probe the LLM providers
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.mode == 'llm-smoke'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      # An "if:" cannot read the secrets context; this flag only says whether the
+      # Claude token is set.
+      HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      - name: Install Node.js for Claude Code
+        if: env.HAS_CLAUDE_TOKEN == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Install Claude Code at the recorded version
+        id: claude
+        if: env.HAS_CLAUDE_TOKEN == 'true'
+        # The LLM is optional: whatever goes wrong here is a warning, and the provider
+        # chain goes on without Claude Code.
+        run: |
+          if ! version="$(uv run --locked python -c 'from pathlib import Path; from seminars.config import load_llm_config; print(load_llm_config(Path("config/llm.yaml")).cli_versions.get("claude-cli") or "")')"; then
+            echo "::warning::The claude-cli version could not be read from config/llm.yaml; Claude Code is not installed and the provider chain goes on without it."
+            exit 0
+          fi
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::warning::config/llm.yaml records no plain X.Y.Z version of claude-cli; Claude Code is not installed and the provider chain goes on without it."
+            exit 0
+          fi
+          if ! npm install --global --no-audit --no-fund "@anthropic-ai/claude-code@${version}" || ! claude --version; then
+            echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
+            exit 0
+          fi
+      - name: Probe every configured provider
+        id: smoke
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_PROVIDERS: ${{ vars.LLM_PROVIDERS }}
+          LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+          LLM_MODEL_CLAUDE_CLI: ${{ vars.LLM_MODEL_CLAUDE_CLI }}
+          LLM_MODEL_ANTHROPIC: ${{ vars.LLM_MODEL_ANTHROPIC }}
+          LLM_MODEL_OPENAI: ${{ vars.LLM_MODEL_OPENAI }}
+          LLM_MODEL_OPENAI_COMPAT: ${{ vars.LLM_MODEL_OPENAI_COMPAT }}
+        run: uv run --locked seminars llm-smoke
