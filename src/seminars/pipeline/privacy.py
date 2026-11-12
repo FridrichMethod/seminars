@@ -35,8 +35,18 @@ let a stranger into a meeting or reach a person:
   password correctly") and does not end a question ("Is the passcode
   secret?"); "use" and "enter" take one code ("use passwords safely"
   stays). A meeting id ("Meeting ID: 984 6689 7972") stays: it lets nobody
-  in without the code. A title or a series name is scrubbed by
-  ``scrub_title``, which leaves codes without a digit alone: there such a
+  in without the code. The words for password in German, Spanish, French
+  and Portuguese ("Kennwort:", "Mot de passe :") are labels like
+  "Password:". The words for password, passcode and PIN of Chinese,
+  Japanese and Korean invitations are labels like "Passcode:": any value
+  after a colon (also the full-width one) goes, and a value with a digit
+  after a space or after the word for "is". These scripts put no space
+  between words, so such a label also counts inside a longer word (the
+  one for meeting password); the word for cryptography, which starts with
+  the one for password, is no label, because no separator follows.
+  Full-width punctuation ends a value. A title or a series name is
+  scrubbed by ``scrub_title``, which leaves codes without a digit alone
+  (after these labels all of them): there such a
   value is a word of what the talk is about ("Password: a history of
   authentication", "How users enter PIN codes"). Only the one word after
   "Passcode:", "Zoom password:" and the like that ends the title (or its
@@ -80,7 +90,9 @@ let a stranger into a meeting or reach a person:
   separators ("(650) 723-1234", "650.723.1234", "650-7231234",
   "1-800-555-0199") or without ("6507231234"), international numbers that
   start with "+", a one-tap dial string with everything after the number
-  ("+16507249799,,98479731295#,,,,*123456#"), any number after "Phone",
+  ("+16507249799,,98479731295#,,,,*123456#"), mobile numbers of mainland
+  China (eleven digits that start with 13 to 19, also right after CJK
+  text), any number after "Phone",
   "Tel.", "Fax", "Call", "Text", "Contact", "Cell:" and the like (a campus
   extension "3-1234" too), and a campus number after "at" in a sentence
   about reaching someone ("Contact Jane Doe at 723-1234"). Dates, year
@@ -238,7 +250,28 @@ _STRONG_LABEL: Final = (
     r"(?:pass[\s-]?codes?|passwd|pwd)"
     r"|(?:meeting|zoom|webinar|webex|teams|participant|attendee|access)\s{1,3}passwords?"
 )
-_WEAK_LABEL: Final = r"passwords?|pw|pin"
+_PASSWORD_WORDS: Final = (
+    r"passwords?|passw(?:o|oe)rt|kennw(?:o|oe)rt|contrase\u00f1as?|mots?\s{1,3}de\s{1,3}passe"
+    r"|senhas?"
+)
+"""The word for password in English, German, Spanish, French and Portuguese."""
+_WEAK_LABEL: Final = rf"{_PASSWORD_WORDS}|pw|pin"
+_CJK_LABEL: Final = (
+    r"\u5bc6\u7801|\u5bc6\u78bc|\u53e3\u4ee4"  # password, passphrase (Chinese)
+    # password, passcode, PIN (Japanese)
+    r"|\u30d1\u30b9\u30ef\u30fc\u30c9|\u30d1\u30b9\u30b3\u30fc\u30c9|\u6697\u8a3c\u756a\u53f7"
+    r"|\ube44\ubc00\ubc88\ud638|\uc554\ud638"  # password, code (Korean)
+)
+"""Labels of a meeting code in Chinese, Japanese and Korean.
+
+These scripts put no space between words, so such a label counts inside a
+longer word ("meeting password", "enter the password" are one word) and
+needs no word boundary in front; the separator after it keeps the word for
+cryptography, which starts with the one for password, apart.
+"""
+_CJK_IS: Final = r"\s{0,3}[\u662f\u4e3a\u70ba\u306f]\s{0,3}[:\uff1a]?\s{0,3}"
+"""The word for "is" after a label in Chinese and Japanese ("the password is 123456")."""
+_LABEL_START: Final = r"(?:\b(?:{latin})|(?:" + _CJK_LABEL + "))"
 _QUALIFIER: Final = (
     r"(?:\s{0,3}\(?\s{0,3}(?:if\s{1,3}(?:prompted|needed|required|asked)"
     r"|for\s{1,3}(?:zoom|the\s{1,3}(?:meeting|webinar|call)|webinar|meeting)"
@@ -246,15 +279,19 @@ _QUALIFIER: Final = (
     r"|\s{0,3}\(\s{0,3}[a-z][\w-]{0,20}(?:\s{1,3}[\w-]{1,20}){0,2}\s{0,3}\))?"
 )
 _SEPARATOR: Final = r"\s{0,3}(?:[:=#\uff1a]{1,2}|-{1,3}(?=\s)|[\u2010-\u2015\u2212]{1,3})\s{0,3}"
+_CJK_PUNCTUATION: Final = "\uff0c\u3002\uff1b\uff1a\uff08\uff09\u3001\uff01\uff1f"
+"""Full-width comma, stop, semicolon, colon, brackets, list comma, exclamation and question
+marks: they end a value as their ASCII forms do."""
 _ENCLOSED: Final = (
     r"\"[^\"\s<>]{1,64}\"|'[^'\s<>]{1,64}'|\u201c[^\u201d\s<>]{1,64}\u201d"
     r"|\u2018[^\u2019\s<>]{1,64}\u2019|\([^()\s<>]{1,64}\)|\[[^\[\]\s<>]{1,64}\]"
     r"|\{[^{}\s<>]{1,64}\}|<[^<>\s]{1,64}>"
 )
 _DIGITS: Final = (
-    r"(?>(?:\d{1,4}(?:\x20\d{1,4}){1,5}(?!\d)|\d+(?:\x20\d{3,4})*)#?)(?![^\s.,;:!?)\]}])"
+    r"(?>(?:\d{1,4}(?:\x20\d{1,4}){1,5}(?!\d)|\d+(?:\x20\d{3,4})*)#?)"
+    rf"(?![^\s.,;:!?)\]}}{_CJK_PUNCTUATION}])"
 )
-_WORD: Final = r"[^\s<>\"'()\[\]{},;\u201c\u201d\u2018\u2019]+"
+_WORD: Final = rf"[^\s<>\"'()\[\]{{}},;\u201c\u201d\u2018\u2019{_CJK_PUNCTUATION}]+"
 _VALUE: Final = rf"(?:{_ENCLOSED}|{_DIGITS}|{_WORD})"
 _HAS_DIGIT: Final = r"(?=[^\s<>]{0,64}\d)"
 _STRICT_SEPARATOR: Final = r"\s{0,3}[:=\uff1a]{1,2}\s{0,3}"
@@ -289,12 +326,14 @@ _LAST_WORD: Final = rf"{_COMMON_WORD}(?=\S{{2}})(?>{_ENCLOSED}|{_WORD}){_NEXT}"
 _LOOSE_LAST_WORD: Final = (
     rf"{_COMMON_WORD}{_PROSE_WORD}(?=\S{{2}})(?>{_ENCLOSED}|{_WORD}){_NOT_A_QUESTION}{_NEXT}"
 )
-_STRONG_CODE: Final = rf"\b(?P<label>(?:{_STRONG_LABEL}){_QUALIFIER}{_SEPARATOR})"
+_STRONG_CODE: Final = (
+    rf"(?P<label>{_LABEL_START.format(latin=_STRONG_LABEL)}{_QUALIFIER}{_SEPARATOR})"
+)
 _DIGIT_CODES: Final = (
     rf"\b(?P<weak>(?:{_WEAK_LABEL}){_QUALIFIER}{_SEPARATOR}){_HAS_DIGIT}"
     rf"(?=[\d\x20]{{4}}|\S{{4}})(?P<weak_value>{_VALUE})"
-    rf"|\b(?P<loose>(?:{_STRONG_LABEL}|passwords?){_QUALIFIER}"
-    rf"(?:\s{{1,3}}is\s{{0,3}}:?\s{{0,3}}|\s{{1,3}})){_HAS_DIGIT}(?P<digits>{_VALUE})"
+    rf"|(?P<loose>{_LABEL_START.format(latin=_STRONG_LABEL + '|' + _PASSWORD_WORDS)}{_QUALIFIER}"
+    rf"(?:\s{{1,3}}is\s{{0,3}}:?\s{{0,3}}|{_CJK_IS}|\s{{1,3}})){_HAS_DIGIT}(?P<digits>{_VALUE})"
 )
 _CODE: Final = re.compile(
     rf"{_STRONG_CODE}(?P<value>{_VALUE})|{_DIGIT_CODES}"
@@ -344,9 +383,11 @@ _NORTH_AMERICAN: Final = (
 )
 _INTERNATIONAL: Final = rf"(?<![\w+])\+\d(?:[\s.()-]{{0,2}}\d){{6,17}}(?!\d){_DIAL}{_EXTENSION}"
 _UNSEPARATED: Final = r"(?<![\w+/.=#%-])[2-9]\d{2}[2-9]\d{6}(?!\w|\.\d)"
+_CHINA_MOBILE: Final = r"(?<![A-Za-z0-9_+/.=#%-])1[3-9]\d{9}(?![A-Za-z0-9_]|\.\d)"
+"""A mobile number of mainland China: eleven digits from 13 to 19, also right after CJK text."""
 _PHONE: Final = re.compile(
     rf"(?P<id>{_MEETING_ID})|{_CUED}|{_AT_LOCAL}|{_NORTH_AMERICAN}|{_INTERNATIONAL}"
-    rf"|{_UNSEPARATED}",
+    rf"|{_UNSEPARATED}|{_CHINA_MOBILE}",
     re.IGNORECASE,
 )
 _YEARS: Final = re.compile(r"(?:19|20)\d{2}(?:\s?[-/]\s?(?:(?:19|20)\d{2}|\d{2}))?")
@@ -357,7 +398,8 @@ _MIN_CUED_DIGITS: Final = 5
 _MARKERS: Final = (LINK_REMOVED, VALUE_REMOVED, EMAIL_REMOVED, PHONE_REMOVED)
 _MARKER_CUE: Final = (
     r"(?:\b(?:e-?mail(?:\s{1,3}address)?|contact|tele?phone|phone|tel|fax|cell(?:\s{1,3}phone)?"
-    r"|mobile|pass[\s-]?codes?|passwords?|pwd|pin)\b\.?\s{0,3}[:=#]?\s{0,3})?"
+    r"|mobile|pass[\s-]?codes?|pwd|pin|" + _PASSWORD_WORDS + r")\b\.?\s{0,3}[:=#\uff1a]?\s{0,3}"
+    r"|(?:" + _CJK_LABEL + r")\s{0,3}[:=#\uff1a]?\s{0,3})?"
 )
 _MARKER: Final = re.compile(
     _MARKER_CUE + "(?:" + "|".join(re.escape(marker) for marker in _MARKERS) + ")", re.IGNORECASE
