@@ -46,6 +46,20 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/seminars"]
 
+[tool.uv]
+# Building the project (the editable install that "uv sync" makes) is the one step that runs
+# code uv.lock does not pin: the build backend of [build-system] and what it imports. These
+# constraints fix their versions. Raise them together, after reading the release notes of
+# hatchling, and check that "uv sync --locked" still builds the project.
+build-constraint-dependencies = [
+    "hatchling==1.33.0",
+    "packaging==26.3",
+    "pathspec==1.1.1",
+    "pluggy==1.7.0",
+    "tomlkit==0.15.2",
+    "trove-classifiers==2026.9.21.13",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
