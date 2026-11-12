@@ -97,12 +97,13 @@ class AnswerFilter:
         """``value`` as it may be cached; ``None`` when it may not be cached at all.
 
         ``grounding`` is over the scrubbed piece of text. With ``grounded``,
-        a value that the page lacks is dropped as well.
+        a value that the page lacks is dropped as well. A value that was
+        nothing but private data is dropped too.
         """
         if value is None:
             return None
         scrubbed = self.scrub(value)
-        if not scrubbed.strip():
+        if scrubbed != value and not scrubbed.strip():
             return None
         found = grounding.text(scrubbed)
         if found is None and grounded:
