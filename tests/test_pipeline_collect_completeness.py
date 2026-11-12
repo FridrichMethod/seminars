@@ -230,3 +230,5 @@ class TestALastingShortfall:
     def test_without_an_earlier_shortfall_a_short_history_judges_nothing(self) -> None:
         past = history(full(188), full(188), *[failed() for _ in range(HEALTH_HISTORY_LIMIT - 2)])
         assert compare_with_history(outcome(20), past) == outcome(20)
+        only_failures = history(*[failed() for _ in range(HEALTH_HISTORY_LIMIT)])
+        assert compare_with_history(outcome(20), only_failures) == outcome(20)
