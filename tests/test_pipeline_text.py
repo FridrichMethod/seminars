@@ -250,6 +250,36 @@ class TestSpeakerLines:
             ("Contact:", []),
             ("Jane Doe (MIT); Contact:", [("Jane Doe", "MIT")]),
             ("Contact:\nJohn Roe, MIT", [("John Roe", "MIT")]),
+            (
+                # A schedule of the Stanford Sites template: one numbered label per speaker,
+                # paragraphs run together.
+                "Speaker 1 (1:30 PM \u2013 2:05 PM) - Alison Marsden, Professor, Pediatrics -"
+                " Cardiology Speaker 2 (2:10 PM \u2013 2:45 PM) - Emily Fox, Professor,"
+                " Statistics and Computer Science",
+                [
+                    ("Alison Marsden", "Professor, Pediatrics - Cardiology"),
+                    ("Emily Fox", "Professor, Statistics and Computer Science"),
+                ],
+            ),
+            (
+                "Speaker 1 (1:30 PM \u2013 2:05 PM) - Evan Elder, Associate Director for"
+                " Licensing and Strategic Alliances, Office of Technology Licensing (OTL)Speaker"
+                " 2 (2:10 PM \u2013 2:45 PM) - Taeho Kim, Department of Energy Science and"
+                " Engineering",
+                [
+                    (
+                        "Evan Elder",
+                        "Associate Director for Licensing and Strategic Alliances, Office of"
+                        " Technology Licensing (OTL)",
+                    ),
+                    ("Taeho Kim", "Department of Energy Science and Engineering"),
+                ],
+            ),
+            (
+                "Speaker 1: Jane Doe (MIT)\nSpeaker 2: John Roe, PhD, Stanford",
+                [("Jane Doe", "MIT"), ("John Roe", "Stanford")],
+            ),
+            ("Speaker 1 - Jane Doe", [("Jane Doe", None)]),
         ],
     )
     def test_split(self, line: str, people: list[tuple[str, str | None]]) -> None:

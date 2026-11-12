@@ -138,3 +138,15 @@ def test_a_talk_two_hosts_announce_keeps_the_title_of_the_talk(
         "custom-csb-events",
         "sites-chemh",
     }
+
+
+def test_the_sessions_of_a_schedule_name_one_speaker_per_label(
+    offline_run: tuple[str, Path],
+) -> None:
+    # ICME's schedule: "Speaker 1 (1:30 PM - 2:05 PM) - Alison Marsden, Professor, ...".
+    _, root = offline_run
+    (event,) = [event for event in stored(root) if event.title == "Seminar Session 8"]
+    assert [(person.name, person.affiliation) for person in event.speakers] == [
+        ("Alison Marsden", "Professor, Pediatrics - Cardiology"),
+        ("Emily Fox", "Professor, Statistics and Computer Science"),
+    ]
