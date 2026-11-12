@@ -211,6 +211,23 @@ class TestHandWrittenSchedules:
         drafts = parse_page(schedule((heading("Winter 2024"), rows)))
         assert [d.start for d in drafts] == [datetime(2025, 1, d, 11) for d in (9, 16, 23, 25)]
 
+    @pytest.mark.parametrize(
+        ("title", "venue", "location"),
+        [
+            ("CANCELLED: Engines", "Gates 287", "Gates 287"),
+            ("Engines (cancelled)", "Gates 287", "Gates 287"),
+            ("Engines", "Zoom &amp; Gates 287", "Zoom & Gates 287"),
+            ("Engines", "Zoom only", "Zoom only"),
+        ],
+    )
+    def test_cancelled_and_hybrid_talks_pass_their_text_through(
+        self, title: str, venue: str, location: str
+    ) -> None:
+        # Normalization reads the status and the online part from the text.
+        [talk] = parse_page(schedule((heading(venue=venue), [row("Nov 5", "A B", title)])))
+        assert (talk.title, talk.location) == (title, location)
+        assert (talk.status_hint, talk.is_online, talk.stream_url) == (None, None, None)
+
     def test_rows_that_are_notes_are_skipped(self) -> None:
         rows = [
             row("Nov 5th", "Ada Lovelace", "Engines"),

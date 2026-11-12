@@ -166,6 +166,33 @@ class TestHandWrittenPages:
         assert talk.stream_url is None
         assert "pwd" not in talk.model_dump_json()
 
+    @pytest.mark.parametrize(
+        ("heading", "lines", "title", "location"),
+        [
+            (
+                "CANCELLED: SB.Talk with Ada Lovelace",
+                ["Where: Shriram 104"],
+                "CANCELLED: SB.Talk with Ada Lovelace",
+                "Shriram 104",
+            ),
+            ("SB.Talk", ["Title: Engines (cancelled)"], "Engines (cancelled)", None),
+            (
+                "SB.Talk",
+                ["Title: Engines", "Where: Shriram 104 &amp; Zoom (link by email)"],
+                "Engines",
+                "Shriram 104 & Zoom (link by email)",
+            ),
+            ("SB.Talk", ["Title: Engines", "Where: Zoom"], "Engines", "Zoom"),
+        ],
+    )
+    def test_cancelled_and_hybrid_events_pass_their_text_through(
+        self, heading: str, lines: list[str], title: str, location: str | None
+    ) -> None:
+        # Normalization reads the status and the online part from the text.
+        [talk] = parse(page(block("a1", heading, WHEN, *lines)))
+        assert (talk.title, talk.location) == (title, location)
+        assert (talk.status_hint, talk.is_online, talk.stream_url) == (None, None, None)
+
     def test_blocks_without_a_when_line_are_not_events(self) -> None:
         drafts = parse(page(block("a1", "Lab news", "We moved."), block("b2", "Talk", WHEN)))
         assert [draft.title for draft in drafts] == ["Talk"]
