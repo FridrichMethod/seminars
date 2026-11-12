@@ -13,12 +13,17 @@ How the parts are chosen:
   built as ``PoliteClient(settings.http, cache_dir=paths.http_cache_dir())``,
   so that the pause per host and the request budgets hold for the whole
   run and for every other process that uses the same cache directory.
-* LLM: only when it is wanted and ``build_llm_client`` finds a provider
-  with a credential. When the LLM package cannot be loaded or set up, the
-  run goes on without it and says so in a warning. The cache is opened
-  with the time of the run, and the tagger and the page extractor share
-  it. Without a provider there is no cache, no tagger and no extractor:
-  the rules work alone.
+* LLM: only when it is wanted (not ``--no-llm``). The cache is opened
+  with the time of the run. When ``build_llm_client`` finds a provider
+  with a credential, the tagger and the page extractor share the chain
+  and the cache. Without a provider the verdicts stored in earlier runs
+  still apply, so that a missing credential gives the same data as a
+  refused one: the tagger answers from the cache alone, through a client
+  that never sends anything (``NoProvider``) and a view of the cache that
+  stores nothing (``ReadOnlyCache``). Nothing new is asked, there is no
+  extractor, and the run neither counts nor prunes that cache
+  (``Services.llm_cache`` stays ``None``). When the LLM package cannot be
+  loaded or set up, the run goes on without it and says so in a warning.
 * GitHub issues: only when they are wanted (never offline, never in a dry
   run) and the environment names a repository and a token.
 * The secret scanner also learns the exact values of the credentials in
@@ -36,7 +41,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from seminars.config import AppConfig
+from pydantic import BaseModel
+
+from seminars.config import NO_PROVIDER, AppConfig
 from seminars.contracts import (
     EventFilter,
     EventFilterFactory,
@@ -52,6 +59,7 @@ from seminars.contracts import (
     LLMClientFactory,
     LLMFieldTagger,
     LLMTaggerFactory,
+    LLMUnavailableError,
     PageExtractor,
     PageExtractorFactory,
     PicksScorer,
@@ -62,7 +70,7 @@ from seminars.contracts import (
     load_implementation,
 )
 from seminars.http import HttpClient, PoliteClient, offline_client
-from seminars.models import SourceConfig
+from seminars.models import LLMCacheStats, SourceConfig
 from seminars.pipeline.secret_scan import PatternSecretScanner, known_credentials
 
 logger = logging.getLogger(__name__)
@@ -147,6 +155,47 @@ def _http(
     return shared, client.close
 
 
+class NoProvider:
+    """The ``LLMClient`` of a run without a provider: it never sends anything.
+
+    Every request fails at once with ``LLMUnavailableError``, so the LLM
+    tagger answers from its cache alone and asks nothing new.
+    """
+
+    @property
+    def name(self) -> str:
+        return NO_PROVIDER
+
+    def complete_json[T: BaseModel](
+        self, system: str, user: str, schema: type[T], *, max_tokens: int
+    ) -> T:
+        raise LLMUnavailableError("no LLM provider is configured; only stored answers are used")
+
+
+@dataclass(frozen=True)
+class ReadOnlyCache:
+    """An ``LLMCache`` that answers from ``cache`` and stores and prunes nothing.
+
+    A hit still renews the recorded date of an old entry, as every hit of
+    the cache does (``seminars.contracts.LLMCache``), so that the verdicts
+    in use outlive a time without a provider.
+    """
+
+    cache: LLMCache
+
+    def get(self, key: str) -> dict[str, Any] | None:
+        return self.cache.get(key)
+
+    def put(self, key: str, value: Mapping[str, Any]) -> None:
+        return None
+
+    def prune(self) -> int:
+        return 0
+
+    def stats(self) -> LLMCacheStats:
+        return self.cache.stats()
+
+
 @dataclass(frozen=True)
 class _LLMParts:
     chain: LLMChainClient | None = None
@@ -175,11 +224,13 @@ def _llm_parts(
 ) -> _LLMParts:
     build_chain: LLMClientFactory = load("llm_client")
     chain = build_chain(config.llm, env)
-    if chain is None:
-        return _LLMParts()
     open_cache: LLMCacheFactory = load("llm_cache")
     cache = open_cache(cache_dir, ttl_days=config.llm.cache_ttl_days, now=now)
     build_tagger: LLMTaggerFactory = load("llm_tagger")
+    if chain is None:
+        return _LLMParts(
+            tagger=build_tagger(NoProvider(), config=config.llm, cache=ReadOnlyCache(cache))
+        )
     build_extractor: PageExtractorFactory = load("page_extractor")
     return _LLMParts(
         chain=chain,
