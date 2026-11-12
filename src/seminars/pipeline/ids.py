@@ -15,7 +15,10 @@ that hold:
      addresses the source itself is fetched from. A page that lists a
      whole series would otherwise make all its talks one event;
    * the local day of the start plus the first speaker, or else the title,
-     or else the time of day: ``<source id>:day:<date>:<words>``.
+     or else the time of day: ``<source id>:day:<date>:<words>``. The
+     words are ASCII (``slug``): accents are folded, a Latin letter without
+     a decomposition is spelled out, and a name in another script becomes a
+     short digest of itself, so two such talks of one day stay apart.
 
 2. The key is looked up in data/uid_map.json (``UidMap``). A known key
    gives the uid it was bound to, in every run. A new key gets a uid
@@ -64,6 +67,26 @@ _TIME_OF_DAY_KEY: Final = re.compile(rf"{DAY_KEY_PREFIX}\d{{4}}-\d{{2}}-\d{{2}}:
 _READABLE: Final = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}")
 _SLUG_CHARACTERS: Final = re.compile(r"[^a-z0-9]+")
 _MAX_SLUG_LENGTH: Final = 60
+_OTHER_SCRIPT_PREFIX: Final = "u"
+_OTHER_SCRIPT_DIGEST: Final = 10
+
+_LATIN: Final = str.maketrans(
+    {
+        "\u00e6": "ae",
+        "\u00f0": "d",
+        "\u00f8": "o",
+        "\u00fe": "th",
+        "\u0111": "d",
+        "\u0127": "h",
+        "\u0131": "i",
+        "\u0138": "k",
+        "\u0142": "l",
+        "\u014b": "ng",
+        "\u0153": "oe",
+        "\u0167": "t",
+    }
+)
+"""Lower-case Latin letters without a decomposition, spelled in ASCII ("l" for l with stroke)."""
 
 
 def _digest(text: str) -> str:
@@ -81,9 +104,28 @@ def canonical_url(url: str) -> str:
     return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, parts.query, ""))
 
 
+def latin_fold(text: str) -> str:
+    """``fold(text)`` with the Latin letters that have no decomposition spelled in ASCII.
+
+    "Lukasz" written with an L with stroke and "Lukasz" fold to the same
+    "lukasz", as "Jose" with and without an accent do with ``fold`` alone.
+    """
+    return fold(text).translate(_LATIN)
+
+
 def slug(text: str) -> str:
-    """``text`` as lower-case ASCII words joined by hyphens (accents folded, rest dropped)."""
-    return _SLUG_CHARACTERS.sub("-", fold(text)).strip("-")[:_MAX_SLUG_LENGTH].strip("-")
+    """``text`` as lower-case ASCII words joined by hyphens (accents folded, rest dropped).
+
+    Text whose letters are all of another script (a name in Chinese) would
+    leave no word at all, so it becomes ``u`` and a short digest of its
+    folded form instead: two such names stay apart, and one name always
+    gives the same words. Text without any letter or digit gives "".
+    """
+    folded = latin_fold(text)
+    words = _SLUG_CHARACTERS.sub("-", folded).strip("-")[:_MAX_SLUG_LENGTH].strip("-")
+    if words or not folded:
+        return words
+    return _OTHER_SCRIPT_PREFIX + _digest(folded)[:_OTHER_SCRIPT_DIGEST]
 
 
 def safe_native_id(native_id: str, is_secret: Callable[[str], bool]) -> str:
