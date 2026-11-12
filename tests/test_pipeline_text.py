@@ -280,6 +280,24 @@ class TestSpeakerLines:
                 [("Jane Doe", "MIT"), ("John Roe", "Stanford")],
             ),
             ("Speaker 1 - Jane Doe", [("Jane Doe", None)]),
+            (
+                "Speaker 1: Alice Smith and Bob Jones",
+                [("Alice Smith", None), ("Bob Jones", None)],
+            ),
+            (
+                "Speaker 1: Alice Smith & Bob Jones, MIT\nSpeaker 2: Mary Major (UCSF)",
+                [("Alice Smith", None), ("Bob Jones", "MIT"), ("Mary Major", "UCSF")],
+            ),
+            (
+                # "and" after the first comma is part of the affiliation.
+                "Speaker 1: Jane Doe, Department of Chemistry and Chemical Biology",
+                [("Jane Doe", "Department of Chemistry and Chemical Biology")],
+            ),
+            (
+                # A label word inside another word is no label.
+                "Speaker 1: Jane Doe, loudspeaker 2 - design",
+                [("Jane Doe", "loudspeaker 2 - design")],
+            ),
             ("Jane Doe, Computer Science", [("Jane Doe", "Computer Science")]),
         ],
     )

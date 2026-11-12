@@ -12,12 +12,15 @@ A comma can separate two people or a person from an affiliation, and rules
 cannot always tell which. The choice made here is conservative:
 
 0. A line that starts with a numbered label ("Speaker 1 (1:30 PM - 2:05
-   PM) - ", "Speaker 2:") names one person per label, the text up to the
-   next label: the name, then after the first comma the affiliation. So
-   the schedule of a session, whose paragraphs often run together
-   ("...Cardiology Speaker 2 (2:10 PM) - Emily Fox, Professor, Statistics
-   and Computer Science"), gives one speaker per label and never a
-   "Computer Science".
+   PM) - ", "Speaker 2:") names the people of each label in the text up
+   to the next label: the name, then after the first comma the
+   affiliation. So the schedule of a session, whose paragraphs often run
+   together ("...Cardiology Speaker 2 (2:10 PM) - Emily Fox, Professor,
+   Statistics and Computer Science"), gives one speaker per label and
+   never a "Computer Science". Only before the first comma do ``;``,
+   ``|``, a line break, "and" and ``&`` separate people, and only when
+   every part reads like a person: "Speaker 1: Jane Doe and John Roe,
+   MIT" names two, and the affiliation goes to the last, as in 3.
 1. A leading label ("Speaker:", "Presented by:") is dropped, and so is a
    part that is nothing but a label ("Contact:").
 2. When every part between separators (``;``, ``|``, a line break, "and",
@@ -51,11 +54,15 @@ _LABEL: Final = re.compile(
     re.IGNORECASE,
 )
 _NUMBERED_LABEL: Final = re.compile(
-    r"(?:speaker|presenter|panelist|lecturer)\s{0,3}#?\d{1,2}\s{0,3}(?:\([^()\n]{0,60}\))?"
+    r"\b(?:speaker|presenter|panelist|lecturer)\s{0,3}#?\d{1,2}\s{0,3}(?:\([^()\n]{0,60}\))?"
     r"\s{0,3}[:\-\u2013\u2014]\s*",
     re.IGNORECASE,
 )
-"""A numbered label in front of one speaker; it may follow the text before without a space."""
+"""A numbered label in front of the speakers of one slot.
+
+It may follow a bracket or a stop without a space ("(OTL)Speaker 2"),
+never a letter or a digit ("loudspeaker 2").
+"""
 _HARD_SEPARATOR: Final = re.compile(r"[;|\n]|\s+(?:and|&)\s+|,\s+(?:and|&)\s+", re.IGNORECASE)
 _ANY_SEPARATOR: Final = re.compile(r"[;|\n,]|\s+(?:and|&)\s+", re.IGNORECASE)
 _COMMA: Final = re.compile(",")
@@ -175,12 +182,24 @@ def _numbered(text: str) -> list[str] | None:
     return [part for part in parts if part]
 
 
+def _numbered_people(part: str) -> list[ParsedSpeaker]:
+    """The people after one numbered label (see rule 0 of the module docstring)."""
+    comma = _mask_brackets(part).find(",")
+    head, rest = (part, "") if comma < 0 else (part[:comma], part[comma:])
+    names = _split(head, _HARD_SEPARATOR)
+    if len(names) < 2 or not all(_is_person(name) for name in names):
+        names = [part]
+    else:
+        names = [*names[:-1], names[-1] + rest]
+    people = (_person_with_commas(name) for name in names)
+    return [person for person in people if person is not None]
+
+
 def split_speakers(text: str) -> list[ParsedSpeaker]:
     """The people named in a raw speaker line, in order; empty when there is no name."""
     numbered = _numbered(text.strip())
     if numbered is not None:
-        people = (_person_with_commas(part) for part in numbered)
-        return [person for person in people if person is not None]
+        return [person for part in numbered for person in _numbered_people(part)]
     line = _LABEL.sub("", text.strip())
     parts = [part for part in _split(line, _ANY_SEPARATOR) if not is_degree(part)]
     if len(parts) > 1 and all(_is_person(part) for part in parts):
