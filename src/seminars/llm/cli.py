@@ -140,7 +140,7 @@ def child_environment(parent: Mapping[str, str], extra: Mapping[str, str]) -> di
 
     Nothing else of the parent environment is passed on, in particular no
     credential of another provider and no GitHub token (see the module
-    docstring). ``extra`` is what the backend itself sets.
+    docstring). ``extra`` holds the variables of the backend itself.
     """
     env = {name: parent[name] for name in PASSED_THROUGH if parent.get(name)}
     env.update(extra)

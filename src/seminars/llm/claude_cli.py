@@ -40,8 +40,7 @@ call, with an environment that holds exactly these variables
   It is the only credential the client gets;
 * CLAUDE_CONFIG_DIR, a new empty temporary directory, removed after the
   call, so the client neither reads nor changes the configuration in the
-  home directory (no settings, memory or plugins of the owner) and leaves
-  nothing behind;
+  home directory and leaves nothing behind;
 * DISABLE_AUTOUPDATER=1 and CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1,
   set here, not passed on: the client does not update itself and sends
   nothing on the side.
