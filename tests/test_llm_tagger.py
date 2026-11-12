@@ -92,13 +92,13 @@ class TestContract:
 
 class TestBatches:
     def test_one_request_answers_a_whole_batch(self) -> None:
-        llm = FakeLLMClient(answering(["chem", "bio"]))
+        # The answer says what the source says (bio), so it stands without a second request.
+        llm = FakeLLMClient(answering(["bio"]))
         candidates = [candidate(number) for number in range(5)]
         answers = build_llm_tagger(llm, config=CONFIG).tag_batch(candidates)
         assert len(llm.calls) == 1
         assert answers == {
-            f"event-{number}": LLMTagResult(fields=["chem", "bio"], is_talk=True)
-            for number in range(5)
+            f"event-{number}": LLMTagResult(fields=["bio"], is_talk=True) for number in range(5)
         }
         assert [event["index"] for event in events_in(llm.calls[0])] == [0, 1, 2, 3, 4]
         assert llm.calls[0].schema is TagAnswer
@@ -314,7 +314,7 @@ class TestAnswersThatDoNotFit:
     def test_indexes_out_of_range_and_repeated_indexes_are_ignored(self) -> None:
         reply = {
             "results": [
-                {"index": 1, "is_talk": True, "fields": ["chem"]},
+                {"index": 1, "is_talk": True, "fields": ["bio"]},
                 {"index": 1, "is_talk": False, "fields": []},
                 {"index": 7, "is_talk": True, "fields": ["math"]},
                 {"index": -1, "is_talk": True, "fields": ["math"]},
@@ -322,7 +322,7 @@ class TestAnswersThatDoNotFit:
         }
         llm = FakeLLMClient(reply)
         answers = build_llm_tagger(llm, config=CONFIG).tag_batch([candidate(1), candidate(2)])
-        assert answers == {"event-2": LLMTagResult(fields=["chem"], is_talk=True)}
+        assert answers == {"event-2": LLMTagResult(fields=["bio"], is_talk=True)}
 
     @pytest.mark.parametrize(
         "reply",
@@ -345,7 +345,7 @@ class TestAnswersThatDoNotFit:
         assert cache.writes == 0
 
     def test_a_discarded_batch_does_not_stop_the_next_one(self) -> None:
-        llm = FakeLLMClient({"results": "nonsense"}, answering(["math"]))
+        llm = FakeLLMClient({"results": "nonsense"}, answering(["bio"]))
         config = LLMConfig(batch_size=2)
         answers = build_llm_tagger(llm, config=config).tag_batch(
             [candidate(number) for number in range(4)]
