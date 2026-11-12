@@ -1,9 +1,11 @@
 // The talk list as data: events.json records checked and prepared for display, the
 // filters, and how the filters are written to and read from the address bar.
 //
-// Nothing in this module touches the page, so every rule here can be read on its own.
-// Filter states are frozen objects; a change makes a new state.
+// Nothing in this module touches the page, so every rule here can be read on its own;
+// the only outside state it reads is the message catalogs of i18n.js, for the placeholder
+// title in every language. Filter states are frozen objects; a change makes a new state.
 
+import { availableLangs, messageIn } from "./i18n.js";
 import { addDays, parseTimestamp } from "./time.js";
 
 /** Time ranges: how many calendar days from today an event may start in (0: no limit). */
@@ -22,6 +24,7 @@ export const PARAMS = Object.freeze({
 
 /** The title the pipeline stores for a talk whose title is not announced yet. */
 export const TBA_TITLE = "TBA";
+const TBA_MESSAGE = "site.event.tba";
 
 /**
  * Picks reasons the page can say in every language: what matched and where (see
@@ -156,11 +159,21 @@ function lastDayOf(start, end, allDay, zone) {
 }
 
 /**
+ * The placeholder title of a talk without a title in every language the page has loaded.
+ * A card shows the one of the page's language, so the search text of such a talk holds
+ * them all: a reader finds it by the word on the card, whatever the language.
+ */
+export function placeholderTitles() {
+  return availableLangs().map((lang) => messageIn(lang, TBA_MESSAGE));
+}
+
+/**
  * One record of events.json prepared for display, or null when it lacks what every
  * talk needs (an id, a title and a start time). ``zone`` is the payload's time zone
- * (see time.js); ``fieldIds`` the known field ids.
+ * (see time.js); ``fieldIds`` the known field ids; ``placeholders`` the placeholder
+ * titles that the search text of a talk without a title holds besides the stored one.
  */
-export function prepareEvent(raw, zone, fieldIds) {
+export function prepareEvent(raw, zone, fieldIds, placeholders = placeholderTitles()) {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
     return null;
   }
@@ -205,6 +218,7 @@ export function prepareEvent(raw, zone, fieldIds) {
   };
   const haystack = [
     event.title,
+    ...(event.tba ? placeholders : []),
     ...speakers.flatMap((speaker) => [speaker.name, speaker.affiliation ?? ""]),
     event.series ?? "",
     event.host ?? "",
@@ -214,9 +228,9 @@ export function prepareEvent(raw, zone, fieldIds) {
 }
 
 /** Prepared events sorted by start time and id; records that cannot be shown are left out. */
-export function prepareEvents(records, zone, fieldIds) {
+export function prepareEvents(records, zone, fieldIds, placeholders = placeholderTitles()) {
   return (Array.isArray(records) ? records : [])
-    .map((raw) => prepareEvent(raw, zone, fieldIds))
+    .map((raw) => prepareEvent(raw, zone, fieldIds, placeholders))
     .filter((event) => event !== null)
     .sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
 }
