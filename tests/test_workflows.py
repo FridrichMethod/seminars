@@ -700,6 +700,9 @@ def test_a_total_outage_fails_the_run_after_it_is_recorded_and_deployed() -> Non
     (script,) = commands_of("update.yml", "outage")
     assert script.startswith('echo "::error::')
     assert script.endswith("exit 1")
+    # Exit status 1 after the run recorded itself has two causes; the message names both.
+    assert "every source failed" in script
+    assert "the feeds could not be written" in script
 
 
 @pytest.mark.parametrize("job_id", ["fetch", "llm-smoke"])
@@ -1006,7 +1009,8 @@ def test_a_total_outage_is_handed_on_to_be_recorded(sandbox: Sandbox) -> None:
         "ran": "true",
         "outcome": "outage",
     }
-    assert "::warning::Every source failed" in result.stdout
+    assert "::warning::seminars run failed with exit status 1" in result.stdout
+    assert "every source failed, or the feeds could not be written" in result.stdout
 
 
 @needs_shell

@@ -23,8 +23,8 @@
 #   write for the push). It installs nothing and runs no project code, no uv and no npm.
 # - build: builds the site from the new tip of main and validates it (read only).
 # - deploy: deploys the site (pages: write and id-token: write, nothing else).
-# - outage (only after a total outage, see below): fails the run once the outage is
-#   recorded, so that GitHub reports it.
+# - outage (only after a failed run, see below): fails the workflow run once the
+#   failure is recorded, so that GitHub reports it.
 # - llm-smoke (manual, mode llm-smoke): probes every configured LLM provider and
 #   prints the result; it commits nothing and deploys nothing (contents: read).
 # All runs of this workflow share one concurrency group, so two of them never run at
@@ -58,7 +58,8 @@
 # (the secret scan found something, or a file below data/ breaks the charset rule).
 # - 3, or any status but 0 and 1: the fetch job fails right there, and nothing is
 #   committed or deployed.
-# - 1 after the run recorded itself (every source failed): a total outage. The commit
+# - 1 after the run recorded itself: a failed run. Every source failed (a total
+#   outage), or, rarely, the feeds and the site data could not be written. The commit
 #   job commits only data/health.json, data/last_run.json and data/run_report.json,
 #   not the events, so that the health history counts the failure, the health issues
 #   open after the usual number of bad runs, and the deployed status page shows the
@@ -227,7 +228,7 @@ jobs:
             exit 0
           fi
           if [ "${outcome}" = "outage" ]; then
-            echo "::warning::Every source failed (seminars run exit status 1): only the records of the run are committed, the events stay as they are, and the workflow run fails at the end."
+            echo "::warning::seminars run failed with exit status 1 (every source failed, or the feeds could not be written): only the records of the run are committed, the events stay as they are, and the workflow run fails at the end."
           fi
           echo "ran=true" >> "${GITHUB_OUTPUT}"
           echo "outcome=${outcome}" >> "${GITHUB_OUTPUT}"
@@ -316,8 +317,8 @@ jobs:
               subject="chore(data): daily update"
               ;;
             outage)
-              # Every source failed: only the records of the run, so that health and the
-              # status page see the outage, while the events stay as they are.
+              # The run failed: only the records of the run, so that health and the
+              # status page see the failure, while the events stay as they are.
               mkdir -p data
               records=()
               for name in health.json last_run.json run_report.json; do
@@ -404,7 +405,7 @@ jobs:
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
   outage:
-    name: Report the total outage
+    name: Report the failed run
     needs: [fetch, deploy]
     if: needs.fetch.outputs.outcome == 'outage'
     runs-on: ubuntu-24.04
@@ -413,7 +414,7 @@ jobs:
       - name: Fail the run
         id: fail
         run: |
-          echo "::error::Every source failed. The records of the run were committed and the status page shows the failed run; the events are unchanged."
+          echo "::error::seminars run failed: every source failed, or the feeds could not be written. The records of the run were committed and the status page shows the failed run; the events are unchanged."
           exit 1
 
   llm-smoke:
