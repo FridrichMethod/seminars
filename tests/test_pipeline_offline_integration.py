@@ -196,3 +196,49 @@ def test_a_calendar_title_that_names_the_speaker_joins_the_host_listing(
         "sites-mathematics",
         "sites-mrc",
     }
+
+
+# Speakers read from the titles of the campus calendar, whose API names no speaker.
+
+TITLE_SPEAKERS = {
+    "localist-stanford.54045893273780": [("Shang-Ping Xie", None)],
+    "localist-stanford.54251449027978": [("Ami Bhatt", None)],
+    "localist-stanford.53552415025391": [("Jonathan Fan", "Stanford University")],
+    "localist-stanford.54251566724146": [("Bryant Lin", None), ("Latha Palaniappan", None)],
+    "localist-stanford.54410800155205": [("Danielle Klinger", None)],
+    "localist-stanford.53728348826147": [],  # "Norton Lecture"
+}
+"""Talks that only the campus calendar lists, by uid, with the people of their titles."""
+
+
+@pytest.mark.parametrize(("uid", "people"), TITLE_SPEAKERS.items())
+def test_a_calendar_talk_gets_the_speakers_its_title_names(
+    offline_run: tuple[str, Path], uid: str, people: list[tuple[str, str | None]]
+) -> None:
+    _, root = offline_run
+    (event,) = [event for event in stored(root) if event.uid == uid]
+    assert {key.split(":")[0] for key in event.source_ids} == {"localist-stanford"}
+    assert [(person.name, person.affiliation) for person in event.speakers] == people
+
+
+def test_no_series_name_is_stored_as_a_speaker(offline_run: tuple[str, Path]) -> None:
+    _, root = offline_run
+    names = [person.name for event in stored(root) for person in event.speakers]
+    series = ("Seminar", "Seminars", "Lecture", "Series", "Rounds", "Defense", "Colloquium")
+    assert names
+    assert [name for name in names if name.split()[-1] in series] == []
+
+
+def test_no_timed_talk_ends_at_its_own_time_on_a_later_day(
+    offline_run: tuple[str, Path],
+) -> None:
+    _, root = offline_run
+    timed = [event for event in stored(root) if not event.all_day and event.end is not None]
+    assert timed
+    assert [
+        event.uid
+        for event in timed
+        if event.end is not None
+        and event.end.date() > event.start.date()
+        and event.end.time() == event.start.time()
+    ] == []
