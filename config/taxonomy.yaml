@@ -12,6 +12,8 @@
 #   "superconductivity" (at least three letters before the "*").
 #
 # How a field is decided (in this order):
+# 0. an event of a category listed under out_of_scope_categories gets none: the
+#    filter drops it as out_of_scope before anything below is looked at;
 # 1. source fields: default_fields of the source entry (config/sources.d), the
 #    adapter's hints, source_defaults and departments below;
 # 2. rules per field: a name in "series" found in the series or the title implies
