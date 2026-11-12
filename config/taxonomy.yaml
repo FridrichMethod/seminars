@@ -18,10 +18,13 @@
 #    adapter's hints, source_defaults and departments below;
 # 2. rules per field: a name in "series" found in the series or the title implies
 #    the field; otherwise the weights of the distinct keywords found in title,
-#    series and abstract must add up to min_score (1.0 unless set). Weak terms get
-#    0.5 so that they count only together with a second one. A word counts for
-#    one keyword of a field only: where keywords overlap ("drug" in "drug
-#    discovery"), the heaviest counts, then the longest. A match of
+#    series and abstract must add up to min_score (1.0 unless set). The abstract
+#    counts without its sections on the speaker and the series (headings such as
+#    "Bio", "About the Speaker", "About the ... Seminar Series"): a speaker's
+#    degree in physics says nothing about the talk. Weak terms get 0.5 so that
+#    they count only together with a second one. A word counts for one keyword
+#    of a field only: where keywords overlap ("drug" in "drug discovery"), the
+#    heaviest counts, then the longest. A match of
 #    exclude_keywords vetoes the rules of that field (never a source field);
 #    an event without source fields (the campus-wide calendar) needs the series
 #    name or enough weight in title and series: there the abstract alone never
@@ -155,6 +158,7 @@ fields:
       statistics: 0.5
       statistical inference: 1.0
       statistical: 0.25
+      time series: 1.0
       biostatistics: 1.0
       causal inference: 1.0
       hypothesis testing: 1.0
