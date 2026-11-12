@@ -193,18 +193,36 @@ class TestHandWrittenSchedules:
         assert http.requests[1:] == [f"{SCHEDULE_URL}details/{name}" for name in "bcd"]
 
     @pytest.mark.parametrize(
-        ("days", "year"),
+        ("term", "days", "year"),
         [
-            (["Nov 5", "Nov 20"], 2026),  # one of two fits 2025: a tie keeps the heading
-            (["Nov 20", "Nov 27", "Dec 4"], 2025),  # Thursdays in 2025, not in 2026
-            (["Nov 19", "Nov 26", "Nov 20"], 2026),  # two Thursdays of 2026 outvote one
-            (["Feb 29", "Mar 5"], 2026),  # no Feb 29 in 2026: the row is skipped
+            ("Fall 2026", ["Nov 5", "Nov 20"], 2026),  # one of two fits 2025: a tie keeps it
+            ("Fall 2026", ["Nov 20", "Nov 27", "Dec 4"], 2025),  # Thursdays in 2025, not 2026
+            ("Fall 2026", ["Nov 19", "Nov 26", "Nov 20"], 2026),  # two Thursdays outvote one
+            ("Fall 2026", ["Feb 29", "Mar 5"], 2026),  # no Feb 29 in 2026: the row is skipped
+            # One or two dates move a table only towards the fetch day, 2026-11-11.
+            ("Fall 2026", ["Nov 18"], 2026),  # a Wednesday; a Thursday in 2027
+            ("Fall 2026", ["Nov 20"], 2026),  # a Friday; a Thursday in 2025
+            ("Fall 2026", ["Nov 18", "Nov 25"], 2026),  # Wednesdays; Thursdays in 2027
+            ("Fall 2025", ["Nov 19"], 2026),  # a Thursday in 2026 only: the year is a typo
+            ("Fall 2025", ["Nov 12", "Nov 19"], 2026),
         ],
     )
-    def test_the_year_is_decided_once_per_table(self, days: list[str], year: int) -> None:
+    def test_the_year_is_decided_once_per_table(
+        self, term: str, days: list[str], year: int
+    ) -> None:
         rows = [row(day, "A B", day) for day in days]
-        drafts = parse_page(schedule((heading("Fall 2026"), rows)))
+        drafts = parse_page(schedule((heading(term), rows)))
         assert {draft.start.year for draft in drafts} == {year}
+
+    def test_a_lone_talk_on_another_weekday_keeps_the_coming_term(self) -> None:
+        # The newest table often starts with one row. Nov 18 is a Thursday in 2027 only;
+        # moving the table there would take the talk out of the run.
+        now = datetime(2026, 11, 10, 20, 0, tzinfo=UTC)
+        page = schedule((heading("Fall 2026"), [row("Nov 18", "A B", "Wednesday", "details/c")]))
+        http = serve({SCHEDULE_URL: page}, now)
+        [talk] = run(SOURCE, http, now)
+        assert talk.start == datetime(2026, 11, 18, 11)
+        assert http.requests == [SCHEDULE_URL, f"{SCHEDULE_URL}details/c"]
 
     def test_a_year_that_most_dates_contradict_moves_the_whole_table(self) -> None:
         # Jan 9, 16 and 23 are Thursdays in 2025, Jan 25 is one in 2024.

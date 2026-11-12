@@ -45,9 +45,10 @@ Keys of ``params`` (an unknown key is an error that names it;
 The heading's year can be wrong. When the heading names a weekday and most
 dates of its table fall on that weekday in the year before or after instead,
 the whole table is moved to that year; a talk on another day of the week
-keeps the year of its table. Times are naive wall times of the source; a
-talk without a time of day is an all-day draft. The draft's ``url`` is the
-details page, which identifies the talk.
+keeps the year of its table. A table of one or two dates moves only when the
+other year also puts them nearer to the day the page was fetched. Times are
+naive wall times of the source; a talk without a time of day is an all-day
+draft. The draft's ``url`` is the details page, which identifies the talk.
 """
 
 from __future__ import annotations
@@ -103,6 +104,7 @@ MONTHS: Final = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", 
 WEEKDAYS: Final = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 MAX_HEADING_DISTANCE: Final = 50
 """Siblings looked at before a table when searching for its heading."""
+MIN_VOTING_DAYS: Final = 3  # dated rows a table needs to move its year on weekdays alone
 
 
 # --- params ------------------------------------------------------------------------------
@@ -291,21 +293,31 @@ def make_day(year: int, day: tuple[int, int] | None) -> date | None:
         return None
 
 
-def table_year(heading: Heading, days: Sequence[tuple[int, int]]) -> int:
+def table_year(heading: Heading, days: Sequence[tuple[int, int]], today: date) -> int:
     """The heading's year, or the year before or after when most ``days`` fall on its weekday there.
 
     A date never falls on the same weekday in two neighbouring years: a typo in the
     year moves most dates of a table off the weekday, a talk on another day only one.
+    A table of fewer than MIN_VOTING_DAYS dates, often the newest one, moves only when
+    that also brings its dates nearer to ``today``: a talk or two on another weekday
+    must not move the coming term out of the run.
     """
     if heading.weekday is None:
         return heading.year
 
+    def dates(year: int) -> list[date]:
+        return [day for day in (make_day(year, pair) for pair in days) if day is not None]
+
     def fitting(year: int) -> int:
-        dates = (make_day(year, day) for day in days)
-        return sum(1 for day in dates if day is not None and day.weekday() == heading.weekday)
+        return sum(1 for day in dates(year) if day.weekday() == heading.weekday)
+
+    def distance(year: int) -> int:
+        return sum(abs((day - today).days) for day in dates(year))
 
     for year in (heading.year - 1, heading.year + 1):
-        if 2 * fitting(year) > len(days):
+        if 2 * fitting(year) <= len(days):
+            continue
+        if len(days) >= MIN_VOTING_DAYS or distance(year) < distance(heading.year):
             return year
     return heading.year
 
@@ -350,6 +362,7 @@ def read_schedule(params: NlpParams, source: SourceConfig, document: FetchedDocu
         raise ParseError(f"source {source.id}: no {params.selectors.section!r} on {url}")
     talks: list[Talk] = []
     readable = 0
+    today = local_day(document.fetched_at, ZoneInfo(source.timezone))
     for table in tables[: params.max_sections]:
         heading = read_heading(params, section_heading(params, table))
         if heading is None:
@@ -362,7 +375,7 @@ def read_schedule(params: NlpParams, source: SourceConfig, document: FetchedDocu
             (row, month_day(params, node_text(row.css_first(params.selectors.date))))
             for row in table.css(params.selectors.row)
         ]
-        year = table_year(heading, [day for _, day in rows if day is not None])
+        year = table_year(heading, [day for _, day in rows if day is not None], today)
         for row, day in rows:
             if (talk := read_talk(params, document, row, heading, make_day(year, day))) is not None:
                 talks.append(talk)
