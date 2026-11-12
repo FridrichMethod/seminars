@@ -595,19 +595,19 @@ class TestRequests:
         assert [draft.title for draft in drafts] == [TALK["title"]]
 
     @pytest.mark.parametrize(
-        "error",
+        ("error", "logged"),
         [
-            LLMUnavailableError("no provider left"),
-            LLMAuthError("expired", provider="claude-cli"),
-            LLMBudgetExceededError("call cap reached"),
+            (LLMUnavailableError("no provider left"), "1 piece(s) without a stored answer"),
+            (LLMAuthError("expired", provider="claude-cli"), "extraction stopped (LLMAuthError)"),
+            (LLMBudgetExceededError("call cap reached"), "1 piece(s) without a stored answer"),
         ],
     )
-    def test_a_provider_problem_stops_the_source_and_keeps_what_was_found(
-        self, error: Exception, caplog: pytest.LogCaptureFixture
+    def test_a_provider_problem_keeps_what_was_found(
+        self, error: Exception, logged: str, caplog: pytest.LogCaptureFixture
     ) -> None:
         llm = FakeLLMClient(answer(TALK), error)
         with caplog.at_level(logging.INFO):
             drafts = extract(llm, PAGE, self.lines(1))
         assert [draft.title for draft in drafts] == [TALK["title"]]
         assert len(llm.calls) == 2
-        assert f"extraction stopped ({type(error).__name__})" in caplog.text
+        assert logged in caplog.text

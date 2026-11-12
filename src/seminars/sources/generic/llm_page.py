@@ -105,11 +105,13 @@ from selectolax.lexbor import LexborHTMLParser, LexborNode
 
 from seminars.config import TAG_ONLY_PROVIDERS, LLMConfig
 from seminars.contracts import (
+    LLMBudgetExceededError,
     LLMCache,
     LLMChainClient,
     LLMClient,
     LLMError,
     LLMInvalidOutputError,
+    LLMUnavailableError,
     PageExtractor,
     llm_cache_key,
 )
@@ -692,10 +694,17 @@ class LLMPageExtractor:
         return pieces[:MAX_CHUNKS_PER_SOURCE], unsent
 
     def extract(self, payload: RawPayload, source: SourceConfig) -> list[EventDraft]:
-        """Drafts for the talks on the fetched pages; empty when the LLM is unavailable.
+        """Drafts for the talks on the fetched pages.
 
-        Text that is left out for its length is counted in the run report
-        when the client keeps that count (``seminars.llm.base.SkipRecorder``).
+        Every piece of text is answered from the cache first. When nothing
+        new can be asked (``LLMUnavailableError``: no provider is left;
+        ``LLMBudgetExceededError``: the request was not sent), a piece
+        without a stored answer gives nothing and the other pieces are
+        still read, so the stored answers of the pages that did not change
+        keep giving their talks; neither error sends anything. Any other
+        error of the client ends the extraction of the source. Text that is
+        left out for its length is counted in the run report when the client
+        keeps that count (``seminars.llm.base.SkipRecorder``).
         """
         today = payload.fetched_at.astimezone(ZoneInfo(source.timezone)).date()
         pieces, unsent = self._pieces(payload)
@@ -707,12 +716,16 @@ class LLMPageExtractor:
             )
             record_skipped_too_long(self._client, unsent)
         drafts: list[EventDraft] = []
+        unread = 0
         for document, page, chunk in pieces:
             piece = piece_forms(chunk, self._filters.privacy, min_similarity=self._min_similarity)
             try:
                 found = self._answer(chunk, document.final_url, today, piece)
             except LLMInvalidOutputError:
                 logger.info("source %s: an extraction answer was discarded", source.id)
+                continue
+            except (LLMUnavailableError, LLMBudgetExceededError):
+                unread += 1
                 continue
             except LLMError as error:
                 logger.info("source %s: extraction stopped (%s)", source.id, type(error).__name__)
@@ -721,6 +734,13 @@ class LLMPageExtractor:
                 draft = _draft(item, page, piece, found.reference, source)
                 if draft is not None:
                     drafts = _with_draft(drafts, draft)
+        if unread:
+            logger.info(
+                "source %s: %d piece(s) without a stored answer were not read (no LLM request "
+                "could be sent)",
+                source.id,
+                unread,
+            )
         return drafts
 
 

@@ -1,4 +1,4 @@
-English | [Chinese](LLM_CREDENTIALS.zh-CN.md)
+English | [&#20013;&#25991;](LLM_CREDENTIALS.zh-CN.md)
 
 # LLM credentials
 
@@ -186,11 +186,14 @@ the same check is `seminars llm-smoke`.
 Without a provider (no credential, or `LLM_PROVIDERS=none`), nothing new is asked, but the
 answers stored in `data/llm_cache/` by earlier runs still apply: an event that an answer
 tagged or ruled out as no talk keeps that answer, and a page that was read keeps giving the
-talks read from it, as long as the text stays the same. A run whose credential is refused
-gives the same data. Nothing is added to the cache then and nothing is removed; a hit only
-renews the date of its entry, as every hit does. Every other field tag comes from the
-rules, and a page that needs reading and has changed yields no events until a provider is
-back. `seminars run --no-llm` uses the rules alone and does not read the cache either.
+talks read from it, as long as its text stays the same. That holds for each page of a
+source, and for each piece of a long page, on its own: when one page of a source has
+changed, the others still give their talks. A run whose credential is refused gives the same
+data, and so does the rest of a run that has used up `max_calls_per_run`. Nothing is added
+to the cache then and nothing is removed; a hit only renews the date of its entry, as every
+hit does. Every other field tag comes from the rules, and a page (or a piece of one) that
+needs reading and has changed yields no events until a provider is back.
+`seminars run --no-llm` uses the rules alone and does not read the cache either.
 
 ## What it costs
 
