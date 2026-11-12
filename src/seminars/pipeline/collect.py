@@ -27,10 +27,15 @@ returned what it had (an adapter may skip a detail page that cannot be
 fetched). A source that counted as healthy with half its listing would
 make every event it did not deliver count as missing.
 
-Error messages go into the run report, health issues and the status page.
-They are one line of printable ASCII (``seminars.textrules.ascii_printable``),
+Error messages go into the run report, the health history, the status page,
+the source-broken issue, the weekly digest and the job log. They are one
+line of printable ASCII (``seminars.textrules.ascii_printable``),
 credential-shaped parts are replaced, and they are cut to
-``MAX_ERROR_CHARS``.
+``MAX_ERROR_CHARS``. An error can quote an address taken from a page (a
+link to another host, a detail page), so the text is also scrubbed like
+the free text of an event (``seminars.pipeline.privacy.scrub_private``):
+no meeting password or passcode, no e-mail address, no telephone number.
+The warnings of a source get the same treatment.
 """
 
 from __future__ import annotations
@@ -66,6 +71,7 @@ from seminars.models import (
     TimeWindow,
 )
 from seminars.pipeline.normalize import NormalizeContext, normalize_drafts
+from seminars.pipeline.privacy import scrub_private
 from seminars.sources.base import (
     ForeignHostError,
     ParseError,
@@ -81,6 +87,7 @@ SOURCE_FETCH_LIMIT_SECONDS: Final = 900.0
 
 MAX_FETCH_WORKERS: Final = 8
 MAX_ERROR_CHARS: Final = 300
+SCRUBBED_CHARS: Final = 4 * MAX_ERROR_CHARS
 
 Timer = Callable[[], float]
 """A monotonic clock in seconds; only differences are used."""
@@ -169,14 +176,25 @@ def error_kind(error: Exception) -> SourceErrorKind:
     return "internal"
 
 
+def publishable(text: str, redact: Callable[[str], str]) -> str:
+    """``text`` as one printable ASCII line without secrets and private data, cut short.
+
+    Secrets are redacted in the whole text; only the first
+    ``SCRUBBED_CHARS`` of what is left are scrubbed and kept, which bounds
+    the work on a long message.
+    """
+    scrubbed = scrub_private(redact(text)[:SCRUBBED_CHARS])
+    return ascii_printable(scrubbed)[:MAX_ERROR_CHARS]
+
+
 def describe_error(error: Exception, redact: Callable[[str], str]) -> str:
     """One printable ASCII line about ``error`` that is safe to publish."""
     if isinstance(error, ValidationError):
         detail = f"{error.error_count()} value(s) do not fit the schema"
     else:
-        detail = redact(str(error))
+        detail = str(error)
     text = f"{type(error).__name__}: {detail}" if detail else type(error).__name__
-    return ascii_printable(text)[:MAX_ERROR_CHARS]
+    return publishable(text, redact)
 
 
 def _fetch(
@@ -303,7 +321,7 @@ def digest_source(
         outside_window=normalized.outside_window,
         extraction=_extraction(normalized.candidates),
         llm_fallback_used=fallback_used,
-        warnings=warnings,
+        warnings=[publishable(warning, context.redact) for warning in warnings],
     )
     return SourceOutcome(result, normalized.candidates, normalized.invalid)
 

@@ -315,6 +315,11 @@ __all__ = [
 ]
 
 
+def _loggable(url: str) -> str:
+    """``url`` for a log line: without query and fragment, where a page can put a password."""
+    return ascii_safe(url.split("#", 1)[0].split("?", 1)[0])
+
+
 _UNFORESEEN: Final = (
     ValueError,  # UnicodeError is one
     OSError,
@@ -432,7 +437,7 @@ class PoliteClient:
             raise
         except _UNFORESEEN as error:
             # The promise to callers: a document or an HttpError, whatever a site sends.
-            logger.warning("unexpected %s: %s", type(error).__name__, ascii_safe(url))
+            logger.warning("unexpected %s: %s", type(error).__name__, _loggable(url))
             raise HttpRequestError(
                 url, f"request failed unexpectedly ({type(error).__name__})"
             ) from error

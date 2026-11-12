@@ -34,6 +34,7 @@ from dateutil import parser as date_parser
 from pydantic import AfterValidator, ValidationError
 from selectolax.lexbor import LexborHTMLParser, LexborNode, SelectolaxError
 
+from seminars.contracts import PrivateTextScrubber, load_implementation
 from seminars.http import HttpClient, HttpError
 from seminars.models import (
     FetchedDocument,
@@ -342,13 +343,19 @@ def get_document(http: HttpClient, source: SourceConfig, url: str, label: str) -
 def fetch_optional(
     http: HttpClient, source: SourceConfig, urls: Iterable[str], label: str
 ) -> list[FetchedDocument]:
-    """Documents of ``urls`` that could be fetched; a failure is logged and skipped."""
+    """Documents of ``urls`` that could be fetched; a failure is logged and skipped.
+
+    The address in the logged error comes from a page, so the line is
+    scrubbed first (the ``private_scrubber`` contract): a meeting password
+    in a link never reaches the job log.
+    """
     documents = []
     for url in urls:
         try:
             documents.append(get_document(http, source, url, label))
         except HttpError as error:
-            logger.warning("source %s: %s page skipped: %s", source.id, label, error)
+            scrub: PrivateTextScrubber = load_implementation("private_scrubber")
+            logger.warning("source %s: %s page skipped: %s", source.id, label, scrub(str(error)))
     return documents
 
 
