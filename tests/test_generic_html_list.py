@@ -21,6 +21,7 @@ from seminars.sources.generic.html_list import (
     HtmlListAdapter,
     parse_clock,
     parse_day,
+    parse_moment,
     split_names,
     split_range,
     time_range,
@@ -504,6 +505,26 @@ def test_parse_clock_with_a_format() -> None:
 )
 def test_parse_day(text: str, fmt: str | None, expected: date | None) -> None:
     assert parse_day(text, fmt, date(2026, 11, 11)) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("2026-11-17", date(2026, 11, 17)),
+        ("20261117", date(2026, 11, 17)),
+        (" 2026-11-17 ", date(2026, 11, 17)),
+        ("2026-11-17T16:00", datetime(2026, 11, 17, 16, 0)),
+        ("2026-11-17 16:00:00-08:00", datetime(2026, 11, 17, 16, 0, tzinfo=PST)),
+        ("20261117T160000Z", datetime(2026, 11, 17, 16, 0, tzinfo=UTC)),
+        ("1731859200", None),
+        ("Nov 17, 2026", None),
+        (None, None),
+    ],
+)
+def test_parse_moment(text: str | None, expected: object) -> None:
+    moment = parse_moment(text)
+    assert moment == expected
+    assert type(moment) is type(expected)  # a date is never a midnight datetime
 
 
 @pytest.mark.parametrize(

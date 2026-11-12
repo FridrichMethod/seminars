@@ -371,12 +371,13 @@ def parse_day(text: str | None, fmt: str | None, reference: date) -> date | None
 
 
 def parse_moment(text: str | None) -> datetime | date | None:
-    """An ISO 8601 date (all day) or date and time; ``None`` for anything else."""
+    """An ISO 8601 date (all day, "20261117" too) or date and time; ``None`` for anything else."""
     value = collapse(text)
     if value is None:
         return None
-    with contextlib.suppress(ValueError):
-        return date.fromisoformat(value) if len(value) == 10 else datetime.fromisoformat(value)
+    for reader in (date.fromisoformat, datetime.fromisoformat):
+        with contextlib.suppress(ValueError):
+            return reader(value)
     return None
 
 
