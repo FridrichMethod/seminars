@@ -32,14 +32,17 @@ PAST_AFTERNOON = {
 """Talks of the afternoon of 11 November (Pacific time), before the run time."""
 
 
-@pytest.fixture(scope="module")
-def offline_run(tmp_path_factory: pytest.TempPathFactory) -> tuple[str, Path]:
-    """The output of one offline run and the project it wrote into."""
-    root = tmp_path_factory.mktemp("offline") / "project"
+def make_project(root: Path) -> Path:
+    """A project at ``root`` with the configuration and the fixtures of the repository."""
     (root / "tests").mkdir(parents=True)
     shutil.copytree(REPO_ROOT / "config", root / "config")
     shutil.copytree(REPO_ROOT / "locales", root / "locales")
     (root / "tests" / "fixtures").symlink_to(REPO_ROOT / "tests" / "fixtures")
+    return root
+
+
+def run_offline(root: Path) -> str:
+    """``seminars run --offline --no-llm`` in the project ``root``; its output."""
     with pytest.MonkeyPatch.context() as patch:
         for name in (*filter(None, PROVIDER_CREDENTIAL_ENV.values()), "GITHUB_TOKEN"):
             patch.delenv(name, raising=False)
@@ -49,7 +52,24 @@ def offline_run(tmp_path_factory: pytest.TempPathFactory) -> tuple[str, Path]:
         patch.chdir(root)
         result = CliRunner().invoke(cli.app, ["run", "--offline", "--no-llm"])
     assert result.exit_code == 0, result.output
-    return result.output, root
+    return result.output
+
+
+@pytest.fixture(scope="module")
+def offline_run(tmp_path_factory: pytest.TempPathFactory) -> tuple[str, Path]:
+    """The output of one offline run and the project it wrote into."""
+    root = make_project(tmp_path_factory.mktemp("offline") / "project")
+    return run_offline(root), root
+
+
+def test_a_second_run_over_the_same_recordings_changes_nothing(tmp_path: Path) -> None:
+    # Merged talks keep the values of the same listing once they share their uid.
+    root = make_project(tmp_path / "project")
+    run_offline(root)
+    events = (root / "data" / "events.json").read_bytes()
+    output = run_offline(root)
+    assert ", 0 new, 0 changed, 0 missing," in output
+    assert (root / "data" / "events.json").read_bytes() == events
 
 
 def stored(root: Path) -> list[Event]:

@@ -33,6 +33,22 @@ class TestStability:
         assert config.paths.uid_map_file.read_bytes() == uid_map
         assert (report.counts.added, report.counts.changed) == (0, 0)
 
+    def test_a_talk_two_hosts_list_keeps_the_values_of_the_same_host(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        # Once the uid map binds both keys to one uid, the host whose values the merged
+        # event takes must not change: here the other host's values sort first.
+        fake_adapter.drafts = [
+            draft("sites-a", "1", host_org="Zeta Department", location="Room Z"),
+            draft("sites-b", "1", host_org="Alpha Department", location="Room A"),
+        ]
+        run(config, services(FakeEmitters()))
+        (first,) = stored(config).values()
+        assert (first.host_org, first.location) == ("Zeta Department", "Room Z")
+        report = run(config, services(FakeEmitters()), days=1)
+        assert stored(config) == {first.uid: first}
+        assert (report.counts.added, report.counts.changed) == (0, 0)
+
     def test_a_new_title_keeps_the_uid_and_raises_the_sequence(
         self, config: AppConfig, fake_adapter: FakeAdapter
     ) -> None:

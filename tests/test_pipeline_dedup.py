@@ -365,6 +365,23 @@ class TestMerge:
         both = run(self.site(), self.aggregator(first_seen=REFERENCE_NOW))
         assert uids(both) == ["agg-1"]
 
+    def test_the_lead_listing_does_not_change_once_both_share_the_uid(self) -> None:
+        # The uid map gives both listings the uid of the merged event in the next run.
+        title = "Protein design with diffusion models"
+        first = candidate("sites-a.1", sources=("sites-a",), title=title, host_org="Zeta")
+        second = candidate("sites-b.1", sources=("sites-b",), title=title, host_org="Alpha")
+        first = first.model_copy(update={"event": first.event.evolve(location="Z")})
+        second = second.model_copy(update={"event": second.event.evolve(location="A")})
+        merged = run(first, second).candidates[0].event
+        assert (merged.uid, merged.host_org, merged.location) == ("sites-a.1", "Zeta", "Z")
+        again = [
+            item.model_copy(update={"event": item.event.evolve(uid=merged.uid)})
+            for item in (first, second)
+        ]
+        for order in (again, again[::-1]):
+            (result,) = run(*order).candidates
+            assert result.event == merged
+
     def test_the_host_listing_supplies_page_times_place_and_host(self) -> None:
         site = self.site(
             location="Shriram 104", start=START + timedelta(minutes=5), event_type="colloquium"

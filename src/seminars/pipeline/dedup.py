@@ -67,7 +67,11 @@ becomes one event:
   source address is kept;
 * the remaining values come from the listing of the host rather than from
   an aggregator (``SourceConfig.aggregator``): the address of the detail
-  page, the times, the place, the host;
+  page, the times, the place, the host. Of two hosts (or two aggregators)
+  the one whose source key sorts first leads; that is the order the title
+  rule falls back on too. The uid plays no part in it, since the next run
+  hands every listing of the talk the merged uid, and the merged event
+  must stay what it was;
 * a cancellation that any listing reports is kept.
 
 The result does not depend on the order of the input, and running it over
@@ -405,11 +409,13 @@ def _title(events: Sequence[Event], speakers: Sequence[Speaker]) -> str:
 def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidate:
     """One candidate for a group; a group of one comes back in canonical form."""
 
-    def rank(candidate: Candidate) -> tuple[bool, str, str, str]:
+    def rank(candidate: Candidate) -> tuple[bool, tuple[str, ...], str, str]:
+        # By source keys, not by uid: the next run gives every member the merged uid.
         sources = candidate.hints.source_ids
         aggregated = bool(sources) and all(source in aggregators for source in sources)
         event = candidate.event
-        return aggregated, event.uid, event_to_line(event), candidate.hints.model_dump_json()
+        keys = tuple(sorted(event.source_ids))
+        return aggregated, keys, event_to_line(event), candidate.hints.model_dump_json()
 
     members = sorted(group, key=rank)
     events = [member.event for member in members]
