@@ -204,12 +204,13 @@ either.
 
 What keeps the cost down, all set in `config/llm.yaml`:
 
-* `batch_size` (20): events per tagging request, answered as one JSON list. An answer from
-  such a request that does not say what the source says is asked again for its event alone
-  (see "Page text is data"). An event the rules cannot place has no fields from its
-  source, so each of those costs a request of its own as well: over an empty cache the
-  first run makes about one request per open event, up to `max_calls_per_run`, and the
-  next runs ask for the rest.
+* `batch_size` (20): events per tagging request, answered as one JSON list. Only events
+  with fields from their source share a request, and an answer from such a request that
+  does not say what the source says is asked again for its event alone (see "Page text is
+  data"). An event the rules cannot place has no fields from its source, so each of those
+  is asked alone, in a request of its own: over an empty cache the first run makes about
+  one request per open event, up to `max_calls_per_run`, and the next runs ask for the
+  rest. After that only new and changed events are asked.
 * `max_calls_per_run` (60): requests in one run; the rest is skipped and reported.
 * `max_input_chars` (12000): the longest prompt that is sent; a long page is read in
   pieces of this size, at most six pieces per source. An event too long for any request
@@ -396,11 +397,12 @@ Whatever the provider, a page cannot steer the result:
   discarded as a whole; tagging answers can only hold the field ids of the taxonomy.
 * One event cannot decide about another. Tagging sends up to `batch_size` events in one
   request, and a model might still follow an instruction in one of them about the others.
-  So an answer from a request of several events is used only when it says what the source
-  says anyway: a talk, with exactly the fields of the source. Any other answer (no talk,
-  other fields) is asked again for that event alone, and only that answer is used and
-  stored in the cache; when that request fails, the event has no answer and the rules
-  decide.
+  So an event without fields from its source, which is every event whose fields the LLM
+  decides, is always asked alone, in a request of its own. And an answer from a request of
+  several events is used only when it says what the source says anyway: a talk, with
+  exactly the fields of the source. Any other answer (no talk, other fields) is asked again
+  for that event alone, and only that answer is used and stored in the cache; when that
+  request fails, the event has no answer and the rules decide.
 * Every text value of a page reading (title, speaker, affiliation, series, location,
   abstract) must occur in the page text after normalization, or differ from it by a few
   characters at most (`grounding_min_similarity`, 90). What is kept is the text of the page
@@ -418,6 +420,9 @@ Whatever the provider, a page cannot steer the result:
 
 **Residual risk of tagging.** A hostile event can still make the model give the other
 events of its batch the answer of their source (a talk, with the fields of the source).
-Such an answer is used and cached, so those events are classified as if the LLM had not
-helped, and an event that is no talk can stay in the feeds, for as long as its text does
-not change. And a page can describe its own event falsely, with or without an LLM.
+Such an answer is used and cached. The events in a batch all have fields from their
+source, and the rules place them with those fields, so they keep their fields and stay in
+the feeds as if the LLM had not been asked: an event among them that is no talk stays in
+the feeds, for as long as its text does not change. No answer about one event can leave
+another out of the feeds or take its fields away. And a page can describe its own event
+falsely, with or without an LLM.

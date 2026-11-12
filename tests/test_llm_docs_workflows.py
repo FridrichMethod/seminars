@@ -108,3 +108,29 @@ def test_switching_off_says_that_a_hit_still_renews_its_entry(path: Path) -> Non
     text = section(path, heading)
     renewal = "\u66f4\u65b0\u8fd9\u4e2a\u6761\u76ee\u7684\u65e5\u671f"
     assert ("renews the date" if path == ENGLISH else renewal) in text
+
+
+@pytest.mark.parametrize("path", BOTH)
+def test_events_without_source_fields_are_said_to_be_asked_alone(path: Path) -> None:
+    text = section(path, PAGE_TEXT_HEADING[path])
+    item = bullet(
+        text, "* " + ("One event cannot" if path == ENGLISH else "\u4e00\u4e2a\u4e8b\u4ef6")
+    )
+    alone = (
+        "is always asked alone, in a request of its own"
+        if path == ENGLISH
+        else "\u603b\u662f\u5355\u72ec\u7528\u4e00\u4e2a\u8bf7\u6c42\u53bb\u95ee"
+    )
+    assert alone in item
+
+
+@pytest.mark.parametrize("path", BOTH)
+def test_the_residual_risk_says_that_no_event_is_left_out_by_another(path: Path) -> None:
+    text = section(path, PAGE_TEXT_HEADING[path])
+    paragraph = " ".join(text[text.index(RESIDUAL_RISK[path]) :].split("\n\n")[0].split())
+    left_out = (
+        "can leave another out of the feeds"
+        if path == ENGLISH
+        else "\u4e0d\u80fd\u628a\u53e6\u4e00\u4e2a\u4e8b\u4ef6\u4ece feed \u91cc\u53bb\u6389"
+    )
+    assert left_out in paragraph
