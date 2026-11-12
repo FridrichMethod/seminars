@@ -29,8 +29,7 @@ Keys of ``params`` (an unknown key is an error that names it;
     ``length``, hexadecimal) holds exactly ``length`` bytes after it and is
     followed directly by the next row; every other row ends at a line
     break. A row whose body matches ``special_row_pattern`` is not JSON;
-    every other row with an id is one JSON value. A payload that cannot be
-    cut this way cannot be read.
+    every other row with an id is one JSON value.
   - String values: ``undefined_marker`` is a missing value,
     ``escaped_dollar_prefix`` starts a text that begins with "$" (one "$" is
     dropped), ``reference_pattern`` (group ``id``, optional ``path``) is the
@@ -50,12 +49,10 @@ Keys of ``params`` (an unknown key is an error that names it;
   are wall times of the source; the offset is dropped.
 * ``type_labels``: type label -> event type. ``keep_type_labels``: only
   events with one of these labels are returned (empty: all).
-* ``title_separator``: a title "<prefix><separator><rest>" names its
-  speakers or its series in the prefix. The prefix is the speakers when it
-  names the speakers of the detail page, or, without them, when it reads
-  like a list of person names (it is then the speaker text, for
-  normalization to split); otherwise it is the series. Either way the title
-  is the rest.
+* ``title_separator``: in a title "<prefix><separator><rest>" the prefix
+  is the speakers when it names those of the detail page or, without them,
+  reads like person names (then it is the speaker text, for normalization
+  to split); otherwise it is the series. The title is the rest.
 * ``card_selectors`` (``item``, ``title``, ``link``, ``type``, ``date``,
   ``time``, ``summary``), ``card_date_format`` and ``card_time_pattern``
   (groups ``start`` and ``end``): the cards, read when the payload cannot
@@ -63,8 +60,8 @@ Keys of ``params`` (an unknown key is an error that names it;
 * ``fetch_details`` (``upcoming`` or ``never``, default) and
   ``max_detail_pages`` (default 10).
 * ``detail_redirect_selector``: a page with a match only forwards elsewhere.
-  Such a page, a page without a match of ``detail_selectors.title`` and a
-  detail request that failed all leave the event as the list describes it.
+  Such a page, one without ``detail_selectors.title`` and a failed request
+  leave the event as the list describes it.
 * ``detail_selectors``: ``title``, ``meta_row`` (label and value elements),
   ``person_list`` with ``person_list_title``, ``person`` cards with
   ``person_name``, ``person_title`` (the affiliation; several are joined
@@ -83,6 +80,7 @@ times of the source.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import re
@@ -158,8 +156,8 @@ _NOT_NAME_WORDS: Final = _words(
     "center centre chat club college colloquium conference conversation council data day "
     "department economy forum foundation governance group hub initiative institute lab labs "
     "lecture lectures network office panel policy program programme research school science "
-    "sciences seminar seminars series society studies summit symposium talk talks university "
-    "week workshop"
+    "sciences seminar seminars series society studies summit symposium talk talks university week "
+    "workshop"
 )
 
 
@@ -290,9 +288,6 @@ class FlightError(ValueError):
     """The payload cannot be cut into rows."""
 
 
-_INVALID: Final = object()
-
-
 @dataclass(frozen=True)
 class TextRow:
     """The text of a text row: taken as it is, never read as a reference."""
@@ -320,15 +315,10 @@ def bytes_pattern(pattern: Pattern) -> re.Pattern[bytes]:
     return re.compile(pattern.pattern.encode("ascii"), pattern.flags & ~re.UNICODE)
 
 
-def decode_row(body: bytes) -> Any:
-    try:
-        return without_surrogates(json.loads(body))
-    except (ValueError, RecursionError):
-        return _INVALID
-
-
-def cut_rows(params: FlightParams, text: str) -> dict[str, Any]:
-    """Row id -> JSON value or ``TextRow``; ``FlightError`` when the text cannot be cut."""
+def cut_rows(params: FlightParams, text: str | None) -> dict[str, Any]:
+    """Row id -> JSON value or ``TextRow``; ``FlightError`` when there is nothing to cut."""
+    if text is None:
+        raise FlightError("the page has no payload")
     data = text.encode("utf-8")
     row_start, text_row = (
         bytes_pattern(params.row_start_pattern),
@@ -355,9 +345,8 @@ def cut_rows(params: FlightParams, text: str) -> dict[str, Any]:
         identifier, body = match["id"].decode("ascii"), data[match.end() : end]
         head = body[:PATTERN_INPUT_LIMIT].decode("utf-8", "replace")
         if identifier and params.special_row_pattern.search(head) is None:
-            value = decode_row(body)
-            if value is not _INVALID:
-                rows[identifier] = value
+            with contextlib.suppress(ValueError, RecursionError):  # not JSON: skipped
+                rows[identifier] = without_surrogates(json.loads(body))
         position = end + 1
     return rows
 
@@ -409,8 +398,7 @@ class Flight:
         return [value for value in current if value is not None]
 
     def text(self, node: Any, path: str | None) -> str | None:
-        values = self.texts(node, path)
-        return values[0] if values else None
+        return next(iter(self.texts(node, path)), None)
 
     def texts(self, node: Any, path: str | None) -> list[str]:
         if path is None:
@@ -474,6 +462,10 @@ class Listed:
     summary_html: str | None
     type_label: str | None
     topics: tuple[str, ...] = ()
+
+    @property
+    def detail_url(self) -> str | None:
+        return self.organiser_url or self.link
 
 
 def kind(value: datetime | date) -> tuple[bool, bool]:
@@ -566,11 +558,9 @@ def read_list(params: HaiParams, source: SourceConfig, document: FetchedDocument
 def flight_events(
     params: HaiParams, tree: LexborHTMLParser
 ) -> list[tuple[Flight, dict[str, Any]]] | None:
-    text = flight_text(params.flight, tree)
-    if text is None:
-        return None
+    """The events of the payload with their payload; ``None`` when it cannot be read."""
     try:
-        flight = Flight(params.flight, cut_rows(params.flight, text))
+        flight = Flight(params.flight, cut_rows(params.flight, flight_text(params.flight, tree)))
     except FlightError:
         return None
     events = flight.events()
@@ -593,10 +583,6 @@ class Detail:
     description_html: str | None = None
 
 
-def detail_url(item: Listed) -> str | None:
-    return item.organiser_url or item.link
-
-
 def meta_rows(selectors: DetailSelectors, tree: LexborHTMLParser) -> dict[str, LexborNode]:
     """Folded label -> value element of the label and value rows."""
     rows: dict[str, LexborNode] = {}
@@ -616,9 +602,8 @@ def people(
         return ()
     speakers: list[SpeakerDraft] = []
     for group in tree.css(selectors.person_list):
-        heading = (
-            group.css_first(selectors.person_list_title) if selectors.person_list_title else None
-        )
+        title = selectors.person_list_title
+        heading = group.css_first(title) if title else None
         if (node_text(heading) or "").casefold() not in titles:
             continue
         for card in group.css(selectors.person):
@@ -654,6 +639,7 @@ def read_detail(params: HaiParams, document: FetchedDocument) -> Detail | None:
     topics = row(labels.topics)
     links = topics.css("a") if topics is not None else []
     stream = tree.css_first(selectors.stream_link) if selectors.stream_link else None
+    description = tree.css_first(selectors.description) if selectors.description else None
     base = document.final_url
     return Detail(
         location=node_text(row(labels.location)),
@@ -662,21 +648,16 @@ def read_detail(params: HaiParams, document: FetchedDocument) -> Detail | None:
         topics=tuple(text for node in links or [topics] if (text := node_text(node))),
         speakers=people(params, selectors, tree, base),
         stream_url=absolute_url(base, stream.attributes.get("href") if stream else None),
-        description_html=inner_html(tree.css_first(selectors.description))
-        if selectors.description
-        else None,
+        description_html=inner_html(description),
     )
 
 
-def detail_end(start: datetime | date, date_text: str | None) -> datetime | None:
+def detail_end(start: datetime | date, date_text: str | None) -> datetime | date | None:
     """The end time on the start day that a date row gives ("... 12:00 PM - 1:15 PM")."""
-    if not isinstance(start, datetime):
+    clock = parse_clock(split_range(date_text)[1]) if isinstance(start, datetime) else None
+    if clock is None or not isinstance(start, datetime):
         return None
-    clock = parse_clock(split_range(date_text)[1])
-    if clock is None:
-        return None
-    end = datetime.combine(start.date(), clock[0], tzinfo=start.tzinfo)
-    return end if end > start else None
+    return later(start, datetime.combine(start.date(), clock[0], tzinfo=start.tzinfo))
 
 
 # --- titles ------------------------------------------------------------------------------
@@ -757,8 +738,12 @@ def detail_targets(
     foreign = 0
     for document in lists:
         today = local_day(document.fetched_at, zone)
-        for item in read_list(params, source, document):
-            url = detail_url(item)
+        try:
+            items = read_list(params, source, document)
+        except ParseError:  # parse reports it; the payload stays whole for the pipeline
+            continue
+        for item in items:
+            url = item.detail_url
             if local_day(item.start, zone) < today or url is None:
                 continue
             if outside_window(item.start, item.end, window, zone):
@@ -797,7 +782,7 @@ class HaiEventsAdapter:
         drafts: list[EventDraft] = []
         for document in lists:
             for item in read_list(params, source, document):
-                url = detail_url(item)
+                url = item.detail_url
                 page = pages.get(url) if url is not None else None
                 detail = read_detail(params, page) if page is not None else None
                 try:

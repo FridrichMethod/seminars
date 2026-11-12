@@ -213,8 +213,11 @@ class TestHandWrittenSchedules:
         assert talk.url == "https://nlp.stanford.edu/seminar/details/x.shtml"
 
     def test_a_page_without_any_table_is_not_understood(self) -> None:
+        adapter = NlpSeminarAdapter()
+        http = serve({SCHEDULE_URL: "<html><body><p>Moved</p></body></html>"})
+        payload = adapter.fetch(http, SOURCE, window=make_window(RECORDED))  # fetch succeeds
         with pytest.raises(ParseError, match=r"table\.p"):
-            parse_page("<html><body><p>Moved</p></body></html>")
+            adapter.parse(payload, SOURCE)
 
     def test_tables_whose_headings_name_no_year_are_not_understood(self) -> None:
         page = schedule(("<h2>Schedule</h2>", [row("Nov 5", "A B", "T")]))

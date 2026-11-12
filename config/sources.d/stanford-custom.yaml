@@ -7,8 +7,8 @@
 # the page in more detail.
 #
 # Adapter names: "html_list" and "ics" are generic adapters. "nlp_seminar",
-# "hai_events" and "synbio_events" are proposed modules for
-# seminars.sources.custom; they do not exist yet.
+# "hai_events" and "synbio_events" are modules of seminars.sources.custom; the
+# docstring of each module describes every key of its params.
 #
 # Patterns are Python regular expressions. Characters outside ASCII are written as
 # escapes: \xb7 is the middle dot, \u2013 the en dash.

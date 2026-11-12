@@ -352,8 +352,12 @@ class TestPayload:
         assert talk.abstract_html == "<p>Teaser</p>"
 
     def test_a_page_with_neither_payload_nor_cards_is_not_understood(self) -> None:
+        adapter = HaiEventsAdapter()
+        http = serve({LIST_URL: "<html><body>Maintenance</body></html>"})
+        payload = adapter.fetch(http, SOURCE, window=make_window(RECORDED))  # fetch succeeds
+        assert http.requests == [LIST_URL]
         with pytest.raises(ParseError, match="neither the payload nor cards"):
-            run(SOURCE, serve({LIST_URL: "<html><body>Maintenance</body></html>"}))
+            adapter.parse(payload, SOURCE)
 
     def test_a_payload_without_the_list_page_is_not_understood(self) -> None:
         adapter = HaiEventsAdapter()

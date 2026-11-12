@@ -435,7 +435,11 @@ def detail_targets(
     foreign = 0
     for document in schedules:
         today = local_day(document.fetched_at, zone)
-        for talk in read_schedule(params, source, document):
+        try:
+            talks = read_schedule(params, source, document)
+        except ParseError:  # parse reports it; the payload stays whole for the pipeline
+            continue
+        for talk in talks:
             if talk.day < today or outside_window(talk.day, None, window, zone):
                 continue
             if not on_source_host(source, talk.url):
