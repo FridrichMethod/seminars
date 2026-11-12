@@ -96,6 +96,7 @@ from seminars.models import (
     SpeakerDraft,
     TimeWindow,
 )
+from seminars.pipeline.times import MAX_ROLLOVER  # the rule of normalization, so both agree
 from seminars.sources.base import (
     AdapterError,
     ForeignHostError,
@@ -257,7 +258,6 @@ _RANGE: Final = re.compile(r"\s*[-\u2013\u2014]\s*|\s+to\s+", re.IGNORECASE)
 _TBA: Final = re.compile(r"\W*(?:tba|tbd|tbc|to be (?:announced|determined|confirmed))\W*", re.I)
 _NAMED_TIMES: Final = {"noon": time(12, 0), "midnight": time(0, 0)}
 _NOON: Final = re.compile(r"12(?:[:.h]00)?\s*noon", re.IGNORECASE)
-MAX_ROLLOVER: Final = timedelta(hours=6)  # longest talk with an end before its start
 
 
 def is_tba(text: str | None) -> bool:

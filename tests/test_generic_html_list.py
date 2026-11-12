@@ -15,6 +15,7 @@ from fakes import FakeHttpClient
 from seminars.config import load_sources
 from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig
+from seminars.pipeline import times as normalization_times
 from seminars.sources.base import ForeignHostError, ParseError, get_adapter
 from seminars.sources.generic import html_list
 from seminars.sources.generic.html_list import (
@@ -553,6 +554,11 @@ def test_time_ranges(text: str, expected: tuple[time | None, time | None]) -> No
 def test_a_shared_meridiem_group() -> None:
     assert time_range("4:30", "5:30", meridiem="PM") == (time(16, 30), time(17, 30))
     assert time_range(None, "5:30", meridiem="pm") == (None, time(17, 30))
+
+
+def test_the_rollover_limit_is_the_one_of_normalization() -> None:
+    # One constant: an end the adapter keeps is one normalization keeps, and the other way round.
+    assert html_list.MAX_ROLLOVER is normalization_times.MAX_ROLLOVER
 
 
 def test_parse_clock_with_a_format() -> None:
