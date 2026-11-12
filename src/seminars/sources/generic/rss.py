@@ -55,13 +55,15 @@ Keys of ``params`` (an unknown key is an error that names it;
   ``event_type_names`` (card type -> event type), ``series_from: type`` (the
   card type is the series).
 * ``card_fields``: which card part (``title``, ``subheadline``, ``dek``)
-  holds which field (``speakers``, ``affiliation``, ``title``, ``host``).
-  ``type_card_fields`` replaces it for one card type, and
+  holds which field (``speakers``, ``affiliation``, ``title``, ``host``,
+  ``location``). ``type_card_fields`` replaces it for one card type, and
   ``colloquium_fields`` (``speaker``, ``affiliation``, ``talk_title``) for
   cards whose type maps to ``colloquium``. A mapped title that is empty
-  means the talk has no title yet. Parts that name no field (and the host,
-  which ``EventDraft`` has no field for) are the abstract when nothing else
-  is, unless they repeat the title or the location.
+  means the talk has no title yet. A mapped location counts when no element
+  gives one; ``location_pattern`` (group ``location``) takes it out of the
+  part ("12/9/26, @MUNZER Auditorium, 4PM"), or gives none. Parts that name
+  no field (and the host, which ``EventDraft`` has no field for) are the
+  abstract when nothing else is, unless they repeat the title or the location.
 * ``speaker_patterns``: the first pattern that matches the speakers text is
   applied repeatedly; each match is one speaker (groups ``speaker`` and
   ``affiliation``), and a group of names ("A, B, and C") is split.
@@ -137,7 +139,7 @@ logger = logging.getLogger(__name__)
 
 Moment = datetime | date
 CardPart = Literal["title", "subheadline", "dek"]
-CardField = Literal["speakers", "affiliation", "host", "title"]
+CardField = Literal["speakers", "affiliation", "host", "title", "location"]
 _COLLOQUIUM_FIELDS: Final[dict[str, CardField]] = {
     "speaker": "speakers",
     "affiliation": "affiliation",
@@ -216,6 +218,7 @@ class RssParams(Model):
     card_fields: dict[CardField, CardPart] = {}
     type_card_fields: dict[str, dict[CardField, CardPart]] = {}
     colloquium_fields: dict[Literal["speaker", "affiliation", "talk_title"], CardPart] = {}
+    location_pattern: Pattern | None = None
     speaker_patterns: list[Pattern] = []
     title_patterns: list[Pattern] = []
     tba_title_patterns: list[Pattern] = []
@@ -241,6 +244,9 @@ def _load(source: SourceConfig) -> RssParams:
         raise AdapterConfigError(f"source {source.id}: list_page needs the list in 'urls'")
     if params.expand_schedule and params.detail_page.schedule is None:
         raise AdapterConfigError(f"source {source.id}: expand_schedule needs detail_page.schedule")
+    pattern = params.location_pattern
+    if pattern is not None and "location" not in pattern.groupindex:
+        raise AdapterConfigError(f"source {source.id}: location_pattern needs the group location")
     return params
 
 
@@ -580,6 +586,7 @@ class Fields:
     speakers: list[SpeakerDraft]
     summary: str | None
     type_name: str | None
+    location: str | None = None  # of the part card_fields maps to location
 
 
 def card_fields(params: RssParams, entry: Entry, detail: Detail, location: str | None) -> Fields:
@@ -599,7 +606,12 @@ def card_fields(params: RssParams, entry: Entry, detail: Detail, location: str |
     affiliation = parts[mapping["affiliation"]] if "affiliation" in mapping else None
     speakers_text = parts[mapping["speakers"]] if "speakers" in mapping else None
     speakers = speakers_from(speakers_text, params.speaker_patterns, affiliation)
-    assigned = {mapping[key] for key in ("title", "speakers", "affiliation") if key in mapping}
+    mapped = parts[mapping["location"]] if "location" in mapping else None
+    if mapped and params.location_pattern is not None:  # the group, or no location
+        found = search(params.location_pattern, mapped)
+        mapped = collapse(found.group("location")) if found else None
+    keys = ("title", "speakers", "affiliation", "location")
+    assigned = {mapping[key] for key in keys if key in mapping}
     leftover = [
         text
         for part in ("subheadline", "dek")
@@ -620,7 +632,7 @@ def card_fields(params: RssParams, entry: Entry, detail: Detail, location: str |
         break
     if any_match(params.tba_title_patterns, title):
         title = TBA_TITLE
-    return Fields(title, series, speakers, "\n".join(leftover) or None, type_name)
+    return Fields(title, series, speakers, "\n".join(leftover) or None, type_name, mapped)
 
 
 def entry_times(
@@ -649,6 +661,7 @@ def build_drafts(
     location = (entry.card.location if entry.card else None) or detail.texts.get("location")
     location = location or (item.fields.get("location") if item else None)
     fields = card_fields(params, entry, detail, location)
+    location = location or fields.location
     start, end = entry_times(entry, detail, ZoneInfo(source.timezone))
     url = (entry.card.href if entry.card else None) or (item.link if item else None)
     feed_abstract = item.fields.get("abstract") if item else None
