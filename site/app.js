@@ -2,6 +2,7 @@
 
 import { h, link, replaceChildren } from "./dom.js";
 import {
+  ANY_CHOICES,
   NO_FILTERS,
   RANGES,
   filtersFromQuery,
@@ -12,6 +13,7 @@ import {
   prepareEvents,
   queryFromFilters,
   toggled,
+  withinChoices,
 } from "./filters.js";
 import { children, currentLang, parts, plural, t } from "./i18n.js";
 import {
@@ -47,8 +49,15 @@ const ui = {
 // for this long, so a long list is not rebuilt on every key.
 const SEARCH_DELAY_MS = 200;
 
-// The page state; every change replaces the object.
-let view = Object.freeze({ model: null, failed: false, filters: NO_FILTERS });
+// The page state; every change replaces the object. Until the talks are there, the
+// filters are those of the address, kept as they are (a bookmarked or shared link), and
+// a change made in the meantime is added to them; once the talks arrive, the filters are
+// checked against what exists.
+let view = Object.freeze({
+  model: null,
+  failed: false,
+  filters: filtersFromQuery(window.location.search, ANY_CHOICES),
+});
 
 /** The payload of events.json prepared for the page. */
 function prepareModel(payload, now) {
@@ -119,9 +128,14 @@ function option(value, label) {
   return h("option", { value }, label);
 }
 
+/** What the controls offer before the talks are there: the organizer of the address. */
+function choicesWhileLoading(filters) {
+  return { fields: [], institutions: [], hosts: filters.host === "" ? [] : [filters.host] };
+}
+
 function buildControls() {
   const { model, filters } = view;
-  const choices = model?.choices ?? { fields: [], institutions: [], hosts: [] };
+  const choices = model?.choices ?? choicesWhileLoading(filters);
   replaceChildren(
     ui.fields,
     choices.fields.map((id) =>
@@ -379,12 +393,13 @@ async function main() {
     if (error !== null) {
       throw error;
     }
-    pendingSearch.flush(); // text typed while loading is in the address before it is read
+    // Text typed while loading goes to the address now, as the list below shows it.
+    pendingSearch.flush();
     const model = prepareModel(payload, new Date());
     view = Object.freeze({
       model,
       failed: false,
-      filters: filtersFromQuery(window.location.search, model.choices),
+      filters: withinChoices(view.filters, model.choices),
     });
   } catch (error) {
     reportError(error);

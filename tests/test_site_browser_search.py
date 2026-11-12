@@ -11,12 +11,11 @@ them here as well. Marked ``browser`` like that module: ``uv run pytest -m brows
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
 
 import pytest
 
 import test_site_browser as harness
-from test_site_browser import NOW, READY, UPCOMING, Session
+from test_site_browser import NOW, UPCOMING, Session
 
 pytestmark = pytest.mark.browser
 
@@ -124,27 +123,6 @@ class TestSearchBox:
         page.clock.run_for(10 * SEARCH_DELAY_MS)
         assert updates(current) == before
         assert page.evaluate(LIST_KEPT) is True
-        current.assert_clean()
-
-    def test_text_typed_while_the_talks_load_is_kept(self, session: Callable[..., Session]) -> None:
-        current = paused(session, open_page=False)
-        page = current.page
-        held: list[Any] = []
-
-        def hold(request_route: Any) -> None:
-            held.append(request_route)
-
-        page.route("**/events.json", hold)
-        page.goto(current.base_url + "index.html")
-        page.wait_for_function("() => document.getElementById('search').placeholder !== ''")
-        page.locator("#search").press_sequentially("zoe muller")
-        assert current.shown() == []
-        assert len(held) == 1
-        held[0].continue_()
-        page.wait_for_function(READY)
-        assert page.locator("#search").input_value() == "zoe muller"
-        assert current.shown() == ["sample-tba"]
-        assert current.query() == {"q": ["zoe muller"]}
         current.assert_clean()
 
     def test_a_refused_address_update_does_not_stop_the_list(

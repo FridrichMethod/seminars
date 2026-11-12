@@ -200,26 +200,47 @@ export function isUnfiltered(filters) {
   );
 }
 
+/**
+ * Choices that keep every value: the filters of an address before the talks are known.
+ * ``null`` in place of a list of choices means that any value is kept.
+ */
+export const ANY_CHOICES = Object.freeze({ fields: null, institutions: null, hosts: null });
+
 function chosen(values, allowed) {
-  return Object.freeze(allowed.filter((value) => values.includes(value)));
+  const kept = allowed === null ? values : allowed.filter((value) => values.includes(value));
+  return Object.freeze([...new Set(kept)]);
 }
 
 /**
- * The filters written in a query string. ``choices`` lists the values that exist
- * (``fields``, ``institutions``, ``hosts``); anything else in the address is ignored.
+ * ``filters`` with every value that is not among ``choices`` left out. ``choices`` lists
+ * the values that exist (``fields``, ``institutions``, ``hosts``; see ANY_CHOICES).
  */
+export function withinChoices(filters, choices) {
+  const { host, range } = filters;
+  return Object.freeze({
+    query: filters.query.slice(0, MAX_QUERY_LENGTH),
+    fields: chosen(strings(filters.fields), choices.fields),
+    institutions: chosen(strings(filters.institutions), choices.institutions),
+    host: choices.hosts === null || choices.hosts.includes(host) ? host : "",
+    range: Object.hasOwn(RANGES, range) ? range : DEFAULT_RANGE,
+    picksOnly: filters.picksOnly,
+  });
+}
+
+/** The filters written in a query string; values that are not among ``choices`` are ignored. */
 export function filtersFromQuery(search, choices) {
   const params = new URLSearchParams(search);
-  const host = params.get(PARAMS.host) ?? "";
-  const range = params.get(PARAMS.range) ?? "";
-  return Object.freeze({
-    query: (params.get(PARAMS.query) ?? "").slice(0, MAX_QUERY_LENGTH),
-    fields: chosen(params.getAll(PARAMS.field), choices.fields),
-    institutions: chosen(params.getAll(PARAMS.institution), choices.institutions),
-    host: choices.hosts.includes(host) ? host : "",
-    range: Object.hasOwn(RANGES, range) ? range : DEFAULT_RANGE,
-    picksOnly: params.get(PARAMS.picks) === "1",
-  });
+  return withinChoices(
+    {
+      query: params.get(PARAMS.query) ?? "",
+      fields: params.getAll(PARAMS.field),
+      institutions: params.getAll(PARAMS.institution),
+      host: params.get(PARAMS.host) ?? "",
+      range: params.get(PARAMS.range) ?? "",
+      picksOnly: params.get(PARAMS.picks) === "1",
+    },
+    choices,
+  );
 }
 
 /** ``search`` with the filter parameters replaced by ``filters``; other parameters stay. */
