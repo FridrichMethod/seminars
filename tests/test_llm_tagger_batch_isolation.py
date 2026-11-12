@@ -133,7 +133,7 @@ class TestAHostileEventInTheBatch:
 
     def test_the_pipeline_keeps_the_other_events(self) -> None:
         class NeedsLLM:
-            def tag(self, item: Candidate) -> TagDecision:
+            def tag(self, candidate: Candidate) -> TagDecision:
                 return TagDecision(fields=[], method="rules", needs_llm=True)
 
         llm_tagger = build_llm_tagger(FakeLLMClient().always(obedient), config=CONFIG)
