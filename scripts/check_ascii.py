@@ -33,9 +33,15 @@ its suffix is added to the list. Violations are printed as
 
 ``--commit-msg FILE`` checks a commit message instead of the tree, which is
 what the commit-msg hook of pre-commit runs: printable ASCII and newlines
-only. Comment lines (starting with ``#``) and everything below the scissors
-line of ``git commit --verbose`` are not part of the message and are not
-checked.
+only. Git removes comment lines (starting with ``#``) and everything below
+the scissors line of ``git commit --verbose`` only from a message written in
+an editor, so only then are they skipped. Git tells its hooks that no editor
+is used (``git commit -m``, ``-F``, ``--no-edit``) by setting ``GIT_EDITOR``
+to ``:``; the message is then kept as it is, comment lines included, and
+every line is checked. A cleanup mode chosen with ``--cleanup`` or
+``commit.cleanup`` is not visible to a hook: with an editor and the mode
+``verbatim``, ``whitespace`` or ``scissors``, comment lines are kept by git
+but not checked here.
 
 The script uses the standard library only and runs under any Python 3, so it
 cannot import the project. EMOJI_RANGES and DECORATIVE_RANGES are therefore
@@ -105,7 +111,8 @@ WIDE_SAMPLE_BYTES = 4096
 WIDE_NUL_SHARE = 0.5  # of the even or of the odd bytes of the sample
 MAX_REPORTS_PER_FILE = 20
 COMMENT_PREFIX = "#"
-SCISSORS = ">8"
+SCISSORS_LINE = "# ------------------------ >8 ------------------------"
+NO_EDITOR = ":"  # the value of GIT_EDITOR that git gives its hooks when it opens no editor
 
 # Inclusive code point ranges treated as emoji. Mirrored in src/seminars/textrules.py.
 EMOJI_RANGES: tuple[tuple[int, int], ...] = (
@@ -286,12 +293,14 @@ def check_bytes(path: str, data: bytes) -> list[str]:
     return messages
 
 
-def check_commit_message(path: str, data: bytes) -> list[str]:
+def check_commit_message(path: str, data: bytes, editor_used: bool = True) -> list[str]:
     """Return the violation messages for a commit message read from ``path``.
 
-    The message may only hold printable ASCII and newlines. Comment lines
-    and the part below the scissors line are skipped; line numbers count
-    every line of the file.
+    The message may only hold printable ASCII and newlines. When the
+    message was written in an editor (``editor_used``), comment lines and
+    the part below the scissors line are skipped, because git removes them;
+    otherwise git keeps them and they are checked. Line numbers count every
+    line of the file.
     """
     try:
         text = data.decode("utf-8")
@@ -299,8 +308,8 @@ def check_commit_message(path: str, data: bytes) -> list[str]:
         return [f"{path}: not valid UTF-8 (byte offset {error.start})"]
     messages: list[str] = []
     for line_number, line in enumerate(text.split("\n"), start=1):
-        if line.startswith(COMMENT_PREFIX):
-            if SCISSORS in line and set(line) <= set("#- >8"):
+        if editor_used and line.startswith(COMMENT_PREFIX):
+            if line.rstrip("\r") == SCISSORS_LINE:
                 break
             continue
         for column, char in enumerate(line.rstrip("\r"), start=1):
@@ -316,7 +325,8 @@ def _check_commit_message_file(path: str) -> int:
     except OSError as error:
         print(f"check_ascii: cannot read the commit message: {error}", file=sys.stderr)
         return 2
-    messages = check_commit_message(path, data)
+    editor_used = os.environ.get("GIT_EDITOR") != NO_EDITOR
+    messages = check_commit_message(path, data, editor_used=editor_used)
     for message in messages:
         print(message)
     if messages:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -374,13 +375,40 @@ class TestEncodingsOtherThanUtf8:
         ]
 
 
-def _run_on_message(path: Path) -> subprocess.CompletedProcess[str]:
+def _run_on_message(path: Path, git_editor: str | None = None) -> subprocess.CompletedProcess[str]:
+    env = {key: value for key, value in os.environ.items() if key != "GIT_EDITOR"}
+    if git_editor is not None:
+        env["GIT_EDITOR"] = git_editor
     return subprocess.run(
         [sys.executable, str(SCRIPT), "--commit-msg", str(path)],
         capture_output=True,
         text=True,
         encoding="utf-8",
         check=False,
+        env=env,
+    )
+
+
+def _commit(repo: Path, *messages: str) -> subprocess.CompletedProcess[str]:
+    """``git commit -m ...`` in ``repo`` with the commit-msg hook that runs the script."""
+    hooks = repo / "hooks"
+    hooks.mkdir(exist_ok=True)
+    hook = hooks / "commit-msg"
+    hook.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{SCRIPT}" --commit-msg "$1"\n')
+    hook.chmod(0o755)
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+    options = ["-c", f"core.hooksPath={hooks}", "-c", "user.name=Test", "-c"]
+    options += ["user.email=test@example.invalid", "-c", "commit.gpgsign=false"]
+    message_options = [part for message in messages for part in ("-m", message)]
+    return subprocess.run(
+        ["git", *options, "commit", "--allow-empty", "--quiet", *message_options],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
     )
 
 
@@ -406,6 +434,15 @@ class TestCommitMessages:
         )
         assert check_ascii.check_commit_message("MSG", message.encode("utf-8")) == []
 
+    def test_comment_lines_are_checked_when_no_editor_is_used(self) -> None:
+        message = (
+            "fix: ascii subject\n\n#12 caf" + E_ACUTE + "\n"
+            "# ------------------------ >8 ------------------------\n"
+            "+ " + ROCKET + "\n"
+        )
+        found = check_ascii.check_commit_message("MSG", message.encode("utf-8"), editor_used=False)
+        assert found == ["MSG:3:8 U+00E9 LATIN SMALL LETTER E WITH ACUTE", "MSG:5:3 U+1F680 ROCKET"]
+
     def test_invalid_utf8_is_reported(self) -> None:
         assert check_ascii.check_commit_message("MSG", b"caf\xe9\n") == [
             "MSG: not valid UTF-8 (byte offset 3)"
@@ -421,6 +458,26 @@ class TestCommitMessages:
         assert result.returncode == 1
         assert f"{bad}:1:13 U+201C LEFT DOUBLE QUOTATION MARK" in result.stdout
         assert "1 violation(s) in the commit message" in result.stderr
+
+    def test_the_command_line_mode_checks_comment_lines_without_an_editor(
+        self, tmp_path: Path
+    ) -> None:
+        path = tmp_path / "COMMIT_EDITMSG"
+        path.write_text("fix: x\n\n#12 caf" + E_ACUTE + "\n", encoding="utf-8")
+        assert _run_on_message(path, git_editor="vim").returncode == 0
+        assert _run_on_message(path).returncode == 0
+        result = _run_on_message(path, git_editor=":")
+        assert result.returncode == 1
+        assert f"{path}:3:8 U+00E9" in result.stdout
+
+    def test_git_commit_with_a_message_option_runs_every_line_through_the_check(
+        self, tmp_path: Path
+    ) -> None:
+        _git(tmp_path, "init", "--quiet")
+        refused = _commit(tmp_path, "fix: x", "#12 caf" + E_ACUTE)
+        assert refused.returncode != 0
+        assert "U+00E9" in refused.stdout + refused.stderr
+        assert _commit(tmp_path, "fix: x", "#12 cafe").returncode == 0
 
     def test_a_missing_message_file_exits_two(self, tmp_path: Path) -> None:
         result = _run_on_message(tmp_path / "missing")
