@@ -24,22 +24,19 @@ Times, as the draft conventions want them:
   ``DTEND`` of an event that starts at a time of day.
 * Recurring events (``RRULE``, ``RDATE``, ``EXDATE``) are expanded inside
   the run window only (occurrences that start in it), at most
-  ``MAX_OCCURRENCES`` per event and after at most ``MAX_EXPANSION_STEPS``
-  steps of the rule from ``DTSTART``; a rule the expansion cannot bound is
-  skipped (``check_rule``). An event whose rules all end (``UNTIL``) before
-  the window is not expanded. A feed with more than
-  ``MAX_RECURRING_EVENTS`` other recurring events, or whose recurrences
-  need more than ``MAX_FEED_STEPS`` steps in all, is a ``ParseError``
-  rather than a part of the feed, whose missing events would count as
-  gone. An occurrence keeps the duration of the first one. A
-  VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names; one whose
-  occurrence is not generated (it was moved into the window, or the rule is
-  gone) stands on its own when it starts in the window. The override of
-  an event without recurrence (its RECURRENCE-ID is the event's DTSTART)
-  replaces the event and keeps its native id. An override without
-  ``DTSTART`` keeps the original start (and end, unless it has its own);
-  one whose times cannot be read is ignored, so the occurrence stays as the
-  rule gives it and the rest of the series is not affected.
+  ``MAX_OCCURRENCES`` per event and ``MAX_EXPANSION_STEPS`` steps from
+  ``DTSTART``; a rule the expansion cannot bound is skipped (``check_rule``),
+  and one whose ``UNTIL`` lies before the window is not expanded. A feed
+  with more than ``MAX_RECURRING_EVENTS`` other recurring events, or that
+  needs more than ``MAX_FEED_STEPS`` steps, is a ``ParseError``: a part of
+  it would make the events left out count as gone. An occurrence keeps the
+  duration of the first one.
+* A VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names (also
+  the only one of an event without recurrence, which keeps its native id);
+  without ``DTSTART`` it keeps the original times, and one whose times
+  cannot be read is ignored. An override whose occurrence is not generated
+  (moved into the window, or the rule is gone) stands on its own when it
+  starts in the window.
 
 Fields of a draft, without parameters: ``native_id`` = ``UID`` (an
 occurrence of a recurring event: ``<UID>/<RECURRENCE-ID>``, the original
@@ -60,10 +57,10 @@ Parameters (``params``; any other key is a ``ConfigError`` that names it,
   ``URL``. Values: ``title``, ``speaker`` (the raw line, to
   ``speaker_text``), ``series``, ``location``, ``abstract``, ``url``,
   ``stream_url`` (sets ``is_online``), or null to ignore the property. For
-  example a feed whose SUMMARY is the speaker and whose LOCATION is the
-  page of the talk::
+  example a feed whose SUMMARY is the speaker and whose URL is the
+  livestream::
 
-      property_fields: {SUMMARY: speaker, LOCATION: url, URL: stream_url}
+      property_fields: {SUMMARY: speaker, URL: stream_url}
 
 * ``patterns``: regular expressions per property (``SUMMARY``,
   ``DESCRIPTION``, ``LOCATION``; one string or a list), searched in the
@@ -482,22 +479,15 @@ def _align(value: Moment, anchor: datetime, timezone: str) -> datetime:
 def check_rule(parts: dict[str, list[Any]], start: date | None = None) -> None:
     """Refuse a recurrence rule that the expansion does not support (``ValueError``).
 
-    The recurrence library steps through every period from DTSTART until
-    the year 9999 when its filters never match, whatever UNTIL or COUNT say
-    (about a microsecond per period: up to 3 s for a daily rule, 0.6 s for
-    a weekly one, 0.3 s for a monthly one). So only the rule parts that
-    calendars of talks use are accepted: ``FREQ`` of ``DAILY``, ``WEEKLY``,
-    ``MONTHLY`` or ``YEARLY``; no ``BYYEARDAY``, ``BYWEEKNO`` or
-    ``BYEASTER``; months 1 to 12 and days of the month 1 to 31 (or -31 to
-    -1), and ``BYMONTH`` with ``BYMONTHDAY`` only when one of the days
-    exists in one of the months; no ``BYMONTHDAY`` in a weekly rule (RFC
-    5545 forbids it); ``BYDAY`` ordinals only in a monthly or yearly rule,
-    without ``BYMONTHDAY`` and only up to what a period has; ``BYSETPOS``
-    likewise. With ``start`` (the DTSTART) a rule is also refused when its
-    ``INTERVAL`` never lands on a period that its filters accept
-    (``_check_interval``). Over some 7000 accepted combinations of these
-    parts, the slowest rule without any occurrence took 0.03 s; the number
-    of recurring events of a feed is bounded as well (``MAX_RECURRING_EVENTS``).
+    When its filters never match, the recurrence library steps through every
+    period until the year 9999 whatever UNTIL or COUNT say (about 1 us per
+    period: up to 3 s for a daily rule). So only what calendars of talks use
+    is accepted: ``FREQ`` ``DAILY``, ``WEEKLY``, ``MONTHLY`` or ``YEARLY``;
+    no ``BYYEARDAY``, ``BYWEEKNO``, ``BYEASTER``; days and months that exist
+    (``_check_calendar_days``); ``BYDAY`` ordinals and ``BYSETPOS`` only
+    where a period has them; and, with ``start`` (the DTSTART), an
+    ``INTERVAL`` that lands on periods the filters accept. Of some 7000
+    accepted combinations, the slowest without any occurrence took 0.03 s.
     """
     keys = {str(key).upper(): value for key, value in parts.items()}
     frequency = [str(value).upper() for value in keys.get("FREQ", [])]
@@ -514,7 +504,10 @@ def check_rule(parts: dict[str, list[Any]], start: date | None = None) -> None:
 
 
 def _check_calendar_days(keys: dict[str, list[Any]], frequency: str) -> None:
-    """BYMONTH and BYMONTHDAY name days that exist."""
+    """Months 1 to 12, days 1 to 31 (or -31 to -1) and a day that one of the months has.
+
+    BYMONTHDAY in a weekly rule is refused as well (RFC 5545 forbids it).
+    """
     months, days = keys.get("BYMONTH"), keys.get("BYMONTHDAY")
     if any(not 1 <= int(month) <= 12 for month in months or []):
         raise ValueError("BYMONTH names no month")
@@ -560,11 +553,10 @@ def _check_interval(keys: dict[str, list[Any]], frequency: str, start: date) -> 
     """Refuse a rule whose ``INTERVAL`` never lands on a period that its filters accept.
 
     A daily rule whose INTERVAL is a multiple of 7 stays on the weekday of
-    ``start``, so its BYDAY must name that weekday. A daily rule with an
-    INTERVAL may not combine BYDAY with BYMONTHDAY (with INTERVAL=27, for
-    example, it can step through the centuries without a match). A monthly
-    rule only reaches the months that are congruent to the month of
-    ``start`` modulo gcd(INTERVAL, 12), so its BYMONTH must name one of them.
+    ``start``, which its BYDAY must name; with an INTERVAL it may not combine
+    BYDAY and BYMONTHDAY (INTERVAL=27 can step through centuries without a
+    match). A monthly rule only reaches the months congruent to the month of
+    ``start`` modulo gcd(INTERVAL, 12), one of which its BYMONTH must name.
     """
     interval = int(keys.get("INTERVAL", [1])[0])
     if interval < 1:
