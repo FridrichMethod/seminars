@@ -340,6 +340,17 @@ def get_document(http: HttpClient, source: SourceConfig, url: str, label: str) -
     return http.get(url).evolve(label=label)
 
 
+def detail_pages_optional(source: SourceConfig) -> bool:
+    """Whether ``source`` keeps a row whose detail page cannot be fetched.
+
+    That is what ``detail_page.required: false`` of ``html_list`` says: the
+    row is kept with what the list page gives, so a detail page that fails
+    loses no talk (``fetch_optional``). No other adapter has that param.
+    """
+    detail = source.params.get("detail_page")
+    return isinstance(detail, Mapping) and detail.get("required") is False
+
+
 def fetch_optional(
     http: HttpClient, source: SourceConfig, urls: Iterable[str], label: str
 ) -> list[FetchedDocument]:
@@ -349,6 +360,9 @@ def fetch_optional(
     source a client that counts them), so a source that skipped a page
     counts as not read in full: its events are used, but the run says
     nothing about the ones it did not deliver (``seminars.pipeline.collect``).
+    A source whose rows do not need their detail pages
+    (``detail_pages_optional``) loses no talk that way: it still counts as
+    read in full, and the run reports the pages it went on without.
     The address in the logged error comes from a page, so the line is
     scrubbed first (the ``private_scrubber`` contract): a meeting password
     in a link never reaches the job log.

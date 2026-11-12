@@ -36,7 +36,10 @@ the run report.
 * Skipped pages. Any other request that failed while the adapter went on
   (``fetch_optional`` skips a detail page it cannot fetch, and some
   adapters drop the talk of that page) is counted in
-  ``skipped_pages``: one URL once.
+  ``skipped_pages``: one URL once. A source that keeps such a row with
+  what its list page gives (``detail_page.required: false``, see
+  ``seminars.sources.generic.common.detail_pages_optional``) loses no
+  talk: its failed pages are not counted, only named in a warning.
 * A shrunk listing (``compare_with_history``). The measure is the median
   number of drafts that normalization accepted (``accepted``, before the
   window) in the runs of the source that were read in full: the last
@@ -119,6 +122,7 @@ from seminars.sources.base import (
     UnknownAdapterError,
     get_adapter,
 )
+from seminars.sources.generic.common import detail_pages_optional
 from seminars.textrules import ascii_printable
 
 logger = logging.getLogger(__name__)
@@ -206,6 +210,7 @@ class Fetched:
     requests: int = 0
     seconds: float = 0.0
     skipped_pages: int = 0  # failed requests the adapter went on without
+    kept_without: int = 0  # failed detail pages whose rows were kept all the same
 
 
 @dataclass(frozen=True)
@@ -270,8 +275,11 @@ def _fetch(
         return Fetched(source, None, refusal or error, requests, timer() - started)
     if client.refusal is not None:  # the adapter went on with less than the source has
         return Fetched(source, None, client.refusal, client.requests, timer() - started)
-    skipped = len(client.failed_urls)
-    return Fetched(source, payload, None, client.requests, timer() - started, skipped)
+    failed = len(client.failed_urls)
+    seconds = timer() - started
+    if detail_pages_optional(source):
+        return Fetched(source, payload, None, client.requests, seconds, kept_without=failed)
+    return Fetched(source, payload, None, client.requests, seconds, skipped_pages=failed)
 
 
 def fetch_sources(
@@ -371,6 +379,11 @@ def digest_source(
         warnings.append(
             f"{fetched.skipped_pages} page(s) could not be fetched and were left out: "
             "the source was not read in full"
+        )
+    if fetched.kept_without:
+        warnings.append(
+            f"{fetched.kept_without} detail page(s) could not be fetched; the rows of these "
+            "pages were kept without them (detail_page.required: false)"
         )
     result = SourceRunResult(
         source_id=source.id,

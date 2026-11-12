@@ -31,6 +31,7 @@ from seminars.pipeline.collect import (
     SHRINK_LOOKBACK_RUNS,
     SHRINK_MIN_DROP,
     SHRINK_MIN_RUNS,
+    SourceOutcome,
     collect_sources,
     compare_with_history,
 )
@@ -107,6 +108,76 @@ class TestSkippedPages:
         DetailAdapter(["1", "2", "3", "4"]).register(fake_registry, "details")
         result = collect(context, site(broken=("3",)))
         assert (result.status, result.drafts, result.skipped_pages) == ("ok", 3, 1)
+        assert not result.read_in_full
+        assert result.warnings == [
+            "1 page(s) could not be fetched and were left out: the source was not read in full"
+        ]
+
+
+LIST = "https://talks.example.edu/seminar/"
+ROW = (
+    "<li><h3><a href='/talks/{slug}'>{title}</a></h3><span class='date'>2026-11-17</span>"
+    "<span class='time'>4:30 - 5:30pm</span></li>"
+)
+PLACE = "<html><body><p class='place'>Room {number}</p></body></html>"
+
+
+def detail_source(required: bool | None) -> SourceConfig:
+    """An ``html_list`` source whose rows get their place from a detail page."""
+    detail: dict[str, Any] = {"location": ".place"}
+    if required is not None:
+        detail["required"] = required
+    selectors = {"item": "ul > li", "title": "h3", "link": "h3 a", "date": ".date", "time": ".time"}
+    params = {"selectors": selectors, "link_attribute": "href", "detail_page": detail}
+    return make_source(
+        id="custom-example", group="stanford-custom", adapter="html_list", url=LIST, params=params
+    )
+
+
+def detail_site() -> FakeHttpClient:
+    """Two rows; the detail page of the second one cannot be fetched."""
+    rows = [ROW.format(slug=f"talk-{n}", title=f"Talk {n} on protein design") for n in (1, 2)]
+    http = FakeHttpClient()
+    http.add(LIST, "<html><body><ul>" + "".join(rows) + "</ul></body></html>")
+    http.add("https://talks.example.edu/talks/talk-1", PLACE.format(number=1))
+    http.add("https://talks.example.edu/talks/talk-2", "gone", status=500)
+    return http
+
+
+def collect_details(context: NormalizeContext, required: bool | None) -> SourceOutcome:
+    [outcome] = collect_sources(
+        [detail_source(required)],
+        lambda chosen: detail_site(),
+        context=context,
+        extractor=None,
+        timer=FakeClock(),
+    )
+    return outcome
+
+
+class TestOptionalDetailPages:
+    """A row that ``detail_page.required: false`` keeps without its page loses no talk."""
+
+    def test_a_skipped_optional_page_leaves_the_source_read_in_full(
+        self, context: NormalizeContext
+    ) -> None:
+        outcome = collect_details(context, required=False)
+        result = outcome.result
+        assert (result.status, result.drafts, result.skipped_pages) == ("ok", 2, 0)
+        assert result.read_in_full
+        assert result.warnings == [
+            "1 detail page(s) could not be fetched; the rows of these pages were kept "
+            "without them (detail_page.required: false)"
+        ]
+        places = sorted(str(c.event.location) for c in outcome.candidates)
+        assert places == ["None", "Room 1"]
+
+    @pytest.mark.parametrize("required", [True, None])
+    def test_a_skipped_required_page_drops_its_row_and_counts(
+        self, context: NormalizeContext, required: bool | None
+    ) -> None:
+        result = collect_details(context, required=required).result
+        assert (result.status, result.drafts, result.skipped_pages) == ("ok", 1, 1)
         assert not result.read_in_full
         assert result.warnings == [
             "1 page(s) could not be fetched and were left out: the source was not read in full"
