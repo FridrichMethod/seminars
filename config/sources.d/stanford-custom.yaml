@@ -7,8 +7,8 @@
 # the page in more detail.
 #
 # Adapter names: "html_list" and "ics" are generic adapters. "nlp_seminar",
-# "hai_events" and "synbio_events" are proposed modules for
-# seminars.sources.custom; they do not exist yet.
+# "hai_events" and "synbio_events" are modules of seminars.sources.custom; the
+# docstring of each module describes every key of its params.
 #
 # Patterns are Python regular expressions. Characters outside ASCII are written as
 # escapes: \xb7 is the middle dot, \u2013 the en dash.
@@ -87,8 +87,9 @@ sources:
         venue: 'Venue:\s*(?P<venue>.+?)\s*$'
       # "April 2nd", "Jan 22nd", "Jul 13"; the ordinal suffix can be wrong ("April 9nd").
       date_pattern: '^(?P<month>[A-Z][a-z]{2,8})\.?\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?$'
-      # The title cell ends with "(details)" or "(details, slides)".
-      title_suffix_pattern: '\s*\((?:details|slides)(?:,\s*(?:details|slides))*\)\s*$'
+      # The title cell ends with "(details)" or "(details, slides)", in older terms also
+      # followed by "(registration)".
+      title_suffix_pattern: '(?:\s*\((?:details|slides|registration)(?:,\s*(?:details|slides|registration))*\))+\s*$'
       detail_selectors:
         root: "div.container.content"
         title: "h2"
@@ -228,6 +229,11 @@ sources:
       # Only these tag labels are collected (the owner's choice, 2026-11-11): policy
       # conversations, student events and promotions of other units are left out.
       keep_type_labels: [Seminar, Conference]
+      # Events whose promo_url (flight.keys.organiser_url) is on one of these hosts are
+      # left out: custom-ai4science collects the Marlowe AI + Data for Science sessions
+      # with speaker and room, and the copies here (no speaker, no room) would not merge
+      # with them.
+      skip_organiser_hosts: [marlowe-research.stanford.edu]
       # "Speaker | Title" and "Series | Title" are both common.
       title_separator: " | "
       # Fallback when the payload cannot be read: the same events as cards.
@@ -243,17 +249,18 @@ sources:
       # "4:30 PM - 5:30 PM"; the span is missing for events without a time.
       card_time_pattern: '^(?P<start>\d{1,2}:\d{2} [AP]M)(?: - (?P<end>\d{1,2}:\d{2} [AP]M))?$'
       # Location and speakers are only on the detail page of an event. Detail pages
-      # are requested for upcoming events only, at most this many per run, and not for
-      # events with a promo_url: their page only forwards to the promo_url, which is on
-      # another host.
+      # are requested for upcoming events in the run window only, at most this many per
+      # run. An event with a promo_url (flight.keys.organiser_url) has no detail page:
+      # its page here only forwards to the promo_url, the organiser's own page in
+      # another layout (marlowe-research, digitaleconomy, events.stanford.edu,
+      # stanford.zoom.us). Neither is requested, even when extra_hosts lists that host;
+      # such an event comes from the list alone.
       fetch_details: upcoming
-      skip_details_when_set: promo_url
       max_detail_pages: 15
-      # A page with this element is such a forwarding page; use the list data.
+      # A page with this element is such a forwarding page. It, a failed detail request
+      # and a page without a title leave the event as the list describes it, without
+      # location and speakers.
       detail_redirect_selector: 'meta#__next-page-redirect'
-      # A failed detail request (HttpError), a forwarding page or a page without a title
-      # leaves the event as the list describes it, without location and speakers.
-      detail_fallback: list
       detail_selectors:
         title: 'h1[class*="DetailHero_heading__"]'
         meta_row: 'div[class*="DetailMeta_row__"]'  # two div children: label, value
@@ -262,6 +269,7 @@ sources:
         person: '[class*="PersonCard_root__"]'
         person_name: '[class*="PersonCard_personName__"]'
         person_title: '[class*="PersonCard_title__"]'
+        person_link: 'a[class*="PersonCard_titleLink__"]'
         stream_link: '[class*="EventDetailButtonSet_root__"] a'
         description: 'section[class*="Article_content__"]'
       detail_meta_labels: {date: Date, location: Location, status: Status, topics: Topics}
@@ -515,13 +523,15 @@ sources:
       # block starts another event, named by the paragraph right before it (one block
       # of the recording, the 2025 Expo, holds such an event). Its native id is
       # "<key>/<n>": the key of the block and the number of its "When:" line (2).
-      require_line: when
       heading_id_pattern: '^h\.(?P<key>[a-z0-9]+)_l$'
       anchor_url_template: "https://sb.stanford.edu/events#h.{key}"
       line_labels:
         when: ["When"]
         where: ["Where"]
         title: ["Title", "Topic", "Talk Title", "Talk", "Seminar title"]  # compare without case
+      # Some "Topic:" lines are a paragraph of description (up to 900 characters); the
+      # longest real title in the recording has 113.
+      max_title_length: 160
       # Try when_range_pattern first: when_pattern also matches the two-day line, with
       # "Thursday, June 22 to" as times. A times group that holds a month or a weekday
       # is a range of days, never a time of day.
@@ -537,8 +547,18 @@ sources:
       # "3:00 - 6:00 PM". Matches all 93 that are not empty. A start without am/pm takes
       # the one of the end.
       times_pattern: '(?i)^(?P<start>\d{1,2}(?::\d{2})?)\s*(?P<start_meridiem>[ap]m)?(?:\s*[-\u2013]\s*(?P<end>\d{1,2}(?::\d{2})?)\s*(?P<end_meridiem>[ap]m))?$'
-      # "SB.Talk with Dr. Sean Wang", "SB Talk by Dr. Maya Arce, Science Fellow @ Arc Institute"
-      speaker_heading_pattern: '^SB[. ]?Talks?\s+(?:with|by)\s+(?P<speaker>.+)$'
+      # The first pattern that matches the heading gives the speaker text, for
+      # normalization to split; a group "affiliation" is one affiliation for all of them.
+      speaker_heading_patterns:
+        # "SB.Talk with Dr. Sean Wang", "SB Talk by Dr. Maya Arce, Science Fellow @ Arc
+        # Institute", "SB.Talk with Michael Hammerling from Medra AI"
+        - '^SB[. ]?Talks?\s+(?:with|by)\s+(?P<speaker>.+?)(?:\s+from\s+(?P<affiliation>.+))?$'
+        # "BioE Department Colloquium: Caleb Bashor (Rice University)", "Distinguished
+        # Lecture: Sang Yup Lee"
+        - '(?:Colloquium|Seminar|Lecture):\s+(?P<speaker>[A-Z].*)$'
+        # "Lecture with Prof. Rodrigo Ledesma Amaro (Imperial College London)", "Phage
+        # Seminar with Martin Loessner (ETH Zurich) and Joana Azeredo (...)"
+        - '\s(?:with|by)\s+(?P<speaker>[A-Z].*)$'
     research:
       verified: 2026-11-11
       sample_events: 96
