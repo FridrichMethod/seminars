@@ -502,6 +502,10 @@ sources:
     id: sites-bioengineering
     name: Stanford Bioengineering
     adapter: rss
+    # Off by the owner's choice (2026-11-11): every event here is an import from
+    # events.stanford.edu, which the Localist source already collects. The entry and
+    # its recordings stay as test material for the rss adapter.
+    enabled: false
     url: https://bioengineering.stanford.edu/events/all/rss
     urls:
       - https://bioengineering.stanford.edu/events
@@ -610,10 +614,8 @@ sources:
     id: sites-icme
     name: Stanford ICME
     adapter: rss
-    # Off until the adapter expands a schedule (params.expand_schedule), which no
-    # generic adapter promises yet; without it this source yields one all-day event of
-    # ten weeks. The alternative is a small custom module for this one site.
-    enabled: false
+    # The rss adapter expands the schedule of the detail page into one event per
+    # session (params.expand_schedule); "No class" rows are holidays, not sessions.
     url: https://icme.stanford.edu/events/all/rss
     urls:
       - https://icme.stanford.edu/events
@@ -627,6 +629,7 @@ sources:
       # A seminar series is ONE all-day event that spans the quarter; its sessions are
       # the schedule on the detail page.
       expand_schedule: true
+      skip_session_patterns: ['^No class\b']
     research:
       verified: 2026-11-11
       sample_events: 2
@@ -654,6 +657,10 @@ sources:
     id: sites-cs
     name: Stanford Computer Science
     adapter: rss
+    # Off by the owner's choice (2026-11-11): its events are imports from
+    # events.stanford.edu and advising sessions, none of them talks of its own. The
+    # entry and its recordings stay as test material for the rss adapter.
+    enabled: false
     url: https://www.cs.stanford.edu/events/all/rss
     urls:
       - https://www.cs.stanford.edu/events

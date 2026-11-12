@@ -225,6 +225,9 @@ sources:
         Workshop: workshop
         Event: other
         "Event Promo": other
+      # Only these tag labels are collected (the owner's choice, 2026-11-11): policy
+      # conversations, student events and promotions of other units are left out.
+      keep_type_labels: [Seminar, Conference]
       # "Speaker | Title" and "Series | Title" are both common.
       title_separator: " | "
       # Fallback when the payload cannot be read: the same events as cards.
@@ -389,7 +392,7 @@ sources:
     adapter: html_list
     url: https://theory.stanford.edu/theory_lunch/
     host_org: Stanford CS Theory Group
-    default_fields: [cs]
+    default_fields: [cs, math]
     default_event_type: seminar
     series: Theory Lunch
     params:

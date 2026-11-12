@@ -234,7 +234,9 @@ sources:
         "Byers Eye Institute at Stanford": [med]
         "Office of Pediatric Education": [med]  # posts the Pediatric Grand Rounds
         # School of Medicine: clinical and translational centers and programs
-        "Stanford Center for Continuing Medical Education": [med]
+        # Clinician courses, not talks: out of scope by the owner's choice (2026-11-11);
+        # config/taxonomy.yaml lists the category under out_of_scope_categories.
+        "Stanford Center for Continuing Medical Education": []
         "Stanford Cancer Center": [med]
         "Asian Liver Center": [med]
         "California Perinatal Quality Care Collaborative": [med]
