@@ -4,7 +4,10 @@ A draft says what a page says. An ``Event`` is what the project stores and
 publishes, so this is where the rules for stored data are applied:
 
 * times follow ``seminars.pipeline.times``; an event that starts outside
-  the window of the run is dropped and counted;
+  the window of the run is dropped and counted. An end that the length
+  rule drops (the same wall time on a later day, or more than a week after
+  the start) is logged as a warning with the source and the uids, at most
+  ``MAX_LOGGED_UIDS`` of them, once per source;
 * every text field is plain text: markup removed, cleaned by
   ``seminars.textrules.clean_text``, whitespace tidied, length bounded;
 * nothing that lets a stranger in or reaches a person is kept. A stream
@@ -35,6 +38,7 @@ values that the model refuses) is reported as excluded with the reason
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -75,7 +79,7 @@ from seminars.pipeline.text import (
     truncate,
     word_set,
 )
-from seminars.pipeline.times import EventTimes, TimeError, resolve_times
+from seminars.pipeline.times import MAX_TIMED_LENGTH, EventTimes, TimeError, resolve_times
 
 MAX_TITLE: Final = 300
 MAX_SERIES: Final = 200
@@ -89,6 +93,9 @@ MAX_URL: Final = 2000
 MAX_SPEAKERS: Final = 20
 MAX_CATEGORIES: Final = 50
 UNTITLED: Final = "(no title)"
+MAX_LOGGED_UIDS: Final = 5
+
+logger: Final = logging.getLogger(__name__)
 
 _HTTP_URL: Final = TypeAdapter(HttpUrl)
 _LINK: Final = re.compile(r"https?://\S+", re.IGNORECASE)
@@ -389,6 +396,18 @@ def _invalid(
     )
 
 
+def _log_dropped_ends(source_id: str, uids: Sequence[str]) -> None:
+    shown = ", ".join(uids[:MAX_LOGGED_UIDS]) + (", ..." if len(uids) > MAX_LOGGED_UIDS else "")
+    logger.warning(
+        "%s: the end of %d timed event(s) is not kept (the same time on a later day, or more"
+        " than %d days after the start): %s",
+        source_id,
+        len(uids),
+        MAX_TIMED_LENGTH.days,
+        shown,
+    )
+
+
 def normalize_drafts(
     drafts: Sequence[EventDraft], source: SourceConfig, context: NormalizeContext
 ) -> Normalized:
@@ -403,6 +422,7 @@ def normalize_drafts(
     candidates: list[Candidate] = []
     invalid: list[ExcludedEvent] = []
     outside = 0
+    without_end: list[str] = []
     for draft in drafts:
         try:
             if draft.source_id != source.id:
@@ -418,6 +438,8 @@ def normalize_drafts(
         except ValidationError as error:
             invalid.append(_invalid(draft, source, _describe(error), cleaner))
             continue
+        if times.end_dropped_as_too_long:
+            without_end.append(event.uid)
         hints = EventHints(
             source_ids=[source.id],
             default_fields=source.default_fields,
@@ -426,6 +448,8 @@ def normalize_drafts(
             tags=_labels(draft.tags, cleaner),
         )
         candidates.append(Candidate(event=event, hints=hints))
+    if without_end:
+        _log_dropped_ends(source.id, without_end)
     return Normalized(
         candidates=tuple(candidates),
         invalid=tuple(invalid),

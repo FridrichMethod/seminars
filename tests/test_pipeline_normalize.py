@@ -147,6 +147,57 @@ class TestBasics:
         event = one(make_draft(start=datetime(2026, 11, 17, 19, 0), end=None), source).event
         assert event.start.isoformat() == "2026-11-17T16:00:00-08:00"
 
+    def test_an_end_at_the_same_time_on_the_next_day_is_not_kept(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # Instance 53759577652952 of the campus calendar as the API serves it: the Wu Tsai
+        # Neurosciences Seminar at noon, "12pm to 12pm PT" on its page.
+        source = make_source(
+            id="localist-stanford",
+            group="localist",
+            adapter="localist",
+            url="https://events.stanford.edu/api/2/events",
+        )
+        drafts = [
+            make_draft(
+                source_id="localist-stanford",
+                native_id=native_id,
+                title="Jonathan Kipnis - Navigating turbulent CNS waters",
+                start="2026-12-03T12:00:00-08:00",
+                end="2026-12-04T12:00:00-08:00",
+                all_day=False,
+            )
+            for native_id in ("53759577652952", "53759577710301")
+        ]
+        with caplog.at_level("WARNING", logger="seminars.pipeline.normalize"):
+            result = normalize(*drafts, source=source)
+        events = [candidate.event for candidate in result.candidates]
+        assert [(event.start.isoformat(), event.end, event.all_day) for event in events] == [
+            ("2026-12-03T12:00:00-08:00", None, False)
+        ] * 2
+        (record,) = caplog.records
+        assert record.getMessage() == (
+            "localist-stanford: the end of 2 timed event(s) is not kept (the same time on a"
+            " later day, or more than 7 days after the start): "
+            "localist-stanford.53759577652952, localist-stanford.53759577710301"
+        )
+
+    def test_at_most_a_few_uids_are_logged(self, caplog: pytest.LogCaptureFixture) -> None:
+        drafts = [
+            make_draft(
+                native_id=str(index),
+                start=datetime(2026, 11, 17 + index, 16, 0, tzinfo=PACIFIC),
+                end=datetime(2026, 11, 18 + index, 16, 0, tzinfo=PACIFIC),
+            )
+            for index in range(7)
+        ]
+        with caplog.at_level("WARNING", logger="seminars.pipeline.normalize"):
+            result = normalize(*drafts)
+        assert all(candidate.event.end is None for candidate in result.candidates)
+        (record,) = caplog.records
+        assert record.getMessage().endswith(", ...")
+        assert record.getMessage().count("sites-bioengineering.") == 5
+
     def test_an_all_day_draft(self) -> None:
         draft = make_draft(start=date(2026, 11, 17), end=date(2026, 11, 19))
         event = one(draft).event
