@@ -14,7 +14,13 @@ department that hosts them. Two candidates are the same talk when
   against the host's listing of Tadashi Tokieda's talk; a speaker
   mis-read as "Computer Science" is no person, see
   ``seminars.pipeline.speakers.looks_like_name``), or they point at the
-  same detail page.
+  same detail page, or
+* they start at exactly the same moment and the detail page of one is
+  named after such a speaker of the other: the last part of its address
+  holds the speaker's surname as a word. A host can list a talk by its
+  title alone on "/events/breakthroughs/Mehnert.html", while the campus
+  calendar announces "Breakthroughs in Cancer: Janice Mehnert, MD", a
+  title that shares no word with the host's.
 
 Four guards keep unrelated talks apart. "TBA" is never similar to "TBA",
 and a title of a single word ("Seminar") is not compared at all, because
@@ -100,7 +106,7 @@ from collections.abc import Collection, Hashable, Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Final
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from rapidfuzz import fuzz
 
@@ -180,7 +186,9 @@ class _Profile:
     words: str  # the folded title between spaces, to find names in
     speakers: frozenset[str]
     persons: frozenset[str]  # the speakers whose names read like a person's, of two words or more
+    surnames: frozenset[str]  # the last word of each of ``persons``
     page: str | None  # canonical address of the detail page, if it is one
+    page_words: frozenset[str]  # the folded words of the last part of the address of ``page``
     sources: frozenset[str]  # ids of the sources whose keys the event holds
     native: frozenset[str]  # ids of the sources whose native id the event holds
 
@@ -190,6 +198,13 @@ def _detail_page(event: Event, not_pages: Collection[str]) -> str | None:
     if address in not_pages or not urlsplit(address).path.strip("/"):
         return None
     return address
+
+
+def _page_words(page: str | None) -> frozenset[str]:
+    """The folded words of the last part of the path of ``page`` ("mehnert", "html")."""
+    if page is None:
+        return frozenset()
+    return frozenset(fold(unquote(urlsplit(page).path.rpartition("/")[2])).split())
 
 
 def _shared_pages(talks: Iterable[tuple[Hashable, Event]], limit: timedelta) -> frozenset[str]:
@@ -228,29 +243,41 @@ def _profile(candidate: Candidate, not_pages: Collection[str]) -> _Profile:
     title = fold(event.title)
     comparable = not event.is_tba and len(title.split()) >= MIN_TITLE_WORDS
     names = (canonical_name(speaker.name) for speaker in event.speakers)
-    persons = (
-        canonical_name(speaker.name) for speaker in event.speakers if looks_like_name(speaker.name)
+    persons = frozenset(
+        name
+        for speaker in event.speakers
+        if looks_like_name(speaker.name) and " " in (name := canonical_name(speaker.name))
     )
+    page = _detail_page(event, not_pages)
     return _Profile(
         start=event.start,
         title=title if comparable else None,
         words=f" {title} ",
         speakers=frozenset(name for name in names if name),
-        persons=frozenset(name for name in persons if " " in name),
-        page=_detail_page(event, not_pages),
+        persons=persons,
+        surnames=frozenset(name.split()[-1] for name in persons),
+        page=page,
+        page_words=_page_words(page),
         sources=_sources_of(event),
         native=frozenset(key.partition(":")[0] for key in event.source_ids if is_native_key(key)),
     )
 
 
 def _linked(first: _Profile, second: _Profile) -> bool:
-    """The strong reasons: the same detail page, a shared speaker, a speaker in the title."""
+    """The strong reasons: the same detail page, a shared speaker, a speaker in a title or page."""
     return (
         (first.page is not None and first.page == second.page)
         or bool(first.speakers & second.speakers)
         or _names_one_of(first, second.persons)
         or _names_one_of(second, first.persons)
+        or _page_of_speaker(first, second)
+        or _page_of_speaker(second, first)
     )
+
+
+def _page_of_speaker(profile: _Profile, other: _Profile) -> bool:
+    """Whether ``profile`` has a detail page named after a speaker of ``other``, at one start."""
+    return profile.start == other.start and bool(profile.page_words & other.surnames)
 
 
 def _names_one_of(profile: _Profile, names: Collection[str]) -> bool:
