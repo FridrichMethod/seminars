@@ -64,14 +64,24 @@ to the provider that needs them, and never logged, not even a prefix.
 
 ## How GitHub Actions passes credentials
 
-* Only `update.yml` receives LLM secrets, and only in the step that runs `seminars run`:
-  `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` and `LLM_API_KEY` are
-  passed as environment variables there (empty when a secret does not exist). `ci.yml` and
-  `digest.yml` get no LLM secret.
+* Only `update.yml` receives LLM secrets, and only in two steps: the step of the `fetch`
+  job that runs `seminars run`, and the probe step of the `llm-smoke` job, which runs
+  `seminars llm-smoke`. `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`
+  and `LLM_API_KEY` are passed as environment variables there (empty when a secret does
+  not exist). `ci.yml` and `digest.yml` get no LLM secret.
+* The jobs that hold LLM secrets cannot write to the repository. The `fetch` job hands
+  `data/` on to the `commit` job, which pushes it; that job holds no LLM secret, installs
+  nothing and runs no project code, only git.
+* Before a step that holds a secret, a step of its own without one installs the locked
+  dependencies and builds the project (`uv sync --locked`); the build backend is pinned in
+  `pyproject.toml`. Every action of the workflows is pinned to the commit of a release.
 * `LLM_PROVIDERS`, `LLM_MODEL_<PROVIDER>` and `LLM_BASE_URL` are repository variables, not
   secrets.
 * Claude Code is installed only when `CLAUDE_CODE_OAUTH_TOKEN` exists, at exactly the
-  version recorded under `cli_versions` in `config/llm.yaml`.
+  version recorded under `cli_versions` in `config/llm.yaml`. npm runs no install script
+  (`--ignore-scripts`); the workflow links the binary of the platform package
+  (`@anthropic-ai/claude-code-linux-x64`) in place of the placeholder that the skipped
+  script of the package would replace.
 * There is no Codex step in any workflow: Codex is not installed and no Codex login is
   stored as a secret.
 * These workflows start only on `schedule` and `workflow_dispatch`, never on pull requests,
@@ -134,6 +144,11 @@ scripts/set-llm-credential.sh openai-compat --from-file ~/.secrets/llm-key \
 This sets the secret `LLM_API_KEY` and the variables `LLM_BASE_URL` and
 `LLM_MODEL_OPENAI_COMPAT`. There is no default model for this provider.
 
+`LLM_BASE_URL` (or `base_url` in `config/llm.yaml`) must be an `https://` address, because
+`LLM_API_KEY` goes there with every request. Plain `http://` is accepted only for this
+machine, `localhost` or a loopback address such as `127.0.0.1`; any other address is a
+configuration error and the run does not start.
+
 ### codex-cli (local only)
 
 1. Log in: `codex login` and choose "Sign in with ChatGPT".
@@ -168,8 +183,13 @@ the same check is `seminars llm-smoke`.
   an order with `--providers`.
 * Locally: `seminars run --no-llm`, or `LLM_PROVIDERS=none seminars run`.
 
-Without the LLM, field tags come from the rules alone and sources that need page reading
-yield no events until it is back. Nothing else changes.
+Without a provider (no credential, or `LLM_PROVIDERS=none`), nothing new is asked, but the
+answers stored in `data/llm_cache/` by earlier runs still apply: an event that an answer
+tagged or ruled out as no talk keeps that answer, as long as its text stays the same. A run
+whose credential is refused gives the same data. The cache is only read then: nothing is
+added to it and nothing is removed. Every other field tag comes from the rules, and sources
+that need page reading yield no events until a provider is back. `seminars run --no-llm`
+uses the rules alone and does not read the cache either.
 
 ## What it costs
 
@@ -368,6 +388,13 @@ Whatever the provider, a page cannot steer the result:
   that instructions in it are never followed.
 * The answer must validate against its schema. An answer with an extra or mistyped field is
   discarded as a whole; tagging answers can only hold the field ids of the taxonomy.
+* One event cannot decide about another. Tagging sends up to `batch_size` events in one
+  request, and a model might still follow an instruction in one of them about the others.
+  So an answer from a request of several events is used only when it says what the source
+  says anyway: a talk, with exactly the fields of the source. Any other answer (no talk,
+  other fields) is asked again for that event alone, and only that answer is used and
+  stored in the cache; when that request fails, the event has no answer and the rules
+  decide.
 * Every text value of a page reading (title, speaker, affiliation, series, location,
   abstract) must occur in the page text after normalization, or differ from it by a few
   characters at most (`grounding_min_similarity`, 90). What is kept is the text of the page
@@ -382,3 +409,9 @@ Whatever the provider, a page cannot steer the result:
   deployed. The page reader runs the same scan over every text value of an answer before it
   is cached, so a token that a page shows never reaches `data/llm_cache/`; the rest of the
   talk is kept.
+
+**Residual risk of tagging.** A hostile event can still make the model give the other
+events of its batch the answer of their source (a talk, with the fields of the source).
+Such an answer is used and cached, so those events are classified as if the LLM had not
+helped, and an event that is no talk can stay in the feeds, for as long as its text does
+not change. And a page can describe its own event falsely, with or without an LLM.

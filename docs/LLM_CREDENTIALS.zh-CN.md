@@ -41,9 +41,11 @@ claude-cli -> codex-cli -> anthropic -> openai -> openai-compat -> none
 
 ## GitHub Actions 怎么传凭证
 
-* 只有 `update.yml` 拿到 LLM secret，而且只在运行 `seminars run` 的那一步：`CLAUDE_CODE_OAUTH_TOKEN`、`ANTHROPIC_API_KEY`、`OPENAI_API_KEY` 和 `LLM_API_KEY` 在那一步作为环境变量传入（secret 不存在时是空值）。`ci.yml` 和 `digest.yml` 拿不到任何 LLM secret。
+* 只有 `update.yml` 拿到 LLM secret，而且只在两步里：`fetch` job 里运行 `seminars run` 的那一步，以及 `llm-smoke` job 里运行 `seminars llm-smoke` 的探活那一步。`CLAUDE_CODE_OAUTH_TOKEN`、`ANTHROPIC_API_KEY`、`OPENAI_API_KEY` 和 `LLM_API_KEY` 在这两步里作为环境变量传入（secret 不存在时是空值）。`ci.yml` 和 `digest.yml` 拿不到任何 LLM secret。
+* 拿着 LLM secret 的 job 不能写 repo。`fetch` job 把 `data/` 交给 `commit` job，由它 push；这个 job 没有 LLM secret，不安装任何东西，也不运行项目代码，只运行 git。
+* 在拿着 secret 的步骤之前，先由一个不带 secret 的单独步骤安装锁定的依赖并构建项目（`uv sync --locked`）；构建后端的版本固定在 `pyproject.toml` 里。workflow 里的每个 action 都固定到某个 release 的 commit。
 * `LLM_PROVIDERS`、`LLM_MODEL_<PROVIDER>` 和 `LLM_BASE_URL` 是 repo 变量，不是 secret。
-* 只有 `CLAUDE_CODE_OAUTH_TOKEN` 存在时才安装 Claude Code，版本严格等于 `config/llm.yaml` 里 `cli_versions` 记录的版本。
+* 只有 `CLAUDE_CODE_OAUTH_TOKEN` 存在时才安装 Claude Code，版本严格等于 `config/llm.yaml` 里 `cli_versions` 记录的版本。npm 不运行任何安装脚本（`--ignore-scripts`）；包自己的脚本本来会用平台包（`@anthropic-ai/claude-code-linux-x64`）里的二进制文件替换一个占位命令，脚本被跳过后，由 workflow 自己把这个二进制文件链接过去。
 * 任何 workflow 里都没有 Codex 的步骤：不安装 Codex，也不把 Codex 的登录存成 secret。
 * 这些 workflow 只由 `schedule` 和 `workflow_dispatch` 触发，从不由 pull request 触发，所以 fork 的代码永远碰不到 secret。GitHub 原话："With the exception of `GITHUB_TOKEN`, secrets are not passed to the runner when a workflow is triggered from a forked repository."
 
@@ -90,6 +92,8 @@ scripts/set-llm-credential.sh openai-compat --from-file ~/.secrets/llm-key \
 
 这会设置 secret `LLM_API_KEY` 和变量 `LLM_BASE_URL`、`LLM_MODEL_OPENAI_COMPAT`。这个 provider 没有默认模型。
 
+`LLM_BASE_URL`（或 `config/llm.yaml` 里的 `base_url`）必须是 `https://` 地址，因为每个请求都会把 `LLM_API_KEY` 发到那里。只有本机地址才接受明文的 `http://`：`localhost` 或 `127.0.0.1` 这样的 loopback 地址；其他地址算配置错误，运行不会开始。
+
 ### codex-cli（只在本地）
 
 1. 登录：`codex login`，选 "Sign in with ChatGPT"。
@@ -116,7 +120,7 @@ scripts/set-llm-credential.sh openai-compat --from-file ~/.secrets/llm-key \
 * CI 里：`scripts/set-llm-credential.sh none`，它把变量设成 `LLM_PROVIDERS=none`。要重新打开，运行 `gh variable delete LLM_PROVIDERS`，或者用 `--providers` 设一个顺序。
 * 本地：`seminars run --no-llm`，或者 `LLM_PROVIDERS=none seminars run`。
 
-没有 LLM 时，领域标签只来自规则，需要读页面的源在 LLM 恢复之前不产生事件。其他都不变。
+没有 provider 时（没有凭证，或者 `LLM_PROVIDERS=none`），不会发出新的请求，但以前的运行存在 `data/llm_cache/` 里的回答仍然有效：被某个回答打过标签、或被判为不是学术报告的事件，只要文字不变，就保留这个回答。凭证被拒绝的运行得到同样的数据。这时缓存只读不写：不加入新条目，也不删除旧条目。其余的领域标签来自规则，需要读页面的源在 provider 恢复之前不产生事件。`seminars run --no-llm` 只用规则，也不读缓存。
 
 ## 费用
 
@@ -242,6 +246,9 @@ OpenAI 关于在 CI 里给 Codex 认证的文档写道："The right way to authe
 
 * 页面文字放在两行标记之间交给模型，标记由文字本身推出，页面拼不出来；system prompt 声明这段文字是数据，其中的任何指令都不执行。
 * 回答必须通过 schema 校验。多了字段或字段类型不对的回答整体丢弃；打标签的回答只能包含 taxonomy 里的领域 id。
+* 一个事件决定不了另一个事件。打标签时一个请求最多发 `batch_size` 个事件，模型仍然可能照其中一个事件里的指令去处理其他事件。所以来自多事件请求的回答，只有在它说的正是源本来就说的（是学术报告，领域恰好是源的领域）时才直接采用。其他回答（不是学术报告、或者领域不同）都会针对这一个事件单独再问一次，只采用并缓存单独问到的回答；这次请求失败时，这个事件没有回答，由规则决定。
 * 读页面得到的每个文本值（标题、讲者、单位、系列、地点、摘要）规范化后必须出现在页面文字里，或者最多差几个字符（`grounding_min_similarity`，90）。保留下来的是页面自己的文字，不是模型的措辞，所以模型加不进任何一个它自己的字符。日子必须在文字里紧挨着它的月份名出现，或者写成数字形式的日期；小时和分钟只要求在文字里作为数字出现，这只能说明它们合理，不能证明它们正确。不满足的一律丢弃。
 * 模型从不写 URL。链接是页面文字里带编号的标记，回答只写标记的编号；只有页面上真实存在的链接才能出现在结果里。
 * 写入 `data/` 或 `public/` 之前，secret 扫描会查找 API key、OAuth token、JWT 之类的字符串。一旦命中，运行停止：不提交，也不部署。读页面时，回答的每个文本值在缓存之前都先经过同样的扫描，所以页面上显示的 token 永远进不了 `data/llm_cache/`；讲座的其余信息照常保留。
+
+**打标签的残余风险。** 恶意事件仍然可以让模型给同一批的其他事件一个"和源一样"的回答（是学术报告，领域是源的领域）。这样的回答会被采用并缓存，所以只要这些事件的文字不变，它们就像没有得到 LLM 帮助一样被分类，不是学术报告的事件也可能留在 feed 里。另外，页面本来就可以把自己的事件写错，有没有 LLM 都一样。
