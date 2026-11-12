@@ -144,7 +144,9 @@ class TestRecordedSources:
 
     def test_biohub_without_upcoming_events_gives_no_drafts(self) -> None:
         # Between seasons the upcoming block is empty and only past cards are listed.
-        source = with_params(SOURCES["bayarea-biohub"], allow_empty=True)
+        # The recorded entry sets allow_empty, so that is a page without items.
+        source = SOURCES["bayarea-biohub"]
+        assert source.params["allow_empty"] is True
         past = (
             "<li class='multisite-query-loop-item'><h3 class='card-title'>Old</h3>"
             "<div class='card-button'><a href='/events/old/'>More</a></div></li>"
@@ -158,7 +160,7 @@ class TestRecordedSources:
         assert run(source, http) == []
         assert http.requests == ["https://biohub.org/events/"]
         with pytest.raises(ParseError, match="matches nothing"):
-            run(SOURCES["bayarea-biohub"], http)
+            run(with_params(source, allow_empty=False), http)
 
     def test_suncat_rows_and_their_tags(self) -> None:
         source = SOURCES["bayarea-suncat"]
