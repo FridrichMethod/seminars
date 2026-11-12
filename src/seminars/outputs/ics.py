@@ -208,11 +208,13 @@ def _instant(moment: datetime, zone: ZoneInfo) -> datetime:
     """``moment`` as local time of ``zone``, or in UTC when that local time is ambiguous.
 
     A local time in the hour that is repeated when daylight saving time ends
-    names two moments, and a reader takes the first of them. The second one
-    is therefore written in UTC, which no reader can misread.
+    names two moments. RFC 5545 says a reader takes the first of them, but
+    ical.js and libical take the second, so both moments of that hour are
+    written in UTC, which no reader can misread.
     """
     local = moment.astimezone(zone)
-    return moment.astimezone(UTC) if local.fold else local
+    other = local.replace(fold=1 - local.fold)
+    return moment.astimezone(UTC) if other.utcoffset() != local.utcoffset() else local
 
 
 def _day_after(local: datetime) -> date:

@@ -189,3 +189,24 @@ class TestObservances:
             if icaljs_offset(onsets, moment) != moment.astimezone(zone).utcoffset()
         ]
         assert wrong == []
+
+
+class TestRepeatedHour:
+    def test_no_local_time_of_the_feed_names_two_moments(
+        self, app_config: AppConfig, tmp_path: Path
+    ) -> None:
+        """ical.js and libical take the second of two equal local times, RFC 5545 the first."""
+        first = datetime(2026, 11, 1, 7, 0, tzinfo=UTC)  # 00:00 PDT, an hour before the change
+        starts = [first + timedelta(minutes=15 * step) for step in range(16)]
+        text = feed(window_events(starts), app_config, tmp_path)
+        written = [line for line in text.split("\r\n") if line.startswith(("DTSTART;", "DTEND;"))]
+        local = [datetime.strptime(line.rpartition(":")[2], "%Y%m%dT%H%M%S") for line in written]
+        ambiguous = [
+            moment
+            for moment in local
+            if moment.replace(tzinfo=PACIFIC, fold=0).utcoffset()
+            != moment.replace(tzinfo=PACIFIC, fold=1).utcoffset()
+        ]
+        assert local
+        assert ambiguous == []
+        assert "DTSTART:20261101T083000Z" in text.split("\r\n")

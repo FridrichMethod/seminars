@@ -592,9 +592,10 @@ class TestTimeZonesAndDst:
     @pytest.mark.parametrize(
         ("start", "line"),
         [
-            # the Sunday the clocks go back: 00:30 PDT, 01:30 PDT, 01:30 PST, 02:30 PST
+            # the Sunday the clocks go back: 00:30 PDT, 01:30 PDT, 01:30 PST, 02:30 PST;
+            # both moments of the repeated hour are written in UTC
             (utc(11, 1, 7, 30), f"DTSTART;{LOCAL}20261101T003000"),
-            (utc(11, 1, 8, 30), f"DTSTART;{LOCAL}20261101T013000"),
+            (utc(11, 1, 8, 30), "DTSTART:20261101T083000Z"),
             (utc(11, 1, 9, 30), "DTSTART:20261101T093000Z"),
             (utc(11, 1, 10, 30), f"DTSTART;{LOCAL}20261101T023000"),
             # the Sunday the clocks go forward: 01:30 PST, then 03:30 PDT
