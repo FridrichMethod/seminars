@@ -365,6 +365,14 @@ class TestTimes:
         assert draft.start == datetime(2026, 11, 17, 0, 0, tzinfo=UTC)
         assert draft.end == datetime(2026, 11, 16, 17, 0)  # floating: the source's zone
 
+    def test_a_utc_end_keeps_its_instant_after_a_zoned_start(self) -> None:
+        calendar = vcalendar(end="DTEND:20261117T010000Z")
+        draft = one(list_page(card()), {"/events/a-talk": detail_page(calendar=calendar)})
+        assert draft.start == datetime(2026, 11, 16, 16, 0, tzinfo=PACIFIC)
+        assert draft.end == datetime(2026, 11, 17, 1, 0, tzinfo=UTC)
+        assert isinstance(draft.end, datetime)
+        assert draft.end.utcoffset() == timedelta(0)
+
     def test_no_dtend_means_no_end(self) -> None:
         draft = one(
             list_page(card()), {"/events/a-talk": detail_page(calendar=vcalendar(end=None))}

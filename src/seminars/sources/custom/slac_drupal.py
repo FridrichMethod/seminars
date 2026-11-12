@@ -22,7 +22,8 @@ the source does not name.
 * times: DTSTART / DTEND of the VEVENT. Their TZID is resolved with
   ``zoneinfo``, never with the VTIMEZONE of the URI, which has a STANDARD
   part only (-0800 all year) and would put every summer talk an hour off;
-  a TZID that ``zoneinfo`` does not know gives a floating local time.
+  a TZID that ``zoneinfo`` does not know gives a floating local time. A
+  value without a TZID of its own (UTC) is kept as it is.
   Without a VEVENT the card's date text gives a naive local time ("Monday,
   November 16, 2026", a middle dot, "4:00 p.m." an en dash "5:00 p.m. PT";
   the zone is the source's), or a date only (an all-day event).
@@ -317,14 +318,11 @@ def read_detail(selectors: DetailSelectors, document: FetchedDocument) -> Detail
 # --- drafts ------------------------------------------------------------------------------
 
 
-def _tzid(vevent: icalendar.Component, *names: str) -> str | None:
-    """The TZID parameter of the first of the properties ``names`` that has one."""
-    for name in names:
-        params = getattr(vevent.get(name), "params", None)
-        tzid = params.get("TZID") if isinstance(params, Mapping) else None
-        if tzid is not None:
-            return str(tzid)
-    return None
+def _tzid(vevent: icalendar.Component, name: str) -> str | None:
+    """The TZID parameter of property ``name``; ``None`` when it has none (UTC, floating)."""
+    params = getattr(vevent.get(name), "params", None)
+    tzid = params.get("TZID") if isinstance(params, Mapping) else None
+    return str(tzid) if tzid is not None else None
 
 
 def _zoned(moment: DraftTime, tzid: str | None) -> DraftTime:
@@ -358,16 +356,19 @@ def event_facts(
 ) -> EventFacts | None:
     """Times, UID, SUMMARY and DESCRIPTION of the VEVENT; ``None`` when it cannot be read.
 
-    A DURATION instead of a DTEND gives an end in the zone of DTSTART.
+    Each time is re-zoned by the TZID of its own property only: a DTEND
+    without one (a UTC value) is kept as it is, whatever DTSTART says. A
+    DURATION instead of a DTEND gives an end in the zone of DTSTART.
     """
     try:
         common = vevent_draft(vevent, source, base_url=base_url)
     except (ValueError, TypeError):
         return None
+    end_property = "DTEND" if vevent.get("DTEND") is not None else "DTSTART"
     return EventFacts(
         native_id=common.native_id,
         start=_zoned(common.start, _tzid(vevent, "DTSTART")),
-        end=_zoned(common.end, _tzid(vevent, "DTEND", "DTSTART")),
+        end=_zoned(common.end, _tzid(vevent, end_property)),
         title=common.title,
         description=without_page_link(common.abstract),
     )
