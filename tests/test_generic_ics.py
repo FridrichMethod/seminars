@@ -613,6 +613,25 @@ class TestRecurrence:
             ("gone/20261111T230000Z", "kept", datetime(2026, 11, 11, 23, 0, tzinfo=UTC)),
         ]
 
+    def test_an_override_of_an_event_without_recurrence_replaces_it(self) -> None:
+        drafts = expand(
+            vevent("SUMMARY:Talk", uid="a", start=f"DTSTART;{LA}:20261103T090000"),
+            vevent(
+                "RECURRENCE-ID:20261103T170000Z",
+                "DTSTART:20261104T170000Z",
+                "SUMMARY:Moved talk",
+                uid="a",
+                start=None,
+            ),
+            vevent("SUMMARY:Other", uid="b", start="DTSTART:20261105T170000Z"),
+            vevent("RECURRENCE-ID:20261101T170000Z", "SUMMARY:Elsewhere", uid="b", start=None),
+        )
+        assert [(draft.native_id, draft.start, draft.title) for draft in drafts] == [
+            ("a", datetime(2026, 11, 4, 17, 0, tzinfo=UTC), "Moved talk"),
+            ("b", datetime(2026, 11, 5, 17, 0, tzinfo=UTC), "Other"),
+            ("b/20261101T170000Z", datetime(2026, 11, 1, 17, 0, tzinfo=UTC), "Elsewhere"),
+        ]
+
     def test_an_override_without_usable_times_spares_its_series(self) -> None:
         drafts = expand(
             vevent(

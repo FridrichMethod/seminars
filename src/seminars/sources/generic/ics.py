@@ -30,7 +30,9 @@ Times, as the draft conventions want them:
   (``check_rule``). An occurrence keeps the duration of the first one. A
   VEVENT with ``RECURRENCE-ID`` replaces the occurrence it names; one whose
   occurrence is not generated (it was moved into the window, or the rule is
-  gone) stands on its own when it starts in the window. An override without
+  gone) stands on its own when it starts in the window. The override of
+  an event without recurrence (its RECURRENCE-ID is the event's DTSTART)
+  replaces the event and keeps its native id. An override without
   ``DTSTART`` keeps the original start (and end, unless it has its own);
   one whose times cannot be read is ignored, so the occurrence stays as the
   rule gives it and the rest of the series is not affected.
@@ -401,19 +403,32 @@ def _occurrences_of(
 ) -> list[IcsOccurrence]:
     """The occurrences of one VEVENT; replaced ones are taken out of ``overrides``."""
     first = IcsOccurrence.of(vevent)
+    uid = first.native_id
     if not _is_recurring(vevent):
-        return [first]
+        # An override of the only occurrence replaces the event and keeps its native id.
+        return [_overridden(first, uid, instance_key(first.start), overrides)]
     duration = _duration(first.start, first.end)
     found: list[IcsOccurrence] = []
     for start in _expand(vevent, first.start, window, timezone):
         key = instance_key(start)
-        native_id = None if first.native_id is None else f"{first.native_id}/{key}"
+        native_id = None if uid is None else f"{uid}/{key}"
         end = None if duration is None else start + duration
-        generated = IcsOccurrence(vevent, start, end, native_id)
-        override = overrides.pop((first.native_id, key), None) if first.native_id else None
-        moved = None if override is None else _replacement(override[0], start, end, native_id)
-        found.append(generated if moved is None else moved)
+        found.append(_overridden(IcsOccurrence(vevent, start, end, native_id), uid, key, overrides))
     return found
+
+
+def _overridden(
+    occurrence: IcsOccurrence,
+    uid: str | None,
+    key: str,
+    overrides: dict[tuple[str, str], _Override],
+) -> IcsOccurrence:
+    """``occurrence``, or what its override (taken out of ``overrides``) makes of it."""
+    override = overrides.pop((uid, key), None) if uid is not None else None
+    if override is None:
+        return occurrence
+    moved = _replacement(override[0], occurrence.start, occurrence.end, occurrence.native_id)
+    return occurrence if moved is None else moved
 
 
 def _duration(start: Moment, end: Moment | None) -> timedelta | None:
