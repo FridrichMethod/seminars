@@ -12,6 +12,8 @@
 #   "superconductivity" (at least three letters before the "*").
 #
 # How a field is decided (in this order):
+# 0. an event of a category listed under out_of_scope_categories gets none: the
+#    filter drops it as out_of_scope before anything below is looked at;
 # 1. source fields: default_fields of the source entry (config/sources.d), the
 #    adapter's hints, source_defaults and departments below;
 # 2. rules per field: a name in "series" found in the series or the title implies
@@ -763,13 +765,19 @@ fields:
 
   med:
     series:
-      - Medicine Grand Rounds
-      - Grand Rounds
+      # Grand rounds of the clinical departments. Stanford Events lists the Medicine
+      # Grand Rounds without any department, so the name alone has to place it. The
+      # reason of a decision names the first series of this list that the title or
+      # the series holds: the specific names come first, the generic one last.
       - Department of Medicine Grand Rounds
+      - Medicine Grand Rounds
+      - Surgery Grand Rounds
+      - Anesthesiology Grand Rounds
+      - Pediatric Grand Rounds
       - Pediatrics Grand Rounds
       - Psychiatry Grand Rounds
       - Neurology Grand Rounds
-      - Surgery Grand Rounds
+      - Grand Rounds
       - Cancer Institute Seminar
       - Stanford Cancer Institute Seminar
       - Cardiovascular Institute Seminar
@@ -895,14 +903,19 @@ source_defaults: {}
 # subject, type or audience filter: the calendar files wellness fairs, nutrition
 # classes and medical humanities under the subject "Medicine", so "Medicine" is
 # not a department here ("Department of Medicine" is).
+#
+# A unit that the calendar's map also names gets the same fields here as there
+# (the owner's choices of 2026-11-11, for example ICME -> math and Stanford Data
+# Science -> math + ai-ml): the tagger adds the fields of a label below to those
+# of the calendar's map, so a different list would add a field nobody chose.
 departments:
   Mathematics: [math]
   Department of Mathematics: [math]
   Statistics: [math]
   Department of Statistics: [math]
-  Computational and Mathematical Engineering: [math, cs]
-  Institute for Computational and Mathematical Engineering: [math, cs]
-  ICME: [math, cs]
+  Computational and Mathematical Engineering: [math]
+  Institute for Computational and Mathematical Engineering: [math]
+  ICME: [math]
   Computer Science: [cs]
   Department of Computer Science: [cs]
   Electrical Engineering: [cs]
@@ -935,8 +948,8 @@ departments:
   Stem Cell Biology and Regenerative Medicine: [bio, med]
   Cancer Biology: [bio, med]
   Immunology: [bio, med]
-  Biomedical Data Science: [med, ai-ml]
-  Biomedical Informatics: [med, ai-ml]
+  Biomedical Data Science: [bio, med]
+  Biomedical Informatics: [bio, med]
   Physics: [physics]
   Department of Physics: [physics]
   Applied Physics: [physics]
@@ -971,6 +984,16 @@ departments:
   Cardiovascular Institute: [med, bio]
   Stanford Cancer Institute: [med, bio]
 
+# Category labels whose events are always out of scope, matched like the labels
+# of "departments" (ignoring case, accents and punctuation). An event that carries
+# one is excluded by the filter with reason out_of_scope, whatever its title, its
+# other categories or its source fields say, and never goes to the LLM. For units
+# that share a school with ones that hold talks, but whose events are not talks.
+out_of_scope_categories:
+  # Courses for practising clinicians (accredited CME), not academic talks; the
+  # owner's choice of 2026-11-11. Their records also carry "School of Medicine".
+  - Stanford Center for Continuing Medical Education
+
 # Filter phrases per exclusion reason (seminars.classify.filters). A phrase in the
 # title or the series excludes the event, unless the title or the series also
 # names a talk ("seminar", "colloquium", "lecture", "talk", ...): such events are
@@ -982,7 +1005,9 @@ departments:
 # tutoring systems), "welcome reception" but not "reception" (signal reception,
 # the reception of a text), "yoga class" but not "yoga" (a clinical trial of
 # yoga), "town hall with" but not "town hall" (a collaboration's town hall on
-# its experiments).
+# its experiments), "certificate program" but not "certificate" (proof
+# certificates), "coffee hour" but not "coffee" (coffee rust), "work in progress
+# session" but not "work in progress" (a talk that calls its results one).
 exclusions:
   course:
     - problem session
@@ -1004,6 +1029,10 @@ exclusions:
     - tutoring hours
     - class session
     - first day of class
+    # paid programs and courses for professionals, not talks
+    - certificate program
+    - certificate programme
+    - certificate course
   office_hours:
     - office hours
     - office hour
@@ -1073,6 +1102,7 @@ exclusions:
     - social mixer
     - student mixer
     - social hour
+    - coffee hour
     - ice cream social
     - coffee social
     - potluck
@@ -1147,6 +1177,9 @@ exclusions:
     - all hands meeting
     - business meeting
     - planning meeting
+    # internal meetings where residents and students present unfinished projects
+    - work in progress session
+    - works in progress session
     - town hall with
     - town hall meeting
     - community town hall
