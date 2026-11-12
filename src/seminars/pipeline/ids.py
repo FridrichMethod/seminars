@@ -353,7 +353,7 @@ def _moved(orphan: Event, event: Event, now: datetime, title_similarity: int) ->
     if min(orphan.start, event.start) <= now or abs(event.start - orphan.start) > MAX_MOVE:
         return False
     titled = [fold(item.title) for item in (orphan, event) if not item.is_tba]
-    agree = len(titled) < 2 or fuzz.ratio(titled[0], titled[1]) >= title_similarity
+    agree = len(titled) < 2 or fuzz.token_set_ratio(titled[0], titled[1]) >= title_similarity
     return agree and same_people(_names(orphan), _names(event))
 
 
@@ -419,12 +419,13 @@ def follow_changed_keys(
     another day, a day key without a speaker when the title changes, the
     address of a TBA page when it is renamed. ``orphans`` are in the order
     in which they were first seen, ``now`` is the time of the run and
-    ``title_similarity`` the ``fuzz.ratio`` that makes two titles one. The
-    result maps positions in ``events`` to the uid of an orphan, and each
-    orphan is taken once. Step 3 gives a slot to the first event that
-    claims it, so the result depends on the order of ``events``: pass them
-    in an order fixed by their values (``adopt_stored_uids`` sorts them by
-    value).
+    ``title_similarity`` the ``fuzz.token_set_ratio`` of two folded titles
+    that makes them one, as in de-duplication ("RESCHEDULED: Quantum
+    codes" is "Quantum codes"). The result maps positions in ``events`` to
+    the uid of an orphan, and each orphan is taken once. Step 3 gives a
+    slot to the first event that claims it, so the result depends on the
+    order of ``events``: pass them in an order fixed by their values
+    (``adopt_stored_uids`` sorts them by value).
     """
     adopted: dict[int, str] = {}
 

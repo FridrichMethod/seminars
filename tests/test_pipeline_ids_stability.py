@@ -74,6 +74,19 @@ class TestOneEntryPerTalk:
         assert second[0].start == moved
         assert second[0].sequence == 1
 
+    def test_a_moved_talk_whose_title_says_so_keeps_its_uid(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        moved = MORNING + timedelta(days=7)
+        first, second = two_runs(
+            config,
+            fake_adapter,
+            [slot(MORNING, "Quantum codes", "Ann Smith")],
+            [slot(moved, "RESCHEDULED: Quantum codes", "Ann Smith")],
+        )
+        assert [event.uid for event in second] == [first[0].uid]
+        assert second[0].title == "RESCHEDULED: Quantum codes"
+
     def test_a_tba_talk_that_moves_to_another_day_keeps_its_uid(
         self, config: AppConfig, fake_adapter: FakeAdapter
     ) -> None:

@@ -97,6 +97,18 @@ class TestMovedToAnotherDay:
         assert adopt([fresh("new", start=START + WEEK)], [tba]) == ["old"]
         assert adopt([fresh("new", title="TBA", start=START + WEEK)], [stored("old")]) == ["old"]
 
+    @pytest.mark.parametrize(
+        "title",
+        [
+            "RESCHEDULED: Quantum codes",
+            "Quantum codes (new date)",
+            "Quantum codes [moved to Nov 24]",
+        ],
+    )
+    def test_a_title_that_gains_words_about_the_move_is_the_same_talk(self, title: str) -> None:
+        moved = fresh("new", title=title, start=START + WEEK)
+        assert adopt([moved], [stored("old")]) == ["old"]
+
     def test_another_title_of_the_same_speaker_is_another_talk(self) -> None:
         other = fresh("new", title="Dark matter searches", start=START + WEEK)
         assert adopt([other], [stored("old")]) == ["new"]
