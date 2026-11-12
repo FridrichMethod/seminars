@@ -451,6 +451,70 @@ class TestMerge:
             )
             assert self.merged(site, aggregator).event.title == "Protein design", named_by_host
 
+    @pytest.mark.parametrize(
+        "wrapper",
+        [
+            "Jane Doe, PhD: Protein design",
+            "Prof. Jane Doe - Protein design",
+            "Jane Doe (MIT): Protein design",
+            'Bioengineering Seminar Series - Jane Doe, MD "Protein design "',
+        ],
+    )
+    def test_a_title_that_wraps_the_talk_title_with_its_speaker_gives_way_to_it(
+        self, wrapper: str
+    ) -> None:
+        speakers = [Speaker(name="Jane Doe")]
+        for wrapped_by_host in (True, False):
+            site = self.site(
+                title=wrapper if wrapped_by_host else "Protein design",
+                series=None,
+                speakers=speakers,
+            )
+            aggregator = self.aggregator(
+                title="Protein design" if wrapped_by_host else wrapper,
+                series=None,
+                speakers=speakers,
+            )
+            for order in ((site, aggregator), (aggregator, site)):
+                title = self.merged(*order).event.title
+                assert title == "Protein design", (wrapper, wrapped_by_host)
+
+    def test_a_calendar_wrapper_with_series_speaker_degree_and_quotes_gives_way(self) -> None:
+        # The campus calendar wraps the department's title; "biology" is not in the series.
+        clean = "Ion channels and transporters regulating lymphocyte function"
+        wrapper = f'Biology Seminar Series - Stefan Feske, MD "{clean} "'
+        speakers = [Speaker(name="Stefan Feske")]
+        site = self.site(title=clean, series=None, speakers=speakers)
+        aggregator = self.aggregator(title=wrapper, series="Department Seminars", speakers=speakers)
+        for order in ((site, aggregator), (aggregator, site)):
+            assert self.merged(*order).event.title == clean
+
+    @pytest.mark.parametrize(
+        ("talk", "generic"),
+        [
+            ("Jane Doe: CRISPR screens", "Genetics Department Seminar Series"),
+            ("Jane Doe (MIT): Diffusion", "Stanford Bioengineering Department Seminar"),
+        ],
+    )
+    def test_the_host_talk_title_beats_a_generic_title_of_the_aggregator(
+        self, talk: str, generic: str
+    ) -> None:
+        speakers = [Speaker(name="Jane Doe")]
+        site = self.site(title=talk, series=None, speakers=speakers)
+        aggregator = self.aggregator(title=generic, series=None, speakers=speakers)
+        for order in ((site, aggregator), (aggregator, site)):
+            assert self.merged(*order).event.title == talk
+
+    def test_without_a_series_a_generic_host_title_still_beats_the_aggregator(self) -> None:
+        # Known limit: no rule tells "Applied Physics Colloquium" from a talk title, so the
+        # titles are incomparable and the host listing decides.
+        talk = "Protein design with diffusion models - Jane Doe (MIT)"
+        speakers = [Speaker(name="Jane Doe")]
+        site = self.site(title="Applied Physics Colloquium", series=None, speakers=speakers)
+        aggregator = self.aggregator(title=talk, series=None, speakers=speakers)
+        for order in ((site, aggregator), (aggregator, site)):
+            assert self.merged(*order).event.title == "Applied Physics Colloquium"
+
     def test_when_every_title_names_the_speaker_the_host_title_stays(self) -> None:
         speaker = [Speaker(name="Jane Doe")]
         site = self.site(title="Jane Doe: Protein design", speakers=speaker)

@@ -100,6 +100,28 @@ def test_every_field_has_talks_in_the_four_weeks_after_the_run(
         assert any(field in event.fields for event in coming), field
 
 
+@pytest.mark.parametrize(
+    ("speaker", "title"),
+    [
+        ("Stefan Feske", "Ion channels and transporters regulating lymphocyte function"),
+        ("Cecilia Leal", "Non-Lamellar Lipid Membranes as Regulators of Biological Function"),
+    ],
+)
+def test_a_talk_the_campus_calendar_wraps_keeps_the_title_of_the_department(
+    offline_run: tuple[str, Path], speaker: str, title: str
+) -> None:
+    # The calendar lists 'Biology Seminar Series - <speaker> "<title> "'; Biology lists <title>.
+    _, root = offline_run
+    (event,) = [
+        event
+        for event in stored(root)
+        if [person.name for person in event.speakers] == [speaker]
+        and event.start.year == RUN_TIME.year
+    ]
+    assert event.title == title
+    assert {key.split(":")[0] for key in event.source_ids} == {"localist-stanford", "sites-biology"}
+
+
 def test_a_talk_two_hosts_announce_keeps_the_title_of_the_talk(
     offline_run: tuple[str, Path],
 ) -> None:

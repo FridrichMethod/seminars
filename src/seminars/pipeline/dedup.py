@@ -39,16 +39,24 @@ becomes one event:
 * the uid is the one that was seen first (``first_seen``, then the uid
   itself), so a calendar client keeps the entry it already has;
 * the title is one that is not "TBA". Titles are compared by their words
-  without those of the series, of the speakers and fillers such as
-  "seminar" or "with". A title that names a speaker of the talk gives way
-  to one that does not and has at least as many such words: a host that
-  announces a talk by its speaker ("CSB Special Seminar & Open
-  Discussion, David Garfield, PhD") gives way to one that names the talk,
-  while "Jane Doe: Protein design with diffusion models" stays against
-  "Bioengineering Seminar". Of the rest, a title whose words are strictly
-  more than those of another wins ("Diffusion models for protein design"
-  over "Diffusion models", any title over the bare name of its series), and
-  otherwise the order below decides;
+  without those of the series, of the speakers, degrees and titles of
+  persons ("PhD", "MD", "Prof.") and fillers such as "seminar",
+  "department", "Stanford" or "with". A title that names a speaker of the
+  talk gives way to one that does not when that one's words are all among
+  its own (a wrapper: 'Biology Seminar Series - Jane Doe, MD "Protein
+  design"' gives way to "Protein design") or when that one has strictly
+  more words (a host that announces a talk by its speaker, "CSB Special
+  Seminar & Open Discussion, David Garfield, PhD", gives way to the title
+  of the talk). So "Jane Doe: CRISPR screens" stays against "Genetics
+  Department Seminar Series", and "Jane Doe: Protein design with diffusion
+  models" against "Bioengineering Seminar". Of the rest, a title whose
+  words are strictly more than those of another wins ("Diffusion models
+  for protein design" over "Diffusion models", any title over the bare
+  name of its series), and otherwise the order below decides. That is the
+  one known weak spot: a host's generic title that no series name removes
+  ("Applied Physics Colloquium" without a series) shares no word with an
+  aggregator's "Protein design with diffusion models - Jane Doe (MIT)",
+  and the host's title stays;
 * the longest abstract wins, speakers are united, and every source key and
   source address is kept;
 * the remaining values come from the listing of the host rather than from
@@ -94,9 +102,15 @@ MIN_TITLE_WORDS: Final = 2
 
 _TITLE_FILLER: Final = word_set(
     "a an and at by for from in of on the to with seminar seminars talk talks lecture "
-    "colloquium series special"
+    "colloquium series special department dept stanford university "
+    "dr prof professor md phd mph msc dphil"
 )
-"""Words that say nothing about a talk when titles of one talk are compared."""
+"""Words that say nothing about a talk when titles of one talk are compared.
+
+Besides fillers, these are the words of hosts that every title of a
+campus calendar can carry and the degrees and titles of persons: neither
+says what a talk is about.
+"""
 
 
 @dataclass(frozen=True)
@@ -345,15 +359,19 @@ def _title(events: Sequence[Event], speakers: Sequence[Speaker]) -> str:
         known.update(fold(text).split())
     words = [frozenset(fold(event.title).split()) - known for event in titled]
     naming = [_names_a_speaker(event.title, names) for event in titled]
-    kept = [
-        index
-        for index in range(len(titled))
-        if not naming[index]
-        or not any(
-            not naming[other] and len(words[other]) >= len(words[index])
+
+    def gives_way(index: int) -> bool:
+        """Whether the title at ``index``, which names a speaker, yields to one without."""
+        return any(
+            not naming[other]
+            and (
+                (bool(words[other]) and words[other] <= words[index])
+                or len(words[other]) > len(words[index])
+            )
             for other in range(len(titled))
         )
-    ]
+
+    kept = [index for index in range(len(titled)) if not naming[index] or not gives_way(index)]
     for index in kept:
         if not any(words[other] > words[index] for other in kept):
             return titled[index].title
