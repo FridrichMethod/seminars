@@ -150,13 +150,28 @@ class TestDisabledOrRemovedSources:
         assert [event.uid for event in result.events] == ["e1"]
         assert (result.removed, result.missing) == (1, 1)
 
-    def test_a_cancelled_or_started_event_of_a_removed_source_leaves_too(self) -> None:
+    def test_a_cancelled_event_of_a_removed_source_leaves_too(self) -> None:
         cancelled = stored("c1", source_ids=["sites-gone:c1"], status="cancelled")
+        result = run([cancelled], [], enabled=ENABLED)
+        assert (result.events, result.archived, result.removed) == ((), (), 1)
+
+    def test_a_started_event_of_a_removed_source_leaves_the_feeds_for_the_archive(self) -> None:
         started = stored(
             "c2", source_ids=["sites-gone:c2"], start=REFERENCE_NOW - timedelta(hours=1), end=None
         )
-        result = run([cancelled, started], [], enabled=ENABLED)
-        assert (result.events, result.removed) == ((), 2)
+        result = run([started], [], enabled=ENABLED)
+        assert (result.events, result.archived, result.removed) == ((), (started,), 0)
+
+    def test_a_started_cancelled_event_of_a_removed_source_is_archived_as_it_is(self) -> None:
+        started = stored(
+            "c3",
+            source_ids=["sites-gone:c3"],
+            start=REFERENCE_NOW - timedelta(days=2),
+            end=None,
+            status="cancelled",
+        )
+        result = run([started], [], enabled=ENABLED)
+        assert (result.events, result.archived, result.removed) == ((), (started,), 0)
 
     def test_a_past_event_of_a_removed_source_is_still_archived(self) -> None:
         old = stored(

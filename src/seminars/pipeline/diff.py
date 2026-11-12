@@ -23,10 +23,13 @@ The stored events and the events of the run are compared by uid:
   about it:
 
   - it starts before the window: it moves to the archive;
+  - every source it came from is disabled or no longer configured, and it
+    has started already: it moves to the archive as well, now;
   - the run itself excluded it (a filter rule, out of scope): it is
     removed at once;
-  - every source it came from is disabled or no longer configured: it is
-    removed at once, like the events of a deleted source;
+  - every source it came from is disabled or no longer configured (and
+    it lies ahead): it is removed at once, like the events of a deleted
+    source, cancelled or not;
   - it has started already, or it is cancelled: it stays as it is. Pages
     drop talks once they are over, and a cancelled talk is kept until
     its time has passed;
@@ -193,7 +196,7 @@ def reconcile(
             continue
         keys = sources.live_keys(stored)
         current = stored if keys in (stored.source_ids, []) else stored.evolve(source_ids=keys)
-        if stored.start < window.start:
+        if stored.start < window.start or (not keys and stored.start < moment):
             archived.append(stored)
         elif stored.uid in excluded_uids or not keys:
             removed += 1
