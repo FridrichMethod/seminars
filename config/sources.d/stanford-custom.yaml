@@ -516,13 +516,15 @@ sources:
       # block starts another event, named by the paragraph right before it (one block
       # of the recording, the 2025 Expo, holds such an event). Its native id is
       # "<key>/<n>": the key of the block and the number of its "When:" line (2).
-      require_line: when
       heading_id_pattern: '^h\.(?P<key>[a-z0-9]+)_l$'
       anchor_url_template: "https://sb.stanford.edu/events#h.{key}"
       line_labels:
         when: ["When"]
         where: ["Where"]
         title: ["Title", "Topic", "Talk Title", "Talk", "Seminar title"]  # compare without case
+      # Some "Topic:" lines are a paragraph of description (up to 900 characters); the
+      # longest real title in the recording has 113.
+      max_title_length: 160
       # Try when_range_pattern first: when_pattern also matches the two-day line, with
       # "Thursday, June 22 to" as times. A times group that holds a month or a weekday
       # is a range of days, never a time of day.
@@ -538,8 +540,18 @@ sources:
       # "3:00 - 6:00 PM". Matches all 93 that are not empty. A start without am/pm takes
       # the one of the end.
       times_pattern: '(?i)^(?P<start>\d{1,2}(?::\d{2})?)\s*(?P<start_meridiem>[ap]m)?(?:\s*[-\u2013]\s*(?P<end>\d{1,2}(?::\d{2})?)\s*(?P<end_meridiem>[ap]m))?$'
-      # "SB.Talk with Dr. Sean Wang", "SB Talk by Dr. Maya Arce, Science Fellow @ Arc Institute"
-      speaker_heading_pattern: '^SB[. ]?Talks?\s+(?:with|by)\s+(?P<speaker>.+)$'
+      # The first pattern that matches the heading gives the speaker text, for
+      # normalization to split; a group "affiliation" is one affiliation for all of them.
+      speaker_heading_patterns:
+        # "SB.Talk with Dr. Sean Wang", "SB Talk by Dr. Maya Arce, Science Fellow @ Arc
+        # Institute", "SB.Talk with Michael Hammerling from Medra AI"
+        - '^SB[. ]?Talks?\s+(?:with|by)\s+(?P<speaker>.+?)(?:\s+from\s+(?P<affiliation>.+))?$'
+        # "BioE Department Colloquium: Caleb Bashor (Rice University)", "Distinguished
+        # Lecture: Sang Yup Lee"
+        - '(?:Colloquium|Seminar|Lecture):\s+(?P<speaker>[A-Z].*)$'
+        # "Lecture with Prof. Rodrigo Ledesma Amaro (Imperial College London)", "Phage
+        # Seminar with Martin Loessner (ETH Zurich) and Joana Azeredo (...)"
+        - '\s(?:with|by)\s+(?P<speaker>[A-Z].*)$'
     research:
       verified: 2026-11-11
       sample_events: 96
