@@ -14,9 +14,10 @@ A calendar holds
   feed (English locale, ``feeds.<id>.*``), the time zone and the refresh
   interval of the settings;
 * one VTIMEZONE for the zone of the settings. It lists the changes of the
-  UTC offset in the years the events of the run fall in, each with the local
-  time at which it happens, so every feed of a run has the same definition
-  and no calendar is without a component;
+  UTC offset in the years the events of the run fall in, each in a
+  sub-component of its own whose DTSTART is the local time at which it
+  happens (no RDATE, which some readers misread), so every feed of a run
+  has the same definition and no calendar is without a component;
 * one VEVENT per event. ``UID`` is ``<uid>@<uid_domain>`` and never changes;
   ``SEQUENCE`` is the counter of the event. A timed event is written in the
   zone of the settings and gets the default duration when it has no end; an
@@ -324,21 +325,22 @@ def _observances(ctx: _Context, first_year: int, last_year: int) -> list[_Observ
 
 
 def _vtimezone(ctx: _Context, first_year: int, last_year: int) -> icalendar.Timezone:
-    """The zone of the settings; changes of the same kind share one sub-component."""
-    onsets: dict[tuple[timedelta, timedelta, str, bool], list[datetime]] = {}
-    for item in _observances(ctx, first_year, last_year):
-        key = (item.offset_from, item.offset_to, item.name, item.daylight)
-        onsets.setdefault(key, []).append(item.onset)
+    """The zone of the settings: one sub-component per onset, named by its DTSTART alone.
+
+    RFC 5545 also allows one sub-component per kind of change with the later
+    onsets as RDATEs, but ical.js (Thunderbird and other web calendars)
+    ignores the DTSTART of a sub-component that has an RDATE and so loses
+    the first onset of every kind: summer time of the first year would read
+    as standard time.
+    """
     component = icalendar.Timezone()
     component.add("tzid", ctx.zone_name)
-    for (offset_from, offset_to, name, daylight), moments in onsets.items():
-        part = icalendar.TimezoneDaylight() if daylight else icalendar.TimezoneStandard()
-        part.add("dtstart", moments[0])
-        if len(moments) > 1:
-            part.add("rdate", moments[1:])
-        part.add("tzoffsetfrom", offset_from)
-        part.add("tzoffsetto", offset_to)
-        part.add("tzname", name)
+    for item in _observances(ctx, first_year, last_year):
+        part = icalendar.TimezoneDaylight() if item.daylight else icalendar.TimezoneStandard()
+        part.add("dtstart", item.onset)
+        part.add("tzoffsetfrom", item.offset_from)
+        part.add("tzoffsetto", item.offset_to)
+        part.add("tzname", item.name)
         component.add_component(part)
     return component
 
