@@ -244,17 +244,17 @@ sources:
       # "4:30 PM - 5:30 PM"; the span is missing for events without a time.
       card_time_pattern: '^(?P<start>\d{1,2}:\d{2} [AP]M)(?: - (?P<end>\d{1,2}:\d{2} [AP]M))?$'
       # Location and speakers are only on the detail page of an event. Detail pages
-      # are requested for upcoming events only, at most this many per run, and not for
-      # events with a promo_url: their page only forwards to the promo_url, which is on
-      # another host.
+      # are requested for upcoming events in the run window only, at most this many per
+      # run. An event with a promo_url (flight.keys.organiser_url) has no page of its
+      # own here: its page only forwards to the promo_url, so the promo_url is its
+      # detail page, requested only when its host is a host of this source (none of
+      # them is: marlowe-research, digitaleconomy, events.stanford.edu, stanford.zoom.us).
       fetch_details: upcoming
-      skip_details_when_set: promo_url
       max_detail_pages: 15
-      # A page with this element is such a forwarding page; use the list data.
+      # A page with this element is such a forwarding page. It, a failed detail request
+      # and a page without a title leave the event as the list describes it, without
+      # location and speakers.
       detail_redirect_selector: 'meta#__next-page-redirect'
-      # A failed detail request (HttpError), a forwarding page or a page without a title
-      # leaves the event as the list describes it, without location and speakers.
-      detail_fallback: list
       detail_selectors:
         title: 'h1[class*="DetailHero_heading__"]'
         meta_row: 'div[class*="DetailMeta_row__"]'  # two div children: label, value
@@ -263,6 +263,7 @@ sources:
         person: '[class*="PersonCard_root__"]'
         person_name: '[class*="PersonCard_personName__"]'
         person_title: '[class*="PersonCard_title__"]'
+        person_link: 'a[class*="PersonCard_titleLink__"]'
         stream_link: '[class*="EventDetailButtonSet_root__"] a'
         description: 'section[class*="Article_content__"]'
       detail_meta_labels: {date: Date, location: Location, status: Status, topics: Topics}
