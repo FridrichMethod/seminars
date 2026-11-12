@@ -345,6 +345,10 @@ def fetch_optional(
 ) -> list[FetchedDocument]:
     """Documents of ``urls`` that could be fetched; a failure is logged and skipped.
 
+    The pipeline sees every failed request of an adapter (it hands each
+    source a client that counts them), so a source that skipped a page
+    counts as not read in full: its events are used, but the run says
+    nothing about the ones it did not deliver (``seminars.pipeline.collect``).
     The address in the logged error comes from a page, so the line is
     scrubbed first (the ``private_scrubber`` contract): a meeting password
     in a link never reaches the job log.

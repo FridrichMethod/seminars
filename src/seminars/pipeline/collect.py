@@ -23,9 +23,35 @@ by that much plus one last request, never stall it.
 A refused request of that kind, or one refused because the request budget
 of a host is used up, means that the source was not fetched in full. The
 source then fails with that error even when its adapter caught it and
-returned what it had (an adapter may skip a detail page that cannot be
-fetched). A source that counted as healthy with half its listing would
-make every event it did not deliver count as missing.
+returned what it had. A source that counted as healthy with half its
+listing would make every event it did not deliver count as missing.
+
+Two more things mean that a source was not read in full, without making
+it fail: its events are delivered as usual, but the run says nothing
+about the events it did not deliver (``SourceRunResult.read_in_full``;
+the pipeline leaves them out of ``healthy_sources``, see
+``seminars.pipeline.diff``), the result carries a warning, and so does
+the run report.
+
+* Skipped pages. Any other request that failed while the adapter went on
+  (``fetch_optional`` skips a detail page it cannot fetch, and some
+  adapters drop the talk of that page) is counted in
+  ``skipped_pages``: one URL once.
+* A shrunk listing (``compare_with_history``). The measure is the median
+  number of drafts that normalization accepted (``accepted``, before the
+  window) in the runs of the source that were read in full, among its
+  last ``SHRINK_LOOKBACK_RUNS`` runs; at least ``SHRINK_MIN_RUNS`` of them
+  are needed. A run that delivers fewer than ``SHRINK_FRACTION`` of that,
+  and at least ``SHRINK_MIN_DROP`` fewer, has lost part of its listing
+  (pages that came back empty, items an adapter skipped after a field was
+  renamed): ``shrank_from`` is the measure. The fraction catches a
+  listing that lost half of itself; the minimum keeps a small source that
+  has one talk less from counting (four talks are not judged by their
+  number: a detail page that failed is caught as a skipped page). Shrunk
+  runs are no measure themselves, so a lasting outage stays an outage;
+  once fewer than ``SHRINK_MIN_RUNS`` full reads are left among the last
+  runs, after ``SHRINK_LOOKBACK_RUNS - SHRINK_MIN_RUNS + 1`` shrunk runs,
+  the new size is taken as the size of the listing.
 
 Error messages go into the run report, the health history, the status page,
 the source-broken issue, the weekly digest and the job log. They are one
@@ -45,6 +71,7 @@ from collections import Counter
 from collections.abc import Callable, Collection, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from statistics import median
 from typing import Final
 
 from pydantic import ValidationError
@@ -67,6 +94,7 @@ from seminars.models import (
     RawPayload,
     SourceConfig,
     SourceErrorKind,
+    SourceHealth,
     SourceRunResult,
     TimeWindow,
 )
@@ -89,6 +117,15 @@ MAX_FETCH_WORKERS: Final = 8
 MAX_ERROR_CHARS: Final = 300
 SCRUBBED_CHARS: Final = 4 * MAX_ERROR_CHARS
 
+SHRINK_LOOKBACK_RUNS: Final = 10
+"""Runs of the history of a source that the size of its listing is measured in."""
+SHRINK_MIN_RUNS: Final = 3
+"""Runs read in full that a measure needs."""
+SHRINK_FRACTION: Final = 0.5
+"""A listing with less than this part of its usual size has shrunk sharply."""
+SHRINK_MIN_DROP: Final = 5
+"""...and has at least this many drafts less than usual."""
+
 Timer = Callable[[], float]
 """A monotonic clock in seconds; only differences are used."""
 
@@ -108,6 +145,7 @@ class BoundedHttpClient:
 
     ``refusal`` keeps the first error that means the source cannot be
     fetched in full: its time limit or the request budget of a host.
+    ``failed_urls`` holds every other URL whose request failed.
     """
 
     def __init__(self, inner: HttpClient, *, limit: float, timer: Timer) -> None:
@@ -117,6 +155,7 @@ class BoundedHttpClient:
         self._started = timer()
         self.requests = 0
         self.refusal: HttpError | None = None
+        self.failed_urls: set[str] = set()
 
     def get(
         self,
@@ -135,6 +174,9 @@ class BoundedHttpClient:
         except HostBudgetExceededError as error:
             self._remember(error)
             raise
+        except HttpError:
+            self.failed_urls.add(url)
+            raise
 
     def _remember(self, error: HttpError) -> None:
         if self.refusal is None:
@@ -150,6 +192,7 @@ class Fetched:
     error: Exception | None = None
     requests: int = 0
     seconds: float = 0.0
+    skipped_pages: int = 0  # failed requests the adapter went on without
 
 
 @dataclass(frozen=True)
@@ -214,7 +257,8 @@ def _fetch(
         return Fetched(source, None, refusal or error, requests, timer() - started)
     if client.refusal is not None:  # the adapter went on with less than the source has
         return Fetched(source, None, client.refusal, client.requests, timer() - started)
-    return Fetched(source, payload, None, client.requests, timer() - started)
+    skipped = len(client.failed_urls)
+    return Fetched(source, payload, None, client.requests, timer() - started, skipped)
 
 
 def fetch_sources(
@@ -310,6 +354,11 @@ def digest_source(
             f"{normalized.redactions} text(s) or address(es) held a credential or a meeting "
             "password and were withheld"
         )
+    if fetched.skipped_pages:
+        warnings.append(
+            f"{fetched.skipped_pages} page(s) could not be fetched and were left out: "
+            "the source was not read in full"
+        )
     result = SourceRunResult(
         source_id=source.id,
         status="ok" if normalized.candidates else "empty",
@@ -319,11 +368,43 @@ def digest_source(
         events=len(normalized.candidates),
         invalid=len(normalized.invalid),
         outside_window=normalized.outside_window,
+        skipped_pages=fetched.skipped_pages,
         extraction=_extraction(normalized.candidates),
         llm_fallback_used=fallback_used,
         warnings=[publishable(warning, context.redact) for warning in warnings],
     )
     return SourceOutcome(result, normalized.candidates, normalized.invalid)
+
+
+def usual_size(history: SourceHealth | None) -> int | None:
+    """The measure of the size of a listing (see the module docstring), or ``None``."""
+    if history is None:
+        return None
+    counts = [
+        entry.accepted
+        for entry in history.history[-SHRINK_LOOKBACK_RUNS:]
+        if entry.status == "ok" and entry.read_in_full and entry.accepted is not None
+    ]
+    return int(median(counts)) if len(counts) >= SHRINK_MIN_RUNS else None
+
+
+def compare_with_history(result: SourceRunResult, history: SourceHealth | None) -> SourceRunResult:
+    """``result``, marked as shrunk when its listing is far smaller than usual.
+
+    A run that failed or accepted nothing is left to the rules of failed
+    and empty runs.
+    """
+    usual = usual_size(history)
+    accepted = result.accepted
+    if result.status == "failed" or accepted == 0 or usual is None:
+        return result
+    if accepted >= usual * SHRINK_FRACTION or usual - accepted < SHRINK_MIN_DROP:
+        return result
+    warning = (
+        f"the source parsed {accepted} usable draft(s) where it usually has {usual}: "
+        "the listing is taken as incomplete"
+    )
+    return result.evolve(shrank_from=usual, warnings=[*result.warnings, warning])
 
 
 def collect_sources(

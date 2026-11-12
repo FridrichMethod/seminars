@@ -30,12 +30,19 @@ When a source counts as broken (``settings.health``):
 * it was healthy at some time and its last ``source_empty_threshold``
   runs all came back empty, or
 * its last runs, as many as the larger of the two thresholds, were all
-  failed or empty and at least one of them failed.
+  failed or empty and at least one of them failed, or
+* its last ``source_failure_threshold`` runs all delivered events but none
+  of them was read in full (``SourceRunResult.read_in_full``: pages that
+  could not be fetched, a listing far smaller than usual). While that
+  lasts, the stored events the source does not deliver are kept, so it
+  needs a look as much as a failure does.
 
 The issue is closed by the first run in which the source delivers events
-again, and also when the source is disabled or removed from the
-configuration. Only the sources of the run are judged, so a run limited
-with ``--source`` leaves the others alone.
+again and was read in full, and also when the source is disabled or
+removed from the configuration. A run that delivered events but was not
+read in full neither closes an issue nor, before enough of them follow
+each other, opens one. Only the sources of the run are judged, so a run
+limited with ``--source`` leaves the others alone.
 
 An LLM provider is failing when it failed in ``llm_failure_threshold`` runs
 in a row; runs in which it was not used are skipped, because a provider
@@ -94,8 +101,13 @@ CREDENTIAL_SCRIPT: Final = "scripts/set-llm-credential.sh"
 CREDENTIAL_DOCS: Final = "docs/LLM_CREDENTIALS.md"
 SOURCE_DOCS: Final = "docs/ADDING_A_SOURCE.md"
 
-SourceVerdict = Literal["ok", "failing", "empty", "unsettled"]
-"""``unsettled``: not delivering, but not for long enough to call it broken."""
+SourceVerdict = Literal["ok", "failing", "empty", "incomplete", "unsettled"]
+"""``unsettled``: not delivering in full, but not for long enough to call it broken."""
+
+SOURCE_BACK: Final = "The source delivers events again."
+SOURCE_COMPLETE_AGAIN: Final = "The source is read in full again."
+SOURCE_GONE: Final = "The source was disabled or removed."
+INCOMPLETE_PHRASE: Final = "delivered events but was not read in full"
 
 _KIND_HINTS: Final[dict[str, str]] = {
     "auth": "The credential is missing, invalid or expired. Replace it.",
@@ -149,6 +161,9 @@ def record_run(
             at=report.started_at,
             status=health_status(result, allow_empty=result.source_id in allow_empty),
             events=result.events,
+            accepted=None if result.status == "failed" else result.accepted,
+            skipped_pages=result.skipped_pages,
+            shrank_from=result.shrank_from,
             error=result.error,
         )
         health = health.with_source_entry(result.source_id, entry)
@@ -164,10 +179,24 @@ def record_run(
     return health
 
 
+def partial_reads(history: SourceHealth) -> int:
+    """Most recent consecutive runs that delivered events but were not read in full."""
+    count = 0
+    for entry in reversed(history.history):
+        if entry.status != "ok" or entry.read_in_full:
+            break
+        count += 1
+    return count
+
+
 def source_verdict(history: SourceHealth, settings: HealthSettings) -> SourceVerdict:
     """What the history of a source says about it (see the module docstring)."""
-    if history.last is None or history.last.status == "ok":
+    last = history.last
+    if last is None or (last.status == "ok" and last.read_in_full):
         return "ok"
+    if last.status == "ok":
+        partial = partial_reads(history)
+        return "incomplete" if partial >= settings.source_failure_threshold else "unsettled"
     bad = history.trailing("failed", "empty")
     failed = history.trailing("failed")
     empty = history.trailing("empty")
@@ -223,14 +252,20 @@ def source_issue_body(
     source: SourceConfig | None, source_id: str, history: SourceHealth, verdict: SourceVerdict
 ) -> str:
     """Markdown body of the ``source-broken`` issue of one source."""
-    bad = history.trailing("failed", "empty")
-    what = "failed or delivered nothing" if verdict == "failing" else "parsed no events"
+    if verdict == "incomplete":
+        runs, what = partial_reads(history), INCOMPLETE_PHRASE
+    elif verdict == "failing":
+        runs, what = history.trailing("failed", "empty"), "failed or delivered nothing"
+    else:
+        runs, what = history.trailing("failed", "empty"), "parsed no events"
     last = history.last
     lines = [
-        f"The source `{source_id}` has {what} in its last {bad} runs.",
+        f"The source `{source_id}` has {what} in its last {runs} runs.",
         "",
         f"- Last healthy run: {_moment(history.last_success_at)}",
     ]
+    if verdict == "incomplete" and last is not None:
+        lines += _shortfall(last)
     if source is not None:
         page = ascii_printable(source.homepage or source.all_urls[0])
         lines += [f"- Name: {ascii_printable(source.name)}", f"- Adapter: `{source.adapter}`"]
@@ -238,16 +273,34 @@ def source_issue_body(
     if last is not None and last.status == "failed":
         lines += ["", "Error of the last run:", "", _code_block(last.error)]
     lines += ["", "Recent runs, newest first:", "", *_source_runs(history)]
+    ending = "is read in full again" if verdict == "incomplete" else "delivers events again"
     lines += [
         "",
         "What to check: open the page, compare it with the recorded fixture of the source "
         f"and adjust the entry in `config/sources.d/` or its adapter ({SOURCE_DOCS}). "
         "A source that no longer exists can be disabled with `enabled: false`.",
         "",
-        "This issue is updated by every run and closed automatically when the source "
-        "delivers events again.",
+        f"This issue is updated by every run and closed automatically when the source {ending}.",
     ]
     return "\n".join(lines) + "\n"
+
+
+def _shortfall(last: SourceHealthEntry) -> list[str]:
+    """What the last run of a source that was not read in full missed."""
+    lines = []
+    if last.skipped_pages:
+        lines.append(f"- Last run: {last.skipped_pages} page(s) could not be fetched")
+    if last.shrank_from is not None:
+        lines.append(
+            f"- Last run: {last.accepted or 0} usable draft(s) where it usually has "
+            f"{last.shrank_from}"
+        )
+    lines += [
+        "",
+        "While the source is not read in full, the events it does not deliver are kept: "
+        "they are not counted as missing, and the events it lists are updated as usual.",
+    ]
+    return lines
 
 
 def _credential_lines(provider: str) -> list[str]:
@@ -330,15 +383,20 @@ def sync_source_issues(
         history = health.sources[source_id]
         verdict = source_verdict(history, config.settings.health)
         title = source_issue_title(source_id)
-        if verdict in ("failing", "empty"):
+        if verdict in ("failing", "empty", "incomplete"):
             body = source_issue_body(sources.get(source_id), source_id, history, verdict)
             _report(issues, LABEL_SOURCE_BROKEN, existing.get(title), title, body)
         elif verdict == "ok" and title in existing:
-            issues.close(existing[title].number, comment="The source delivers events again.")
+            issues.close(existing[title].number, comment=_closing(existing[title]))
     enabled = {source_issue_title(source.id) for source in config.enabled_sources}
     for title, issue in sorted(existing.items()):
         if title not in enabled:
-            issues.close(issue.number, comment="The source was disabled or removed.")
+            issues.close(issue.number, comment=SOURCE_GONE)
+
+
+def _closing(issue: Issue) -> str:
+    """The comment that closes ``issue``, by what it was opened for."""
+    return SOURCE_COMPLETE_AGAIN if INCOMPLETE_PHRASE in issue.body else SOURCE_BACK
 
 
 LLM_ANSWERS_AGAIN: Final = "The provider answers again."

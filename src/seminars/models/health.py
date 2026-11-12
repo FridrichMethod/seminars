@@ -16,12 +16,25 @@ HEALTH_HISTORY_LIMIT: Final = 30
 
 
 class SourceHealthEntry(Model):
-    """One run of one source."""
+    """One run of one source.
+
+    ``accepted`` is ``None`` in entries of failed runs and of runs recorded
+    before it was kept. ``skipped_pages`` and ``shrank_from`` are those of
+    ``SourceRunResult``.
+    """
 
     at: Timestamp  # start time of the run
     status: SourceStatus
     events: Count = 0
+    accepted: Count | None = None  # drafts that normalization accepted, before the window
+    skipped_pages: Count = 0
+    shrank_from: Count | None = None
     error: str | None = None
+
+    @property
+    def read_in_full(self) -> bool:
+        """Whether nothing was known to be missing from what the run delivered."""
+        return self.skipped_pages == 0 and self.shrank_from is None
 
 
 class LLMHealthEntry(Model):
