@@ -7,6 +7,7 @@ of DESCRIPTION, the speakers and the edge cases with hand-written feeds.
 from __future__ import annotations
 
 import functools
+import time
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -371,6 +372,16 @@ LINK = '<a href="https://researchseminars.org/talk/S/1/">'
 )
 def test_read_description(text: str | None, expected: Description) -> None:
     assert read_description(text) == expected
+
+
+@pytest.mark.parametrize("ending", ["", "\nAbstract\nText", "\nAbstract: Text"])
+def test_a_huge_description_is_read_in_linear_time(ending: str) -> None:
+    text = "by A as part of B\n" + "Meeting ID: 1\n" * 200_000 + ending
+    started = time.perf_counter()
+    description = read_description(text)
+    assert time.perf_counter() - started < 1.0
+    assert description.speakers_text == "A"
+    assert description.abstract == ("Text" if ending else None)
 
 
 @pytest.mark.parametrize(

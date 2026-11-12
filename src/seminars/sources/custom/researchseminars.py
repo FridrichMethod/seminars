@@ -251,7 +251,11 @@ def _abstract(first: str | None, rest: list[str]) -> str | None:
 
 
 def read_description(text: str | None) -> Description:
-    """Read the DESCRIPTION of a talk; see the module docstring for the layout."""
+    """Read the DESCRIPTION of a talk; see the module docstring for the layout.
+
+    The time is linear in the length of ``text``: the lines after the
+    ``Abstract`` marker are sliced once, when the marker is found.
+    """
     lines = (text or "").split("\n")
     title = None
     index = 0
@@ -266,13 +270,12 @@ def read_description(text: str | None) -> Description:
     online = False
     for position in range(index, len(lines)):
         line = lines[position].strip()
-        rest = lines[position + 1 :]
         if line == ABSTRACT_LINE:
-            abstract = _abstract(None, rest)
+            abstract = _abstract(None, lines[position + 1 :])
             break
         if line.startswith(ABSTRACT_PREFIX):
             first = collapse(line[len(ABSTRACT_PREFIX) :])
-            abstract = _abstract(None if is_tba(first) else first, rest)
+            abstract = _abstract(None if is_tba(first) else first, lines[position + 1 :])
             break
         if line.startswith(ROOM_PREFIX):
             location = _room(line)
