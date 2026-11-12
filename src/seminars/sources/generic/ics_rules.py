@@ -466,22 +466,23 @@ def _accepts(rule: _Rule, day: date, first: date, last: date) -> bool:
 
 
 def _candidates(rule: _Rule, first: date, last: date) -> tuple[list[date], int]:
-    """The days of the period ``first`` to ``last`` that ``rule`` keeps, and how many it read.
+    """The days of the period ``first`` to ``last`` that ``rule`` keeps, and how many it tried.
 
-    Only the days the rule can hit are read, not every day of the period:
+    Only the days the rule can hit are tried, not every day of the period:
     in a month it reaches (BYMONTH, else every month of the period) the
     days of BYMONTHDAY, else its ordinal weekdays, else its plain weekdays
     (a yearly rule with ordinals and no BYMONTH: its ordinals of the year);
     in a week its weekdays. ``_read_rule`` gives every monthly and yearly
     rule one of these, so a yearly rule on one day costs that day, not 366.
+    A day or ordinal that the period does not have counts as tried.
     """
+    read: list[date | None]
     if rule.frequency == "DAILY":
         read = [first]
     elif rule.frequency == "WEEKLY":
-        read = _week_days(first, last, rule.weekdays)
+        read = [*_week_days(first, last, rule.weekdays)]
     elif rule.frequency == "YEARLY" and rule.ordinals and not rule.months:
-        found = (_nth_weekday(first, last, *ordinal) for ordinal in rule.ordinals)
-        read = [day for day in found if day is not None]
+        read = [_nth_weekday(first, last, *ordinal) for ordinal in rule.ordinals]
     else:
         months = range(first.month, last.month + 1)
         read = [
@@ -490,7 +491,11 @@ def _candidates(rule: _Rule, first: date, last: date) -> tuple[list[date], int]:
             if not rule.months or month in rule.months
             for day in _month_candidates(rule, first.year, month)
         ]
-    days = {day for day in read if first <= day <= last and _accepts(rule, day, first, last)}
+    days = {
+        day
+        for day in read
+        if day is not None and first <= day <= last and _accepts(rule, day, first, last)
+    }
     return sorted(days), len(read)
 
 
@@ -500,16 +505,15 @@ def _week_days(first: date, last: date, weekdays: frozenset[int]) -> list[date]:
     return [date.fromordinal(number) for number in numbers if number <= last.toordinal()]
 
 
-def _month_candidates(rule: _Rule, year: int, month: int) -> list[date]:
-    """The days of ``month`` that the day filters of ``rule`` name (see ``_candidates``)."""
+def _month_candidates(rule: _Rule, year: int, month: int) -> list[date | None]:
+    """The days of ``month`` that the day filters of ``rule`` name (``None``: not in it)."""
     length = _month_length(year, month)
     first, last = date(year, month, 1), date(year, month, length)
     if rule.monthdays:
         numbers = {day if day > 0 else length + day + 1 for day in rule.monthdays}
-        return [date(year, month, day) for day in sorted(numbers) if 1 <= day <= length]
+        return [date(year, month, day) if 1 <= day <= length else None for day in numbers]
     if rule.ordinals:
-        found = (_nth_weekday(first, last, *ordinal) for ordinal in rule.ordinals)
-        return [day for day in found if day is not None]
+        return [_nth_weekday(first, last, *ordinal) for ordinal in rule.ordinals]
     weekdays = rule.weekdays or frozenset(range(7))
     begin = first.weekday()
     return [
