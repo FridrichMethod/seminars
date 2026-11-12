@@ -515,6 +515,16 @@ class TestHandWrittenFeeds:
         with pytest.raises(ParseError, match="source rsorg-example"):
             parse("<html><body>Not found</body></html>\n")
 
+    def test_a_feed_that_breaks_the_calendar_library_is_a_parse_error(self) -> None:
+        broken = (
+            "BEGIN:VCALENDAR\nBEGIN:VTIMEZO;E\nTZID:Custom/Zone\nBEGIN:STANDARD\n"
+            "TZOFFSETFROM:-0800\nTZOFFSETTO:-0800\nEND:STANDARD\nEND:VTIMEZONE\n"
+            + vevent()
+            + "END:VCALENDAR\n"
+        )
+        with pytest.raises(ParseError, match="source rsorg-example: the iCalendar feed"):
+            parse(broken)
+
     def test_a_repeated_uid_is_kept_once(self) -> None:
         drafts = parse(calendar(vevent("SUMMARY:First"), vevent("SUMMARY:Second")))
         assert len(drafts) == 1

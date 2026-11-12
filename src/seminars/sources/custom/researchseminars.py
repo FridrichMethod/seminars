@@ -331,6 +331,9 @@ def _feed_drafts(
         found = occurrences(calendar, window, timezone=calendar.timezone or source.timezone)
     except ParseError as error:
         raise ParseError(f"source {source.id}: {error}") from error
+    except (AttributeError, KeyError, IndexError, TypeError) as error:
+        # icalendar 7 fails on some broken VTIMEZONEs with an AttributeError.
+        raise ParseError(f"source {source.id}: the iCalendar feed cannot be read") from error
     drafts: list[EventDraft] = []
     foreign = malformed = 0
     for occurrence in found:
