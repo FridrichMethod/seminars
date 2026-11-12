@@ -1191,6 +1191,14 @@ exclusions:
     # internal meetings where residents and students present unfinished projects
     - work in progress session
     - works in progress session
+    # morbidity and mortality ("M&M") conferences: a department's internal review
+    # of its own cases, unlike grand rounds; "M&M" alone would match two initials
+    - surgery M&M
+    - surgical M&M
+    - M&M conference
+    - M&M rounds
+    - morbidity and mortality conference
+    - morbidity and mortality rounds
     - town hall with
     - town hall meeting
     - community town hall
