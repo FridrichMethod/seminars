@@ -25,6 +25,11 @@ RESIDUAL_RISK: Final = {
     CHINESE: "**\u6253\u6807\u7b7e\u7684\u6b8b\u4f59\u98ce\u9669\u3002**",
 }
 BOTH: Final = [ENGLISH, CHINESE]
+LLM_OFF_ZH: Final = "\u5173\u6389 LLM"
+PAGE_KEPT_ZH: Final = (
+    "\u8bfb\u8fc7\u7684\u9875\u9762\u4e5f\u7ee7\u7eed"
+    "\u7ed9\u51fa\u4ece\u4e2d\u8bfb\u5230\u7684\u8bb2\u5ea7"
+)
 
 
 def section(path: Path, heading: str) -> str:
@@ -134,3 +139,11 @@ def test_the_residual_risk_says_that_no_event_is_left_out_by_another(path: Path)
         else "\u4e0d\u80fd\u628a\u53e6\u4e00\u4e2a\u4e8b\u4ef6\u4ece feed \u91cc\u53bb\u6389"
     )
     assert left_out in paragraph
+
+
+@pytest.mark.parametrize("path", BOTH)
+def test_switching_off_says_that_stored_page_readings_still_apply(path: Path) -> None:
+    heading = "## Switching the LLM off" if path == ENGLISH else "## " + LLM_OFF_ZH
+    text = " ".join(section(path, heading).split())
+    kept = "a page that was read keeps giving the talks" if path == ENGLISH else PAGE_KEPT_ZH
+    assert kept in text

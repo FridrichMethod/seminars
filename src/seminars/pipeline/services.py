@@ -16,12 +16,12 @@ How the parts are chosen:
 * LLM: only when it is wanted (not ``--no-llm``). The cache is opened
   with the time of the run. When ``build_llm_client`` finds a provider
   with a credential, the tagger and the page extractor share the chain
-  and the cache. Without a provider the verdicts stored in earlier runs
+  and the cache. Without a provider the answers stored in earlier runs
   still apply, so that a missing credential gives the same data as a
-  refused one: the tagger answers from the cache alone, through a client
-  that never sends anything (``NoProvider``) and a view of the cache that
-  stores nothing (``ReadOnlyCache``). Nothing new is asked, there is no
-  extractor, and the run neither counts nor prunes that cache
+  refused one: the tagger and the page extractor answer from the cache
+  alone, through a client that never sends anything (``NoProvider``) and
+  a view of the cache that stores nothing (``ReadOnlyCache``). Nothing new
+  is asked, and the run neither counts nor prunes that cache
   (``Services.llm_cache`` stays ``None``). When the LLM package cannot be
   loaded or set up, the run goes on without it and says so in a warning.
 * GitHub issues: only when they are wanted (never offline, never in a dry
@@ -159,7 +159,8 @@ class NoProvider:
     """The ``LLMClient`` of a run without a provider: it never sends anything.
 
     Every request fails at once with ``LLMUnavailableError``, so the LLM
-    tagger answers from its cache alone and asks nothing new.
+    tagger and the page extractor answer from their cache alone and ask
+    nothing new.
     """
 
     @property
@@ -227,11 +228,13 @@ def _llm_parts(
     open_cache: LLMCacheFactory = load("llm_cache")
     cache = open_cache(cache_dir, ttl_days=config.llm.cache_ttl_days, now=now)
     build_tagger: LLMTaggerFactory = load("llm_tagger")
-    if chain is None:
-        return _LLMParts(
-            tagger=build_tagger(NoProvider(), config=config.llm, cache=ReadOnlyCache(cache))
-        )
     build_extractor: PageExtractorFactory = load("page_extractor")
+    if chain is None:
+        stored = ReadOnlyCache(cache)
+        return _LLMParts(
+            tagger=build_tagger(NoProvider(), config=config.llm, cache=stored),
+            extractor=build_extractor(NoProvider(), config=config.llm, cache=stored),
+        )
     return _LLMParts(
         chain=chain,
         cache=cache,

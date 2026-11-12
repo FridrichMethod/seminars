@@ -120,7 +120,7 @@ scripts/set-llm-credential.sh openai-compat --from-file ~/.secrets/llm-key \
 * CI 里：`scripts/set-llm-credential.sh none`，它把变量设成 `LLM_PROVIDERS=none`。要重新打开，运行 `gh variable delete LLM_PROVIDERS`，或者用 `--providers` 设一个顺序。
 * 本地：`seminars run --no-llm`，或者 `LLM_PROVIDERS=none seminars run`。
 
-没有 provider 时（没有凭证，或者 `LLM_PROVIDERS=none`），不会发出新的请求，但以前的运行存在 `data/llm_cache/` 里的回答仍然有效：被某个回答打过标签、或被判为不是学术报告的事件，只要文字不变，就保留这个回答。凭证被拒绝的运行得到同样的数据。这时不往缓存里加入新条目，也不删除旧条目；命中只会像平时一样更新这个条目的日期。其余的领域标签来自规则，需要读页面的源在 provider 恢复之前不产生事件。`seminars run --no-llm` 只用规则，也不读缓存。
+没有 provider 时（没有凭证，或者 `LLM_PROVIDERS=none`），不会发出新的请求，但以前的运行存在 `data/llm_cache/` 里的回答仍然有效：只要文字不变，被某个回答打过标签、或被判为不是学术报告的事件就保留这个回答，读过的页面也继续给出从中读到的讲座。凭证被拒绝的运行得到同样的数据。这时不往缓存里加入新条目，也不删除旧条目；命中只会像平时一样更新这个条目的日期。其余的领域标签来自规则，需要读、而且内容变了的页面在 provider 恢复之前不产生事件。`seminars run --no-llm` 只用规则，也不读缓存。
 
 ## 费用
 

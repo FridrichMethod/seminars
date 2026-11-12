@@ -142,17 +142,18 @@ class TestHttp:
 
 
 class TestLLM:
-    def test_without_a_provider_only_the_stored_verdicts_help_the_rules(
+    def test_without_a_provider_only_the_stored_answers_help(
         self, app_config: AppConfig, recorder: Recorder
     ) -> None:
-        # The tagger answers from the cache alone (tests/test_pipeline_services_cached_verdicts.py).
+        # Both answer from the cache alone (tests/test_pipeline_services_cached_verdicts.py).
         bundle = build(app_config, offline=True)
-        assert (bundle.llm, bundle.llm_cache, bundle.page_extractor) == (None, None, None)
+        assert (bundle.llm, bundle.llm_cache) == (None, None)
         assert bundle.llm_tagger is not None
-        assert "page_extractor" not in recorder.calls
-        (client,) = recorder.calls["llm_tagger"]["args"]
-        assert isinstance(client, wiring.NoProvider)
-        assert isinstance(recorder.calls["llm_tagger"]["kwargs"]["cache"], wiring.ReadOnlyCache)
+        assert bundle.page_extractor is not None
+        for key in ("llm_tagger", "page_extractor"):
+            (client,) = recorder.calls[key]["args"]
+            assert isinstance(client, wiring.NoProvider)
+            assert isinstance(recorder.calls[key]["kwargs"]["cache"], wiring.ReadOnlyCache)
 
     def test_a_chain_brings_cache_tagger_and_extractor(
         self, app_config: AppConfig, recorder: Recorder, tmp_path: Path

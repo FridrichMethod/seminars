@@ -1,14 +1,16 @@
-"""Without a provider the LLM verdicts stored in earlier runs still apply; nothing is asked.
+"""Without a provider the LLM answers stored in earlier runs still apply; nothing is asked.
 
 A run whose credential is missing and a run whose credential is refused
-must give the same data: both answer the open cases from data/llm_cache
-and from nothing else. The cache is only read in such a run: nothing new
-is stored in it and nothing is pruned.
+must give the same data: both answer the open cases of tagging and the
+page readings from data/llm_cache and from nothing else. The cache is
+only read in such a run: nothing new is stored in it and nothing is
+pruned.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -17,16 +19,19 @@ from pydantic import BaseModel
 
 from factories import REFERENCE_NOW, make_candidate, make_event
 from fakes import FakeEventFilter, FakeFieldTagger, FakeIssueClient, FakePicksScorer
-from fakes_llm import FakeLLMCache, FakeLLMClient, FakePageExtractor
+from fakes_llm import FakeLLMCache, FakeLLMClient
 from fakes_outputs import FakeEmitters
 from seminars.classify.llm_tagger import build_llm_tagger, event_payload, payload_key
 from seminars.config import NO_PROVIDER, AppConfig
-from seminars.contracts import LLMCache, LLMClient, LLMUnavailableError
+from seminars.contracts import LLMCache, LLMClient, LLMUnavailableError, llm_cache_key
 from seminars.llm.cache import open_llm_cache
 from seminars.models import Candidate, LLMTagResult, TagDecision
 from seminars.pipeline import services as wiring
 from seminars.pipeline.secret_scan import build_secret_scanner
 from seminars.pipeline.tagging import tag_candidates
+from seminars.sources.generic import llm_page
+from test_llm_page_extract import PAGE, SOURCE, answer, chunk_of, payload
+from test_llm_page_extract import TALK as PAGE_TALK
 
 
 class Parts:
@@ -57,7 +62,7 @@ class Parts:
             "llm_client": self._record(key, lambda *args: self.chain),
             "llm_cache": self._record(key, lambda *args, **kwargs: self.cache),
             "llm_tagger": self._record(key, build_llm_tagger),
-            "page_extractor": self._record(key, lambda *args, **kwargs: FakePageExtractor()),
+            "page_extractor": self._record(key, llm_page.build_page_extractor),
             "issue_client": lambda env: FakeIssueClient(),
         }
         return table[key]
@@ -98,7 +103,6 @@ class TestTheWiring:
         parts = install(monkeypatch, Parts(cache))
         bundle = build(app_config, llm_cache_dir=tmp_path / "cache")
         assert bundle.llm is None
-        assert bundle.page_extractor is None
         assert bundle.llm_tagger is not None
         assert parts.calls["llm_cache"]["args"] == (tmp_path / "cache",)
         assert parts.calls["llm_cache"]["kwargs"] == {
@@ -202,3 +206,55 @@ def test_the_stored_answers_reach_the_tagger_unchanged(
     (key,) = entries
     assert handed.get(key) == CHEMISTRY.model_dump(mode="json")
     assert handed.stats() == cache.stats()
+
+
+PAGE_KEY = llm_cache_key(llm_page.PROMPT_VERSION, llm_page.TASK, chunk_of())
+"""The cache key of the reading of the one page these tests read."""
+
+READ_DAY = date(2026, 11, 10)
+
+
+class TestPageReadings:
+    def test_without_a_provider_a_stored_reading_still_gives_its_talks(
+        self, app_config: AppConfig, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cache = FakeLLMCache({PAGE_KEY: llm_page.cache_value(READ_DAY, answer(PAGE_TALK))})
+        install(monkeypatch, Parts(cache))
+        extractor = build(app_config).page_extractor
+        assert extractor is not None
+        [draft] = extractor.extract(payload(), SOURCE)
+        assert draft.title == PAGE_TALK["title"]
+
+    def test_a_page_without_a_stored_reading_gives_nothing_and_asks_nothing(
+        self, app_config: AppConfig, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cache = FakeLLMCache()
+        parts = install(monkeypatch, Parts(cache))
+        extractor = build(app_config).page_extractor
+        assert extractor is not None
+        assert extractor.extract(payload(), SOURCE) == []
+        assert cache.writes == 0
+        (client,) = parts.calls["page_extractor"]["args"]
+        assert client.name == NO_PROVIDER
+        assert isinstance(parts.calls["page_extractor"]["kwargs"]["cache"], wiring.ReadOnlyCache)
+
+    def test_no_credential_reads_what_a_refused_credential_reads(
+        self, app_config: AppConfig, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        directory = tmp_path / "llm_cache"
+        cache = open_llm_cache(directory, ttl_days=180, now=REFERENCE_NOW)
+        cache.put(PAGE_KEY, llm_page.cache_value(READ_DAY, answer(PAGE_TALK)))
+        before = sorted(path.relative_to(directory) for path in directory.rglob("*"))
+        refused = FakeLLMClient().fail(LLMUnavailableError("401"), times=5)
+        with_refused = llm_page.build_page_extractor(refused, config=app_config.llm, cache=cache)
+        install(monkeypatch, Parts(cache))
+        without = build(app_config).page_extractor
+        assert without is not None
+        other_page = PAGE.replace("Upcoming seminars", "Seminars this term")
+        for text in (PAGE, other_page):
+            assert without.extract(payload(text), SOURCE) == with_refused.extract(
+                payload(text), SOURCE
+            )
+        assert [draft.title for draft in without.extract(payload(), SOURCE)] == [PAGE_TALK["title"]]
+        after = sorted(path.relative_to(directory) for path in directory.rglob("*"))
+        assert after == before
