@@ -22,9 +22,9 @@
 #    counts without its sections on the speaker and the series (headings such as
 #    "Bio", "About the Speaker", "About the ... Seminar Series"): a speaker's
 #    degree in physics says nothing about the talk. Weak terms get 0.5 so that
-#    they count only together with a second one. A word counts for one keyword
-#    of a field only: where keywords overlap ("drug" in "drug discovery"), the
-#    heaviest counts, then the longest. A match of
+#    they count only together with a second one (cs has none: see there). A
+#    word counts for one keyword of a field only: where keywords overlap ("drug"
+#    in "drug discovery"), the heaviest counts, then the longest. A match of
 #    exclude_keywords vetoes the rules of that field (never a source field);
 #    an event without source fields (the campus-wide calendar) needs the series
 #    name or enough weight in title and series: there the abstract alone never
@@ -212,10 +212,13 @@ fields:
       - Graphics Seminar
       - MLSys Seminar
     keywords:
+      # No weak terms: talks of every field compute, run algorithms, write software
+      # and care about security and privacy, so such words never make a talk one of
+      # computer science, however many of them it uses (a string theory talk
+      # "drawing on large-scale computations" and "new algorithms"). A term is
+      # listed when it names a topic of computer science on its own.
       computer science: 1.0
       computer scientist: 1.0
-      algorithm: 0.5
-      algorithmic: 0.5
       approximation algorithm: 1.0
       online algorithm: 1.0
       graph algorithm: 1.0
@@ -225,14 +228,14 @@ fields:
       NP-hard: 1.0
       cryptography: 1.0
       cryptographic: 1.0
+      "encrypt*": 1.0
       zero-knowledge: 1.0
       computer security: 1.0
       cybersecurity: 1.0
-      security: 0.5
-      privacy: 0.5
       differential privacy: 1.0
       distributed system: 1.0
       distributed computing: 1.0
+      parallel computing: 1.0
       operating system: 1.0
       programming language: 1.0
       compiler: 1.0
@@ -241,46 +244,27 @@ fields:
       formal method: 1.0
       program synthesis: 1.0
       software engineering: 1.0
-      software: 0.5
       computer architecture: 1.0
-      hardware: 0.5
       FPGA: 1.0
-      GPU: 0.5
       database: 1.0
       data system: 1.0
-      data management: 0.5
       computer graphics: 1.0
-      computer vision: 0.5
       human-computer interaction: 1.0
       HCI: 1.0
       user interface: 1.0
-      visualization: 0.5
       computer network: 1.0
-      networking: 0.5
-      internet: 0.5
       cloud computing: 1.0
       datacenter: 1.0
       data center: 1.0
-      quantum computing: 1.0
-      quantum algorithm: 1.0
+      "quantum comput*": 1.0
+      "quantum algorithm*": 1.0
       blockchain: 1.0
       robotics: 1.0
-      robotic: 0.5
-      robot: 0.5
-      autonomous vehicle: 0.5
       information theory: 1.0
       coding theory: 1.0
       error-correcting code: 1.0
-      signal processing: 0.5
-      computation: 0.5
-      computing: 0.5
-      computational: 0.5
       MLSys: 1.0
       machine learning systems: 1.0
-      game theory: 0.5
-      mechanism design: 0.5
-      bioinformatics: 0.5
-      computational biology: 0.5
     exclude_keywords:
       - computer science education
       - CS education
