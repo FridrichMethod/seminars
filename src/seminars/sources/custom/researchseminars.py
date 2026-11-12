@@ -26,10 +26,12 @@ its own way:
       then "Abstract" on a line of its own and the abstract below it,
       or "Abstract: TBA"
 
-  The title is the text of the link on the ``Title:`` line (parsed as
-  HTML; nothing else of the description is markup). The by-line is the
-  first line, or the second after a ``Title:`` line, never a later line
-  that starts with "by " (abstracts have such lines). SPEAKERS is one or
+  The title is the raw text of the link on the ``Title:`` line: the site
+  does not escape it, so it is cut out with string operations and never
+  parsed as HTML ("$p<q$" stays); normalization removes real tags and
+  decodes entities. Nothing else of the description is markup. The
+  by-line is the first line, or the second after a ``Title:`` line, never
+  a later line that starts with "by " (abstracts have such lines). SPEAKERS is one or
   more ``Name (Affiliation)``; see ``parse_speakers``. Without a by-line the
   speakers come from ``SUMMARY``. SERIES becomes the draft's ``series``.
   The room of ``Lecture held in`` is the ``location`` without the final
@@ -93,6 +95,9 @@ SERIES_ID_PATTERN: Final = r"^[A-Za-z0-9_.-]{1,100}$"
 _UID: Final = re.compile(r"(?P<series>[A-Za-z0-9_.-]{1,100})/(?P<counter>[0-9]{1,9})")
 
 TITLE_PREFIX: Final = "Title:"
+LINK_OPENER: Final = '<a href="'
+LINK_OPENER_END: Final = '">'
+LINK_CLOSER: Final = "</a>"
 BY_PREFIX: Final = "by "
 SERIES_SEPARATOR: Final = " as part of "
 ROOM_PREFIX: Final = "Lecture held in "
@@ -198,11 +203,30 @@ class Description:
     abstract: str | None = None
 
 
+def _starts_a_link(text: str) -> bool:
+    """Whether ``text`` begins with an ``<a`` tag (any case)."""
+    return text[:2].lower() == "<a" and (len(text) == 2 or text[2] == ">" or text[2].isspace())
+
+
 def _title(line: str) -> str | None:
-    """The text of the link on a ``Title:`` line (the line without its prefix)."""
-    tree = LexborHTMLParser(line)
-    link = tree.css_first("a")
-    return node_text(link) if link is not None else node_text(tree.body)
+    """The title on a ``Title:`` line (the line without its prefix), as the site wrote it.
+
+    The site does not escape titles (the recorded feeds have a raw "&"), so
+    an HTML parser would drop text that only looks like a tag ("$p<q$").
+    The title is therefore the raw text of ``<a href="...">TITLE</a>``:
+    from the ``">`` that closes the opening tag to the last ``</a>``. A line
+    without a link is taken as it is, and only a link of another shape is
+    read as HTML. Removing real tags and decoding entities is left to
+    normalization.
+    """
+    value = line.strip()
+    if not _starts_a_link(value):
+        return collapse(value)
+    opened = value.find(LINK_OPENER_END) if value.startswith(LINK_OPENER) else -1
+    closed = value.rfind(LINK_CLOSER)
+    if opened >= 0 and closed >= opened + len(LINK_OPENER_END):
+        return collapse(value[opened + len(LINK_OPENER_END) : closed])
+    return node_text(LexborHTMLParser(value).css_first("a"))
 
 
 def _by_line(line: str) -> tuple[str | None, str | None]:

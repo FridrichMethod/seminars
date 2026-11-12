@@ -18,6 +18,7 @@ from fakes import FakeHttpClient
 from seminars.config.loader import load_sources
 from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig
+from seminars.pipeline.text import one_line
 from seminars.sources import base
 from seminars.sources.base import ParseError
 from seminars.sources.custom import researchseminars
@@ -311,13 +312,53 @@ LINK = '<a href="https://researchseminars.org/talk/S/1/">'
         ),
         pytest.param(
             f"Title: {LINK}Groups &amp; rings &lt;3</a>\nby A as part of B",
-            Description(title="Groups & rings <3", speakers_text="A", series="B"),
-            id="html-entities-in-the-title",
+            Description(title="Groups &amp; rings &lt;3", speakers_text="A", series="B"),
+            id="html-entities-in-the-title-are-left-to-normalization",
         ),
         pytest.param(
-            "Title: A talk without a link\nby A as part of B",
-            Description(title="A talk without a link", speakers_text="A", series="B"),
+            f"Title: {LINK}On $p<q$ bounds</a>\nby A as part of B",
+            Description(title="On $p<q$ bounds", speakers_text="A", series="B"),
+            id="a-less-than-sign-before-a-letter",
+        ),
+        pytest.param(
+            f"Title: {LINK}x<y and y>z</a>",
+            Description(title="x<y and y>z"),
+            id="text-that-looks-like-a-tag",
+        ),
+        pytest.param(
+            f"Title: {LINK}Links </a> in </a>titles</a>",
+            Description(title="Links </a> in </a>titles"),
+            id="up-to-the-last-closing-tag",
+        ),
+        pytest.param(
+            f"Title:   {LINK}  Spaced\ttitle  </a>  ",
+            Description(title="Spaced title"),
+            id="whitespace-around-the-link",
+        ),
+        pytest.param(
+            f"Title: {LINK}</a>\nby A",
+            Description(speakers_text="A"),
+            id="an-empty-link",
+        ),
+        pytest.param(
+            "Title: A talk without a link, $x<y$\nby A as part of B",
+            Description(title="A talk without a link, $x<y$", speakers_text="A", series="B"),
             id="title-without-a-link",
+        ),
+        pytest.param(
+            "Title: <a href='https://researchseminars.org/talk/S/1/'>Single &amp; quoted</a>",
+            Description(title="Single & quoted"),
+            id="a-link-of-another-shape-is-read-as-html",
+        ),
+        pytest.param(
+            f"Title: {LINK}Never closed",
+            Description(title="Never closed"),
+            id="a-link-without-its-closing-tag-is-read-as-html",
+        ),
+        pytest.param(
+            "Title: <abbr>AG</abbr> seminar",
+            Description(title="<abbr>AG</abbr> seminar"),
+            id="a-tag-that-only-starts-like-a-link",
         ),
         pytest.param(
             "Abstract\nOnly an abstract.\nby somebody else",
@@ -330,6 +371,21 @@ LINK = '<a href="https://researchseminars.org/talk/S/1/">'
 )
 def test_read_description(text: str | None, expected: Description) -> None:
     assert read_description(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "normalized"),
+    [
+        ("Groups &amp; rings &lt;3", "Groups & rings <3"),
+        ("On $p<q$ bounds", "On $p<q$ bounds"),
+        ("x<y and y>z", "x<y and y>z"),
+        ("<i>Lie</i> groups & more", "Lie groups & more"),
+    ],
+)
+def test_raw_titles_are_finished_by_normalization(raw: str, normalized: str) -> None:
+    title = read_description(f"Title: {LINK}{raw}</a>").title
+    assert title == raw
+    assert one_line(title, limit=300) == normalized
 
 
 @pytest.mark.parametrize(
