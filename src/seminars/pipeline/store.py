@@ -8,17 +8,26 @@ place.
 
 A run writes its files in two sets: the data files (``data_files``), and,
 after the feeds and the site data, the two records of the run
-(``report_files``). ``write_files`` writes one set so that a failure
-changes none of its files: every text goes to a temporary file next to its
-target first, and only when all of them are on disk are they moved into
-place, data/last_run.json last of all. That file therefore says which run
-finished last. A run that stopped in between (a crash after the data
-files, a machine that went down) leaves the data files of its own next to
-the records of the run before, and its outcome in the health history. So
-that repeating it does not count it twice, ``load_state`` drops from the
-health history every entry of a run that started after the last finished
-live run (``HealthFile.until``). The events and the uid map such a run
-wrote stay: the next run builds on them as on any other stored state.
+(``report_files``). ``write_files`` writes one set in two steps. Every
+text goes to a temporary file next to its target first, flushed to disk;
+a failure in this step (a full disk, a file that cannot be created)
+changes none of the files and leaves no temporary file behind. Only when
+all of them are on disk are they moved into place, one after the other,
+data/last_run.json last of all. That file therefore says which run
+finished last. A move is atomic, a set of them is not: a failure during
+the moves (a target that another program holds open, on Windows) leaves
+the files moved before it new and the others as they were, so
+data/events.json can be new while data/uid_map.json, data/health.json or
+the archive is old; the temporary files are removed and the run fails.
+
+A run that stopped in between (a crash after the data files, a failure
+during their moves, a machine that went down) leaves whatever of its data
+files reached their place next to the records of the run before, and
+possibly its outcome in the health history. So that repeating it does
+not count it twice, ``load_state`` drops from the health history every
+entry of a run that started after the last finished live run
+(``HealthFile.until``). The events and the uid map such a run wrote stay:
+the next run builds on them as on any other stored state.
 
 Files (``seminars.config.ProjectPaths``):
 
@@ -200,7 +209,9 @@ def write_files(files: Mapping[Path, str]) -> None:
 
     The files are moved into place in the order of ``files``, so the last
     one is the last to change. A failure before the first move changes no
-    file and leaves no temporary file behind.
+    file; a failure during the moves leaves the files moved before it new
+    and the others as they were. Either way no temporary file is left
+    behind.
     """
     staged: list[tuple[Path, Path]] = []
     try:

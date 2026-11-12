@@ -1,7 +1,8 @@
 """Tests for writing the files of a run as one set, and for what a crashed run leaves behind.
 
-A run writes several files below data/. A failure while they are written
-must leave all of them as they were, and a run that crashed after
+A run writes several files below data/. A failure while they are staged
+must leave all of them as they were (a failure while they are moved into
+place leaves the ones moved before it), and a run that crashed after
 data/health.json and before its records must not be counted twice when
 it is repeated.
 """
@@ -89,6 +90,25 @@ class TestWriteFiles:
         assert read_text(paths.events_file) == "old events\n"
         assert read_text(paths.uid_map_file) == "old map\n"
         assert not paths.health_file.exists()
+        assert leftovers(paths.root) == []
+
+    def test_a_failure_during_the_moves_leaves_the_files_moved_before_it(
+        self, paths: ProjectPaths, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        write_files({paths.events_file: "old events\n", paths.uid_map_file: "old map\n"})
+        real_replace = os.replace
+
+        def replace(source: Any, target: Any) -> None:
+            if Path(target).name == "uid_map.json":
+                raise PermissionError("simulated: another program holds uid_map.json open")
+            real_replace(source, target)
+
+        monkeypatch.setattr(store.os, "replace", replace)
+        new = {paths.events_file: "new events\n", paths.uid_map_file: "new map\n"}
+        with pytest.raises(PermissionError, match="simulated"):
+            write_files(new)
+        assert read_text(paths.events_file) == "new events\n"
+        assert read_text(paths.uid_map_file) == "old map\n"
         assert leftovers(paths.root) == []
 
     def test_the_last_file_is_moved_last(
