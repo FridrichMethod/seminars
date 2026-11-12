@@ -180,9 +180,11 @@ sources:
       #
       # Identity: the VEVENT UID (a UUID) is the native id of every event. A card whose
       # detail page cannot be fetched, has no VEVENT, or lies beyond max_detail_pages
-      # is dropped for this run (and counted in health), never emitted under a fallback
-      # key: the slug of the detail URL contains the title ("2026-10-22-talk-phil-
-      # bucksbaum"), so a URL key would change when a TBA talk gets its title.
+      # is dropped for this run, never emitted under a fallback key: the slug of the
+      # detail URL contains the title ("2026-10-22-talk-phil-bucksbaum"), so a URL key
+      # would change when a TBA talk gets its title. When its detail page could not be
+      # fetched, the run counts the source as not read in full (like a refused
+      # request), so the dropped talk is not counted as missing from the source.
       #
       # Times: DTSTART and DTEND of the VEVENT. Resolve TZID=America/Los_Angeles with
       # zoneinfo and ignore the embedded VTIMEZONE: it has a STANDARD component only
@@ -704,8 +706,11 @@ sources:
       # item selector takes only the upcoming block; the page lists past events below
       # it (ul.content-type-past_events, 12 cards).
       # The upcoming block is often empty between events: that is a page without
-      # items, not a broken page (html_list allow_empty).
+      # items, not a broken page (html_list allow_empty), as long as the past events
+      # are still listed with the same cards. A page without any card of either block
+      # was redesigned or replaced, and that is a parse error.
       allow_empty: true
+      empty_marker: 'ul.content-type-past_events li.multisite-query-loop-item'
       selectors:
         item: 'ul.content-type-events li.multisite-query-loop-item'
         title: 'h3.card-title'
@@ -725,7 +730,8 @@ sources:
       skip_summary_patterns: ['will be at booth']
       require: [title, link]
       # Times are only on the detail page; a card whose detail page fails is dropped
-      # for this run.
+      # for this run, and the run counts the source as not read in full (like a
+      # refused request), so the talk is not counted as missing from the source.
       detail_page:
         times: '.event-meta--date-time-location time[datetime]'  # first = start, second = end
         location: '.event-meta__value--location'  # "Zoom", "San Francisco, CA (...)"

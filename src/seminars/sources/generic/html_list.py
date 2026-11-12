@@ -17,11 +17,15 @@ Keys of ``params`` (an unknown key is an error that names it;
 * ``selectors.item``: one element per talk. On every list page it must match
   at least once, and at least one item must have every field of
   ``require``; otherwise the page is not understood (``ParseError``).
-* ``allow_empty`` (default false): a page where ``selectors.item`` matches nothing
-  gives no drafts, not a ``ParseError`` (an upcoming block that is often empty),
-  as long as the request stayed on the source's hosts: a list that was
-  redirected elsewhere (a move to another domain, a login page) and has no
-  items is still a ``ParseError``.
+* ``allow_empty`` (default false) with ``empty_marker`` (a selector; each
+  needs the other): a page where ``selectors.item`` matches nothing gives no
+  drafts, not a ``ParseError`` (an upcoming block that is often empty), when
+  ``empty_marker`` matches on it and the request stayed on the source's
+  hosts. The marker is an element that shows the page is still the listing
+  page, such as the cards of past events. Without it the page was
+  redesigned or replaced, and a list that was redirected elsewhere (a move
+  to another domain, a login page) is not the list either: both are still
+  a ``ParseError``.
 * ``selectors.<field>``: evaluated inside the item, first match. The fields
   are ``title``, ``link`` (detail page), ``date``, ``time``, ``speaker``,
   ``affiliation``, ``location``, ``abstract``, ``stream_link`` (recording or
@@ -221,6 +225,7 @@ class HtmlListParams(Model):
     default_end_time: time | None = None
     require: list[FieldName] = ["date"]
     allow_empty: bool = False
+    empty_marker: Selector | None = None
     skip_title_patterns: list[Pattern] = []
     skip_summary_patterns: list[Pattern] = []
     exclude_regions: list[str] = []
@@ -260,6 +265,10 @@ class HtmlListParams(Model):
                 raise ValueError(f"{name}_pattern has unknown groups: {', '.join(unknown)}")
         if "date" not in configured and (self.detail_page is None or not self.detail_page.times):
             raise ValueError("a source needs selectors.date or detail_page.times")
+        if self.allow_empty and self.empty_marker is None:
+            raise ValueError("allow_empty needs empty_marker (an element of the listing page)")
+        if self.empty_marker is not None and not self.allow_empty:
+            raise ValueError("empty_marker needs allow_empty: true")
         return self
 
     @property
@@ -328,6 +337,12 @@ def read_row(params: HtmlListParams, item: LexborNode) -> Row:
 def read_rows(params: HtmlListParams, document: FetchedDocument) -> list[Row]:
     tree = LexborHTMLParser(document.text)
     return [read_row(params, item) for item in tree.css(params.selectors.item)]
+
+
+def has_marker(params: HtmlListParams, document: FetchedDocument) -> bool:
+    """True when ``params.empty_marker`` matches on the page (the page is still the list)."""
+    marker = params.empty_marker
+    return marker is not None and LexborHTMLParser(document.text).css_first(marker) is not None
 
 
 def keep_row(params: HtmlListParams, row: Row) -> bool:
@@ -592,10 +607,13 @@ class HtmlListAdapter:
     ) -> None:
         url, item = ascii_printable(document.url), params.selectors.item
         stayed = on_source_host(source, document.final_url)
-        if not rows and not (params.allow_empty and stayed):
+        if not rows and not (params.allow_empty and stayed and has_marker(params, document)):
             moved = "" if stayed else f" (it led to {ascii_printable(document.final_url)})"
+            marker = params.empty_marker
+            unmarked = f" and empty_marker {marker!r} is not on it" if marker and stayed else ""
             raise ParseError(
-                f"source {source.id}: selectors.item {item!r} matches nothing on {url}{moved}"
+                f"source {source.id}: selectors.item {item!r} matches nothing on {url}"
+                f"{moved}{unmarked}"
             )
         if rows and not any(all(row.get(name) for name in params.required) for row in rows):
             needed = ", ".join(params.required)

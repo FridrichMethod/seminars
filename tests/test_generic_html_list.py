@@ -145,7 +145,8 @@ class TestRecordedSources:
 
     def test_biohub_without_upcoming_events_gives_no_drafts(self) -> None:
         # Between seasons the upcoming block is empty and only past cards are listed.
-        # The recorded entry sets allow_empty, so that is a page without items.
+        # The recorded entry sets allow_empty, and the past cards are its empty_marker,
+        # so that is a page without items.
         source = SOURCES["bayarea-biohub"]
         assert source.params["allow_empty"] is True
         past = (
@@ -161,7 +162,7 @@ class TestRecordedSources:
         assert run(source, http) == []
         assert http.requests == ["https://biohub.org/events/"]
         with pytest.raises(ParseError, match="matches nothing"):
-            run(with_params(source, allow_empty=False), http)
+            run(with_params(source, allow_empty=None, empty_marker=None), http)
 
     def test_suncat_rows_and_their_tags(self) -> None:
         source = SOURCES["bayarea-suncat"]
@@ -415,10 +416,10 @@ class TestRows:
     def test_allow_empty_lets_a_list_without_items_give_no_drafts(self, allow_empty: bool) -> None:
         empty = serve(page())
         if allow_empty:
-            assert run(list_source(allow_empty=True), empty) == []
+            assert run(list_source(allow_empty=True, empty_marker="ul.talks"), empty) == []
         else:
             with pytest.raises(ParseError, match=r"selectors\.item .* matches nothing"):
-                run(list_source(allow_empty=False), empty)
+                run(list_source(), empty)
 
     @pytest.mark.parametrize(
         ("final_url", "allowed"),
@@ -434,7 +435,7 @@ class TestRows:
     ) -> None:
         http = FakeHttpClient()
         http.add(LIST_URL, page(), final_url=final_url)
-        source = list_source(allow_empty=True)
+        source = list_source(allow_empty=True, empty_marker="ul.talks")
         if allowed:
             assert run(source, http) == []
         else:
@@ -442,7 +443,7 @@ class TestRows:
                 run(source, http)
 
     def test_allow_empty_still_needs_the_required_fields_when_there_are_items(self) -> None:
-        source = list_source(allow_empty=True, require=["title", "date"])
+        source = list_source(allow_empty=True, empty_marker="ul.talks", require=["title", "date"])
         with pytest.raises(ParseError, match=r"no item .* has all of: title, date"):
             run(source, serve(page(row(title="", day=""))))
 
