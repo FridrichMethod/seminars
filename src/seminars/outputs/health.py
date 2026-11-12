@@ -40,8 +40,15 @@ with ``--source`` leaves the others alone.
 An LLM provider is failing when it failed in ``llm_failure_threshold`` runs
 in a row; runs in which it was not used are skipped, because a provider
 further down the chain is only asked when the ones before it fail. The
-issue says which repository secret to replace and with which command, and
-is closed when the provider answers again.
+issue says which repository secret to replace and with which command. It
+is closed when the provider answers again; when it was not asked in a run
+in which another provider of the chain answered (an earlier one works
+again, so nothing shows whether this one would); and when it is no longer
+in the provider chain of a run (its credential is gone, LLM_PROVIDERS
+names other providers, or the run has no LLM at all). A run whose LLM was
+on but whose chain is unknown (its usage could not be read) closes
+nothing. A provider that fails again after its issue was closed gets a new
+one at once: the failures before are still counted.
 
 Issue bodies are plain ASCII markdown. The only text in them that this
 project did not write is the error of the last run, which is escaped and
@@ -55,7 +62,7 @@ daily run.
 from __future__ import annotations
 
 import logging
-from collections.abc import Collection, Sequence
+from collections.abc import Collection
 from datetime import datetime
 from typing import Final, Literal
 
@@ -67,6 +74,7 @@ from seminars.models import (
     IssueLabel,
     LLMHealthEntry,
     LLMProviderHealth,
+    LLMUsage,
     RunReport,
     SourceConfig,
     SourceHealth,
@@ -285,8 +293,9 @@ def llm_issue_body(provider: str, history: LLMProviderHealth) -> str:
         f"- Details: {CREDENTIAL_DOCS}",
         "",
         "The pipeline goes on without this provider: it uses the next one of the chain, or "
-        "rules only when none is left. This issue is updated by every run and closed "
-        "automatically when the provider answers again.",
+        "rules only when none is left. This issue is updated by every run that asks the "
+        "provider, and closed automatically when the provider answers again, when another "
+        "provider of the chain answers instead, or when the provider leaves the chain.",
     ]
     return "\n".join(lines) + "\n"
 
@@ -332,24 +341,37 @@ def sync_source_issues(
             issues.close(issue.number, comment="The source was disabled or removed.")
 
 
+LLM_ANSWERS_AGAIN: Final = "The provider answers again."
+LLM_NOT_ASKED: Final = (
+    "Another provider of the chain answered in this run, so this one was not asked. "
+    "A new issue is opened when it fails again."
+)
+LLM_NOT_IN_CHAIN: Final = "The provider is no longer in the provider chain."
+
+
 def sync_llm_issues(
-    issues: IssueClient, health: HealthFile, providers: Sequence[str], settings: HealthSettings
+    issues: IssueClient, health: HealthFile, usage: LLMUsage, settings: HealthSettings
 ) -> None:
-    """Open, update or close the ``llm-auth`` issues of the providers of a run."""
+    """Open, update or close the ``llm-auth`` issues after a run (see the module docstring)."""
     existing = _open_issues(issues, LABEL_LLM_AUTH, LLM_ISSUE_PREFIX)
-    for provider in sorted(set(providers)):
+    statuses = {result.provider: result.status for result in usage.providers}
+    answered = "ok" in statuses.values()
+    for provider, status in sorted(statuses.items()):
         history = health.llm[provider]
         title = llm_issue_title(provider)
-        if llm_failures(history) >= settings.llm_failure_threshold:
-            _report(
-                issues,
-                LABEL_LLM_AUTH,
-                existing.get(title),
-                title,
-                llm_issue_body(provider, history),
-            )
-        elif llm_recovered(history) and title in existing:
-            issues.close(existing[title].number, comment="The provider answers again.")
+        issue = existing.get(title)
+        if status == "unused" and answered and issue is not None:
+            issues.close(issue.number, comment=LLM_NOT_ASKED)
+        elif llm_failures(history) >= settings.llm_failure_threshold:
+            _report(issues, LABEL_LLM_AUTH, issue, title, llm_issue_body(provider, history))
+        elif llm_recovered(history) and issue is not None:
+            issues.close(issue.number, comment=LLM_ANSWERS_AGAIN)
+    if usage.enabled and not usage.providers:
+        return  # the chain of the run is not known
+    chain = {llm_issue_title(provider) for provider in statuses}
+    for title, issue in sorted(existing.items()):
+        if title not in chain:
+            issues.close(issue.number, comment=LLM_NOT_IN_CHAIN)
 
 
 def update_health(
@@ -374,9 +396,8 @@ def update_health(
         sync_source_issues(issues, updated, report, config)
     except Exception as error:  # the API of GitHub is not allowed to fail the run
         logger.warning("source health issues were not updated (%s)", type(error).__name__)
-    providers = [provider.provider for provider in report.llm.providers]
     try:
-        sync_llm_issues(issues, updated, providers, config.settings.health)
+        sync_llm_issues(issues, updated, report.llm, config.settings.health)
     except Exception as error:  # as above
         logger.warning("LLM health issues were not updated (%s)", type(error).__name__)
     return updated
