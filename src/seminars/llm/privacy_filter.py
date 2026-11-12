@@ -11,9 +11,13 @@ cached, and over every entry it reads (``seminars.sources.generic.llm_page``),
 so the cache and the events follow one set of rules.
 
 ``project_scrubber`` returns that scrubber,
-``seminars.pipeline.privacy.scrub_private``. The contracts name no
-implementation of it, so it is imported by name here; this module is the
-only place where the LLM layer reaches into the pipeline.
+``seminars.pipeline.privacy.scrub_private``. Packages normally reach an
+implementation of another package through a contract key
+(``seminars.contracts.load_implementation``, as ``project_secret_filter``
+does for the secret scanner), but the contracts have no key for the
+scrubber yet. So it is imported by name, and this module is the only place
+of the LLM layer that imports the pipeline; with a key, the function body
+becomes that lookup and nothing else changes.
 """
 
 from __future__ import annotations

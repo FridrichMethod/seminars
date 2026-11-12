@@ -25,9 +25,11 @@ CLI) may serve these requests.
 Secrets. The cache holds no text of an event: an entry is the answer for one
 event, field ids of the closed vocabulary and the yes or no of ``is_talk``
 (``LLMTagResult``). A token that a page shows can therefore never reach
-data/llm_cache/ through tagging, which is why the tagger needs none of the
-secret filtering of the page extractor (``seminars.llm.secret_filter``). An
-entry that ever takes free text has to take that filter with it.
+data/llm_cache/ through tagging, and neither can a meeting code, an e-mail
+address or a phone number, which is why the tagger needs none of the secret
+filtering of the page extractor (``seminars.llm.secret_filter``) and none of
+its scrubbing (``seminars.llm.privacy_filter``). An entry that ever takes
+free text has to take both with it.
 """
 
 from __future__ import annotations
