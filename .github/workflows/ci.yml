@@ -10,11 +10,11 @@
 # starts a workflow for such a commit (its rule against loops). That is intended: the
 # data commits are checked by the update itself (seminars run and seminars validate).
 #
-# Actions, and why each one is used:
-# - actions/checkout (major tag v7): fetches the commit under test.
-# - astral-sh/setup-uv (third-party, without a floating major tag, so it is pinned to
-#   a full commit SHA with the release in a comment): installs uv. uv then installs
-#   the Python of .python-version and exactly the dependencies of uv.lock (--locked).
+# Actions, and why each one is used. Every action is pinned to the full commit SHA of
+# a release, with the release in a comment: a tag can be moved, a commit cannot.
+# - actions/checkout (v7.0.1): fetches the commit under test.
+# - astral-sh/setup-uv (v10.3.3, third-party): installs uv. uv then installs the
+#   Python of .python-version and exactly the dependencies of uv.lock (--locked).
 name: CI
 
 on:
@@ -46,7 +46,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out the commit
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install uv
@@ -74,7 +74,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out the commit
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install uv

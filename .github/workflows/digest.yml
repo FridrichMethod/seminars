@@ -19,14 +19,17 @@
 # A manual run can set dry_run: the digest is then printed in the log as markdown and
 # no issue is touched.
 #
-# Actions, and why each one is used:
-# - actions/checkout (major tag v7): fetches the tip of main with the committed data
+# The project is built and installed by a step of its own ("uv sync --locked", without
+# the token) before the step that holds the token runs it.
+#
+# Actions, and why each one is used. Every action is pinned to the full commit SHA of
+# a release, with the release in a comment: a tag can be moved, a commit cannot.
+# - actions/checkout (v7.0.1): fetches the tip of main with the committed data
 #   (ref: main, so a run that waited still reads the newest data); it does not keep
 #   the token.
-# - astral-sh/setup-uv (third-party, without a floating major tag, so it is pinned to
-#   a full commit SHA with the release in a comment): installs uv, which installs the
-#   locked dependencies. Its cache is off here, so no cache entry can feed this
-#   privileged workflow.
+# - astral-sh/setup-uv (v10.3.3, third-party): installs uv, which installs the locked
+#   dependencies. Its cache is off here, so no cache entry can feed this privileged
+#   workflow.
 name: Weekly digest
 
 on:
@@ -64,10 +67,10 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      issues: write
+      issues: write # opens the digest issue of the week and closes the one before
     steps:
       - name: Check out main
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           persist-credentials: false
@@ -75,6 +78,9 @@ jobs:
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: false
+      - name: Install the locked dependencies
+        id: sync
+        run: uv sync --locked
       - name: Publish the digest
         id: digest
         env:
