@@ -46,6 +46,21 @@ What is known about it:
   read from ``CODEX_HOME``, which is left as it is. The command therefore
   runs as the owner of the machine and can read what the owner can read.
 
+The environment of every child (``exec``, ``login status`` and
+``--version``) holds exactly these variables (``CHILD_ENV_NAMES``) and
+nothing else of this process:
+
+* PATH, HOME, LANG, LC_ALL and TMPDIR as this process has them, the
+  general variables of every child (``seminars.llm.cli`` says why each).
+  Without CODEX_HOME, HOME is how the client finds its login, in
+  ``~/.codex``;
+* CODEX_HOME, when this process has it: the directory of the ChatGPT
+  login of the client (``auth.json``).
+
+The login is a file, not a variable, so the child gets no credential in its
+environment at all. OPENAI_API_KEY in particular never reaches it: with it
+the client would bill the API instead of the subscription.
+
 What remains, and what is done about it: a hostile input could make the
 model call one of the remaining tools. Three things keep that from
 mattering. The answer must be an enumeration (``serves`` and ``complete``
@@ -82,6 +97,7 @@ from seminars.contracts import (
 )
 from seminars.llm.base import Completion, ProviderBase
 from seminars.llm.cli import (
+    PASSED_THROUGH,
     VERSION_TIMEOUT_SECONDS,
     CliRequest,
     CliResult,
@@ -121,6 +137,9 @@ DISABLED_FEATURES: Final = (
     "remote_plugin",
 )
 """Feature flags switched off for every request; see the module docstring."""
+
+CHILD_ENV_NAMES: Final = frozenset({*PASSED_THROUGH, CODEX_HOME_ENV})
+"""Every variable a codex child can get; the module docstring says why each one."""
 
 MODEL_FALLBACK_WARNING: Final = (
     "the configured model is not available to this login; the CLI default is used"
@@ -264,6 +283,7 @@ class CodexCliProvider(ProviderBase):
         return is_closed_vocabulary(strict_json_schema(schema))
 
     def _child_env(self) -> dict[str, str]:
+        """The environment of every child; see the module docstring for every variable."""
         home = self._env.get(CODEX_HOME_ENV)
         return child_environment(self._env, {CODEX_HOME_ENV: home} if home else {})
 

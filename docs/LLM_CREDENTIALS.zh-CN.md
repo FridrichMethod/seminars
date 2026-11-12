@@ -133,7 +133,7 @@ scripts/set-llm-credential.sh openai-compat --from-file ~/.secrets/llm-key \
 * `batch_size`（20）：每个打标签请求里的事件数，用一个 JSON 列表回答。
 * `max_calls_per_run`（60）：一次运行里的请求数上限；超出的跳过并写进 report。
 * `max_input_chars`（12000）：发送的 prompt 的最大长度；长页面按这个大小分段读，每个源最多读六段。任何请求都放不下的事件，以及六段之后的页面文字，都会跳过并写进 report。
-* `data/llm_cache/` 里的缓存：key 是 prompt 版本、任务和规范化输入的 SHA-256。模型和 provider 不在 key 里，所以换 key、换计划、换模型都不会重复请求。`cache_ttl_days`（180）天没用过的条目会被删除。读页面的回答只保存页面上有的文本值，所以页面让模型写出的其他内容永远进不了提交到 repo 的缓存。
+* `data/llm_cache/` 里的缓存：key 是 prompt 版本、任务和规范化输入的 SHA-256。模型和 provider 不在 key 里，所以换 key、换计划、换模型都不会重复请求。`cache_ttl_days`（180）天没用过的条目会被删除。读页面的回答只保存页面上有的文本值，所以页面让模型写出的其他内容永远进不了提交到 repo 的缓存。secret 扫描在其中找到凭证形状字符串的文本值也进不了，即使是页面自己显示出来的：保存回答之前就把它去掉，讲座的其余信息照常保留。
 
 run report 列出请求数、token 和每个 provider 的结果；费用只在后端自己报告时才有，目前只有 `claude-cli` 报告。`codex-cli` 和 API 路线（`anthropic`、`openai`、`openai-compat`）只报告 token 数，所以它们在 report 里的费用是 0；实际花了多少要看服务的计费页面。
 
@@ -149,11 +149,35 @@ run report 列出请求数、token 和每个 provider 的结果；费用只在�
 
 * 命令是参数列表，从不经过 shell；
 * 带页面文字的 prompt 走标准输入，从不放进参数；
-* 环境变量只有 `PATH`、`HOME`、`LANG`、`LC_ALL`、`TMPDIR` 和这个 provider 自己需要的，所以 CLI 看不到其他凭证；
+* 环境变量只有 `PATH`、`HOME`、`LANG`、`LC_ALL`、`TMPDIR` 和这个 provider 自己需要的（见下一节），所以 CLI 看不到其他凭证；
 * 工作目录是一个新建的空临时目录；
 * 超时（`timeout_seconds`，120 秒）会结束 CLI 和它启动的所有进程；
 * 只读取标准输出里最终的 JSON，回答必须符合 schema；
 * 标准错误只用来区分凭证过期和限流，然后丢弃：它可能包含账号信息，所以永远不进日志、report 或错误信息。
+
+### CLI 拿到哪些环境变量
+
+CLI 的环境变量是一个 allow-list：`seminars run` 的环境变量里，它只拿到下表列出的那些，而且只拿已设置、非空的。`--version` 和 `codex login status` 也一样。
+
+| 变量 | `claude-cli` | `codex-cli` | 原因 |
+|---|---|---|---|
+| `PATH` | 是 | 是 | 找到 CLI 本身和它启动的程序 |
+| `HOME` | 是 | 是 | home 目录；没有设置 `CODEX_HOME` 时，`codex-cli` 在其中的 `~/.codex` 里找它的登录 |
+| `LANG`、`LC_ALL` | 是 | 是 | locale，让页面文字和回答都按 UTF-8 读写 |
+| `TMPDIR` | 是 | 是 | 放临时文件的地方 |
+| `CLAUDE_CODE_OAUTH_TOKEN` | 是 | 否 | `claude-cli` 的登录，也是 CLI 拿到的唯一凭证 |
+| `CLAUDE_CONFIG_DIR` | 是 | 否 | 一个新建的空临时目录，请求结束后删除：CLI 既不读也不改 home 目录里的配置 |
+| `DISABLE_AUTOUPDATER`、`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | 是 | 否 | 由 `seminars` 设成 1，不是从外面传进来的：不自我更新，不顺带发送任何东西 |
+| `CODEX_HOME` | 否 | 设置了才有 | `codex-cli` 的 ChatGPT 登录（`auth.json`）所在的目录 |
+
+`claude-cli` 的 `--version` 既拿不到 token，也拿不到 `CLAUDE_CONFIG_DIR`。其余一律不传，特别是：
+
+* `GITHUB_TOKEN` 和 `GH_TOKEN`。update workflow 为了 health issue 把 `GITHUB_TOKEN` 交给 `seminars run`；任何 CLI 都看不到它。
+* `ANTHROPIC_API_KEY`、`OPENAI_API_KEY` 和 `LLM_API_KEY`，即 API provider 的 key。环境里有 API key 时，CLI 会改走 API 计费，而不是订阅。
+* 会把 CLI 引到别处、或者让别人读到它的流量的变量：`ANTHROPIC_BASE_URL`、`OPENAI_BASE_URL`、`HTTPS_PROXY` 和其他代理变量（代理地址里可能带密码），以及 `SSL_CERT_FILE` 和 `NODE_EXTRA_CA_CERTS`。需要代理或自己的证书机构的网络用不了 CLI provider，这和本项目的 HTTP 客户端忽略这些变量是一样的。
+* `NODE_OPTIONS`（它能往运行在 node 上的程序里加载代码），以及 agent 和密钥环的 socket，例如 `SSH_AUTH_SOCK` 和 `DBUS_SESSION_BUS_ADDRESS`。
+
+测试用替身代替两个 CLI，从一个包含上面所有变量的环境启动它们，并把每个子进程拿到的环境变量和这张表逐一比对。
 
 ### claude-cli：Claude Code 2.1.322
 
@@ -220,4 +244,4 @@ OpenAI 关于在 CI 里给 Codex 认证的文档写道："The right way to authe
 * 回答必须通过 schema 校验。多了字段或字段类型不对的回答整体丢弃；打标签的回答只能包含 taxonomy 里的领域 id。
 * 读页面得到的每个文本值（标题、讲者、单位、系列、地点、摘要）规范化后必须出现在页面文字里，或者最多差几个字符（`grounding_min_similarity`，90）。保留下来的是页面自己的文字，不是模型的措辞，所以模型加不进任何一个它自己的字符。日子必须在文字里紧挨着它的月份名出现，或者写成数字形式的日期；小时和分钟只要求在文字里作为数字出现，这只能说明它们合理，不能证明它们正确。不满足的一律丢弃。
 * 模型从不写 URL。链接是页面文字里带编号的标记，回答只写标记的编号；只有页面上真实存在的链接才能出现在结果里。
-* 写入 `data/` 或 `public/` 之前，secret 扫描会查找 API key、OAuth token、JWT 之类的字符串。一旦命中，运行停止：不提交，也不部署。
+* 写入 `data/` 或 `public/` 之前，secret 扫描会查找 API key、OAuth token、JWT 之类的字符串。一旦命中，运行停止：不提交，也不部署。读页面时，回答的每个文本值在缓存之前都先经过同样的扫描，所以页面上显示的 token 永远进不了 `data/llm_cache/`；讲座的其余信息照常保留。

@@ -30,11 +30,29 @@ What each part is for:
 * The schema and the system prompt are arguments; both are written by this
   project. The user prompt, which holds page text, is never an argument.
 
-The child gets a minimal environment (``seminars.llm.cli``) and an empty
-temporary working directory. With a token it also gets a temporary
-``CLAUDE_CONFIG_DIR``, so the run reads and leaves nothing in the home
-directory; both directories are removed after the call. Without a token the
-client uses the login it finds itself, which is how a local test runs.
+The child runs in an empty temporary working directory, removed after the
+call, with an environment that holds exactly these variables
+(``CHILD_ENV_NAMES``) and nothing else of this process:
+
+* PATH, HOME, LANG, LC_ALL and TMPDIR as this process has them, the
+  general variables of every child (``seminars.llm.cli`` says why each);
+* CLAUDE_CODE_OAUTH_TOKEN, the login: the subscription token, stripped.
+  It is the only credential the client gets;
+* CLAUDE_CONFIG_DIR, a new empty temporary directory, removed after the
+  call, so the client neither reads nor changes the configuration in the
+  home directory (no settings, memory or plugins of the owner) and leaves
+  nothing behind;
+* DISABLE_AUTOUPDATER=1 and CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1,
+  set here, not passed on: the client does not update itself and sends
+  nothing on the side.
+
+ANTHROPIC_API_KEY in particular never reaches the client: with it the
+client would bill the API instead of the subscription. ``--version`` runs
+with the general variables and the two set here, without a login. The
+chain only builds this backend with a token. Built without one (a local
+test), the client uses the login it finds itself: then a CLAUDE_CONFIG_DIR
+of this process, where that login is, is passed on instead of a temporary
+one.
 
 The answer is the JSON object on standard output. It counts only when
 ``is_error`` is false, ``subtype`` is ``success`` and ``structured_output``
@@ -61,6 +79,7 @@ from seminars.contracts import (
 )
 from seminars.llm.base import Completion, ProviderBase
 from seminars.llm.cli import (
+    PASSED_THROUGH,
     CliRequest,
     CliResult,
     CliRunner,
@@ -92,6 +111,9 @@ QUIET_ENV: Final[dict[str, str]] = {
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
 }
 """Keeps a request from updating the client or sending telemetry on the side."""
+
+CHILD_ENV_NAMES: Final = frozenset({*PASSED_THROUGH, TOKEN_ENV, CONFIG_DIR_ENV, *QUIET_ENV})
+"""Every variable a claude child can get; the module docstring says why each one."""
 
 MODEL_FALLBACK_WARNING: Final = (
     "the configured model is not available to this login; the CLI default is used"
@@ -212,8 +234,15 @@ class ClaudeCliProvider(ProviderBase):
     def model(self) -> str | None:
         return self._model
 
-    def _child_env(self, scratch: Path) -> dict[str, str]:
+    def _child_env(self, scratch: Path | None) -> dict[str, str]:
+        """The environment of a child; see the module docstring for every variable.
+
+        ``scratch`` is the temporary directory of a request, ``None`` for
+        ``--version``, which needs no login.
+        """
         extra = dict(QUIET_ENV)
+        if scratch is None:
+            return child_environment(self._env, extra)
         if self._token is not None:
             config_dir = scratch / "config"
             config_dir.mkdir()
@@ -229,7 +258,7 @@ class ClaudeCliProvider(ProviderBase):
             if not self._version_checked:
                 self._version_checked = True
                 if self._verified_version is not None:
-                    env = child_environment(self._env, {})
+                    env = self._child_env(None)
                     with tempfile.TemporaryDirectory(prefix="seminars-claude-") as work:
                         found = installed_version(self._runner, self._executable, env, Path(work))
                     self._version_note = version_warning("claude", found, self._verified_version)
