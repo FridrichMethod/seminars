@@ -116,6 +116,14 @@ class TestRecordedSchedule:
             "Speech Generation"
         ]
 
+    def test_the_recorded_table_headed_with_a_wrong_year_moves_to_the_right_one(self) -> None:
+        # The fourth table is headed "Winter 2024"; its dates are Thursdays of 2025.
+        drafts = run(with_params(max_sections=4), offline_client(SOURCE.id))
+        winter = [d.start for d in drafts if isinstance(d.start, datetime) and d.start.month <= 3]
+        assert {start.year for start in winter} == {2025, 2026}
+        assert min(winter) == datetime(2025, 1, 9, 11)
+        assert all(start.weekday() == 3 for start in winter if start.year == 2025)
+
     def test_a_schedule_without_upcoming_talks_parses_to_past_talks_only(self) -> None:
         window = make_window(RECORDED)
         drafts = run(SOURCE, offline_client(SOURCE.id))
@@ -166,6 +174,42 @@ class TestHandWrittenSchedules:
         page = schedule((heading("Fall 2026"), [row("Nov 17", "Ada Lovelace", "Engines")]))
         [talk] = parse_page(page)
         assert talk.start == datetime(2026, 11, 17, 11, 0)  # a Tuesday: a special session
+
+    def test_talks_on_other_weekdays_keep_the_year_of_their_table(self) -> None:
+        # Nov 18 is a Wednesday in 2026 and a Thursday in 2027, Nov 20 a Friday in 2026
+        # and a Thursday in 2025. Most dates of the table fit 2026, so none moves, and
+        # both are upcoming talks whose details pages are requested.
+        rows = [
+            row("Nov 5", "A B", "Thursday", "details/a"),
+            row("Nov 12", "A B", "Thursday too", "details/b"),
+            row("Nov 18", "A B", "Wednesday", "details/c"),
+            row("Nov 20", "A B", "Friday", "details/d"),
+        ]
+        now = datetime(2026, 11, 10, 20, 0, tzinfo=UTC)
+        http = serve({SCHEDULE_URL: schedule((heading("Fall 2026"), rows))}, now)
+        drafts = run(SOURCE, http, now)
+        assert [d.start for d in drafts] == [datetime(2026, 11, d, 11) for d in (5, 12, 18, 20)]
+        assert http.requests[1:] == [f"{SCHEDULE_URL}details/{name}" for name in "bcd"]
+
+    @pytest.mark.parametrize(
+        ("days", "year"),
+        [
+            (["Nov 5", "Nov 20"], 2026),  # one of two fits 2025: a tie keeps the heading
+            (["Nov 20", "Nov 27", "Dec 4"], 2025),  # Thursdays in 2025, not in 2026
+            (["Nov 19", "Nov 26", "Nov 20"], 2026),  # two Thursdays of 2026 outvote one
+            (["Feb 29", "Mar 5"], 2026),  # no Feb 29 in 2026: the row is skipped
+        ],
+    )
+    def test_the_year_is_decided_once_per_table(self, days: list[str], year: int) -> None:
+        rows = [row(day, "A B", day) for day in days]
+        drafts = parse_page(schedule((heading("Fall 2026"), rows)))
+        assert {draft.start.year for draft in drafts} == {year}
+
+    def test_a_year_that_most_dates_contradict_moves_the_whole_table(self) -> None:
+        # Jan 9, 16 and 23 are Thursdays in 2025, Jan 25 is one in 2024.
+        rows = [row(day, "A B", day) for day in ("Jan 9", "Jan 16", "Jan 23", "Jan 25")]
+        drafts = parse_page(schedule((heading("Winter 2024"), rows)))
+        assert [d.start for d in drafts] == [datetime(2025, 1, d, 11) for d in (9, 16, 23, 25)]
 
     def test_rows_that_are_notes_are_skipped(self) -> None:
         rows = [

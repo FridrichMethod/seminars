@@ -42,11 +42,12 @@ Keys of ``params`` (an unknown key is an error that names it;
   comma of the date line ("11:00am - 12:00 noon PT, Thursday, May 28th")
   replace those of the heading; the venue line replaces its venue.
 
-The heading's year can be wrong. When the heading names a weekday and the
-date does not fall on it in that year, the year before or after is used if
-the date falls on that weekday there. Times are naive wall times of the
-source; a talk without a time of day is an all-day draft. The draft's
-``url`` is the details page, which identifies the talk.
+The heading's year can be wrong. When the heading names a weekday and most
+dates of its table fall on that weekday in the year before or after instead,
+the whole table is moved to that year; a talk on another day of the week
+keeps the year of its table. Times are naive wall times of the source; a
+talk without a time of day is an all-day draft. The draft's ``url`` is the
+details page, which identifies the talk.
 """
 
 from __future__ import annotations
@@ -270,24 +271,43 @@ def read_heading(params: NlpParams, node: LexborNode | None) -> Heading | None:
     )
 
 
-def talk_day(params: NlpParams, text: str | None, heading: Heading) -> date | None:
-    """The date of a row: the heading's year, or a neighbour when only that fits the weekday."""
+def month_day(params: NlpParams, text: str | None) -> tuple[int, int] | None:
+    """Month and day of a date cell; ``None`` when it names no date."""
     match = search(params.date_pattern, text) if text else None
     if match is None:
         return None
     month, day = month_number(match["month"]), match["day"]
     if month is None or not day or not day.isdigit():
         return None
-    candidates: list[date] = []
-    for year in (heading.year, heading.year - 1, heading.year + 1):
-        try:
-            candidates.append(date(year, month, int(day)))
-        except ValueError:
-            continue
-    if not candidates:
+    return month, int(day)
+
+
+def make_day(year: int, day: tuple[int, int] | None) -> date | None:
+    if day is None:
         return None
-    fitting = [day for day in candidates if day.weekday() == heading.weekday]
-    return fitting[0] if heading.weekday is not None and fitting else candidates[0]
+    try:
+        return date(year, *day)
+    except ValueError:  # "Feb 30"
+        return None
+
+
+def table_year(heading: Heading, days: Sequence[tuple[int, int]]) -> int:
+    """The heading's year, or the year before or after when most ``days`` fall on its weekday there.
+
+    A date never falls on the same weekday in two neighbouring years: a typo in the
+    year moves most dates of a table off the weekday, a talk on another day only one.
+    """
+    if heading.weekday is None:
+        return heading.year
+
+    def fitting(year: int) -> int:
+        dates = (make_day(year, day) for day in days)
+        return sum(1 for day in dates if day is not None and day.weekday() == heading.weekday)
+
+    for year in (heading.year - 1, heading.year + 1):
+        if 2 * fitting(year) > len(days):
+            return year
+    return heading.year
 
 
 def strip_suffix(params: NlpParams, title: str | None) -> str | None:
@@ -298,12 +318,15 @@ def strip_suffix(params: NlpParams, title: str | None) -> str | None:
 
 
 def read_talk(
-    params: NlpParams, document: FetchedDocument, row: LexborNode, heading: Heading
+    params: NlpParams,
+    document: FetchedDocument,
+    row: LexborNode,
+    heading: Heading,
+    day: date | None,
 ) -> Talk | None:
     selectors = params.selectors
     link = row.css_first(selectors.detail_link)
     url = absolute_url(document.final_url, link.attributes.get("href") if link else None)
-    day = talk_day(params, node_text(row.css_first(selectors.date)), heading)
     if url is None or day is None:
         return None
     speaker_link = row.css_first(selectors.speaker_link) if selectors.speaker_link else None
@@ -335,8 +358,13 @@ def read_schedule(params: NlpParams, source: SourceConfig, document: FetchedDocu
             )
             continue
         readable += 1
-        for row in table.css(params.selectors.row):
-            if (talk := read_talk(params, document, row, heading)) is not None:
+        rows = [
+            (row, month_day(params, node_text(row.css_first(params.selectors.date))))
+            for row in table.css(params.selectors.row)
+        ]
+        year = table_year(heading, [day for _, day in rows if day is not None])
+        for row, day in rows:
+            if (talk := read_talk(params, document, row, heading, make_day(year, day))) is not None:
                 talks.append(talk)
     if not readable:
         raise ParseError(f"source {source.id}: no table heading on {url} names a year")
