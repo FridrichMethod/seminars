@@ -700,6 +700,9 @@ sources:
       # (selectors.item plus one selector per field), plus a detail_page block. The
       # item selector takes only the upcoming block; the page lists past events below
       # it (ul.content-type-past_events, 12 cards).
+      # The upcoming block is often empty between events: that is a page without
+      # items, not a broken page (html_list allow_empty).
+      allow_empty: true
       selectors:
         item: 'ul.content-type-events li.multisite-query-loop-item'
         title: 'h3.card-title'

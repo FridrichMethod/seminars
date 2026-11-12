@@ -58,8 +58,7 @@
 #   disappears from the feed; occasionally the title says it instead.
 #
 # The generic "ics" adapter would read SUMMARY as the title, so these
-# sources name a small custom adapter, seminars.sources.custom.researchseminars,
-# which does not exist yet (adapter names are checked at run time).
+# sources name a small custom adapter, seminars.sources.custom.researchseminars.
 #
 # Do not use the JSON API for talks: /api/0/search/talks returns every
 # talk with the speaker's e-mail address and an edit token. The series

@@ -349,7 +349,7 @@ class PageExtractor(Protocol):
         otherwise make every daily run exit with status 3, and the entry
         would come back the next day because nothing was committed. The
         extractor therefore drops every field of an answer for which
-        ``SecretScanner.has_secret`` is true BEFORE the answer is put into
+        ``SecretScanner.scan_text`` reports a finding BEFORE the answer is put into
         the cache, and never caches such a value; the pipeline's own
         redaction of events cannot reach inside the cache.
         """
