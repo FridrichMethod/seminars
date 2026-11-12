@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from selectolax.lexbor import LexborHTMLParser
 
 from factories import make_source, make_window
 from fakes import FakeHttpClient
@@ -307,6 +308,31 @@ class TestAffiliationsFromTheText:
         )
         [draft] = run(source, serve(list_page("Ada Lovelace (Cambridge)"), post))
         assert people(draft) == [("Ada Lovelace", "Cambridge")]
+
+
+class CountedTags:
+    """Block tags that fail the test when asked about more than ``limit`` tags."""
+
+    def __init__(self, tags: frozenset[str], limit: int) -> None:
+        self.tags, self.limit, self.asked = tags, limit, 0
+
+    def __contains__(self, tag: object) -> bool:
+        self.asked += 1
+        assert self.asked <= self.limit, f"more than {self.limit} tags were looked at"
+        return tag in self.tags
+
+
+def test_deeply_nested_text_is_split_in_linear_time(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tag of each element is looked at once, not once for every text below it.
+
+    A walk from every text up to its block took about 17 s for 16000 nested spans.
+    """
+    depth = 20_000
+    article = LexborHTMLParser(f"<article>{'<span>x ' * depth}</article>").css_first("article")
+    assert article is not None
+    tags = CountedTags(html_list._BLOCK_TAGS, limit=depth + 1)  # the spans and the article
+    monkeypatch.setattr(html_list, "_BLOCK_TAGS", tags)
+    assert html_list.text_lines(article) == [" ".join(["x"] * depth)]
 
 
 @pytest.mark.parametrize(

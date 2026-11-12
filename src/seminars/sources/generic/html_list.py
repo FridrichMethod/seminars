@@ -454,31 +454,32 @@ _SENTENCE_END: Final = re.compile(r"(?:\b[a-z]{2,}[.!?]|\.\.\.)$")  # "We study 
 _CONTACT: Final = ("@", "://", "www.")  # an e-mail address or a link
 
 
-def _block_around(text: LexborNode, top: LexborNode) -> int:
-    """The ``mem_id`` of the innermost block element around ``text`` (``top`` at most)."""
-    current = text.parent
-    while current is not None and current.mem_id != top.mem_id and current.tag not in _BLOCK_TAGS:
-        current = current.parent
-    return top.mem_id if current is None else current.mem_id
-
-
 def text_lines(node: LexborNode) -> list[str]:
     """The non-empty lines below ``node``.
 
     ``<br>`` and the start of a block element end a line, and so does the end
-    of one: text after a nested block is on a line of its own.
+    of one: text after a nested block is on a line of its own. The walk is in
+    document order, so the parent of a node comes before it: the innermost
+    block around every element (``node`` at most) is known when its children
+    come, and each node is looked at once.
     """
+    top = node.mem_id
+    blocks: dict[int, int] = {top: top}  # mem_id of an element -> of the block around it
     lines: list[list[str]] = [[]]
-    block = node.mem_id
+    block = top
     for child in node.traverse(include_text=True):
+        parent = child.parent
+        around = blocks.get(parent.mem_id, top) if parent is not None else top
         if child.is_text_node:
-            around = _block_around(child, node)
             if around != block:
                 lines.append([])
                 block = around
             lines[-1].append(child.text_content or "")
         elif child.tag in _BLOCK_TAGS:
+            blocks[child.mem_id] = child.mem_id
             lines.append([])
+        else:
+            blocks[child.mem_id] = around
     return [text for line in lines if (text := collapse("".join(line)))]
 
 
