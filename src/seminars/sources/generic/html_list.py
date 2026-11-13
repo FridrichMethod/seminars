@@ -75,7 +75,10 @@ Keys of ``params`` (an unknown key is an error that names it;
   the lines below the line of the page that names them (see "Affiliations
   from the text" below). ``required`` (default true): a row whose detail
   page is missing (not fetched, or failed) is dropped, because its page
-  holds what the list lacks; with false the row keeps what the list says.
+  holds what the list lacks; with false the row keeps what the list says,
+  unless it needs a tag of the page (``keep_tags``) or its times (no
+  ``selectors.date``): then it is dropped all the same, and a page that
+  failed counts as skipped (``common.detail_pages_optional``).
   Links to other hosts are never fetched; a list page that was redirected
   to a host the source does not name raises ``ForeignHostError``.
 * ``keep_tags``: with ``detail_page.tag``, keep only rows with one of these tags.

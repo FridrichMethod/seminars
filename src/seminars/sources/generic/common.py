@@ -345,10 +345,19 @@ def detail_pages_optional(source: SourceConfig) -> bool:
 
     That is what ``detail_page.required: false`` of ``html_list`` says: the
     row is kept with what the list page gives, so a detail page that fails
-    loses no talk (``fetch_optional``). No other adapter has that param.
+    loses no talk (``fetch_optional``). Two settings still drop such a row,
+    and then a failed page loses its talk as a required one does:
+    ``keep_tags`` (the tags are on the page) and a list without
+    ``selectors.date`` (the times are only on the page). No other adapter
+    has that param.
     """
-    detail = source.params.get("detail_page")
-    return isinstance(detail, Mapping) and detail.get("required") is False
+    params = source.params
+    detail = params.get("detail_page")
+    if not (isinstance(detail, Mapping) and detail.get("required") is False):
+        return False
+    selectors = params.get("selectors")
+    dated = isinstance(selectors, Mapping) and selectors.get("date") is not None
+    return dated and not params.get("keep_tags")
 
 
 def fetch_optional(
