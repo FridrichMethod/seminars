@@ -6,8 +6,9 @@ numbers and permissions they quote are those of the configuration, the code and 
 workflows, and every direct import between the functional packages is named.
 CHANGELOG.md records the version of pyproject.toml. Both READMEs link every feed at the
 address the site is deployed to, give the webcal form of each, and link the site, its
-status page, the architecture and the changelog; their tables of sources give each source
-the same extraction method.
+status page, the architecture and the changelog; the numbers they quote are those of the
+configuration and the code, and their tables of sources give each source the same
+extraction method.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from seminars.contracts import llm_cache_refresh_days
 from seminars.models import FEED_IDS, ExtractionMethod
 from seminars.models.health import HEALTH_HISTORY_LIMIT
 from seminars.pipeline.collect import MAX_FETCH_WORKERS, SOURCE_FETCH_LIMIT_SECONDS
+from seminars.pipeline.ids import MAX_MOVE
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 SRC: Final = ROOT / "src" / "seminars"
@@ -214,6 +216,47 @@ class TestTrueToTheProject:
         document = prose(path)
         phrases = english if path == ENGLISH else chinese
         assert [phrase for phrase in phrases if phrase not in document] == []
+
+
+NUMBER_WORDS: Final = {
+    "README.md": ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight"),
+    "README.zh-CN.md": tuple("\u96f6\u4e00\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b"),
+}
+"""How the READMEs write a small count in words, by the count."""
+
+
+@pytest.mark.parametrize("path", READMES)
+def test_the_readme_quotes_the_numbers_of_the_configuration(path: str) -> None:
+    settings, llm, health = CONFIG.settings, CONFIG.llm, CONFIG.settings.health
+    days_back, days_ahead = settings.window.days_back, settings.window.days_ahead
+    calls, move = llm.max_calls_per_run, MAX_MOVE.days
+    failures = NUMBER_WORDS[path][health.source_failure_threshold]
+    # A source is broken after that many failed or empty runs, or a mix of both.
+    bad_runs = NUMBER_WORDS[path][
+        max(health.source_failure_threshold, health.source_empty_threshold)
+    ]
+    phrases = {
+        "README.md": [
+            f"A run sends the LLM at most {calls} requests",
+            f"and {failures} in a row open a `source-broken` issue",
+            f"those of the last {days_back} days and of the next {days_ahead}.",
+            f"After {bad_runs} bad runs in a row an issue with the label `source-broken`",
+            f"keeps a talk until {days_back} days after it took place",
+            f"moves by more than {move} days",
+        ],
+        "README.zh-CN.md": [
+            f"\u4e00\u6b21\u8fd0\u884c\u6700\u591a\u7ed9 LLM \u53d1 {calls} \u4e2a\u8bf7\u6c42",
+            f"\u8fde\u7eed{failures}\u6b21\u4f1a\u5f00\u4e00\u4e2a `source-broken` issue",
+            f"\u8fc7\u53bb {days_back} \u5929\u7684\u548c\u672a\u6765 {days_ahead} \u5929\u7684",
+            f"\u8fde\u7eed{bad_runs}\u6b21\u4e0d\u6b63\u5e38\u65f6\u4f1a\u5f00\u4e00\u4e2a"
+            "\u5e26 `source-broken` \u6807\u7b7e\u7684 issue",
+            f"\u62a5\u544a\u7ed3\u675f {days_back} \u5929\u540e\uff0cfeed "
+            "\u4f1a\u628a\u5b83\u5220\u6389",
+            f"\u65f6\u95f4\u79fb\u52a8\u8d85\u8fc7 {move} \u5929",
+        ],
+    }
+    document = prose(path)
+    assert [phrase for phrase in phrases[path] if phrase not in document] == []
 
 
 def test_the_changelog_records_the_version_of_the_project() -> None:
