@@ -61,7 +61,10 @@ the words of a series ("Seminar", "Lecture", "Grand Rounds", "Defense",
 names as well. Then the form must vouch for it. A mark that goes with the
 name is an honorific ("Dr. Jane Doe"), a degree ("Jane Doe PhD", "Jane
 Doe, MD"), an organisation in brackets or after a comma, or a quoted title
-after it; a name suffix is none ("Knots II"):
+after it; a name suffix is none ("Knots II"). A head that honours a person
+("In Memoriam", "Tribute", "Celebration of Life") names the person a
+memorial is for, so its title gives no speaker, and after a head that is
+only a term or a year ("Spring 2025") an honorific is no mark:
 
 * series first ("<series>: <name>[, <affiliation>][ - "<title>"]"): the
   part in front is a series, or a mark goes with the name, or the abstract
@@ -118,7 +121,7 @@ topics.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Final
 
 from seminars.pipeline.text import fold, is_degree, tidy_name, word_set
@@ -334,6 +337,17 @@ _SERIES_WORDS: Final = word_set(
     " bootcamp training orientation discussion roundtable gala ceremony"
 )
 """Words of the name of a series or an event; no person's name holds one."""
+_MEMORIAL: Final = re.compile(
+    r"(?:(?:a|an|the) )?(?:in (?:loving )?(?:memoriam|memory)|memorial(?: (?:service|gathering))?"
+    r"|tributes?|remembering|remembrance|celebrat(?:ion|ing) of (?:the )?life)"
+)
+"""A head that honours a person, folded ("In Memoriam", "Tribute", "Celebration of Life"):
+the name after it is the person the memorial is for."""
+_TERM: Final = re.compile(
+    r"(?:(?:ay|academic year) )?(?:(?:spring|summer|fall|autumn|winter)(?: (?:quarter|semester"
+    r"|term))?)? ?(?:(?:19|20)\d{2}(?: \d{2}(?:\d{2})?)?)?"
+)
+"""A head that is only a term or a year, folded ("Spring 2025", "Autumn Quarter", "2025-26")."""
 _NOT_IN_A_NAME: Final = _SERIES_WORDS | word_set(
     "speaker speakers presenter tba tbd tbc title an the of and or in on for with to at from by"
     " vs via into about beyond toward towards through new how why what when is are initiative"
@@ -558,7 +572,12 @@ class _Candidate:
     """A person at the start of a part of a title, and whether the form vouches for it."""
 
     person: ParsedSpeaker
-    marked: bool  # a degree, a quoted title or an organisation follows the name
+    marks: bool  # a degree, a quoted title or an organisation goes with the name
+    honorific: bool  # an honorific is in front of the name: "Dr. Jane Doe"
+
+    @property
+    def marked(self) -> bool:
+        return self.marks or self.honorific
 
 
 def _title_name(name: str) -> bool:
@@ -575,6 +594,11 @@ def _title_name(name: str) -> bool:
 
 def _is_series(text: str) -> bool:
     return any(word in _SERIES_WORDS for word in fold(text).split())
+
+
+def _is_term(text: str) -> bool:
+    folded = fold(text)
+    return bool(folded) and _TERM.fullmatch(folded) is not None
 
 
 def _names_organisation(text: str | None) -> bool:
@@ -704,11 +728,14 @@ def _title_person(text: str) -> ParsedSpeaker | None:
     return ParsedSpeaker(name=person.name, affiliation=", ".join(kept) or None)
 
 
-def _titled(text: str) -> bool:
-    """Whether a name comes with an honorific or a degree: "Dr. Jane Doe", "Jane Doe PhD"."""
+def _after_honorific(text: str) -> bool:
+    """Whether a name comes after an honorific: "Dr. Jane Doe"."""
+    return _HONORIFIC.match(" ".join(_bare(_LABEL.sub("", text)).split()) + " ") is not None
+
+
+def _before_degree(text: str) -> bool:
+    """Whether a degree follows a name without a comma: "Jane Doe PhD", not "Knots II"."""
     words = _bare(_LABEL.sub("", text)).split()
-    if _HONORIFIC.match(" ".join(words) + " "):
-        return True
     last = words[-1] if len(words) > 2 else ""
     return is_degree(last) and last.rstrip(".").casefold() not in _NAME_SUFFIXES
 
@@ -729,8 +756,12 @@ def _leading_person(text: str) -> _Candidate | None:
     first, *parts = _split(head, _COMMA)
     if any(not is_degree(part) and not _names_organisation(part) for part in parts):
         return None
-    marked = quote is not None or bool(parts) or _titled(first)
-    return _Candidate(person=person, marked=marked or _names_organisation(person.affiliation))
+    marks = quote is not None or bool(parts) or _before_degree(first)
+    return _Candidate(
+        person=person,
+        marks=marks or _names_organisation(person.affiliation),
+        honorific=_after_honorific(first),
+    )
 
 
 def _rival(tail: str) -> _Candidate | None:
@@ -770,6 +801,8 @@ def _after_separator(title: str, abstract: str | None) -> list[ParsedSpeaker]:
         return []
     head, tail = title[: separator.start()].strip(), title[separator.end() :].strip()
     following = _leading_person(tail)
+    if following is not None and _is_term(head):  # "Spring 2025: Dr. Jane Doe"
+        following = replace(following, honorific=False)
     if _is_series(head) or (following is not None and not _title_name(_bare(head))):
         if following is None:
             return _last_part(title, abstract) if _is_series(head) else []
@@ -820,6 +853,13 @@ def _with(title: str, abstract: str | None) -> list[ParsedSpeaker]:
     return [person] if _taken(person, _has_degree(text), abstract, title) else []
 
 
+def _honours_a_person(title: str) -> bool:
+    """Whether the head of ``title`` is a memorial ("In Memoriam: Dr. Jane Doe")."""
+    separator = _TITLE_SEPARATOR.search(title)
+    head = fold(title[: separator.start()]) if separator else ""
+    return _MEMORIAL.fullmatch(head) is not None
+
+
 def speakers_from_title(title: str, abstract: str | None = None) -> list[ParsedSpeaker]:
     """The people a title names in one of the common forms (see the module docstring).
 
@@ -828,7 +868,7 @@ def speakers_from_title(title: str, abstract: str | None = None) -> list[ParsedS
     as something other than a person. Empty when the title names nobody.
     """
     text = " ".join(title.split())
-    if not text:
+    if not text or _honours_a_person(text):
         return []
     return (
         _conversation(text, abstract) or _after_separator(text, abstract) or _with(text, abstract)
