@@ -7,10 +7,11 @@ client.
 |---|---|---|
 | `events-4f9cce76.html` | `https://sb.stanford.edu/events` | the events page (a Google Sites page): 3 event blocks under Upcoming Events (2 of them still to come) and 91 under Past Events; 95 events, because one block holds two |
 
-## What was trimmed
+## What was trimmed and replaced
 
 The response was 548240 bytes, over the 500 KB limit for a fixture. Two cuts
-brought it to 478858 bytes; everything else is as the site sent it.
+brought it to 478858 bytes and one replacement to 478863; everything else is
+as the site sent it.
 
 1. All 12 `<script>` elements were removed (62850 bytes). They hold the
    configuration and the start-up code of Google Sites and no event data. One
@@ -22,9 +23,17 @@ brought it to 478858 bytes; everything else is as the site sent it.
    workshop on science communication). Its `Where:` line linked a Zoom meeting
    with the passcode in the address (`?pwd=...`). The live page had 95 event
    blocks, the fixture has 94.
+3. One personal e-mail address was replaced by `redacted@mit.edu`. In the
+   heading `Seminar with Domitilla Delvecchio (MIT)` the name links to the
+   speaker's faculty page, whose address ends in her own e-mail address
+   (`https://meche.mit.edu/people/faculty/<address>`). The name, the rest of
+   the link and the shared address of Stanford Synthetic Biology
+   (`syntheticbiology@stanford.edu`) stay.
 
-Expect such links on the live page: a `Where:` line can link a Zoom meeting,
+Expect Zoom links on the live page: a `Where:` line can link a Zoom meeting,
 and the address can carry a passcode. Tests for that case need a made-up link.
+A speaker's link can hold a personal e-mail address, which is replaced before
+a new recording is committed.
 
 ## Layout
 
