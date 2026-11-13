@@ -1,11 +1,18 @@
 """Every interface that crosses a package boundary, in one place.
 
-The packages of this project (pipeline, classify, llm, outputs, sources) never
-import each other directly. They depend on the protocols defined here, and
-the pipeline obtains the implementations lazily through
-``load_implementation``. Each contract has a fake in tests/ (fakes.py,
-fakes_llm.py, fakes_outputs.py) and a fixture in tests/conftest.py, so every
-package can be tested on its own.
+The functional packages of this project (pipeline, classify, llm, outputs,
+sources) meet through the protocols defined here, and the pipeline obtains
+the implementations lazily through ``load_implementation``. The foundation
+(models, config, contracts, the http*.py modules, robots, fixtures,
+textrules, textio, i18n) is imported directly, and so are a few shared
+helpers: the adapter registry and errors of ``seminars.sources.base`` and
+``detail_pages_optional`` of ``seminars.sources.generic.common`` (used by
+``seminars.pipeline.collect``), ``MAX_SPEAKERS`` of
+``seminars.pipeline.normalize`` (used by the generic adapters), and the
+``seminars.llm`` helpers that the LLM page extractor and the LLM tagger
+use. Each contract has a fake in tests/ (fakes.py, fakes_llm.py,
+fakes_outputs.py) and a fixture in tests/conftest.py, so every package can be
+tested on its own.
 
 Import everything from ``seminars.contracts``. The definitions live in:
 

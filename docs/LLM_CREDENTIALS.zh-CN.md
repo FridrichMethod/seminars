@@ -7,7 +7,7 @@
 * **领域打标签**：给规则判断不了的事件打标签。回答是封闭词表：`config/taxonomy.yaml` 里的领域 id，以及"这是不是一场学术报告"的是或否。
 * **读没有结构的页面**：`adapter: llm_page` 或 `llm_fallback: true` 的源，页面既没有 feed 也没有可解析的标记。回答是从页面里抄出来的文字。
 
-两件事都不是必需的。没有任何 LLM 时，pipeline 只用规则，照常跑完。本文说明有哪些 provider、怎么设置、更换和删除它们的凭证、怎么关掉 LLM、每条路线怎么计费、每种凭证的有效期，以及两个命令行 provider 是怎么锁住的。
+两件事都不是必需的。没有任何 LLM 时，pipeline 只用规则，照常跑完。本文说明有哪些 provider、怎么设置、更换和删除它们的凭证、怎么关掉 LLM、每条路线怎么计费、每种凭证的有效期，以及两个命令行 provider 是怎么锁住的。LLM 在一次运行里处在什么位置，见 [ARCHITECTURE.zh-CN.md](ARCHITECTURE.zh-CN.md)。
 
 ## Provider 一览
 

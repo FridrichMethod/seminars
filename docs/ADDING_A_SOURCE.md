@@ -6,7 +6,8 @@ A source is one public calendar, feed or page that lists talks. Adding one takes
 a YAML entry when its format is one of the generic ones, or a YAML entry plus a
 small adapter module when the site is unusual. Either way it also takes a
 recording of the source's pages (a fixture) and a test, because the tests and
-`seminars run --offline` never touch the network.
+`seminars run --offline` never touch the network. What a run does with a source after
+its adapter is described in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Before you start
 

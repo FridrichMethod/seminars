@@ -20,25 +20,28 @@ seminar、talk 和 colloquium，以三种形式发布：
 
 | Feed | 内容 | 订阅 |
 |---|---|---|
-| `all` | 从 Stanford、SLAC、CZ Biohub 及周边研究机构收集到的全部报告 | （发布时填写） |
-| `picks` | 符合个人兴趣规则（`config/interests.yaml`）的报告 | （发布时填写） |
-| `math` | 纯数学、应用数学和统计 | （发布时填写） |
-| `cs` | 计算机科学 | （发布时填写） |
-| `ai-ml` | 人工智能和机器学习 | （发布时填写） |
-| `chem` | 化学和化学工程 | （发布时填写） |
-| `bio` | 生物、生物工程、结构生物学和遗传学 | （发布时填写） |
-| `physics` | 物理和应用物理 | （发布时填写） |
-| `med` | 医学和生物医学研究 | （发布时填写） |
+| `all` | 从 Stanford、SLAC、CZ Biohub 及周边研究机构收集到的全部报告 | [all.ics](https://fridrichmethod.github.io/seminars/feeds/all.ics) |
+| `picks` | 符合个人兴趣规则（`config/interests.yaml`）的报告 | [picks.ics](https://fridrichmethod.github.io/seminars/feeds/picks.ics) |
+| `math` | 纯数学、应用数学和统计 | [math.ics](https://fridrichmethod.github.io/seminars/feeds/math.ics) |
+| `cs` | 计算机科学 | [cs.ics](https://fridrichmethod.github.io/seminars/feeds/cs.ics) |
+| `ai-ml` | 人工智能和机器学习 | [ai-ml.ics](https://fridrichmethod.github.io/seminars/feeds/ai-ml.ics) |
+| `chem` | 化学和化学工程 | [chem.ics](https://fridrichmethod.github.io/seminars/feeds/chem.ics) |
+| `bio` | 生物、生物工程、结构生物学和遗传学 | [bio.ics](https://fridrichmethod.github.io/seminars/feeds/bio.ics) |
+| `physics` | 物理和应用物理 | [physics.ics](https://fridrichmethod.github.io/seminars/feeds/physics.ics) |
+| `med` | 医学和生物医学研究 | [med.ics](https://fridrichmethod.github.io/seminars/feeds/med.ics) |
 
-每个 feed 是网站上的文件 `feeds/<feed>.ics`。每个事件都有稳定的标识符，所以标题或时间变了，
+每个 feed 是网站上的文件 `feeds/<feed>.ics`；表里链接的是它的 `https://` 地址，
+"订阅"一节列出了它的 `webcal://` 地址。每个事件都有稳定的标识符，所以标题或时间变了，
 日历里的事件会被更新，而不会多出一个重复的事件。数据源列出时既没有编号、也没有单独页面的报告，
 按日期、人和标题来辨认。这样的报告如果在同一次更新里既改了时间又改了标题或报告人，或者时间移动超过
 60 天，或者同一位报告人的两场相似报告同时改动，日历里最多会有两天显示两次。
 
 ### 网站
 
-网站按时间顺序列出即将举行的报告，可以按领域和来源过滤，支持全文搜索，提供英文和中文界面。
-状态页显示最近一次更新的时间和每个数据源的情况。
+网站的地址是
+[https://fridrichmethod.github.io/seminars/](https://fridrichmethod.github.io/seminars/)。
+它按时间顺序列出即将举行的报告，可以按领域和来源过滤，支持全文搜索，提供英文和中文界面。
+它的[状态页](https://fridrichmethod.github.io/seminars/status.html)显示最近一次更新的时间和每个数据源的情况。
 
 ### 每周摘要
 
@@ -48,6 +51,19 @@ seminar、talk 和 colloquium，以三种形式发布：
 ## 订阅
 
 把 feed 地址开头的 `https://` 换成 `webcal://`，大多数日历应用就会订阅它，而不是只导入一次。
+GitHub 不会把 `webcal://` 地址变成链接，所以把它们列在这里，方便复制：
+
+```
+webcal://fridrichmethod.github.io/seminars/feeds/all.ics
+webcal://fridrichmethod.github.io/seminars/feeds/picks.ics
+webcal://fridrichmethod.github.io/seminars/feeds/math.ics
+webcal://fridrichmethod.github.io/seminars/feeds/cs.ics
+webcal://fridrichmethod.github.io/seminars/feeds/ai-ml.ics
+webcal://fridrichmethod.github.io/seminars/feeds/chem.ics
+webcal://fridrichmethod.github.io/seminars/feeds/bio.ics
+webcal://fridrichmethod.github.io/seminars/feeds/physics.ics
+webcal://fridrichmethod.github.io/seminars/feeds/med.ics
+```
 
 一个报告属于几个领域，就会出现在这几个领域各自的 feed 里，而日历应用按 feed 显示事件，每个 feed 一次：
 同时订阅其中两个 feed，这个报告就会显示两次。想让每个报告只出现一次，就只订阅 `all`（或者只订阅 `picks`）。
@@ -71,13 +87,82 @@ Google 按自己的节奏刷新订阅的日历，可能要几个小时。
 
 ## 覆盖范围
 
-下面的数字在第一次公开运行时测得。
+下面的数字在第一次公开运行时测得，那次运行从太平洋时间 2026-11-12 23:06 开始。"未来四周"统计的是
+当时还没有结束、并且在之后 28 天内开始的报告。网站的状态页随时显示每个数据源的当前状态。
 
-- 数据源及其状态：（发布时填写）
-- 未来四周每个 feed 的报告数：（发布时填写）
-- 已知缺口：（发布时填写）
+### 数据源及其状态
 
-网站的状态页随时显示每个数据源的当前状态。
+配置的 42 个数据源里启用了 32 个。第一次公开运行中，29 个给出了报告，1 个为空，2 个失败，
+共存储了 348 个报告。一个报告被几个数据源列出，在这张表里就为每个数据源各算一次。"抽取方式"是这次
+运行读取一个数据源的方法：api 取自网站的 JSON 接口，feed 取自它的 RSS 或 iCalendar feed，html 按规则从页面本身
+读取；失败或为空的数据源写的是它的 adapter 所用的方法。
+
+| 数据源 | 组 | 状态 | 未来四周 | 抽取方式 |
+|---|---|---|---:|---|
+| Stanford Events (`localist-stanford`) | `localist` | 正常 | 43 | api |
+| Stanford AIMI (`sites-aimi`) | `stanford-sites` | 正常 | 3 | feed |
+| Stanford Biochemistry (`sites-biochemistry`) | `stanford-sites` | 正常 | 3 | feed |
+| Stanford Biology (`sites-biology`) | `stanford-sites` | 正常 | 4 | api |
+| Stanford Chemical Engineering (`sites-cheme`) | `stanford-sites` | 正常 | 2 | feed |
+| Stanford ChEM-H (`sites-chemh`) | `stanford-sites` | 正常 | 4 | feed |
+| Stanford Chemistry (`sites-chemistry`) | `stanford-sites` | 正常 | 6 | api |
+| Stanford ICME (`sites-icme`) | `stanford-sites` | 正常 | 2 | feed |
+| Stanford Mathematics (`sites-mathematics`) | `stanford-sites` | 正常 | 20 | api |
+| Stanford Mathematics Research Center (`sites-mrc`) | `stanford-sites` | 正常 | 0 | api |
+| Stanford Materials Science and Engineering (`sites-mse`) | `stanford-sites` | 正常 | 2 | feed |
+| Stanford Physics (`sites-physics`) | `stanford-sites` | 正常 | 2 | api |
+| Stanford Statistics (`sites-statistics`) | `stanford-sites` | 正常 | 6 | api |
+| Stanford SystemX Alliance (`sites-systemx`) | `stanford-sites` | 正常 | 1 | feed |
+| AI + Data for Science Seminar (`custom-ai4science`) | `stanford-custom` | 正常 | 2 | html |
+| Stanford Chemical and Systems Biology Events (`custom-csb-events`) | `stanford-custom` | 正常 | 2 | html |
+| Stanford Workshop in Biomedical Data Science (`custom-dbds-workshop`) | `stanford-custom` | 失败：从 GitHub 访问 robots.txt 超时 | 0 | html |
+| Stanford HAI Events (`custom-hai-events`) | `stanford-custom` | 正常 | 3 | html |
+| Stanford ISL Colloquium (`custom-isl-colloquium`) | `stanford-custom` | 正常 | 2 | html |
+| Stanford MLSys Seminar (`custom-mlsys-seminar`) | `stanford-custom` | 空：页面上的报告都已过去 | 0 | html |
+| Stanford NLP Seminar (`custom-nlp-seminar`) | `stanford-custom` | 失败：从 GitHub 访问 robots.txt 超时 | 0 | html |
+| Stanford RAIN/OR Seminar (`custom-rain-seminar`) | `stanford-custom` | 正常 | 3 | html |
+| Stanford Synthetic Biology Events (`custom-synbio-events`) | `stanford-custom` | 正常 | 1 | html |
+| Stanford CS Theory Lunch (`custom-theory-lunch`) | `stanford-custom` | 正常 | 3 | html |
+| Topos Institute Colloquium (`rsorg-topos-colloquium`) | `researchseminars` | 正常 | 3 | feed |
+| Biohub events (`bayarea-biohub`) | `bayarea` | 正常 | 1 | html |
+| Condensed Matter Physics Seminars (GLAM) (`bayarea-glam`) | `bayarea` | 正常 | 3 | feed |
+| KIPAC Seminars and Events (`bayarea-kipac`) | `bayarea` | 正常 | 12 | feed |
+| Leinweber Institute for Theoretical Physics (LITP, formerly SITP) seminars (`bayarea-litp`) | `bayarea` | 正常 | 4 | api |
+| SLAC Photon Science Seminar Series (Stanford PULSE Institute) (`bayarea-pulse`) | `bayarea` | 正常 | 1 | feed |
+| Q-FARM Seminars and Events (`bayarea-qfarm`) | `bayarea` | 正常 | 5 | feed |
+| SLAC Colloquium Series (`bayarea-slac-colloquium`) | `bayarea` | 正常 | 3 | html |
+
+### 每个 feed 的报告数
+
+"feed 里的总数"统计运行之后 feed 里的全部报告：过去 14 天的和未来 120 天的。
+
+| Feed | 未来四周 | feed 里的总数 |
+|---|---:|---:|
+| `all` | 133 | 348 |
+| `picks` | 14 | 31 |
+| `math` | 35 | 92 |
+| `cs` | 20 | 49 |
+| `ai-ml` | 24 | 62 |
+| `chem` | 16 | 37 |
+| `bio` | 33 | 95 |
+| `physics` | 38 | 95 |
+| `med` | 31 | 86 |
+
+### 已知缺口
+
+- 没有收集的：Bio-X 对自动化请求返回 HTTP 403；Information Theory Forum 已停用（几乎不再活动，
+  列表里也没有年份）。SAIL 的活动和 Theory Seminar 只发布在 Google Calendar 上，而它的 robots.txt
+  禁止抓取这些 feed。Arc Institute 没有公开的 seminar 日历。七个领域以外的报告（比如地球与行星科学）
+  不在范围内。
+- DBDS workshop 和 NLP seminar 从 GitHub 的 runner 上可能失败，因为那里不一定连得上它们的 robots.txt；
+  从 Stanford 的网络访问两者都正常。状态页会显示这样的失败，连续三次会开一个 `source-broken` issue。
+- MLSys seminar 的页面没有公布新的报告时，它返回空。
+- 从自由文本里读讲者和单位以精度优先：宁可缺一位讲者，也不给错的。
+- 没有 LLM 时，领域只靠规则标注：学校总日历上七个领域内的报告，规则能认出大约 75%，
+  开了 LLM 打标签大约 96%。一次运行最多给 LLM 发 60 个请求，所以空的答案缓存要几次运行才能填满。
+- 被删掉又回来的报告从 `SEQUENCE:0` 重新开始。
+
+[docs/ARCHITECTURE.zh-CN.md](docs/ARCHITECTURE.zh-CN.md) 详细说明了这些限制和其他限制。
 
 ## 每日更新怎么运行
 
@@ -191,6 +276,14 @@ src/seminars/      the package: sources/, pipeline/, classify/, llm/, outputs/, 
 tests/             tests, and fixtures/ with recorded pages of every source
 .github/workflows/ ci.yml, update.yml, digest.yml
 ```
+
+## 文档
+
+- [docs/ARCHITECTURE.zh-CN.md](docs/ARCHITECTURE.zh-CN.md)：项目是怎么搭起来的、一次运行做了什么、
+  已知的限制。
+- [docs/ADDING_A_SOURCE.zh-CN.md](docs/ADDING_A_SOURCE.zh-CN.md)：怎样添加数据源。
+- [docs/LLM_CREDENTIALS.zh-CN.md](docs/LLM_CREDENTIALS.zh-CN.md)：LLM provider 和它们的凭证。
+- [CHANGELOG.md](CHANGELOG.md)：每个版本包含什么（英文）。
 
 ## 许可和数据
 

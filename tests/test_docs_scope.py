@@ -22,6 +22,7 @@ INSTITUTION_NAMES = {"slac": "SLAC", "arc": "Arc Institute", "biohub": "CZ Biohu
 PAIRS = [
     ("README.md", "README.zh-CN.md"),
     ("docs/ADDING_A_SOURCE.md", "docs/ADDING_A_SOURCE.zh-CN.md"),
+    ("docs/ARCHITECTURE.md", "docs/ARCHITECTURE.zh-CN.md"),
 ]
 CODE = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
 

@@ -13,7 +13,8 @@ The daily run can use a large language model for two jobs:
 Neither job is required. Without any LLM the pipeline runs on its rules and completes
 normally. This document says which providers exist, how to set, change and remove their
 credentials, how to switch the LLM off, what each route costs, how long each credential
-lasts, and how the two command line providers are locked down.
+lasts, and how the two command line providers are locked down. Where the LLM fits into a
+run is described in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Providers
 

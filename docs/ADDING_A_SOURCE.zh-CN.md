@@ -4,7 +4,8 @@
 
 一个数据源就是一个列出报告的公开日历、feed 或网页。如果它的格式属于通用格式之一，添加它只需要一条
 YAML；网站结构特殊时，再加一个小的 adapter 模块。无论哪种，都还需要录制这个数据源的页面
-（fixture）并写测试，因为测试和 `seminars run --offline` 从不访问网络。
+（fixture）并写测试，因为测试和 `seminars run --offline` 从不访问网络。adapter 之后的一次运行
+怎样处理一个数据源，见 [ARCHITECTURE.zh-CN.md](ARCHITECTURE.zh-CN.md)。
 
 ## 开始之前
 

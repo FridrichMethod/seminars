@@ -1,10 +1,14 @@
 """Everything a run works with that another package provides, in one bundle.
 
-The pipeline never imports the classify, llm, outputs or sources packages.
-It asks ``seminars.contracts.load_implementation`` for each implementation
-and uses it through its protocol. This module is the only place where that
-happens: ``build_services`` loads and wires the real implementations for a
-command, and a test builds a ``Services`` from fakes instead.
+The pipeline reaches the classify, llm and outputs packages only through
+their protocols: it asks ``seminars.contracts.load_implementation`` for each
+implementation and uses it through its protocol. From the sources package,
+``seminars.pipeline.collect`` imports two shared helpers directly: the
+adapter registry and errors of ``seminars.sources.base`` and
+``detail_pages_optional`` of ``seminars.sources.generic.common``. Within the
+pipeline, this module is the only place where implementations are loaded:
+``build_services`` loads and wires the real implementations for a command,
+and a test builds a ``Services`` from fakes instead.
 
 How the parts are chosen:
 

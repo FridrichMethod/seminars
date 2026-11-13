@@ -1513,6 +1513,7 @@ def test_the_digest_step_gets_the_dispatch_input_through_env() -> None:
 DOC_PAIRS: Final = (
     ("README.md", "README.zh-CN.md"),
     ("docs/ADDING_A_SOURCE.md", "docs/ADDING_A_SOURCE.zh-CN.md"),
+    ("docs/ARCHITECTURE.md", "docs/ARCHITECTURE.zh-CN.md"),
 )
 OTHER_NODES_DOCS: Final = {"docs/LLM_CREDENTIALS.md", "docs/LLM_CREDENTIALS.zh-CN.md"}
 """Documents written elsewhere in the project that the README links to."""
@@ -1568,10 +1569,9 @@ def test_relative_links_point_to_files_of_the_repository(path: str) -> None:
         assert resolved.exists() or relative in OTHER_NODES_DOCS, (path, target)
 
 
-def test_numbers_known_only_at_release_are_marked_in_both_readmes() -> None:
-    count = doc("README.md").count(PLACEHOLDER_EN)
-    assert count > 0
-    assert doc("README.zh-CN.md").count(PLACEHOLDER_ZH) == count
+def test_no_value_is_left_to_be_filled_in_at_release() -> None:
+    assert PLACEHOLDER_EN not in doc("README.md")
+    assert PLACEHOLDER_ZH not in doc("README.zh-CN.md")
 
 
 @pytest.mark.parametrize("path", ["README.md", "README.zh-CN.md"])
