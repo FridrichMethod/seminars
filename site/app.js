@@ -411,7 +411,7 @@ async function downloadSelected() {
   setDownload(false, note);
 }
 
-function selectBox(event, titleId) {
+function selectBox(event, ids) {
   return h(
     "label",
     { class: "event-select" },
@@ -419,7 +419,7 @@ function selectBox(event, titleId) {
       type: "checkbox",
       class: "select-talk",
       "data-uid": event.uid,
-      "aria-labelledby": `${SELECT_LABEL_ID} ${titleId}`,
+      "aria-labelledby": `${SELECT_LABEL_ID} ${ids.title} ${ids.day} ${ids.when}`,
       checked: view.selected.includes(event.uid),
       on: { change: (change) => toggleTalk(event.uid, change.target.checked) },
     }),
@@ -507,11 +507,12 @@ function reasons(event) {
 }
 
 /**
- * One talk of the list. ``titleId`` is the id of its title, which names its checkbox; it
- * is made from the position in the list, as a uid may hold anything (a space would split
- * the reference).
+ * One talk of the list. ``ids`` holds the ids of its title, of the heading of its day and
+ * of its time, which name its checkbox in that order after "Select": talks of the same
+ * title (many are TBA) are told apart by when they are. The ids are made from positions
+ * in the list, as a uid may hold anything (a space would split the reference).
  */
-function renderEvent(event, tz, lang, today, titleId) {
+function renderEvent(event, tz, lang, today, ids) {
   const classes = ["event", event.status === "cancelled" && "is-cancelled", event.pick && "is-pick"];
   const lastDay =
     event.allDay && event.lastDay !== event.startDay
@@ -525,10 +526,10 @@ function renderEvent(event, tz, lang, today, titleId) {
   return h(
     "article",
     { class: classes.filter(Boolean).join(" "), "data-uid": event.uid },
-    selectBox(event, titleId),
+    selectBox(event, ids),
     h(
       "p",
-      { class: "event-when" },
+      { class: "event-when", id: ids.when },
       h("time", { datetime: event.start.toISOString() }, when(event, tz, lang)),
     ),
     h(
@@ -536,7 +537,7 @@ function renderEvent(event, tz, lang, today, titleId) {
       { class: "event-main" },
       h(
         "h3",
-        { class: "event-title", id: titleId },
+        { class: "event-title", id: ids.title },
         link(event.url, {}, event.tba ? t("site.event.tba") : event.title),
       ),
       lastDay,
@@ -596,16 +597,19 @@ function renderList() {
     return;
   }
   const positions = new Map(shown.map((event, index) => [event, index + 1]));
-  const days = [...groupByDay(shown, today)].map(([day, events]) =>
-    h(
+  const days = [...groupByDay(shown, today)].map(([day, events], index) => {
+    const dayId = `day-${index + 1}`;
+    return h(
       "section",
       { class: "day", "data-day": day },
-      h("h2", { class: "day-heading" }, tz.formatDay(day, lang, today)),
-      events.map((event) =>
-        renderEvent(event, tz, lang, today, `event-title-${positions.get(event)}`),
-      ),
-    ),
-  );
+      h("h2", { class: "day-heading", id: dayId }, tz.formatDay(day, lang, today)),
+      events.map((event) => {
+        const position = positions.get(event);
+        const ids = { title: `event-title-${position}`, when: `event-when-${position}`, day: dayId };
+        return renderEvent(event, tz, lang, today, ids);
+      }),
+    );
+  });
   replaceChildren(ui.events, days);
   setListed(shown);
 }

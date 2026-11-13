@@ -1,6 +1,7 @@
 """Browser tests of the selection of talks on the talk list and its download.
 
-Every listed talk has a checkbox named by its title. The bar above the list counts the
+Every listed talk has a checkbox named by its title, its day and its time, so talks of the
+same title (TBA) are told apart. The bar above the list counts the
 selection, says how many selected talks the filters hide, and offers Select all shown,
 Clear selection and Download selected (.ics). A tick or a press of a bar button updates
 the checkboxes and the bar in place, so the focus, the scroll position and the list
@@ -91,6 +92,18 @@ BAR_ON_SCREEN = """() => {
   const bottom = document.getElementById("selection").getBoundingClientRect().bottom;
   window.scrollTo(0, window.scrollY + bottom - window.innerHeight / 5);
 }"""
+# What names the checkbox of a talk, in order: the hidden label, the title of the talk,
+# the heading of its day and its time.
+NAME_PARTS = """(uid) => {
+  const article = document.querySelector(`#events article[data-uid="${CSS.escape(uid)}"]`);
+  return [
+    document.getElementById("select-label"),
+    article.querySelector(".event-title"),
+    article.closest(".day").querySelector(".day-heading"),
+    article.querySelector(".event-when"),
+  ].map((element) => element.textContent.trim());
+}"""
+LISTED = "es => es.map((e) => e.dataset.uid)"
 # Where the checkbox of a talk is in the viewport, the scroll position and the height of
 # the bar.
 PLACE = """(uid) => {
@@ -111,9 +124,16 @@ def title_shown(uid: str, lang: str) -> str:
     return catalog(lang)["site.event.tba"] if event["title"] == TBA_TITLE else event["title"]
 
 
+def talk_name(current: Session, uid: str) -> str:
+    """The accessible name the checkbox of a listed talk has: what NAME_PARTS reads."""
+    return " ".join(current.page.evaluate(NAME_PARTS, uid))
+
+
 def checkbox(current: Session, uid: str, lang: str = "en") -> Any:
-    """The checkbox of a talk, found by its accessible name: the label, then the title."""
-    name = f"{catalog(lang)['site.select.talk']} {title_shown(uid, lang)}"
+    """The checkbox of a sample talk, found by its accessible name: the label, the title
+    in ``lang``, the day and the time."""
+    name = talk_name(current, uid)
+    assert name.startswith(f"{catalog(lang)['site.select.talk']} {title_shown(uid, lang)} ")
     return current.page.get_by_role("checkbox", name=name, exact=True)
 
 
@@ -305,7 +325,7 @@ class TestSelecting:
         current.assert_clean()
 
     @pytest.mark.parametrize("lang", ["en", "zh-CN"])
-    def test_every_checkbox_is_named_by_its_title(
+    def test_every_checkbox_is_named_by_its_title_day_and_time(
         self, session: Callable[..., Session], lang: str
     ) -> None:
         current = session().open("index.html" if lang == "en" else "index.html?lang=zh")
@@ -313,7 +333,31 @@ class TestSelecting:
             box = checkbox(current, uid, lang)
             assert box.count() == 1, uid
             assert box.get_attribute("data-uid") == uid
+        if lang == "en":
+            assert talk_name(current, "sample-tba") == "Select TBA Wednesday, November 18 4:30 PM"
         assert current.page.locator("input.select-talk[aria-label]").count() == 0
+        current.assert_clean()
+
+    def test_talks_of_the_same_title_have_different_names(
+        self, session: Callable[..., Session]
+    ) -> None:
+        payload = sample("events.json")
+        tba = next(event for event in payload["events"] if event["uid"] == "sample-tba")
+        payload["events"] += [
+            {**tba, "uid": "sample-tba-evening", "start": "2026-11-18T18:30:00-08:00"},
+            {**tba, "uid": "sample-tba-next-day", "start": "2026-11-19T16:30:00-08:00"},
+        ]
+        current = session()
+        serve_json(current, "events.json", payload)
+        current.open("index.html")
+        page = current.page
+        listed = page.eval_on_selector_all("input.select-talk", LISTED)
+        assert {"sample-tba", "sample-tba-evening", "sample-tba-next-day"} <= set(listed)
+        names = [talk_name(current, uid) for uid in listed]
+        assert len(set(names)) == len(names)
+        for uid, name in zip(listed, names, strict=True):
+            box = page.get_by_role("checkbox", name=name, exact=True)
+            assert box.get_attribute("data-uid") == uid
         current.assert_clean()
 
 
@@ -519,7 +563,8 @@ class TestDownload:
         self, current: Session, feed: str
     ) -> None:
         page = current.page
-        box = page.get_by_role("checkbox", name=f"Select {XSS_TITLE}", exact=True)
+        box = checkbox(current, "sample-xss")
+        assert talk_name(current, "sample-xss").startswith(f"Select {XSS_TITLE} ")
         box.check()
         assert checked(current) == ["sample-xss"]
         assert_file_of(download(current), feed, ["sample-xss"])
