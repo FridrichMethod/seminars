@@ -65,9 +65,10 @@ names as well. Then the form must vouch for it:
   title or a further part, or the abstract names the person. When nothing
   marks the name and the next part reads like a name as well, either one
   can be the talk title ("Seminar: Public Health - Jane Roe"): the speaker
-  is the one the abstract names, else the second when a degree or an
-  organisation follows it, else the first when the second reads like a
-  topic, else nobody;
+  is the one that does not read like a topic and that the abstract names,
+  else the second when a mark goes with it, else the first when the
+  second reads like a topic or the abstract names an organisation after
+  it ("the Ocean Mixing Lab"), else nobody;
 * series, talk title, then the name ("<series> | <title> | <name>,
   <affiliation>"): the part in front is a series and the last part is a
   person followed by a degree or an organisation, or whom the abstract
@@ -80,9 +81,13 @@ names as well. Then the form must vouch for it:
   gives both people on the same terms.
 
 "The abstract names the person" means that the name occurs in the abstract
-outside a copy of the title, so a talk title that the abstract repeats
-vouches for nothing. A title that is only a name, a series name, and
-everything else give no speaker.
+outside a copy of the title, next to what goes with a person ("Dr.", ",
+PhD", "received", "'s"), so a talk title that the abstract repeats vouches
+for nothing. An organisation named after the name ("the Jane Doe Lab")
+counts only for a name that does not read like a topic and never between
+two parts, as a group is named after its topic as well ("the Public Health
+Department"). A title that is only a name, a series name, and everything
+else give no speaker.
 
 A name that reads like a topic as well is a speaker only when the abstract
 names the person, whatever the form: one that holds a word of a field, a
@@ -350,6 +355,10 @@ _PERSON_BEFORE: Final = re.compile(
     r"|by)\.?\s{0,3}:?\s{0,3})$",
     re.IGNORECASE,
 )
+_ORGANISATION_WORD: Final = (
+    r"(?:university|institute|college|school|laborator|lab\b|center|centre|hospital"
+    r"|foundation|department)"
+)
 _PERSON_AFTER: Final = re.compile(
     r"\s{0,3},?\s{0,3}(?:ph\.?\s?d|m\.?\s?d|d\.?\s?phil|sc\.?\s?d|professor|prof|associate"
     r"|assistant|director|chair|dean|principal|lecturer|investigator|scientist|researcher"
@@ -358,13 +367,15 @@ _PERSON_AFTER: Final = re.compile(
     r"|works|is\s{1,3}(?:a|an|the)\s{1,3}(?:\w+\s{1,3}){0,2}(?:professor|director|scientist"
     r"|researcher|fellow|student|chair|dean|lecturer|investigator|postdoc))\b"
     r"|'s\s|\u2019s\s"
-    r"|\s{0,3}(?:university|institute|college|school|laborator|lab\b|center|centre|hospital"
-    r"|foundation|department)",
+    rf"|(?-i:(?=[A-Z])){_ORGANISATION_WORD}",
     re.IGNORECASE,
 )
-"""What follows a person's name in a biography: a degree, a position, "received", the
-possessive, an institution (also run together, as text taken out of HTML
-often is: "Jane DoeStanford University", "Jane Doe, PhDProfessor of Biology")."""
+"""What follows a person's name in a biography: a degree, a position, "received" or the
+possessive, also run together as text taken out of HTML often is ("Jane Doe, PhDProfessor
+of Biology"), and an institution run on to the name ("Jane DoeUniversity of Toronto")."""
+_ORGANISATION_AFTER: Final = re.compile(rf"\s{{1,3}}{_ORGANISATION_WORD}", re.IGNORECASE)
+"""An organisation named after the name before it: after a person ("the Jane Doe Lab") or
+after a topic ("the Public Health Department", "the Ocean Mixing Lab")."""
 _GERUND: Final = re.compile(r"[A-Z][a-z]{3,}ing\b")
 """A first word that is a verb in "-ing" of at least seven letters ("Navigating")."""
 _TOPIC_WORDS: Final = word_set(
@@ -523,6 +534,7 @@ class _Mentions:
 
     as_person: bool  # once at least as a person: "Dr. Jane Doe", "Jane Doe, PhD"
     as_other: bool  # never as a person, once at least as something else: "in Solid Pictures,"
+    in_organisation: bool = False  # not as a person, once at least before "Lab", "Center", ...
 
 
 @dataclass(frozen=True)
@@ -558,26 +570,35 @@ def _names_organisation(text: str | None) -> bool:
     return any(word in _ORGANISATION_WORDS for word in fold(text).split())
 
 
-def _mentions(name: str, abstract: str | None, title: str) -> _Mentions:
+def _mentions(
+    name: str, abstract: str | None, title: str, *, organisation: bool = True
+) -> _Mentions:
     """How ``abstract`` speaks of ``name``.
 
     The name is looked for as it is written, without regard to case. Copies
     of the title are taken out first, and a name followed by a separator, a
     quote or the end of its line repeats a part of the title: neither says
-    what the name stands for.
+    what the name stands for. An organisation named after the name ("the
+    Jane Doe Lab") speaks of a person only when ``organisation`` is set and
+    the name does not read like a topic ("the Public Health Department").
     """
     person = tidy_name(name)
     if not abstract or not person:
         return _Mentions(as_person=False, as_other=False)
     copy = r"\s+".join(re.escape(word) for word in title.split())
     text = re.sub(copy, "\n", abstract, flags=re.IGNORECASE) if copy else abstract
-    other = False
+    organisation = organisation and not _reads_like_topic(person)
+    other = grouped = False
     for match in re.finditer(re.escape(person), text, re.IGNORECASE):
-        before = text[max(match.start() - 30, 0) : match.start()]
-        if _PERSON_BEFORE.search(before) or _PERSON_AFTER.match(text, match.end()):
+        before, end = text[max(match.start() - 30, 0) : match.start()], match.end()
+        if _ORGANISATION_AFTER.match(text, end) is not None:
+            if organisation:
+                return _Mentions(as_person=True, as_other=False)
+            other = grouped = True
+        elif _PERSON_BEFORE.search(before) or _PERSON_AFTER.match(text, end):
             return _Mentions(as_person=True, as_other=False)
-        other = other or _COPY_AFTER.match(text, match.end()) is None
-    return _Mentions(as_person=False, as_other=other)
+        other = other or _COPY_AFTER.match(text, end) is None
+    return _Mentions(as_person=False, as_other=other, in_organisation=grouped)
 
 
 def _reads_like_topic(name: str) -> bool:
@@ -696,17 +717,22 @@ def _either(
     """The speaker of "<series>: <name> - <name>", where the first name is not marked.
 
     One of the two parts is a talk title, and both read like a name. The
-    one the abstract names is the speaker; else the second when a degree or
-    an organisation marks it; else the first when the second reads like a
-    topic. Otherwise neither: "Seminar: Public Health - Jane Roe" names
-    nobody without more to go on.
+    speaker is the part that does not read like a topic and that the
+    abstract names as a person, where an organisation named after it does
+    not count; else the second when a mark goes with it; else the first
+    when the second reads like a topic or the abstract names an
+    organisation after it ("the Ocean Mixing Lab"). Otherwise neither:
+    "Seminar: Public Health - Jane Roe" names nobody without more to go on.
     """
-    for candidate in (first, second):
-        if _mentions(candidate.person.name, abstract, title).as_person:
-            return [candidate.person]
+    parts = (first, second)
+    said = [_mentions(part.person.name, abstract, title, organisation=False) for part in parts]
+    topic = [_reads_like_topic(part.person.name) for part in parts]
+    for part, mention, is_topic in zip(parts, said, topic, strict=True):
+        if mention.as_person and not is_topic:
+            return [part.person]
     if second.marked and _taken(second.person, True, abstract, title):
         return [second.person]
-    if _reads_like_topic(second.person.name) and _taken(first.person, vouched, abstract, title):
+    if (topic[1] or said[1].in_organisation) and _taken(first.person, vouched, abstract, title):
         return [first.person]
     return []
 
