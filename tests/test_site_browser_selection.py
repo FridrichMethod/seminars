@@ -66,6 +66,7 @@ CLEAR = "#select-clear"
 DOWNLOAD = "#select-download"
 BUTTONS = (SELECT_SHOWN, CLEAR, DOWNLOAD)
 ONE_TIME_COPY = "#selection .selection-copy"  # a downloaded file is a one-time copy
+SUBSCRIBE_LINK = f'{ONE_TIME_COPY} a[href="#subscribe"]'  # its last sentence
 CS_TALKS = ["sample-xss", "sample-online", "sample-defense"]  # shown with field=cs
 NO_TALK = "qqqzzz"  # a search that no talk matches
 UID_VALUE = re.compile(r"^UID:([^\r\n]*)", re.MULTILINE)
@@ -113,6 +114,20 @@ NAME_PARTS = """(uid) => {
   ].map((element) => element.textContent.trim());
 }"""
 LISTED = "es => es.map((e) => e.dataset.uid)"
+# Where a same-page link leads: the id of its target and what labels that target.
+LINK_TARGET = """(selector) => {
+  const link = document.querySelector(selector);
+  const target = document.getElementById(link.hash.slice(1));
+  return {
+    same_page: link.href.split("#")[0] === location.href.split("#")[0],
+    id: target?.id ?? null,
+    labelled_by: target?.getAttribute("aria-labelledby") ?? null,
+  };
+}"""
+IN_VIEWPORT = """(selector) => {
+  const rect = document.querySelector(selector).getBoundingClientRect();
+  return rect.top >= 0 && rect.bottom <= window.innerHeight;
+}"""
 # Counts the clicks that reach a button (a key press clicks it too).
 COUNT_PRESSES = """(selector) => {
   window.__presses = 0;
@@ -199,10 +214,21 @@ def note(current: Session) -> str:
 
 
 def assert_one_time_copy_shown(current: Session, lang: str) -> None:
-    """The bar shows, in ``lang``, that a downloaded file is a one-time copy."""
+    """The bar shows, in ``lang``, that a downloaded file is a one-time copy, and links
+    to the subscription panel."""
+    messages = catalog(lang)
     copy = current.page.locator(ONE_TIME_COPY)
+    link = current.page.locator(SUBSCRIBE_LINK)
     assert copy.is_visible()
-    assert copy.text_content() == catalog(lang)["site.select.one_time"]
+    assert link.is_visible()
+    assert copy.locator("span").text_content() == messages["site.select.one_time"]
+    assert link.text_content() == messages["site.select.subscribe_link"]
+    assert copy.text_content() == messages["site.select.one_time"] + link.text_content()
+
+
+def in_viewport(current: Session, selector: str) -> bool:
+    """The element ``selector`` is within the viewport (wholly, from top to bottom)."""
+    return current.page.evaluate(IN_VIEWPORT, selector)
 
 
 def select(current: Session, *uids: str) -> None:
@@ -396,6 +422,29 @@ class TestSelecting:
         page.locator('.lang-switch button[lang="en"]').click()
         assert status(current) == "1 talk selected"
         assert_page_in(current, "en")
+        current.assert_clean()
+
+    @pytest.mark.parametrize("lang", ["en", "zh-CN"])
+    def test_the_note_on_a_one_time_copy_links_to_the_subscription_panel(
+        self, session: Callable[..., Session], lang: str
+    ) -> None:
+        # On a phone the panel comes after the whole list.
+        current = session(viewport=PHONE).open(
+            "index.html" if lang == "en" else "index.html?lang=zh"
+        )
+        page = current.page
+        assert_one_time_copy_shown(current, lang)
+        target = page.evaluate(LINK_TARGET, SUBSCRIBE_LINK)
+        assert target == {"same_page": True, "id": "subscribe", "labelled_by": "subscribe-heading"}
+        heading = page.locator("#subscribe-heading")
+        assert heading.text_content() == catalog(lang)["site.subscribe.title"]
+        assert not in_viewport(current, "#subscribe-heading")
+        query = current.query()
+        page.locator(SUBSCRIBE_LINK).click()
+        assert page.evaluate("document.querySelector(':target')?.id") == "subscribe"
+        assert in_viewport(current, "#subscribe-heading")
+        assert current.query() == query
+        assert_page_in(current, lang)
         current.assert_clean()
 
     @pytest.mark.parametrize("lang", ["en", "zh-CN"])
