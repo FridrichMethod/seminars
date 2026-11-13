@@ -285,9 +285,10 @@ replaced by an empty placeholder.
   (`X-WR-CALNAME`, `X-WR-CALDESC`, `REFRESH-INTERVAL`, `X-PUBLISHED-TTL`). A talk is the
   VEVENT whose UID, up to its last `@`, is the uid of the talk. The calendar is saved
   through a Blob as `seminars-selected.ics`; selected talks missing from the feed are left
-  out and counted, and a feed that cannot be fetched or read gives no file. No ICS is
-  written in JavaScript, and neither the backend nor `events.json` has anything of its own
-  for the download: the file is made from the feed that `outputs/ics.py` writes.
+  out and counted, and a feed that cannot be fetched or read, or that holds none of the
+  selected talks, gives no file. No ICS is written in JavaScript, and neither the backend
+  nor `events.json` has anything of its own for the download: the file is made from the
+  feed that `outputs/ics.py` writes.
 - **Digest** (`outputs/digest.py`): the talks of the week (Monday to Sunday), the picks first,
   then one table per field, the talks new since the previous issue and the state of the
   sources, with every label in English and Chinese. No state is kept: "new" is measured from
