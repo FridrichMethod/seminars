@@ -750,6 +750,34 @@ class TestDownload:
         assert page.evaluate(FOCUSED) == "select-download"
         current.assert_clean()
 
+    @pytest.mark.parametrize("change", ["clear", "swap"])
+    def test_the_file_holds_the_talks_selected_at_the_press(
+        self, current: Session, feed: str, change: str
+    ) -> None:
+        page = current.page
+        held: list[Any] = []
+        page.route(f"**/{FEED_PATH}", lambda route: held.append(route))
+        select(current, "sample-pick", "sample-arc")
+        with page.expect_request(f"**/{FEED_PATH}"):
+            page.locator(DOWNLOAD).click()
+        assert note(current) == catalog("en")["site.select.preparing"]
+        # The selection changes while the file is prepared.
+        if change == "clear":
+            page.locator(CLEAR).click()
+            assert checked(current) == []
+        else:
+            checkbox(current, "sample-arc").uncheck()
+            checkbox(current, "sample-online").check()
+            assert checked(current) == ["sample-online", "sample-pick"]
+        with page.expect_download() as info:
+            held[0].continue_()
+        text = Path(info.value.path()).read_bytes().decode("utf-8")
+        assert_file_of(text, feed, ["sample-pick", "sample-arc"])
+        page.locator(f"{NOTE} .note-saved").wait_for()
+        assert note(current) == counted("en", "site.select.saved", 2)
+        assert len(held) == 1
+        current.assert_clean()
+
     def test_the_second_click_of_a_double_click_saves_nothing_more(
         self, current: Session, feed: str
     ) -> None:
