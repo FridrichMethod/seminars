@@ -1,9 +1,10 @@
 """Browser smoke tests of the web site (Playwright with Chromium).
 
 The site is assembled the way it is deployed (``ProjectPaths``: the files of
-site/ at the root, locales/<lang>.json, events.json and status.json) in a
-temporary directory, from the sample payloads in tests/fixtures/_site/, and
-served on 127.0.0.1. The browser clock is fixed to noon in Stanford on the
+site/ at the root, locales/<lang>.json, events.json, status.json and
+feeds/all.ics) in a temporary directory, from the sample payloads and feed in
+tests/fixtures/_site/ (the feed with the CRLF line endings it is served with),
+and served on 127.0.0.1. The browser clock is fixed to noon in Stanford on the
 day the sample was generated, so "upcoming" and the time ranges are stable.
 
 Every test opens its pages through ``Session``, which records console
@@ -35,7 +36,8 @@ import pytest
 
 from seminars.i18n import flatten
 from seminars.models import FEED_IDS
-from site_sample import XSS_ABSTRACT, XSS_TITLE
+from seminars.textio import read_text, write_text_atomic
+from site_sample import FEEDS_DIR, XSS_ABSTRACT, XSS_TITLE, served_feed
 
 pytestmark = pytest.mark.browser
 
@@ -155,6 +157,8 @@ def site_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
         shutil.copy(REPO_ROOT / "locales" / f"{lang}.json", root / "locales" / f"{lang}.json")
     for name in ("events.json", "status.json"):
         shutil.copy(SAMPLE_DIR / name, root / name)
+    for feed in sorted(FEEDS_DIR.glob("*.ics")):
+        write_text_atomic(root / "feeds" / feed.name, served_feed(read_text(feed)))
     return root
 
 
