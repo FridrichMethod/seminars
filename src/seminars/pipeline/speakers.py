@@ -446,7 +446,7 @@ _COMMON_WORDS: Final = word_set(
     " ice sheet sea level rise coast coastal coral reef fish forest tree plant soil seed root"
     " leaf flower crop farm water river lake rain wind storm flood drought fire wildfire smoke"
     " air pollution carbon capture storage emission power grid fuel oil gas coal nuclear"
-    " hydrogen methane ozone earth moon sun space galaxy light rays glacier mountain volcano"
+    " hydrogen methane ozone earth moon space galaxy light rays glacier mountain volcano"
     " rock mantle plume plate fault desert island polar tropical urban rural city land habitat"
     " species wildlife bird insect bee animal mammal whale shark frog mouse rat fly worm yeast"
     " microbe fungus algae plankton permafrost thaw retreat melt weather season sediment"
@@ -503,10 +503,11 @@ _COMMON_WORDS: Final = word_set(
 """Common words of English that topics are made of. A name read from a title whose every
 word is one of them, or a word of a field, reads like a topic ("Heart Failure", "Sea Level
 Rise", "Elliptic Curves"). Words that are also first names ("Grace", "Mark", "Rose",
-"Ray", "Will") are not in it: a person's name holds at least one word outside it."""
+"Ray", "Will") or common surnames in Chinese ("Sun") are not in it: a person's name holds
+at least one word outside it."""
 _COMMON_ENDINGS: Final = re.compile(
     r"\w{2,}(?:tions?|sions?)|\w{3,}(?:ments?|ness|ity|ities|ism|isms|ist|ists|osis|itis)"
-    r"|\w{4,}(?:ures?|ances?|ences?|ive|ives|ous)|\w{3,}(?:ings?|ency|ancy)"
+    r"|\w{4,}(?:ures?|ances?|ences?|ive|ives|ous|ings?)|\w{3,}(?:ency|ancy)"
     r"|\w{4,}(?<!ov)(?<!ev)ics?|\w{2,}(?:ogy|ogies)"
 )
 """How a common word of English ends ("Failure", "Capture", "Healing", "Cosmic"); "-ovic"

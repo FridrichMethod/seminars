@@ -295,6 +295,8 @@ def test_a_series_followed_by_two_parts_that_read_like_names(
         "Bang Nhan",
         "Bo Huang",
         "Jane Marshes",
+        "Liping Sun",
+        "Wei Long",
     ],
 )
 def test_a_name_with_a_common_word_is_still_a_speaker(name: str) -> None:
