@@ -165,6 +165,27 @@
       "empty": "No talks match these filters.",
       "load_error": "The list of talks could not be loaded. Please try again later."
     },
+    "select": {
+      "label": "Selected talks",
+      "talk": "Select",
+      "none": "Select talks to download them as one calendar file.",
+      "count_one": "{count} talk selected",
+      "count_other": "{count} talks selected",
+      "hidden_one": "{count} hidden by the filters",
+      "hidden_other": "{count} hidden by the filters",
+      "with_hidden": "{selected}, {hidden}",
+      "select_shown": "Select all shown",
+      "clear": "Clear selection",
+      "download": "Download selected (.ics)",
+      "one_time": "A downloaded file is a one-time copy: later changes, such as a new time or a cancellation, do not reach your calendar. Subscribe to a calendar to keep it up to date.",
+      "preparing": "Preparing the calendar file...",
+      "saved_one": "A calendar file with {count} talk was passed to your browser to save.",
+      "saved_other": "A calendar file with {count} talks was passed to your browser to save.",
+      "missing_one": "{count} selected talk is not in the calendar feed and was left out.",
+      "missing_other": "{count} selected talks are not in the calendar feed and were left out.",
+      "partial": "{saved} {missing}",
+      "failed": "The calendar file could not be made. Please try again later."
+    },
     "event": {
       "all_day": "All day",
       "time_range": "{start} - {end}",

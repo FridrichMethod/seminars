@@ -59,6 +59,17 @@
       </div>
     </div>
     <p class="count" id="count" role="status" aria-live="polite"></p>
+    <div class="selection" id="selection" role="group" data-i18n-attr="aria-label:site.select.label">
+      <p class="selection-status" id="selection-status" role="status" aria-live="polite"></p>
+      <div class="selection-actions">
+        <button id="select-shown" type="button" aria-disabled="true" data-i18n="site.select.select_shown"></button>
+        <button id="select-clear" type="button" aria-disabled="true" data-i18n="site.select.clear"></button>
+        <button id="select-download" class="primary" type="button" aria-disabled="true" data-i18n="site.select.download"></button>
+      </div>
+      <div class="selection-note" id="selection-note" aria-live="polite"></div>
+      <p class="selection-copy" data-i18n="site.select.one_time"></p>
+      <span id="select-label" hidden data-i18n="site.select.talk"></span>
+    </div>
     <div class="events" id="events"></div>
   </section>
   <aside class="subscribe" aria-labelledby="subscribe-heading">

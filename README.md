@@ -48,7 +48,9 @@ two days.
 The site at
 [https://fridrichmethod.github.io/seminars/](https://fridrichmethod.github.io/seminars/)
 lists the upcoming talks in time order, with filters by field and by source and a
-full-text search. It is available in English and Chinese. Its
+full-text search. It is available in English and Chinese. Every listed talk has a
+checkbox, and the ticked talks can be saved as one calendar file: see the section
+Download selected talks. Its
 [status page](https://fridrichmethod.github.io/seminars/status.html) shows when the last
 update ran and how each source did.
 
@@ -100,6 +102,33 @@ which can take several hours.
 
 Any app that can subscribe to an ICS address works. Importing the file once also
 works, but then later changes do not arrive.
+
+## Download selected talks
+
+The web site can also save chosen talks as one calendar file to import once. Tick the
+talks you want in the list, or click Select all shown to tick every talk that the list
+shows with the current filters and search. The bar above the list says how many talks
+are selected and how many of them the filters hide. The selection stays while you
+filter, search or switch the language; Clear selection empties it, and so does reloading
+the page. A selected talk that has ended leaves the selection the next time the list is
+updated. Download selected (.ics) saves the file `seminars-selected.ics` with every
+selected talk, those that the filters hide included. Its events are those of the feed
+`all`, copied unchanged, with the same UIDs. When the page cannot read the feed, or the
+feed holds none of the selected talks, it saves no file and says so; when some selected
+talks are missing from the feed, the file holds the others and the page says how many
+were left out.
+
+The file is a copy made once: when a talk later moves to another time or is cancelled,
+a calendar that imported the file does not learn of it. A subscription (see Subscribe)
+stays current.
+
+To import the file:
+
+- Apple Calendar: open the file, or choose File > Import, and choose the calendar that
+  gets the talks.
+- Google Calendar on the web: open Settings > Import & export, choose Import, select the
+  file and the calendar, and click Import.
+- Outlook: open the file, or import it as a calendar.
 
 ## Coverage
 

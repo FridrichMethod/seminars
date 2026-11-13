@@ -1,8 +1,10 @@
 """What the README, the source guide and the site's tagline promise about the project.
 
-These texts state the scope of the collection, how the feeds behave for a subscriber
-and what turning a source off does. The English and the Chinese version say the same,
-and the scope names only institutions that a configured source collects.
+These texts state the scope of the collection, how the feeds behave for a subscriber,
+how the site saves selected talks and what turning a source off does. The English and
+the Chinese version say the same, the scope names only institutions that a configured
+source collects, and the buttons and the file of the download are named as the site
+names them.
 """
 
 from __future__ import annotations
@@ -25,6 +27,12 @@ PAIRS = [
     ("docs/ARCHITECTURE.md", "docs/ARCHITECTURE.zh-CN.md"),
 ]
 CODE = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
+SELECTED_FILE = re.compile(r'^const SELECTED_FILE = "([^"]+)";$', re.MULTILINE)
+DOWNLOAD_SECTIONS = {
+    "en": ("README.md", "## Download selected talks"),
+    "zh-CN": ("README.zh-CN.md", "## \u4e0b\u8f7d\u9009\u4e2d\u7684\u62a5\u544a"),
+}
+DOWNLOAD_BUTTONS = ("site.select.select_shown", "site.select.clear", "site.select.download")
 
 
 def text(name: str) -> str:
@@ -88,6 +96,22 @@ def test_the_digest_is_described_as_the_week_it_is_posted_in() -> None:
     assert "of that week (Monday to Sunday)" in english
     assert "\u672c\u5468\uff08\u5468\u4e00\u5230\u5468\u65e5\uff09" in chinese
     assert "\u4e0b\u4e00\u5468" not in chinese
+
+
+@pytest.mark.parametrize("lang", DOWNLOAD_SECTIONS)
+def test_the_download_of_selected_talks_is_described_as_the_site_offers_it(lang: str) -> None:
+    (file_name,) = SELECTED_FILE.findall(text("site/app.js"))
+    messages = flatten(json.loads(text(f"locales/{lang}.json")))
+    body = section(*DOWNLOAD_SECTIONS[lang])
+    assert f"`{file_name}`" in body
+    for key in DOWNLOAD_BUTTONS:
+        assert messages[key] in body, key
+
+
+def test_the_architecture_names_the_file_of_selected_talks() -> None:
+    (file_name,) = SELECTED_FILE.findall(text("site/app.js"))
+    for name in PAIRS[2]:
+        assert f"`{file_name}`" in text(name), name
 
 
 def test_the_guide_says_what_turning_a_source_off_does() -> None:

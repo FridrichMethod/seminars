@@ -10,7 +10,9 @@ read the files as text, so they run without a browser:
   HTML), a raw HTML sink (``innerHTML`` and friends) or an absolute http(s)
   URL, so nothing is loaded from or linked to another host by the code;
 * every message key the pages use exists in both languages, every key below
-  ``site`` is used, and both languages have the same keys and placeholders.
+  ``site`` is used, and both languages have the same keys and placeholders;
+* calendar.js fetches only the feeds that subscribe.js links to (the same
+  ``FEED_PATH`` pattern).
 
 tests/test_site_browser.py checks the same promises on the rendered pages.
 """
@@ -44,6 +46,7 @@ REQUIRED_FILES = {
     "page.js",
     "app.js",
     "subscribe.js",
+    "calendar.js",
     "status.js",
 }
 ALLOWED_SUFFIXES = {".html", ".css", ".js"}
@@ -75,6 +78,7 @@ ABSOLUTE_HTTP_URL = re.compile(r"https?://", re.IGNORECASE)
 KEY_LITERAL = re.compile(r'"((?:site|fields|feeds)\.[A-Za-z0-9_.-]*)"')
 OTHER_QUOTED_KEY = re.compile(r"['`](?:site|fields|feeds)\.")
 JS_IMPORT = re.compile(r'^\s*import\s[^;]*?from\s+"([^"]+)";', re.MULTILINE)
+FEED_PATH = re.compile(r"^const FEED_PATH = (/.+/);$", re.MULTILINE)
 
 # Messages that are the same in both languages on purpose.
 SAME_IN_BOTH_LANGUAGES = {
@@ -215,6 +219,15 @@ class TestFiles:
     def test_scripts_spell_message_keys_with_double_quotes(self, path: Path) -> None:
         """Keeps the key checks below complete: they only look for double-quoted keys."""
         assert OTHER_QUOTED_KEY.findall(path.read_text(encoding="utf-8")) == []
+
+    def test_the_calendar_fetches_only_the_feeds_the_site_links_to(self) -> None:
+        """A file of chosen talks is cut from a feed of this site, never from another file."""
+        patterns = {
+            name: FEED_PATH.findall((SITE_DIR / name).read_text(encoding="utf-8"))
+            for name in ("subscribe.js", "calendar.js")
+        }
+        assert len(patterns["subscribe.js"]) == 1
+        assert patterns["calendar.js"] == patterns["subscribe.js"]
 
 
 class TestPages:

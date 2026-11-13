@@ -1,0 +1,245 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//seminars.example.org//seminars//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALDESC:Every academic talk collected from Stanford\, SLAC\, CZ Biohu
+ b and nearby institutes.
+X-WR-CALNAME:Seminars - All
+REFRESH-INTERVAL;VALUE=DURATION:PT6H
+X-PUBLISHED-TTL:PT6H
+X-WR-TIMEZONE:America/Los_Angeles
+BEGIN:VTIMEZONE
+TZID:America/Los_Angeles
+BEGIN:STANDARD
+DTSTART:20260101T000000
+TZNAME:PST
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0800
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:20260308T020000
+TZNAME:PDT
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0700
+END:DAYLIGHT
+BEGIN:STANDARD
+DTSTART:20261101T020000
+TZNAME:PST
+TZOFFSETFROM:-0700
+TZOFFSETTO:-0800
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:20270314T020000
+TZNAME:PDT
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0700
+END:DAYLIGHT
+BEGIN:STANDARD
+DTSTART:20271107T020000
+TZNAME:PST
+TZOFFSETFROM:-0700
+TZOFFSETTO:-0800
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+SUMMARY:Moduli of curves and tropical geometry - Ana Souza
+DTSTART;TZID=America/Los_Angeles:20261109T143000
+DTEND;TZID=America/Los_Angeles:20261109T153000
+DTSTAMP:20261110T200000Z
+UID:sample-past-math@seminars.example.org
+SEQUENCE:0
+CATEGORIES:Math
+DESCRIPTION:Speaker: Ana Souza (UC Berkeley)\nAlgebraic Geometry Seminar\n
+ Stanford Mathematics\nWhy picked: series "Algebraic Geometry Seminar" (+2)
+ \; "algebraic geometry" in abstract (+1)\n\nA survey of recent results on 
+ tropical compactifications.\n\nDetails: https://example.stanford.edu/event
+ s/sample-past-math
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Building 380\, Room 383-N
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/sample-past-math
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:<script>alert("xss-title")</script> Robust learning <b>under</b> a
+ ttack - <i>Mallory</i> O'Brien
+DTSTART;TZID=America/Los_Angeles:20261112T120000
+DTEND;TZID=America/Los_Angeles:20261112T130000
+DTSTAMP:20261110T200000Z
+UID:sample-xss@seminars.example.org
+SEQUENCE:0
+CATEGORIES:Computer Science,AI/ML
+DESCRIPTION:Speaker: <i>Mallory</i> O'Brien ("><b>Evil Corp</b>)\nSecurity
+  <Lunch>\nStanford Computer Science & <Friends>\n\n<img src=x onerror=aler
+ t("xss-abstract")> "><svg onload=alert(1)> javascript:alert(2) &lt\;b&gt\;
+ entities stay literal&lt\;/b&gt\; </script><script>document.title='pwned'<
+ /script>\n\nDetails: https://example.stanford.edu/events/sample-xss
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Gates <u>104</u>
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/sample-xss
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Cancelled: Random matrices and number theory - Wei Zhang
+DTSTART;TZID=America/Los_Angeles:20261113T160000
+DTEND;TZID=America/Los_Angeles:20261113T170000
+DTSTAMP:20261110T200000Z
+UID:sample-cancelled@seminars.example.org
+SEQUENCE:0
+CATEGORIES:Math
+DESCRIPTION:Speaker: Wei Zhang (MIT)\nMath Colloquium\nStanford Mathematic
+ s\n\nDetails: https://example.stanford.edu/events/sample-cancelled
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Building 380\, Room 380-C
+STATUS:CANCELLED
+URL:https://example.stanford.edu/events/sample-cancelled
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Serving large models on small budgets - Priya Raman
+DTSTART;TZID=America/Los_Angeles:20261114T153000
+DTEND;TZID=America/Los_Angeles:20261114T163000
+DTSTAMP:20261110T200000Z
+UID:sample-online@seminars.example.org
+SEQUENCE:0
+CATEGORIES:Computer Science,AI/ML
+DESCRIPTION:Speaker: Priya Raman (Example Labs)\nMLSys Seminar\nStanford M
+ LSys\nOnline: https://stanford.zoom.us/j/1234567890\n\nOnline only. System
+ s tricks for cheap inference.\n\nDetails: https://example.stanford.edu/eve
+ nts/sample-online
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Online
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/sample-online
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Protein design with diffusion models - Jane Doe
+DTSTART;TZID=America/Los_Angeles:20261117T160000
+DTEND;TZID=America/Los_Angeles:20261117T170000
+DTSTAMP:20261110T200000Z
+UID:sample-pick@seminars.example.org
+SEQUENCE:0
+CATEGORIES:AI/ML,Biology
+DESCRIPTION:Speaker: Jane Doe (Stanford University)\nBioengineering Semina
+ r\nStanford Bioengineering\nWhy picked: "protein design" in title (+3)\; "
+ diffusion model" in title (+3)\; series "Bioengineering Seminar" (+3)\n\nG
+ enerative models for de novo enzyme design\, with wet-lab validation.\n\nD
+ etails: https://example.stanford.edu/events/sample-pick
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Shriram Center\, Room 104
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/sample-pick
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Physical Chemistry Seminar: Zoé Müller
+DTSTART;TZID=America/Los_Angeles:20261118T163000
+DTEND;TZID=America/Los_Angeles:20261118T173000
+DTSTAMP:20261110T200000Z
+UID:sample-tba@seminars.example.org
+SEQUENCE:0
+CATEGORIES:Chemistry
+DESCRIPTION:Speaker: Zoé Müller (ETH Zürich)\nPhysical Chemistry Semina
+ r\nStanford Chemistry\n\nDetails: https://example.stanford.edu/events/samp
+ le-tba
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Sapp Center Lecture Hall
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/sample-tba
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Grand Rounds: cell therapies for solid tumors - Maria Chen\, Omar 
+ Haddad
+DTSTART;TZID=America/Los_Angeles:20261119T080000
+DTEND;TZID=America/Los_Angeles:20261119T090000
+DTSTAMP:20261110T200000Z
+UID:sample-hybrid-med@seminars.example.org
+SEQUENCE:0
+CATEGORIES:Biology,Medicine
+DESCRIPTION:Speaker: Maria Chen (Stanford Medicine)\; Omar Haddad (UCSF)\n
+ Stanford Medicine\nOnline\n\nHybrid event\; the livestream link is on the 
+ detail page.\n\nDetails: https://example.stanford.edu/events/sample-hybrid
+ -med
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Li Ka Shing Center\, Berg Hall
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/sample-hybrid-med
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Bay Area Symposium on Structural Biology
+DTSTART;VALUE=DATE:20261120
+DTEND;VALUE=DATE:20261121
+DTSTAMP:20261110T200000Z
+UID:sample-all-day@seminars.example.org
+SEQUENCE:0
+CATEGORIES:Chemistry,Biology,Physics
+DESCRIPTION:SLAC\nWhy picked: "cryo-EM" in abstract (+3)\; "structure pred
+ iction" in abstract (+3)\; penalty "undergraduate" (-1.5)\n\nA full day of
+  talks on cryo-EM\, crystallography and structure prediction.\n\nDetails: 
+ https://example.stanford.edu/events/sample-all-day
+LAST-MODIFIED:20261110T200000Z
+LOCATION:SLAC\, Kavli Auditorium
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/sample-all-day
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Dark matter searches with quantum sensors - Kenji Watanabe
+DTSTART;TZID=America/Los_Angeles:20261123T153000
+DTEND;TZID=America/Los_Angeles:20261123T163000
+DTSTAMP:20261110T200000Z
+UID:sample-tentative-physics@seminars.example.org
+SEQUENCE:0
+CATEGORIES:Physics
+DESCRIPTION:Speaker: Kenji Watanabe (KIPAC)\nSLAC Colloquium\nSLAC\n\nDeta
+ ils: https://example.stanford.edu/events/sample-tentative-physics
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Panofsky Auditorium
+STATUS:TENTATIVE
+URL:https://example.stanford.edu/events/sample-tentative-physics
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Single-cell atlases of the immune system - Lucia Fernández
+DTSTART;TZID=America/Los_Angeles:20261203T110000
+DTEND;TZID=America/Los_Angeles:20261203T120000
+DTSTAMP:20261110T200000Z
+UID:sample-biohub@seminars.example.org
+SEQUENCE:0
+CATEGORIES:Biology,Medicine
+DESCRIPTION:Speaker: Lucia Fernández (CZ Biohub San Francisco)\nBiohub Se
+ minar Series\nCZ Biohub\n\nDetails: https://example.stanford.edu/events/sa
+ mple-biohub
+LAST-MODIFIED:20261110T200000Z
+LOCATION:499 Illinois Street\, San Francisco
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/sample-biohub
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Language models for genome engineering - Sam Okafor
+DTSTART;TZID=America/Los_Angeles:20261210T130000
+DTEND;TZID=America/Los_Angeles:20261210T140000
+DTSTAMP:20261110T200000Z
+UID:sample-arc@seminars.example.org
+SEQUENCE:0
+CATEGORIES:AI/ML,Biology
+DESCRIPTION:Speaker: Sam Okafor (Arc Institute)\nArc Institute\nWhy picked
+ : "language model" in title (+3)\; speaker "Sam Okafor" (+0.5)\n\nDetails:
+  https://example.stanford.edu/events/sample-arc
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Arc Institute\, Palo Alto
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/sample-arc
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:PhD Defense: verified compilers for accelerators - Alex Kim
+DTSTART;TZID=America/Los_Angeles:20270212T100000
+DTEND;TZID=America/Los_Angeles:20270212T110000
+DTSTAMP:20261110T200000Z
+UID:sample-defense@seminars.example.org
+SEQUENCE:0
+CATEGORIES:Computer Science
+DESCRIPTION:Speaker: Alex Kim\nStanford Electrical Engineering\n\nDetails:
+  https://example.stanford.edu/events/sample-defense
+LAST-MODIFIED:20261110T200000Z
+LOCATION:Packard 101
+STATUS:CONFIRMED
+URL:https://example.stanford.edu/events/sample-defense
+END:VEVENT
+END:VCALENDAR

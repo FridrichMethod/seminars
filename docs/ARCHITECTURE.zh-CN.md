@@ -223,6 +223,15 @@ key 由 prompt 版本、任务和输入文字组成，模型和 provider 都不�
 - **网站**（`site/`、`outputs/site_data.py`）：不需要构建步骤的静态 HTML 和 JavaScript，读
   `events.json` 和 `status.json`；中英文文案来自 `locales/`。所有从网上抓来的文字都会转义。
   `seminars build-site` 只根据已经提交的数据组装 `public/`。
+- **选中报告的下载**（`site/calendar.js`）：读者在列表里勾选的报告是页面状态，只保存在内存里，
+  从不写进地址栏或浏览器存储。下载时，页面从自己的网站取回 `feeds/all.ics`（`events.json` 里 feed
+  `all` 的路径），把选中报告的 VEVENT 块按 feed 里的顺序原样复制进一个日历，连同 feed 的全部 VTIMEZONE
+  块和基本的头部（`VERSION`、`PRODID`，以及存在时的 `CALSCALE`、`METHOD` 和 `X-WR-TIMEZONE`），
+  但不带只有订阅才需要的头部属性（`X-WR-CALNAME`、`X-WR-CALDESC`、`REFRESH-INTERVAL`、
+  `X-PUBLISHED-TTL`）。一个报告对应的 VEVENT，是 UID 在最后一个 `@` 之前的部分等于这个报告 uid 的那个。
+  这个日历通过 Blob 存成 `seminars-selected.ics`；选中的报告有不在 feed 里的，就略过并计数；feed 取不到、
+  读不了，或者里面没有任何一个选中的报告时，不生成文件。JavaScript 里不写任何 ICS，后端和 `events.json` 也没有专门为下载准备的东西：
+  文件取自 `outputs/ics.py` 写出的 feed。
 - **摘要**（`outputs/digest.py`）：一周（周一到周日）的报告，先列精选，然后每个领域一张表，再列上一期
   以来新增的报告和数据源的状态，每个标签都有英文和中文。不保存任何状态："新增"从上一期摘要 issue
   打开的时间算起，开 issue 之前先找有没有本周标题的 issue。

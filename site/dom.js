@@ -9,8 +9,9 @@
 const EXTERNAL_REL = "noopener noreferrer";
 const WEB_PROTOCOLS = Object.freeze(["http:", "https:"]);
 // Attributes that load or run something (all src* included); h() refuses them, so that
-// an address is only ever set by link() or, for the feed addresses built from this
-// site's own address by siteUrl(), by subscribe.js.
+// an address is only ever set by link(), by subscribe.js for the feed addresses built
+// from this site's own address by siteUrl(), and by calendar.js for the object URL of a
+// file it offers for download.
 const UNSAFE_ATTRIBUTE = /^(on|href$|src|style$|action$|formaction$|xlink:)/i;
 
 function appendChildren(node, children) {
