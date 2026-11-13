@@ -269,14 +269,16 @@ click Enable workflow.
 uv sync --locked
 uv run seminars run --offline       # recorded pages from tests/fixtures/, no network
 uv run seminars run --no-llm        # the real sites, rules only
-uv run seminars validate
 uv run seminars build-site          # assembles public/
+uv run seminars validate            # checks data/ and public/
 uv run python -m http.server --directory public 8000
 uv run seminars digest --dry-run    # prints the digest instead of opening an issue
 ```
 
-A run rewrites `data/` in your checkout. A live run is polite and therefore slow:
-some sites ask for 30 seconds between two requests. `uv run seminars --help` lists
+A live run rewrites `data/` in your checkout. An offline run writes there only while
+`data/` holds no live run; the committed `data/` is a live run, so in a fresh clone the
+offline run works in a scratch directory and says so. A live run is polite and therefore
+slow: some sites ask for 30 seconds between two requests. `uv run seminars --help` lists
 every command and option.
 
 ### Checks
