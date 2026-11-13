@@ -58,8 +58,11 @@ for nothing. An organisation named after the name on the same line ("the
 Jane Doe Lab") counts only for a name that does not read like a topic and
 never between two parts, as a group is named after its topic as well ("the
 Public Health Department"); an honorific or a label in front of the name
-("Dr. Jane Roe Department of ...") counts whatever follows. A title that is
-only a name, a series name, and everything else give no speaker.
+("Dr. Jane Roe Department of ...") counts whatever follows. An abbreviated
+honorific counts in title case only ("Dr.", "Ms.", not the degree "MS."),
+and a street that ends a sentence ("... on Campus Dr. Ocean Mixing Lab")
+still counts as one. A title that is only a name, a series name, and
+everything else give no speaker.
 
 A name that reads like a topic as well is a speaker only when the abstract
 names the person, whatever the form: one that holds a word of a field, a
@@ -152,11 +155,14 @@ _POSSESSIVE: Final = re.compile("[^\\W\\d_]+['\u2019]s")
 _SHOUTED: Final = re.compile(r"[^\W\d_]*(?:[A-Z]{2}|[a-z][A-Z]{2})[^\W\d_]*")
 """A word in capitals ("BOOK", "TNT") or with a run of them inside ("StEMI"): no name."""
 _TITLED_BEFORE: Final = re.compile(
-    r"\b(?:(?:dr|prof|mr|mrs|ms|mx)\.?|professor|speaker|presenter)\s{0,3}:?\s{0,3}$",
+    r"\b(?:(?-i:Dr|Prof|Mr|Mrs|Ms|Mx)\.?|professor|speaker|presenter)\s{0,3}:?\s{0,3}$",
     re.IGNORECASE,
 )
 """An honorific or a label in front of a name, which only a person has ("Dr. Jane Roe").
-Only an abbreviation takes a dot: "the speaker." ends a sentence and labels nothing."""
+Only an abbreviation takes a dot: "the speaker." ends a sentence and labels nothing. An
+abbreviation counts only in title case, so the degree "MS." that ends a sentence labels
+nothing either. A street ("Campus Dr.") that ends a sentence still reads as an honorific:
+that is a limit."""
 _INTRODUCED_BEFORE: Final = re.compile(
     r"\b(?:featuring|features?|welcomes?|by)\s{0,3}:?\s{0,3}$", re.IGNORECASE
 )

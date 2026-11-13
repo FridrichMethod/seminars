@@ -125,6 +125,19 @@ def test_an_honorific_or_a_label_in_front_of_the_name_names_the_person_before_an
             "Seminar: Jane Roe - Ocean Mixing",
             "Questions go to the professor. Ocean Mixing Lab members will attend.",
         ),
+        # An abbreviated honorific is written in title case; the degree "MS." is none.
+        (
+            "Seminar: Jane Roe - Ocean Mixing",
+            "She received her MS. Ocean Mixing Lab members will attend.",
+        ),
+        (
+            "Seminar: Jane Roe - Ocean Mixing",
+            "She holds a PhD and an MS Ocean Mixing Lab members will attend.",
+        ),
+        (
+            "Seminar: Jane Roe - Ocean Mixing",
+            "Ask the DR. Ocean Mixing Lab members will attend.",
+        ),
     ],
 )
 def test_a_sentence_that_ends_with_a_label_word_does_not_label_the_next_name(
@@ -141,6 +154,10 @@ def test_a_sentence_that_ends_with_a_label_word_does_not_label_the_next_name(
         ("Seminar: Ocean Mixing - Jane Roe", "Speaker: Jane Roe Lab, MIT", "Jane Roe"),
         ("Seminar: Ocean Mixing - Jane Roe", "Presenter Jane Roe Lab, MIT", "Jane Roe"),
         ("Seminar: Ocean Mixing - Jane Roe", "Mrs. Jane Roe Center, MIT", "Jane Roe"),
+        ("Seminar: Ocean Mixing - Jane Roe", "Ms. Jane Roe Lab members will attend.", "Jane Roe"),
+        # The words of a label count in any case.
+        ("Seminar: Ocean Mixing - Jane Roe", "SPEAKER: Jane Roe Lab, MIT", "Jane Roe"),
+        ("Seminar: Ocean Mixing - Jane Roe", "PROFESSOR Jane Roe Lab, MIT", "Jane Roe"),
     ],
 )
 def test_an_abbreviated_honorific_or_a_label_still_names_the_person_with_or_without_a_dot(
