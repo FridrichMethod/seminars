@@ -110,58 +110,60 @@ FRAGMENTS = [
 
 
 HOSTILE_TEXTS: Final[list[Callable[[int], str]]] = [
-    lambda k: "a" * 100_000 * k,
-    lambda k: "a." * 50_000 * k,
-    lambda k: "1 " * 50_000 * k,
-    lambda k: "+1" * 50_000 * k,
-    lambda k: "+" + "1" * 100_000 * k,
-    lambda k: "x@" * 50_000 * k,
-    lambda k: "@a." * 35_000 * k,
-    lambda k: "passcode " * 12_500 * k,
-    lambda k: "pwd:" + "1" * 100_000 * k + "a",
-    lambda k: "(" * 100_000 * k,
-    lambda k: "https://" + "a." * 50_000 * k,
-    lambda k: "a [at] b [dot] " * 7_500 * k,
-    lambda k: "Meeting ID: " + "1 " * 50_000 * k,
-    lambda k: "call " * 20_000 * k,
-    lambda k: "passcode" + " " * 100_000 * k + "y",
-    lambda k: "password is" + " " * 100_000 * k + "y",
-    lambda k: "pin" + " " * 50_000 * k + "(" + " " * 50_000 * k + "y",
-    lambda k: "phone" + " " * 100_000 * k + "y",
-    lambda k: "meeting id" + " " * 100_000 * k + "1",
-    lambda k: "650 723 4321" + "," * 100_000 * k,
-    lambda k: "650 723 4321 ext " * 6_000 * k,
-    lambda k: "a at b dot " * 10_000 * k,
-    lambda k: "x at " + "b dot " * 20_000 * k,
-    lambda k: "passcode: " + '"' * 100_000 * k,
-    lambda k: "passcode: (" + "1" * 100_000 * k,
-    lambda k: "pin: " + "1 " * 50_000 * k,
-    lambda k: "passcode for the meeting is" + " " * 100_000 * k + "1",
-    lambda k: "6507234321" * 10_000 * k,
-    lambda k: "cell: " * 15_000 * k,
-    lambda k: "https://urldefense.com/v2/url?u=" + "-3F_" * 25_000 * k,
-    lambda k: "https://www.google.com/url?q=" + "%25" * 30_000 * k,
-    lambda k: "Phone: [phone removed], " * 10_000 * k,
-    lambda k: "(" * 50_000 * k + "[removed]" + ")" * 50_000 * k,
-    lambda k: ", ;" * 30_000 * k + "[email removed]",
-    lambda k: "password: " + "a" * 100_000 * k + " b",
-    lambda k: "password: a " * 10_000 * k,
-    lambda k: "use password " * 10_000 * k,
-    lambda k: "passcode (a b " * 7_500 * k,
-    lambda k: "contact " + "x " * 50_000 * k + "at 723-4321",
-    lambda k: "contact " * 15_000 * k,
-    lambda k: "e-mail " * 15_000 * k,
-    lambda k: "a.b at " * 15_000 * k,
-    lambda k: "x @ " * 25_000 * k,
-    lambda k: "@group.calendar.google.com" * 4_000 * k,
-    lambda k: "contact jdoe at " + "a." * 50_000 * k,
+    lambda k: "a" * 50_000 * k,
+    lambda k: "a." * 25_000 * k,
+    lambda k: "1 " * 25_000 * k,
+    lambda k: "+1" * 25_000 * k,
+    lambda k: "+" + "1" * 50_000 * k,
+    lambda k: "x@" * 25_000 * k,
+    lambda k: "@a." * 17_500 * k,
+    lambda k: "passcode " * 6_250 * k,
+    lambda k: "pwd:" + "1" * 50_000 * k + "a",
+    lambda k: "(" * 50_000 * k,
+    lambda k: "https://" + "a." * 25_000 * k,
+    lambda k: "a [at] b [dot] " * 3_750 * k,
+    lambda k: "Meeting ID: " + "1 " * 25_000 * k,
+    lambda k: "call " * 10_000 * k,
+    lambda k: "passcode" + " " * 50_000 * k + "y",
+    lambda k: "password is" + " " * 50_000 * k + "y",
+    lambda k: "pin" + " " * 25_000 * k + "(" + " " * 25_000 * k + "y",
+    lambda k: "phone" + " " * 50_000 * k + "y",
+    lambda k: "meeting id" + " " * 50_000 * k + "1",
+    lambda k: "650 723 4321" + "," * 50_000 * k,
+    lambda k: "650 723 4321 ext " * 3_000 * k,
+    lambda k: "a at b dot " * 5_000 * k,
+    lambda k: "x at " + "b dot " * 10_000 * k,
+    lambda k: "passcode: " + '"' * 50_000 * k,
+    lambda k: "passcode: (" + "1" * 50_000 * k,
+    lambda k: "pin: " + "1 " * 25_000 * k,
+    lambda k: "passcode for the meeting is" + " " * 50_000 * k + "1",
+    lambda k: "6507234321" * 5_000 * k,
+    lambda k: "cell: " * 7_500 * k,
+    lambda k: "https://urldefense.com/v2/url?u=" + "-3F_" * 12_500 * k,
+    lambda k: "https://www.google.com/url?q=" + "%25" * 15_000 * k,
+    lambda k: "Phone: [phone removed], " * 5_000 * k,
+    lambda k: "(" * 25_000 * k + "[removed]" + ")" * 25_000 * k,
+    lambda k: ", ;" * 15_000 * k + "[email removed]",
+    lambda k: "password: " + "a" * 50_000 * k + " b",
+    lambda k: "password: a " * 5_000 * k,
+    lambda k: "use password " * 5_000 * k,
+    lambda k: "passcode (a b " * 3_750 * k,
+    lambda k: "contact " + "x " * 25_000 * k + "at 723-4321",
+    lambda k: "contact " * 7_500 * k,
+    lambda k: "e-mail " * 7_500 * k,
+    lambda k: "a.b at " * 7_500 * k,
+    lambda k: "x @ " * 12_500 * k,
+    lambda k: "@group.calendar.google.com" * 2_000 * k,
+    lambda k: "contact jdoe at " + "a." * 25_000 * k,
 ]
-"""Texts that make a careless rule backtrack; ``k`` = 2 gives about 200,000 characters."""
+"""Texts that make a careless rule backtrack; ``k`` = 4 gives about 200,000 characters."""
 
+LENGTH_FACTOR: Final = 4
+"""How many times longer the long text is than the short one."""
 ROUNDS: Final = 5
 """How often the two lengths are timed at most; the best time of each counts."""
-MAX_RATIO: Final = 3.0
-"""Twice the text takes twice the time when scrubbing is linear, four times when quadratic."""
+MAX_RATIO: Final = 8.0
+"""Four times the text takes four times the time when scrubbing is linear, 16 when quadratic."""
 CEILING_SECONDS: Final = 30.0
 """For the longer text: far above what a loaded machine needs, so it never fails by load."""
 
@@ -172,14 +174,14 @@ def best_times(
     *,
     clock: Callable[[], float] = time.perf_counter,
 ) -> tuple[float, float]:
-    """The best time of ``work`` on ``build(1)`` and on ``build(2)``, the text twice as long.
+    """The best time of ``work`` on ``build(1)`` and on ``build(LENGTH_FACTOR)``.
 
     The two lengths take turns, so that a burst of load slows both, and the best of the
     rounds is what the machine can do. Timing stops after the first round that is clear:
     the longer text takes less than ``MAX_RATIO`` times the shorter one, or is over the
     ceiling.
     """
-    texts = (build(1), build(2))
+    texts = (build(1), build(LENGTH_FACTOR))
     best = [math.inf, math.inf]
     for _ in range(ROUNDS):
         for index, text in enumerate(texts):
@@ -215,12 +217,15 @@ class TestProperties:
     def test_large_hostile_text_is_scrubbed_in_linear_time(
         self, build: Callable[[int], str]
     ) -> None:
-        """Twice the text takes about twice the time, on an idle and on a busy machine.
+        """Four times the text takes about four times the time, idle or busy.
 
         A budget in seconds depends on the load of the machine: the slowest of these
         texts takes about 0.5 s at a load average of 6 and up to 1.5 s at one of 21. The
-        ratio of the times for two lengths does not depend on it, and it still tells a
-        linear scrubber (2) from a quadratic one (4). The ceiling only stops a scrubber
+        ratio of the times for two lengths does not depend on it, and it tells a linear
+        scrubber (4) from a quadratic one (16) with a wide margin on both sides of the
+        threshold (8). When a share ``f`` of the time on the shorter text grows with the
+        square of the length, the ratio is 4 + 12 f, so the test fails a scrubber that
+        is quadratic in a third of that time or more. The ceiling only stops a scrubber
         that is far too slow at any load.
         """
         short, long = best_times(lambda text: strip_markers(scrub(text)), build)
@@ -244,11 +249,17 @@ class TestTheTiming:
 
     def test_a_linear_scrubber_passes_after_one_round(self) -> None:
         (short, long), calls = self.times(lambda length, _call: length * 1e-6)
-        assert (short, long, calls) == (pytest.approx(1e-3), pytest.approx(2e-3), 2)
+        assert (short, long, calls) == (pytest.approx(1e-3), pytest.approx(4e-3), 2)
         assert long < MAX_RATIO * short
 
     def test_a_quadratic_scrubber_fails_in_every_round(self) -> None:
         (short, long), calls = self.times(lambda length, _call: length**2 * 1e-9)
+        assert long >= MAX_RATIO * short
+        assert calls == 2 * ROUNDS
+
+    def test_a_scrubber_quadratic_in_half_of_its_time_fails_in_every_round(self) -> None:
+        (short, long), calls = self.times(lambda length, _call: length * 1e-6 + length**2 * 1e-9)
+        assert (short, long) == (pytest.approx(2e-3), pytest.approx(20e-3))
         assert long >= MAX_RATIO * short
         assert calls == 2 * ROUNDS
 
