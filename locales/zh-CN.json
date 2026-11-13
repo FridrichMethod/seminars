@@ -165,6 +165,27 @@
       "empty": "没有符合筛选条件的报告。",
       "load_error": "无法加载报告列表，请稍后再试。"
     },
+    "select": {
+      "label": "已选报告",
+      "talk": "选择",
+      "none": "勾选报告，即可把它们一起下载为一个日历文件。",
+      "count_one": "已选 {count} 场报告",
+      "count_other": "已选 {count} 场报告",
+      "hidden_one": "其中 {count} 场被筛选条件隐藏",
+      "hidden_other": "其中 {count} 场被筛选条件隐藏",
+      "with_hidden": "{selected}，{hidden}",
+      "select_shown": "全选当前显示的报告",
+      "clear": "清空选择",
+      "download": "下载所选报告（.ics）",
+      "one_time": "下载的文件只是一次性副本：之后的变动（例如改时间或取消）不会同步到你的日历。订阅日历才能随时保持最新。",
+      "preparing": "正在生成日历文件...",
+      "saved_one": "已下载包含 {count} 场报告的日历文件。",
+      "saved_other": "已下载包含 {count} 场报告的日历文件。",
+      "missing_one": "有 {count} 场所选报告不在日历订阅源中，没有收入文件。",
+      "missing_other": "有 {count} 场所选报告不在日历订阅源中，没有收入文件。",
+      "partial": "{saved}{missing}",
+      "failed": "无法生成日历文件，请稍后再试。"
+    },
     "event": {
       "all_day": "全天",
       "time_range": "{start} - {end}",

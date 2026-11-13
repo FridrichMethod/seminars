@@ -1,5 +1,7 @@
-// The talk list (index.html): filters, the list grouped by day and the subscription panel.
+// The talk list (index.html): filters, the list grouped by day, the selection of talks
+// to download as one calendar file and the subscription panel.
 
+import { calendarFor, fetchCalendar, parseCalendar, saveFile } from "./calendar.js";
 import { h, link, replaceChildren } from "./dom.js";
 import {
   ANY_CHOICES,
@@ -26,7 +28,7 @@ import {
   reportError,
   startPage,
 } from "./page.js";
-import { renderSubscribe } from "./subscribe.js";
+import { knownFeeds, renderSubscribe } from "./subscribe.js";
 import { parseTimestamp, zone } from "./time.js";
 
 const ui = {
@@ -40,6 +42,11 @@ const ui = {
   picks: byId("picks"),
   clear: byId("clear"),
   count: byId("count"),
+  selectionStatus: byId("selection-status"),
+  selectShown: byId("select-shown"),
+  selectClear: byId("select-clear"),
+  download: byId("select-download"),
+  note: byId("selection-note"),
   events: byId("events"),
   steps: byId("apple-steps"),
   feeds: byId("feeds"),
@@ -63,14 +70,33 @@ const PLACE_MESSAGES = Object.freeze({
 // for this long, so a long list is not rebuilt on every key.
 const SEARCH_DELAY_MS = 200;
 
+// The selected talks are saved under this name, cut out of the feed with this id: the
+// feed of every talk on the site.
+const SELECTED_FILE = "seminars-selected.ics";
+const EVERY_TALK_FEED = "all";
+// The hidden label (index.html) that each checkbox of the list reads before the title of
+// its talk.
+const SELECT_LABEL_ID = "select-label";
+
+// The download of the selected talks: whether it is being prepared, and the note on its
+// outcome (null: none).
+const IDLE = Object.freeze({ busy: false, note: null });
+const PREPARING = Object.freeze({ kind: "preparing" });
+const FAILED = Object.freeze({ kind: "failed" });
+
 // The page state; every change replaces the object. Until the talks are there, the
 // filters are those of the address, kept as they are (a bookmarked or shared link), and
 // a change made in the meantime is added to them; once the talks arrive, the filters are
-// checked against what exists.
+// checked against what exists. The selection (uids in the order they were ticked) lives
+// here only: neither the address nor the storage of the browser holds it, so a reload
+// starts empty. ``listed`` holds the uids of the talks the list shows.
 let view = Object.freeze({
   model: null,
   failed: false,
   filters: filtersFromQuery(window.location.search, ANY_CHOICES),
+  selected: Object.freeze([]),
+  listed: Object.freeze([]),
+  download: IDLE,
 });
 
 /** The payload of events.json prepared for the page. */
@@ -217,6 +243,192 @@ function connectControls() {
     setFilters(NO_FILTERS);
     ui.search.focus();
   });
+  ui.selectShown.addEventListener("click", selectShown);
+  ui.selectClear.addEventListener("click", clearSelection);
+  ui.download.addEventListener("click", () => {
+    downloadSelected().catch(reportError);
+  });
+}
+
+function canSelectShown() {
+  return view.listed.some((uid) => !view.selected.includes(uid));
+}
+
+function canClear() {
+  return view.selected.length > 0;
+}
+
+function canDownload() {
+  return view.model !== null && view.selected.length > 0 && !view.download.busy;
+}
+
+/**
+ * Mark a button of the bar as unavailable. aria-disabled instead of disabled keeps the
+ * focus on a button that its own press makes unavailable (Clear selection, a download
+ * being prepared); its handler checks the state and does nothing then.
+ */
+function setUnavailable(button, unavailable) {
+  button.setAttribute("aria-disabled", String(unavailable));
+}
+
+/** What the bar says about the selection: how many, and how many the filters hide. */
+function selectionStatus({ selected, listed }) {
+  if (selected.length === 0) {
+    return t("site.select.none");
+  }
+  const count = plural("site.select.count", selected.length);
+  const hidden = selected.filter((uid) => !listed.includes(uid)).length;
+  if (hidden === 0) {
+    return count;
+  }
+  return t("site.select.with_hidden", {
+    selected: count,
+    hidden: plural("site.select.hidden", hidden),
+  });
+}
+
+/**
+ * The checkboxes of the list, the status and the buttons of the bar, updated in place:
+ * nothing is rebuilt, so the focus and the scroll position stay where they are.
+ */
+function syncSelection() {
+  const { selected, download } = view;
+  for (const box of ui.events.querySelectorAll("input.select-talk")) {
+    box.checked = selected.includes(box.dataset.uid);
+  }
+  const status = selectionStatus(view);
+  // Unchanged text is left alone, so the live region does not say it again.
+  if (ui.selectionStatus.textContent !== status) {
+    replaceChildren(ui.selectionStatus, status);
+  }
+  setUnavailable(ui.selectShown, !canSelectShown());
+  setUnavailable(ui.selectClear, !canClear());
+  setUnavailable(ui.download, !canDownload());
+  ui.download.setAttribute("aria-busy", String(download.busy));
+}
+
+/** The note on the last download, in the active language. */
+function noteContent(note) {
+  switch (note.kind) {
+    case "preparing":
+      return h("p", { class: "note" }, t("site.select.preparing"));
+    case "saved":
+      return h("p", { class: "note note-saved" }, plural("site.select.saved", note.saved));
+    case "partial":
+      return h(
+        "p",
+        { class: "note note-partial" },
+        t("site.select.partial", {
+          saved: plural("site.select.saved", note.saved),
+          missing: plural("site.select.missing", note.missing),
+        }),
+      );
+    default: // "failed"
+      return h("p", { class: "note note-failed", role: "alert" }, t("site.select.failed"));
+  }
+}
+
+/**
+ * Show the note of ``view.download``. Called when the note changes and when the whole
+ * page is drawn again (a language switch), never for a filter or a tick, so a note that
+ * is an alert is not announced again.
+ */
+function renderNote() {
+  const { note } = view.download;
+  replaceChildren(ui.note, note === null ? null : noteContent(note));
+}
+
+/** Make ``uids`` the selection; the note on an earlier download no longer applies. */
+function setSelection(uids) {
+  const { download } = view;
+  const dropsNote = !download.busy && download.note !== null;
+  view = Object.freeze({
+    ...view,
+    selected: Object.freeze([...new Set(uids)]),
+    download: dropsNote ? IDLE : download,
+  });
+  syncSelection();
+  if (dropsNote) {
+    renderNote();
+  }
+}
+
+function toggleTalk(uid, checked) {
+  const others = view.selected.filter((selected) => selected !== uid);
+  setSelection(checked ? [...others, uid] : others);
+}
+
+function selectShown() {
+  if (canSelectShown()) {
+    setSelection([...view.selected, ...view.listed]);
+  }
+}
+
+function clearSelection() {
+  if (canClear()) {
+    setSelection([]);
+  }
+}
+
+function setDownload(busy, note) {
+  view = Object.freeze({ ...view, download: Object.freeze({ busy, note }) });
+  syncSelection();
+  renderNote();
+}
+
+/** The path of the feed with every talk, as the payload lists it, or null. */
+function everyTalkFeed(feeds) {
+  return knownFeeds(feeds).find((feed) => feed.id === EVERY_TALK_FEED)?.path ?? null;
+}
+
+/**
+ * Save the selected talks as one calendar file, cut out of the feed of every talk (see
+ * calendar.js): the selection at the press of the button, talks hidden by the filters
+ * included. A talk the feed lacks is left out and counted in the note; when the feed
+ * cannot be read or holds none of them, no file is saved and the note says so. Every
+ * press fetches the feed again, so a failed request is retried.
+ */
+async function downloadSelected() {
+  if (!canDownload()) {
+    return;
+  }
+  const uids = view.selected;
+  const path = everyTalkFeed(view.model.feeds);
+  setDownload(true, PREPARING);
+  let note = FAILED;
+  try {
+    if (path === null) {
+      throw new Error("events.json lists no feed of every talk");
+    }
+    const result = calendarFor(parseCalendar(await fetchCalendar(path)), uids);
+    if (result.text === null) {
+      throw new Error(`${path} holds none of the ${uids.length} selected talks`);
+    }
+    saveFile(result.text, SELECTED_FILE);
+    const saved = result.included.length;
+    const missing = result.missing.length;
+    note = Object.freeze(
+      missing === 0 ? { kind: "saved", saved } : { kind: "partial", saved, missing },
+    );
+  } catch (error) {
+    reportError(error);
+  }
+  setDownload(false, note);
+}
+
+function selectBox(event, titleId) {
+  return h(
+    "label",
+    { class: "event-select" },
+    h("input", {
+      type: "checkbox",
+      class: "select-talk",
+      "data-uid": event.uid,
+      "aria-labelledby": `${SELECT_LABEL_ID} ${titleId}`,
+      checked: view.selected.includes(event.uid),
+      on: { change: (change) => toggleTalk(event.uid, change.target.checked) },
+    }),
+  );
 }
 
 function when(event, tz, lang) {
@@ -299,7 +511,12 @@ function reasons(event) {
   );
 }
 
-function renderEvent(event, tz, lang, today) {
+/**
+ * One talk of the list. ``titleId`` is the id of its title, which names its checkbox; it
+ * is made from the position in the list, as a uid may hold anything (a space would split
+ * the reference).
+ */
+function renderEvent(event, tz, lang, today, titleId) {
   const classes = ["event", event.status === "cancelled" && "is-cancelled", event.pick && "is-pick"];
   const lastDay =
     event.allDay && event.lastDay !== event.startDay
@@ -313,6 +530,7 @@ function renderEvent(event, tz, lang, today) {
   return h(
     "article",
     { class: classes.filter(Boolean).join(" "), "data-uid": event.uid },
+    selectBox(event, titleId),
     h(
       "p",
       { class: "event-when" },
@@ -323,7 +541,7 @@ function renderEvent(event, tz, lang, today) {
       { class: "event-main" },
       h(
         "h3",
-        { class: "event-title" },
+        { class: "event-title", id: titleId },
         link(event.url, {}, event.tba ? t("site.event.tba") : event.title),
       ),
       lastDay,
@@ -350,15 +568,23 @@ function renderEvent(event, tz, lang, today) {
   );
 }
 
+/** Note the talks the list shows and update the selection to match. */
+function setListed(events) {
+  view = Object.freeze({ ...view, listed: Object.freeze(events.map((event) => event.uid)) });
+  syncSelection();
+}
+
 function renderList() {
   const { model, failed, filters } = view;
   if (failed) {
     replaceChildren(ui.count);
     replaceChildren(ui.events, notice("site.results.load_error", { alert: true }));
+    setListed([]);
     return;
   }
   if (model === null) {
     replaceChildren(ui.events, notice("site.meta.loading"));
+    setListed([]);
     return;
   }
   const now = new Date();
@@ -371,17 +597,22 @@ function renderList() {
   replaceChildren(ui.count, plural("site.results.count", shown.length));
   if (shown.length === 0) {
     replaceChildren(ui.events, notice("site.results.empty"));
+    setListed(shown);
     return;
   }
+  const positions = new Map(shown.map((event, index) => [event, index + 1]));
   const days = [...groupByDay(shown, today)].map(([day, events]) =>
     h(
       "section",
       { class: "day", "data-day": day },
       h("h2", { class: "day-heading" }, tz.formatDay(day, lang, today)),
-      events.map((event) => renderEvent(event, tz, lang, today)),
+      events.map((event) =>
+        renderEvent(event, tz, lang, today, `event-title-${positions.get(event)}`),
+      ),
     ),
   );
   replaceChildren(ui.events, days);
+  setListed(shown);
 }
 
 function renderMeta() {
@@ -413,6 +644,7 @@ function render() {
   buildControls();
   syncControls();
   renderList();
+  renderNote();
   renderSubscribe(view.model?.feeds ?? [], { steps: ui.steps, list: ui.feeds });
 }
 
@@ -436,6 +668,7 @@ async function main() {
     pendingSearch.flush();
     const model = prepareModel(payload, new Date());
     view = Object.freeze({
+      ...view,
       model,
       failed: false,
       filters: withinChoices(view.filters, model.choices),
