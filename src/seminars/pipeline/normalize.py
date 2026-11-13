@@ -70,7 +70,7 @@ from seminars.models import (
 )
 from seminars.pipeline.ids import draft_key, resolve_uid, shared_urls
 from seminars.pipeline.privacy import is_private_link, scrub_private, scrub_title, strip_markers
-from seminars.pipeline.speakers import ParsedSpeaker, speakers_from_title, split_speakers
+from seminars.pipeline.speakers import ParsedSpeaker, split_speakers
 from seminars.pipeline.text import (
     canonical_name,
     fold,
@@ -84,6 +84,7 @@ from seminars.pipeline.text import (
     word_set,
 )
 from seminars.pipeline.times import MAX_TIMED_LENGTH, EventTimes, TimeError, resolve_times
+from seminars.pipeline.title_speakers import speakers_from_title
 
 MAX_TITLE: Final = 300
 MAX_SERIES: Final = 200

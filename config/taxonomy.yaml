@@ -158,7 +158,15 @@ fields:
       statistics: 0.5
       statistical inference: 1.0
       statistical: 0.25
-      time series: 1.0
+      # "Time series" alone is a method that talks of every field use ("a time series of
+      # calcium imaging"); on a department source the abstract counts, so it needs a
+      # partner. The phrases of the topic decide alone. "Statistical model" is such a
+      # method as well and has only the weight of "statistical".
+      time series: 0.5
+      time series analysis: 1.0
+      time series forecasting: 1.0
+      "time series model*": 1.0
+      "time series foundation model*": 1.0
       biostatistics: 1.0
       causal inference: 1.0
       hypothesis testing: 1.0

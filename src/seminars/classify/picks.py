@@ -12,6 +12,12 @@ The score of an event is the sum of
 * minus the weight of every ``exclusions`` term found in title, series or
   abstract.
 
+"Abstract" is the talk part of it, the same text the field rules read
+(``seminars.classify.rules.EventTexts`` and ``talk_text``): sections on the
+speaker ("Bio", "About the Speaker") and on the series ("About the ...
+Series") are left out, so a keyword or a penalty that only a biography
+holds (the name of an award, a seat on a board) counts for nothing.
+
 Terms match like every term of this package (whole words, see
 ``seminars.classify.rules``); speaker names are matched without plural
 forms. The score is rounded to four decimals, and an event is a pick when

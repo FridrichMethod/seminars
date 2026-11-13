@@ -223,7 +223,7 @@ FIELD_CASES: list[tuple[str, str, str | None]] = [
     ("math", "Conformal prediction under distribution shift", None),
     ("math", "Ricci curvature, optimal transport and concentration inequalities", None),
     ("math", "Sumsets and a conjecture of Erdos in additive combinatorics", None),
-    ("math", "Some Results on Time Series", None),
+    ("math", "Some Results on Time Series Models", None),
     # cs
     ("cs", "Verified compilers for smart contracts", None),
     ("cs", "Differential privacy at scale", None),

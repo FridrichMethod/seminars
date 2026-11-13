@@ -35,6 +35,28 @@ PLACEHOLDERS = [
     "TBA / \u5f85\u5b9a",
     "\u5f85\u5b9a (TBD)",
     "Title: \u5f85\u5b9a",
+    # a CJK word for "title" before an English placeholder: "title: TBA", "title: TBD"
+    "\u9898\u76ee\uff1aTBA",
+    "\u6807\u9898\uff1aTBD",
+    # the kind of event before a CJK placeholder: "lecture", "seminar", "talk" (simplified
+    # and traditional), and "title of the lecture"
+    "\u8bb2\u5ea7\uff1a\u5f85\u5b9a",
+    "\u8b1b\u5ea7\uff1a\u5f85\u5b9a",
+    "\u7814\u8ba8\u4f1a\uff1a\u5f85\u5b9a",
+    "\u62a5\u544a\uff1a\u672a\u5b9a",
+    "\u8b1b\u984c\uff1a\u5f85\u5b9a",
+    "\u8bb2\u5ea7\u9898\u76ee\uff1a\u5f85\u5b9a",
+    # an English and a CJK placeholder without a space between them
+    "TBA\u5f85\u5b9a",
+    "\u5f85\u5b9aTBD",
+    # the English kind of event or "title" before a CJK placeholder
+    "Seminar: \u5f85\u5b9a",
+    "Talk: \u5f85\u5b9a",
+    "Lecture: \u5f85\u5b9a",
+    "Colloquium: \u5f85\u5b9a",
+    "Talk title: \u5f85\u5b9a",
+    "Title is \u5f85\u5b9a",
+    "Seminar: \u5f85\u5b9a (TBD)",
 ]
 
 
@@ -51,6 +73,12 @@ def test_a_placeholder_in_cjk_is_no_title(title: str) -> None:
         "\u5173\u4e8e\u672a\u5b9a\u5f0f\u7684\u7814\u7a76",
         "TBA \u86cb\u767d\u8d28\u8bbe\u8ba1",
         "\u9898\u76ee",
+        "\u8bb2\u5ea7",
+        "\u8bb2\u5ea7\uff1a\u86cb\u767d\u8d28\u8bbe\u8ba1",
+        "\u9898\u76ee\uff1aTBA \u86cb\u767d\u8d28",
+        "Seminar: \u86cb\u767d\u8d28\u8bbe\u8ba1",
+        "Seminar",
+        "Talk title",
     ],
 )
 def test_a_title_that_holds_a_placeholder_word_is_a_title(title: str) -> None:

@@ -64,19 +64,32 @@ confirmed" (simplified and traditional) and "to be notified separately"; Korean 
 "undecided"."""
 _CJK_TITLE_WORDS: Final = (
     "\u9898\u76ee|\u984c\u76ee|\u6807\u9898|\u6a19\u984c|\u62a5\u544a\u9898\u76ee"
-    "|\u5831\u544a\u984c\u76ee|\u30bf\u30a4\u30c8\u30eb|\uc81c\ubaa9"
+    "|\u5831\u544a\u984c\u76ee|\u8bb2\u9898|\u8b1b\u984c|\u30bf\u30a4\u30c8\u30eb|\uc81c\ubaa9"
 )
-"""Chinese, Japanese and Korean for "title" and "title of the talk"."""
+"""Chinese, Japanese and Korean for "title", "title of the talk" and "title of the lecture"."""
+_CJK_KIND_WORDS: Final = (
+    "\u8bb2\u5ea7|\u8b1b\u5ea7|\u7814\u8ba8\u4f1a|\u7814\u8a0e\u6703|\u62a5\u544a|\u5831\u544a"
+)
+"""Chinese for "lecture", "seminar" and "talk" (simplified and traditional), the words that
+may come before a placeholder like "talk" and "seminar" do in English."""
+_ENGLISH_KIND: Final = r"(?:(?:talk|seminar|lecture|colloquium) )?"
 _ENGLISH_TBA: Final = (
-    rf"(?:(?:talk|seminar|lecture|colloquium) )?(?:title (?:is |and abstract )?)?(?:{_TBA_WORDS})"
+    rf"{_ENGLISH_KIND}(?:title (?:is |and abstract )?)?(?:{_TBA_WORDS})"
     r"|title"
 )
-_CJK_TBA: Final = rf"(?:(?:{_CJK_TITLE_WORDS}) ?)?(?:{_CJK_TBA_WORDS})"
+_ENGLISH_PREFIX: Final = rf"{_ENGLISH_KIND}(?:title (?:is )?)?"
+_CJK_PREFIX: Final = rf"(?:(?:{_CJK_KIND_WORDS}) ?)?(?:(?:{_CJK_TITLE_WORDS}) ?)?"
+_CJK_TBA: Final = rf"{_CJK_PREFIX}(?:{_CJK_TBA_WORDS})"
+_CJK_THEN_ENGLISH: Final = rf"{_CJK_PREFIX}(?:{_TBA_WORDS})"
 _TBA: Final = re.compile(
-    rf"(?:{_ENGLISH_TBA})(?: (?:{_CJK_TBA}))?|(?:{_CJK_TBA})(?: (?:{_ENGLISH_TBA}))?"
+    rf"(?:{_ENGLISH_TBA}|{_CJK_THEN_ENGLISH})(?: ?(?:{_CJK_TBA}))?"
+    rf"|{_ENGLISH_PREFIX}(?:{_CJK_TBA})(?: ?(?:{_ENGLISH_TBA}))?"
 )
 """A placeholder in English or in CJK, or one of each side by side ("TBA (to be
-determined)" with the second in Chinese)."""
+determined)" with the second in Chinese, also without a space between them). The words
+for "title" and for the kind of event, in English or in CJK, come before a placeholder of
+either language ("title: TBA" and "seminar: to be determined" with one part in Chinese),
+as "title" and "seminar" do before an English one."""
 _ABSTRACT_HEADING: Final = re.compile(
     r"^(?:(?:abstract|summary|description)(?: and title)?\b"
     "|\u6458\u8981|\u7b80\u4ecb|\u7c21\u4ecb|\u6982\u8981|\u8981\u65e8|\ucd08\ub85d|\uc694\uc57d"
@@ -233,7 +246,11 @@ def is_tba(title: str | None) -> bool:
     ("--", "?!"); a title in Chinese, or the Greek letter pi alone, is one.
     The placeholders are English ("TBA", "Title to come") and Chinese,
     Japanese or Korean (for "to be determined", alone or after the word
-    for "title"), also one of each side by side.
+    for "title" or for the kind of event), also one of each side by side,
+    with or without a space. The words for "title" and for the kind of
+    event may be in either language, whatever the language of the
+    placeholder ("Seminar: TBA", and "Seminar:" followed by "to be
+    determined" in Chinese).
     """
     if title is None:
         return True

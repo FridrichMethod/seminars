@@ -14,11 +14,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import quote
 
 import pytest
 
 import test_site_browser as harness
-from test_site_browser import Session, sample, serve_json
+from seminars.i18n import LOCALES
+from seminars.models import TBA_TITLE
+from test_site_browser import Session, catalog, sample, serve_json
 
 pytestmark = pytest.mark.browser
 
@@ -93,4 +96,31 @@ class TestSearch:
         current.page.locator("#search").fill(query)
         current.page.locator("#search").press("Enter")
         assert current.shown() == expected
+        current.assert_clean()
+
+
+class TestPlaceholderSearch:
+    """A talk without a title shows the placeholder of the page's language, and is found
+    by it: the search text of such a talk holds the placeholder of every language."""
+
+    @pytest.mark.parametrize("page_lang", ["en", "zh"])
+    @pytest.mark.parametrize("word_lang", LOCALES)
+    def test_the_placeholder_of_every_language_finds_the_talk(
+        self, session: Callable[..., Session], page_lang: str, word_lang: str
+    ) -> None:
+        word = catalog(word_lang)["site.event.tba"]
+        current = session().open(f"index.html?lang={page_lang}&q={quote(word)}")
+        assert current.shown() == ["sample-tba"]
+        current.assert_clean()
+
+    def test_a_title_that_only_contains_the_word_gets_no_placeholder(
+        self, session: Callable[..., Session]
+    ) -> None:
+        payload = sample("events.json")
+        tba = next(event for event in payload["events"] if event["uid"] == "sample-tba")
+        tba["title"] = f"{TBA_TITLE}: a talk on knots"
+        current = session()
+        serve_json(current, "events.json", payload)
+        current.open(f"index.html?lang=zh&q={quote(catalog('zh-CN')['site.event.tba'])}")
+        assert current.shown() == []
         current.assert_clean()

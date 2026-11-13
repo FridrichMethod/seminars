@@ -144,6 +144,129 @@ class TestTalkText:
         assert talk_text(text) == text
 
 
+class TestTalkAfterABiography:
+    """A biography that comes first ends where the talk starts, in any of its usual forms."""
+
+    @pytest.mark.parametrize(
+        "heading",
+        [
+            "Talk: Enzyme design at scale",
+            "Topic: Enzyme design at scale",
+            "talk:",
+            "Abstract - We design enzymes.",
+            "Abstract -- We design enzymes.",
+            "Abstract \u2013 We design enzymes.",
+            "Abstract\u2014We design enzymes.",
+            "AbstractWe design enzymes.",
+        ],
+    )
+    def test_the_talk_heading_ends_the_biography(self, heading: str) -> None:
+        text = f"Bio:\nJane is a chemist.\n{heading}\nMore on enzymes."
+        assert talk_text(text) == f"{heading}\nMore on enzymes."
+
+    @pytest.mark.parametrize(
+        ("line", "talk"),
+        [
+            (
+                "About the SpeakerJane Doe is a chemist. AbstractWe design enzymes.",
+                "AbstractWe design enzymes.",
+            ),
+            (
+                "About the SpeakerJane Doe is a chemist.Abstract: We design enzymes.",
+                "Abstract: We design enzymes.",
+            ),
+            (
+                "Bio: Jane is a chemist. Abstract - We design enzymes.",
+                "Abstract - We design enzymes.",
+            ),
+            (
+                "About the SpeakerJane Doe is a chemistAbstract: We design enzymes.",
+                "Abstract: We design enzymes.",
+            ),
+            (
+                "Bio: Jane is a chemist!  Abstract\u2014We design enzymes.",
+                "Abstract\u2014We design enzymes.",
+            ),
+        ],
+    )
+    def test_a_flattened_line_keeps_the_talk_after_its_abstract_heading(
+        self, line: str, talk: str
+    ) -> None:
+        assert talk_text(f"{line}\nMore on enzymes.") == f"{talk}\nMore on enzymes."
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "Talking points for the panel",
+            "Topics in enzyme design",
+            "Abstract algebra and its uses",
+            "Abstract Algebra Seminar",
+            "Abstract-level reasoning about programs",
+            "Abstraction in programming languages",
+            "ABSTRACTION IN PROGRAMMING",
+        ],
+    )
+    def test_a_line_that_starts_like_a_talk_heading_does_not_end_the_biography(
+        self, line: str
+    ) -> None:
+        text = f"{TALK}\nBio:\nJane is a chemist.\n{line}\nShe likes knots."
+        assert talk_text(text) == TALK
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "About the SpeakerJane Doe is a chemist. Abstract submissions are due.",
+            "About the SpeakerJane Doe teaches Abstract Algebra.",
+            "About the SpeakerJane Doe works on Abstraction.",
+            "Bio: Jane Doe works on the Abstract-level design of chips.",
+        ],
+    )
+    def test_an_abstract_word_inside_a_biography_is_no_heading(self, line: str) -> None:
+        assert talk_text(f"{TALK}\n{line}\nMore.") == TALK
+
+    @pytest.mark.parametrize(
+        ("line", "rest"),
+        [
+            (
+                "Bio: Jane curated the exhibition Abstract \u2013 Figurative at MoMA.",
+                "She won prizes in physics.",
+            ),
+            (
+                "Bio: Jane wrote the book Abstract: The Art of Design.",
+                "She holds a degree in physics.",
+            ),
+            ("Bio: Jane wrote the book Abstract - The Art of Design.", "She studied physics."),
+            ("About the SpeakerJane wrote Abstract: A Memoir.", "She studied physics."),
+        ],
+    )
+    def test_a_work_called_abstract_inside_a_biography_is_no_heading(
+        self, line: str, rest: str
+    ) -> None:
+        """Only a heading after the end of a sentence, or run into the text, ends the bio."""
+        assert talk_text(f"{TALK}\n{line}\n{rest}") == TALK
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Bio: " + "Abstract " * 30_000,
+            "Bio: " + "Abstract" + " " * 100_000 + "x",
+            "Bio\nAbstract" + " " * 100_000 + "x",
+            "About the SpeakerJane" + " -" * 50_000,
+            "Bio: ." + " " * 100_000 + "x",
+            "Bio: " + ". " * 50_000 + "Abstractx",
+        ],
+    )
+    def test_a_hostile_line_takes_linear_time(self, text: str) -> None:
+        started = time.perf_counter()
+        talk_text(text)
+        assert time.perf_counter() - started < 1.0
+
+    def test_a_quoted_title_after_the_biography_is_not_read(self) -> None:
+        """A known limit: only a heading ends the biography, not a title in quotes."""
+        text = 'About the Speaker\nJane.\n"Enzyme design at scale"\nWe design enzymes.'
+        assert talk_text(text) == ""
+
+
 class TestTagging:
     def test_words_of_a_biography_add_no_field(self, tagger: RuleFieldTagger) -> None:
         abstract = f"{TALK}\nBio\nJane holds a Ph.D. in Applied Physics."
