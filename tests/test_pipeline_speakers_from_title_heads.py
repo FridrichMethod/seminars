@@ -2,8 +2,9 @@
 
 A head that honours a person ("In Memoriam", "In Honor of", "Obituary", "Tribute",
 "Celebration of Life") names the person a memorial is for, not a speaker, so such a
-title gives no speaker at all. Every part in front of the last one is such a head,
-except inside a quoted talk title.
+title gives no speaker at all. Every part in front of the name is such a head, except
+inside a quoted talk title; the parts after the first one that starts with a name are
+the talk title, quoted or not.
 A head that is only a term, a month or a year ("Spring 2025", "Jan. 2025") is no series
 either, and an honorific in any part after it does not vouch for the name: an honorific
 goes with a person, not with a speaker.
@@ -56,6 +57,8 @@ OBITUARY = "Dr. Jane Doe was a professor of physics at MIT for forty years."
         "Seminar Series: Tribute: Prof. Jane Doe",
         "Physics Colloquium | In Honor of | Jane Doe, PhD",
         "Seminar: In Memoriam - Jane Doe (MIT)",
+        # An unquoted talk title in front of the name cannot be told from a memorial head.
+        "Seminar | In Memoriam: The Last Glacier | Dr. Jane Doe",
     ],
 )
 def test_a_head_that_honours_a_person_gives_no_speaker(title: str) -> None:
@@ -87,10 +90,19 @@ def test_a_memorial_that_names_a_series_keeps_its_speaker(title: str) -> None:
         'Seminar | "In Memoriam: The Last Glacier" | Dr. Jane Doe',
         'Seminar: "Tribute: Songs of the Sea" - Dr. Jane Doe',
         "Seminar | \u201cIn Memoriam: The Last Glacier\u201d | Dr. Jane Doe",
+        # After the name, the talk title keeps its memorial head, quoted or not.
+        "Seminar: Dr. Jane Doe - In Memoriam: The Last Glacier",
+        "Seminar: Dr. Jane Doe - Tribute: Songs of the Sea",
+        "Seminar: Dr. Jane Doe - 'Tribute: Songs of the Sea'",
     ],
 )
 def test_a_memorial_in_the_talk_title_keeps_its_speaker(title: str) -> None:
     assert speakers_from_title(title) == [ParsedSpeaker("Jane Doe", None)]
+
+
+def test_a_memorial_after_a_name_first_keeps_its_speaker() -> None:
+    found = speakers_from_title("Jane Doe (MIT): Tribute - Knots")
+    assert found == [ParsedSpeaker("Jane Doe", "MIT")]
 
 
 @pytest.mark.parametrize(
