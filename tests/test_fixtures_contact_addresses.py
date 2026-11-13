@@ -1,9 +1,9 @@
-"""Recordings hold no personal e-mail address.
+"""Recordings and their notes hold no personal e-mail address.
 
 The fixtures are committed to a public repository, so the address of an
 individual is replaced before a recording is committed and the README of the
 fixture directory says so (tests/fixtures/README.md). An address in a
-recording is one of:
+recording or in a note is one of:
 
 * a placeholder: the local part is ``redacted`` (``redacted@stanford.edu``);
 * an address on an example domain (``someone@example.edu``);
@@ -16,9 +16,13 @@ at sign: JSON escapes (``\\u0040``), HTML character references (``&#64;``)
 and percent-encoding (``%40``); the folded lines of an ICS file are joined
 first. Image names for dense screens (``logo@2x.png``) are no addresses.
 
-Every file below tests/fixtures is a README.md, a manifest.json or a recording
-with a suffix in ``RECORDING_SUFFIXES``, so every recording is scanned: a new
-kind of recording fails ``test_there_are_recordings`` until its suffix is added.
+Every file below tests/fixtures is a note, a manifest.json or a recording with
+a suffix in ``RECORDING_SUFFIXES``, so every recording is scanned: a new kind
+of recording fails ``test_there_are_recordings`` until its suffix is added. A
+note is what the fixture tool takes for one (``seminars.fixtures``): a file
+whose name starts with ``README``, here in Markdown (``README.zh-CN.md`` is
+one too). The notes are scanned as well, because they list the replacements
+and so are where an original address is likeliest to be quoted.
 """
 
 from __future__ import annotations
@@ -34,13 +38,23 @@ import pytest
 
 FIXTURES: Final = Path(__file__).resolve().parent / "fixtures"
 RECORDING_SUFFIXES: Final = frozenset({".html", ".json", ".xml", ".ics"})
-NOT_RECORDINGS: Final = frozenset({"README.md", "manifest.json"})
-"""The notes and the manifest of a fixture directory: written by hand or by the tool."""
-RECORDINGS: Final = sorted(
-    path
-    for path in FIXTURES.rglob("*")
-    if path.is_file() and path.suffix in RECORDING_SUFFIXES and path.name not in NOT_RECORDINGS
-)
+MANIFEST_NAME: Final = "manifest.json"
+"""The manifest of a fixture directory, written by the fixture tool."""
+NOTE_PREFIX: Final = "README"
+NOTE_SUFFIX: Final = ".md"
+"""A note is ``README*.md``: the prefix by the rule of the fixture tool, in Markdown."""
+
+
+def is_note(path: Path) -> bool:
+    """Whether ``path`` is a note of a fixture directory, written by hand."""
+    return path.name.startswith(NOTE_PREFIX) and path.suffix == NOTE_SUFFIX
+
+
+FILES: Final = sorted(path for path in FIXTURES.rglob("*") if path.is_file())
+RECORDINGS: Final = [
+    path for path in FILES if path.suffix in RECORDING_SUFFIXES and path.name != MANIFEST_NAME
+]
+NOTES: Final = [path for path in FILES if is_note(path)]
 
 SHARED_ADDRESSES: Final = frozenset(
     {
@@ -109,25 +123,49 @@ def may_stay(address: str) -> bool:
 def test_there_are_recordings() -> None:
     assert len(RECORDINGS) > 50
     assert {path.suffix for path in RECORDINGS} == RECORDING_SUFFIXES
+    assert FIXTURES / "README.md" in NOTES
     # Only the suffixes above are scanned. A recording of another kind (the fixture tool
     # also stores text/plain bodies as .txt) fails here until its suffix is added.
     unscanned = sorted(
         str(path.relative_to(FIXTURES))
-        for path in FIXTURES.rglob("*")
-        if path.is_file()
-        and path.name not in NOT_RECORDINGS
-        and path.suffix not in RECORDING_SUFFIXES
+        for path in FILES
+        if path not in RECORDINGS and path not in NOTES and path.name != MANIFEST_NAME
     )
     assert unscanned == []
 
 
-@pytest.mark.parametrize("path", RECORDINGS, ids=lambda path: str(path.relative_to(FIXTURES)))
-def test_a_recording_holds_no_personal_address(path: Path) -> None:
+def personal_addresses(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8", errors="replace")
-    personal = sorted(
+    return sorted(
         found for found in addresses(text, ics=path.suffix == ".ics") if not may_stay(found)
     )
-    assert personal == []
+
+
+@pytest.mark.parametrize("path", RECORDINGS, ids=lambda path: str(path.relative_to(FIXTURES)))
+def test_a_recording_holds_no_personal_address(path: Path) -> None:
+    assert personal_addresses(path) == []
+
+
+@pytest.mark.parametrize("path", NOTES, ids=lambda path: str(path.relative_to(FIXTURES)))
+def test_a_note_holds_no_personal_address(path: Path) -> None:
+    # A note names the placeholder of a replacement, never the address it replaced.
+    assert personal_addresses(path) == []
+
+
+@pytest.mark.parametrize(
+    ("name", "note"),
+    [
+        ("README.md", True),
+        ("README.zh-CN.md", True),
+        ("README-trimmed.md", True),
+        ("readme.md", False),
+        ("notes.md", False),
+        ("README.json", False),
+        ("README.txt", False),
+    ],
+)
+def test_a_note_is_named_as_the_fixture_tool_names_it(name: str, note: bool) -> None:
+    assert is_note(FIXTURES / "some-source" / name) is note
 
 
 class TestTheScan:
