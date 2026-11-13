@@ -139,9 +139,11 @@ _POSSESSIVE: Final = re.compile("[^\\W\\d_]+['\u2019]s")
 _SHOUTED: Final = re.compile(r"[^\W\d_]*(?:[A-Z]{2}|[a-z][A-Z]{2})[^\W\d_]*")
 """A word in capitals ("BOOK", "TNT") or with a run of them inside ("StEMI"): no name."""
 _TITLED_BEFORE: Final = re.compile(
-    r"\b(?:dr|prof|professor|mr|mrs|ms|mx|speaker|presenter)\.?\s{0,3}:?\s{0,3}$", re.IGNORECASE
+    r"\b(?:(?:dr|prof|mr|mrs|ms|mx)\.?|professor|speaker|presenter)\s{0,3}:?\s{0,3}$",
+    re.IGNORECASE,
 )
-"""An honorific or a label in front of a name, which only a person has ("Dr. Jane Roe")."""
+"""An honorific or a label in front of a name, which only a person has ("Dr. Jane Roe").
+Only an abbreviation takes a dot: "the speaker." ends a sentence and labels nothing."""
 _INTRODUCED_BEFORE: Final = re.compile(
     r"\b(?:featuring|features?|welcomes?|by)\s{0,3}:?\s{0,3}$", re.IGNORECASE
 )
