@@ -504,13 +504,26 @@ class TestLLMSmoke:
             LLMProviderResult(
                 provider="anthropic", status="failed", failure_kind="auth", error="bad key"
             ),
-            LLMProviderResult(provider="openai", status="unused"),
+            LLMProviderResult(
+                provider="openai",
+                status="unused",
+                warnings=["not configured: OPENAI_API_KEY is not set"],
+            ),
+            LLMProviderResult(
+                provider="openai-compat",
+                status="unused",
+                model="local",
+                warnings=["not configured: LLM_BASE_URL is not set", "second"],
+            ),
+            LLMProviderResult(provider="codex-cli", status="unused"),
         ]
         result = invoke("llm-smoke")
         assert result.output.splitlines() == [
             "claude-cli: ok (model m1)",
             "anthropic: failed: auth: bad key",
-            "openai: unused",
+            "openai: unused: not configured: OPENAI_API_KEY is not set",
+            "openai-compat: unused (model local): not configured: LLM_BASE_URL is not set",
+            "codex-cli: unused",
         ]
         assert result.exit_code == 1
 
