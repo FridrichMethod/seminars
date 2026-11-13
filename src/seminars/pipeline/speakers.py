@@ -105,17 +105,18 @@ word is a common word of English or of a field ("Heart Failure", "Sea
 Level Rise", "Elliptic Curves", "Wound Healing"). The endings of a field
 leave out the short words that names end in as well ("Lawrence",
 "Clement", "Davies", "de Vries"), and the common words leave out first
-names ("Grace", "Mark", "Ray", "Dominic", "Constance", "Clement"), so most
-names hold a word outside them ("Emily Fox", "Anthony Green", "Clement
-Price").
+names ("Grace", "Mark", "Ray", "Dominic", "Constance", "Clement",
+"Crystal"), so most names hold a word outside them ("Emily Fox", "Anthony
+Green", "Clement Price"), and the words of a field hold the topics such a
+first name starts ("Crystal Growth").
 
 These tests are word lists and endings, not a general rule, and that is
 their limit: a topic of words they do not hold ("Salt Marshes", "Bird
 Song") still reads like a name after a series, and a name of common words
-only ("Coral Banks", "River Stone", "Forest White") needs its abstract:
-"River" and "Forest" start topics far more often ("River Floods", "Forest
-Fires"). A wrong speaker is worse than none, so the lists err towards
-topics.
+only ("Coral Banks", "River Stone", "Forest White", "Gene Price") needs its
+abstract: "River", "Forest" and "Gene" start topics far more often ("River
+Floods", "Forest Fires", "Gene Transfer"). A wrong speaker is worse than
+none, so the lists err towards topics.
 """
 
 from __future__ import annotations
@@ -417,7 +418,8 @@ _TOPIC_WORDS: Final = word_set(
     " bosons quarks neutrinos photons electrons fermions qubits computers conjecture"
     " conjectures hypothesis problem problems method methods approach approaches framework"
     " frameworks datasets knots loops modules sheaves ecosystem ecosystems microbes"
-    " microbiome bacteria viruses virus tumors tumours drugs"
+    " microbiome bacteria viruses virus tumors tumours drugs growth defect defects lattice"
+    " lattices phase phases shape shapes size sizes packing melting habit habits optics"
     " computing sensing imaging modeling modelling sequencing signaling signalling folding"
     " processing programming reasoning mining editing scattering tracking planning matching"
     " sampling clustering testing screening printing manufacturing forecasting monitoring"
@@ -543,10 +545,10 @@ Rise", "Elliptic Curves"). Words that are also first names ("Grace", "Mark", "Ro
 "Ray", "Will") or common surnames in Chinese ("Sun") are not in it."""
 _FIRST_NAMES: Final = word_set(
     "dominic cedric frederic clarence constance florence laurence lawrence terence terrence"
-    " clement prudence patience charity felicity verity"
+    " clement prudence patience charity felicity verity crystal"
 )
-"""First names that end like a common word ("Dominic", "Constance", "Clement"), which are
-not counted as common words."""
+"""First names that end like a common word ("Dominic", "Constance", "Clement") or that are
+the singular of a word of a field ("Crystal"), which are not counted as common words."""
 _COMMON_ENDINGS: Final = re.compile(
     r"\w{2,}(?:tions?|sions?)|\w{3,}(?:ments?|ness|ity|ities|ism|isms|ist|ists|osis|itis)"
     r"|\w{4,}(?:ures?|ances?|ences?|ive|ives|ous|ings?)|\w{3,}(?:ency|ancy)"

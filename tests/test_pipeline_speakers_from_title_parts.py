@@ -174,14 +174,45 @@ def test_a_first_name_that_ends_like_a_common_word_is_a_name(name: str) -> None:
 
 
 @pytest.mark.parametrize(
+    "name",
+    ["Crystal Green", "Crystal Young", "Crystal Price", "Crystal Stone", "Crystal White"],
+)
+def test_a_first_name_that_is_the_singular_of_a_topic_word_is_a_name(name: str) -> None:
+    assert speakers_from_title(f"Seminar: {name}") == [ParsedSpeaker(name, None)]
+
+
+@pytest.mark.parametrize(
     "title",
     [
-        # "Forest" and "River" start topics far more often than names; a name of them and a
-        # common surname needs its abstract.
+        "Seminar: Crystal Growth",
+        "Seminar: Crystal Defects",
+        "Seminar: Crystal Lattices",
+        "Seminar: Crystal Phases",
+        "Seminar: Crystal Shapes",
+        "Seminar: Crystal Size",
+        "Seminar: Crystal Packing",
+        "Seminar: Crystal Optics",
+        "Seminar: Crystal Structures",
+        "Seminar: Liquid Crystals",
+    ],
+)
+def test_a_topic_that_starts_with_the_first_name_crystal_still_reads_like_a_topic(
+    title: str,
+) -> None:
+    assert speakers_from_title(title) == []
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        # "Forest", "River" and "Gene" start topics far more often than names; a name of
+        # them and a common surname needs its abstract.
         "Seminar: Forest Fires",
         "Seminar: River Floods",
+        "Seminar: Gene Transfer",
         "Seminar: Forest White",
         "Seminar: River Stone",
+        "Seminar: Gene Price",
         # A first name is no common word, but "-ity" at the end still ends a topic.
         "Seminar: Public Charity",
     ],
