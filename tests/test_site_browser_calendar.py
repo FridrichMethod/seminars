@@ -5,10 +5,10 @@ The module runs in the served talk list, imported by the test (a dynamic import 
 CRLF line endings. What it makes is checked in Python against the same file: a cut of
 the feed made here line by line (``expected_calendar``) and the feed validator of the
 pipeline (``seminars.outputs.ics.validate_ics``). Calendars written by hand cover what
-the sample feed does not hold: folded UIDs, alarms, UIDs without a domain and broken
-text. The server, the browser and the sessions are those of test_site_browser.py; its
-fixtures are bound to names of this module, so pytest finds them here as well. Marked
-``browser`` like that module: ``uv run pytest -m browser``.
+the sample feed does not hold: folded UIDs, alarms, UIDs without a domain, more than one
+time zone and broken text. The server, the browser and the sessions are those of
+test_site_browser.py; its fixtures are bound to names of this module, so pytest finds them
+here as well. Marked ``browser`` like that module: ``uv run pytest -m browser``.
 """
 
 from __future__ import annotations
@@ -281,6 +281,37 @@ def calendar(*components: list[str], header: Iterable[str] | None = None) -> str
     return CRLF.join([*lines, "END:VCALENDAR"]) + CRLF
 
 
+def zone(tzid: str, name: str, start: str, offset_from: str, offset_to: str) -> list[str]:
+    """A VTIMEZONE of one observance: standard time from ``start`` (local time) on."""
+    return [
+        "BEGIN:VTIMEZONE",
+        f"TZID:{tzid}",
+        "BEGIN:STANDARD",
+        f"DTSTART:{start}",
+        f"TZNAME:{name}",
+        f"TZOFFSETFROM:{offset_from}",
+        f"TZOFFSETTO:{offset_to}",
+        "END:STANDARD",
+        "END:VTIMEZONE",
+    ]
+
+
+def zoned_event(uid: str, tzid: str) -> list[str]:
+    """A VEVENT whose start and end are local times of the zone ``tzid``."""
+    return [
+        "BEGIN:VEVENT",
+        f"UID:{uid}@{UID_DOMAIN}",
+        "DTSTAMP:20261110T120000Z",
+        f"DTSTART;TZID={tzid}:20261117T160000",
+        f"DTEND;TZID={tzid}:20261117T170000",
+        "SUMMARY:A talk",
+        "END:VEVENT",
+    ]
+
+
+LOS_ANGELES = zone("America/Los_Angeles", "PST", "20261101T020000", "-0700", "-0800")
+BERLIN = zone("Europe/Berlin", "CET", "20261025T030000", "+0200", "+0100")
+
 ALARM = [
     "BEGIN:VALARM",
     "ACTION:DISPLAY",
@@ -518,6 +549,23 @@ class TestCalendarFor:
         assert result["text"] == calendar(
             event(), header=["VERSION:2.0", *prodid, "METHOD:PUBLISH"]
         )
+        assert validate_ics(result["text"]) == []
+        current.assert_clean()
+
+    def test_every_time_zone_of_the_feed_is_kept_in_feed_order(self, current: Session) -> None:
+        """A feed of two zones, the second after the first event: the file keeps both,
+        before its events, though the chosen talk uses only the second."""
+        first = zoned_event("first", "America/Los_Angeles")
+        second = zoned_event("second", "Europe/Berlin")
+        text = calendar(LOS_ANGELES, first, BERLIN, second)
+        assert validate_ics(text) == []
+        parsed = current.page.evaluate(PARSE, text)
+        assert parsed["timezones"] == [LOS_ANGELES, BERLIN]
+        assert [found["uid"] for found in parsed["events"]] == ["first", "second"]
+        result = cut(current, ["second"], text)
+        assert result["included"] == ["second"]
+        assert result["text"] == calendar(LOS_ANGELES, BERLIN, second)
+        assert result["text"] == expected_calendar(text, ["second"])
         assert validate_ics(result["text"]) == []
         current.assert_clean()
 
