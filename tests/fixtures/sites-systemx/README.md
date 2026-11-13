@@ -27,9 +27,12 @@ the selectors are in `params` of the source in `config/sources.d/stanford-sites.
   C. Arrillaga Alumni Center (type `Workshop`).
 - The title of a seminar is the talk title. The speaker is named only in the body of
   the detail page, under the heading `Speaker Bio:` (Ingrid Verbauwhede, KU Leuven, in
-  the image `alt` and the first sentence); the template has no speaker field, so the
-  draft has no speaker. The body starts with `Abstract/Description:` and becomes the
-  abstract.
+  the image `alt` and the first sentence); the template has no speaker field. The
+  source entry reads the speaker from the first sentence after that heading
+  (`detail_page.speaker_label` and `speaker_pattern`), so the seminar draft names
+  Ingrid Verbauwhede with the affiliation KU Leuven. The body starts with
+  `Abstract/Description:` and becomes the abstract. The detail page of the summit has
+  no `Speaker Bio:` heading, and its draft names no speaker.
 - The list page also has a "Past Events" block (`past-events-list-block`, 20 cards);
   the item selector leaves it out.
 - Cards have an address and no alternative location.

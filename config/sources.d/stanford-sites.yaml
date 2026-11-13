@@ -869,7 +869,12 @@ sources:
         # parenthesis, the end of the sentence, or a lowercase clause ("and a member",
         # "in the Department"); without such an end ("Univ. of Texas", "Stanford
         # University and Director of ...") the speaker is kept and the affiliation left
-        # out, so that no part of a longer name is taken for all of it.
+        # out, so that no part of a longer name is taken for all of it. A period after
+        # a single capital that follows a space or a period, or after the word "St",
+        # "Mt" or "Ft", ends an abbreviation, not the sentence, so an affiliation with
+        # one ("U.S. Naval Research Laboratory", "U.C. Berkeley", "St. Jude Children's
+        # Research Hospital") is left out as well; the period of "Texas A&M." or "MIT."
+        # ends the sentence.
         # The pattern is verbose ((?x)): its spaces and line breaks are not part of it.
         <<: *su-detail-page
         speaker_label: '^Speaker Bio:?$'
@@ -882,7 +887,8 @@ sources:
           (?P<affiliation>[A-Z][\w&'-]*
           (?:\s+(?:(?:of|for|at|the|de|des|di|du|del|der|la|y|&)\s+)*[A-Z][\w&'-]*)*
           (?:,\s+(?!(?:Dr|Prof|Professor)\b)[A-Z][\w&'-]*(?:\s+[A-Z][\w&'-]*)*)?)
-          (?=\s*[,;(]|\.(?!\s*[a-z])|\s*$|\s+(?:and|as|in|since|where|who|with)\s+[a-z])
+          (?=\s*[,;(]|(?<![\s.][A-Z])(?<!\b(?:St|Mt|Ft))\.(?!\s*[a-z])|\s*$
+          |\s+(?:and|as|in|since|where|who|with)\s+[a-z])
           )?
       event_type_names:
         Seminars: seminar

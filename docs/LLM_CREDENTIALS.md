@@ -52,7 +52,9 @@ claude-cli -> codex-cli -> anthropic -> openai -> openai-compat -> none
   in the health data also on a day without new events. When a provider fails with an
   authentication failure, an exhausted quota, a rate limit, a timeout or a network error,
   it is marked unavailable for the rest of the run and the request goes to the next
-  provider. When all of them have failed, the run goes on with the rules only.
+  provider. When all of them have failed, the run goes on without a provider: the answers
+  stored in `data/llm_cache/` by earlier runs still apply (see "Switching the LLM off"),
+  and the rest comes from the rules.
 * An answer that does not match the expected format is discarded. That is not a reason to
   switch providers.
 * Every failure is recorded in the health data. When the same provider fails twice in a

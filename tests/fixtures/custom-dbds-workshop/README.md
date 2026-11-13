@@ -33,8 +33,9 @@ The body was renamed after recording (the manifest names the file above).
 
 10 drafts from one request, each with the date, the speaker and the title (the last
 two keep `Coming soon`, which normalization reads as TBA), from 13:30 to 14:50 naive
-local time (`default_start_time`, `default_end_time`). The room is in the
-heading of the page, outside the talk, so the drafts have no location.
+local time (`default_start_time`, `default_end_time`). The room is in the heading of
+the page, outside the talk, so every draft has the location `LKSC 120 (Li Ka Shing
+Center)` from `default_location` of the source entry.
 
 ## What was replaced
 
