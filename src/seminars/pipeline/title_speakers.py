@@ -20,10 +20,12 @@ the words of a series ("Seminar", "Lecture", "Grand Rounds", "Defense",
 names as well. Then the form must vouch for it. A mark that goes with the
 name is an honorific ("Dr. Jane Doe"), a degree ("Jane Doe PhD", "Jane
 Doe, MD"), an organisation in brackets or after a comma, or a quoted title
-after it; a name suffix is none ("Knots II"). A head that honours a person
-("In Memoriam", "Tribute", "Celebration of Life") names the person a
-memorial is for, so its title gives no speaker, and after a head that is
-only a term or a year ("Spring 2025") an honorific is no mark:
+after it; a name suffix is none ("Knots II"). A part in front of the last
+one that honours a person ("In Memoriam", "In Honor of", "Obituary",
+"Tribute", "Celebration of Life") names the person a memorial is for, so
+its title gives no speaker; the parts of a quoted talk title are no such
+part. After a head that is only a term or a year ("Spring 2025") an
+honorific is no mark:
 
 * series first ("<series>: <name>[, <affiliation>][ - "<title>"]"): the
   part in front is a series, or a mark goes with the name, or the abstract
@@ -107,11 +109,13 @@ _SERIES_WORDS: Final = word_set(
 )
 """Words of the name of a series or an event; no person's name holds one."""
 _MEMORIAL: Final = re.compile(
-    r"(?:(?:a|an|the) )?(?:in (?:loving )?(?:memoriam|memory)|memorial(?: (?:service|gathering))?"
-    r"|tributes?|remembering|remembrance|celebrat(?:ion|ing) of (?:the )?life)"
+    r"(?:(?:a|an|the) )?(?:in (?:loving )?(?:memoriam|memory)(?: of)?|in remembrance(?: of)?"
+    r"|in honou?r of|honou?ring|obituar(?:y|ies)|memorial(?: (?:service|gathering))?|tributes?"
+    r"|remembering|remembrance|celebrat(?:ion|ing) of (?:the )?life(?: of)?"
+    r"|celebrating (?:the )?life of)"
 )
-"""A head that honours a person, folded ("In Memoriam", "Tribute", "Celebration of Life"):
-the name after it is the person the memorial is for."""
+"""A head that honours a person, folded ("In Memoriam", "In Honor of", "Obituary", "Tribute",
+"Celebration of Life"): the name after it is the person the memorial is for."""
 _TERM: Final = re.compile(
     r"(?:(?:ay|academic year) )?(?:(?:spring|summer|fall|autumn|winter)(?: (?:quarter|semester"
     r"|term))?)? ?(?:(?:19|20)\d{2}(?: \d{2}(?:\d{2})?)?)?"
@@ -625,11 +629,27 @@ def _with(title: str, abstract: str | None) -> list[ParsedSpeaker]:
     return [person] if _taken(person, _has_degree(text), abstract, title) else []
 
 
+def _heads(title: str) -> list[str]:
+    """The parts of ``title`` in front of its last one.
+
+    The first separator ends a part wherever it is, as everywhere in this
+    module. A later one inside a quoted talk title separates no parts: the
+    heads of 'Seminar: "Tribute: Songs of the Sea" - Dr. Jane Doe' are
+    "Seminar" and the quoted title as a whole.
+    """
+    heads: list[str] = []
+    start = 0
+    for index, separator in enumerate(_TITLE_SEPARATOR.finditer(title)):
+        if index == 0 or len(_QUOTE.findall(title, 0, separator.start())) % 2 == 0:
+            heads.append(title[start : separator.start()])
+            start = separator.end()
+    return heads
+
+
 def _honours_a_person(title: str) -> bool:
-    """Whether the head of ``title`` is a memorial ("In Memoriam: Dr. Jane Doe")."""
-    separator = _TITLE_SEPARATOR.search(title)
-    head = fold(title[: separator.start()]) if separator else ""
-    return _MEMORIAL.fullmatch(head) is not None
+    """Whether a part of ``title`` in front of its last one is a memorial ("In Memoriam: Dr.
+    Jane Doe", "Physics Colloquium | In Memoriam | Dr. Jane Doe")."""
+    return any(_MEMORIAL.fullmatch(fold(head)) is not None for head in _heads(title))
 
 
 def speakers_from_title(title: str, abstract: str | None = None) -> list[ParsedSpeaker]:

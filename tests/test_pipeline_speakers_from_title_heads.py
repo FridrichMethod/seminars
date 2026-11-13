@@ -1,7 +1,9 @@
 """Tests for the heads of a title that tell what the name after them stands for.
 
-A head that honours a person ("In Memoriam", "Tribute", "Celebration of Life") names
-the person a memorial is for, not a speaker, so such a title gives no speaker at all.
+A head that honours a person ("In Memoriam", "In Honor of", "Obituary", "Tribute",
+"Celebration of Life") names the person a memorial is for, not a speaker, so such a
+title gives no speaker at all. Every part in front of the last one is such a head,
+except inside a quoted talk title.
 A head that is only a term or a year ("Spring 2025") is no series either, and an
 honorific after it does not vouch for the name: an honorific goes with a person, not
 with a speaker.
@@ -33,6 +35,27 @@ OBITUARY = "Dr. Jane Doe was a professor of physics at MIT for forty years."
         "In Memoriam: Jane Doe, PhD",
         "In Memoriam: Jane Doe (MIT)",
         "Memorial: Jane Doe in conversation with John Roe",
+        "In Remembrance: Dr. Jane Doe",
+        "In Remembrance of: Dr. Jane Doe",
+        "In Memory of: Dr. Jane Doe",
+        "In Loving Memory of: Dr. Jane Doe",
+        "In Honor of: Dr. Jane Doe",
+        "In Honour of: Dr. Jane Doe",
+        "Honoring: Dr. Jane Doe",
+        "Honouring: Dr. Jane Doe",
+        "Obituary: Dr. Jane Doe",
+        "Obituaries: Dr. Jane Doe",
+        "Celebrating the Life of: Dr. Jane Doe",
+        "Celebrating Life of: Dr. Jane Doe",
+        "Celebration of the Life of: Dr. Jane Doe",
+        '"In Memoriam": Dr. Jane Doe',
+        # The first separator ends the head even after a quote that is never closed.
+        '"In Memoriam: Dr. Jane Doe',
+        # A memorial in any part in front of the last one, not only in the first.
+        "Physics Colloquium | In Memoriam | Dr. Jane Doe",
+        "Seminar Series: Tribute: Prof. Jane Doe",
+        "Physics Colloquium | In Honor of | Jane Doe, PhD",
+        "Seminar: In Memoriam - Jane Doe (MIT)",
     ],
 )
 def test_a_head_that_honours_a_person_gives_no_speaker(title: str) -> None:
@@ -46,9 +69,40 @@ def test_a_head_that_honours_a_person_gives_no_speaker(title: str) -> None:
         "Smith Memorial Lecture: Dr. Jane Doe",
         "The Smith Memorial Lecture - Prof. Jane Doe",
         "Celebration: Dr. Jane Doe",
+        "Physics Colloquium | Smith Memorial Lecture | Dr. Jane Doe",
     ],
 )
 def test_a_memorial_that_names_a_series_keeps_its_speaker(title: str) -> None:
+    assert speakers_from_title(title) == [ParsedSpeaker("Jane Doe", None)]
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        # The last part is the talk title, and so is a quoted title: a memorial there is
+        # the topic of the talk, not a head.
+        "Physics Colloquium: Dr. Jane Doe - In Memoriam",
+        'Seminar: Dr. Jane Doe - "Tribute: Songs of the Sea"',
+        'Seminar: Dr. Jane Doe, "In Memoriam: The Last Glacier"',
+        'Seminar | "In Memoriam: The Last Glacier" | Dr. Jane Doe',
+        'Seminar: "Tribute: Songs of the Sea" - Dr. Jane Doe',
+        "Seminar | \u201cIn Memoriam: The Last Glacier\u201d | Dr. Jane Doe",
+    ],
+)
+def test_a_memorial_in_the_talk_title_keeps_its_speaker(title: str) -> None:
+    assert speakers_from_title(title) == [ParsedSpeaker("Jane Doe", None)]
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Tribute to Euler: Dr. Jane Doe",
+        "Seminar: Tribute to Euler - Dr. Jane Doe",
+        "Physics Colloquium | Remembering Slavery | Dr. Jane Doe",
+        "Seminar | Honoring Indigenous Knowledge | Dr. Jane Doe",
+    ],
+)
+def test_a_memorial_word_inside_a_longer_part_keeps_its_speaker(title: str) -> None:
     assert speakers_from_title(title) == [ParsedSpeaker("Jane Doe", None)]
 
 
