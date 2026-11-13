@@ -130,7 +130,8 @@ class LLMUsage(Model):
     A run without a provider is not ``enabled`` either, but unlike a
     rules-only run it applies the answers that earlier runs stored
     (``stored_answers_only``); ``cache_hits`` then counts the answers it
-    used, and every other count is 0.
+    used, and every other count is 0. The tagger and the page extractor
+    share the one cache, so ``cache_hits`` counts the answers of both.
     """
 
     enabled: bool = False  # False in rules-only mode and without a provider
@@ -153,7 +154,8 @@ class LLMUsage(Model):
         whose providers answered nothing while the cache did (every answer
         it needed was stored already, or the providers failed). ``None``
         when a provider answered, and when no stored answer was used either:
-        such a run used rules only.
+        such a run used rules only. Like ``cache_hits``, the count covers
+        the answers of field tagging and of page reading alike.
         """
         return self.cache_hits if self.provider is None and self.cache_hits else None
 
@@ -172,8 +174,8 @@ class LastRun(Model):
     ``llm_provider`` is the provider that answered (``LLMUsage.provider``).
     ``llm_stored_answers`` counts the answers stored by earlier runs that the
     run applied while no provider answered, a run without a provider among
-    them (``LLMUsage.stored_answers``). Neither of them: the run used rules
-    only.
+    them (``LLMUsage.stored_answers``): those of field tagging and of page
+    reading alike. Neither of them: the run used rules only.
     """
 
     schema_version: Literal[1] = 1

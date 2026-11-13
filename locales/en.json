@@ -110,7 +110,7 @@
       "resized": "{source}: the listing has been far smaller than usual for so long that its new size is now taken as the usual one ({listed} instead of {usual}).",
       "llm": "Field tagging used the LLM provider {provider}.",
       "llm_none": "Field tagging used rules only (no LLM).",
-      "llm_stored": "No LLM provider answered; field tagging used {count} answer(s) stored by earlier runs."
+      "llm_stored": "No LLM provider answered; the run used {count} answer(s) stored by earlier runs."
     },
     "footer": {
       "site": "Full list and calendar subscriptions: {url}",
@@ -244,8 +244,8 @@
       "summary": "{ok} of {total} active sources are healthy.",
       "llm": "Field tagging used the LLM provider {provider}.",
       "llm_none": "Field tagging used rules only.",
-      "llm_stored_one": "No LLM provider answered; field tagging used {count} answer stored by earlier runs.",
-      "llm_stored_other": "No LLM provider answered; field tagging used {count} answers stored by earlier runs.",
+      "llm_stored_one": "No LLM provider answered; the run used {count} answer stored by earlier runs.",
+      "llm_stored_other": "No LLM provider answered; the run used {count} answers stored by earlier runs.",
       "partial": "Not read in full",
       "skipped_one": "{count} page could not be fetched",
       "skipped_other": "{count} pages could not be fetched",

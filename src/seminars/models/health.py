@@ -59,8 +59,9 @@ class LLMRunEntry(Model):
 
     ``provider`` is the provider that answered (``LLMUsage.provider``);
     ``stored_answers`` counts the answers stored by earlier runs that the
-    run applied while no provider answered (``LLMUsage.stored_answers``).
-    Neither of them: rules only.
+    run applied while no provider answered (``LLMUsage.stored_answers``),
+    those of field tagging and of page reading alike. Neither of them:
+    rules only.
     """
 
     at: Timestamp  # start time of the run

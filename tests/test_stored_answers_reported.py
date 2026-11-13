@@ -10,6 +10,7 @@ data/health.json (``HealthFile.llm_last_run``).
 
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 from pathlib import Path
 
@@ -39,6 +40,7 @@ from test_pipeline_run_stored_answers import used
 __all__ = ["config"]  # the fixture of test_pipeline_run
 
 HEALTH = "Source health"
+REPO_ROOT = Path(__file__).resolve().parents[1]
 STORED = LLMUsage(stored_answers_only=True, cache_hits=4)
 PROVIDER = LLMUsage(enabled=True, provider="claude-cli", calls=2)
 
@@ -125,10 +127,18 @@ class TestTheDigest:
         health = HealthFile().with_llm_run(REFERENCE_NOW, STORED)
         assert last_sentence(config, health) == "\n".join(
             [
-                "No LLM provider answered; field tagging used 4 answer(s) stored by earlier runs.",
+                "No LLM provider answered; the run used 4 answer(s) stored by earlier runs.",
                 zh("digest.health.llm_stored", count=4),
             ]
         )
+
+    def test_the_stored_answers_are_not_said_to_be_those_of_field_tagging(
+        self, app_config: AppConfig
+    ) -> None:
+        # The tagger and the page extractor share one cache, so the count covers both.
+        config = with_sources(app_config)
+        health = HealthFile().with_llm_run(REFERENCE_NOW, STORED)
+        assert "tagging" not in last_sentence(config, health).lower()
 
     def test_a_run_with_rules_only_after_one_with_a_provider_is_rules_only(
         self, app_config: AppConfig
@@ -147,3 +157,15 @@ class TestTheDigest:
         assert last_sentence(config, health).startswith(
             "Field tagging used the LLM provider claude-cli."
         )
+
+
+class TestTheStatusPageSentences:
+    """The sentences of the status page cover the answers of tagging and page reading."""
+
+    def test_the_english_sentences_name_the_run_not_field_tagging(self) -> None:
+        catalog = json.loads((REPO_ROOT / "locales" / "en.json").read_text(encoding="utf-8"))
+        status = catalog["site"]["status"]
+        assert [status["llm_stored_one"], status["llm_stored_other"]] == [
+            "No LLM provider answered; the run used {count} answer stored by earlier runs.",
+            "No LLM provider answered; the run used {count} answers stored by earlier runs.",
+        ]
