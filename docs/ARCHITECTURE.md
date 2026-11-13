@@ -276,7 +276,11 @@ replaced by an empty placeholder.
   text from the web is escaped. `seminars build-site` assembles `public/` from the committed
   data alone.
 - **Download of selected talks** (`site/calendar.js`): the talks a reader ticks in the list
-  are page state held in memory, never written to the address or to storage. On download
+  are page state held in memory, never written to the address or to storage. The selection
+  bar above the list is a region landmark; while talks are selected and the bar is
+  scrolled away (an IntersectionObserver), a strip at the bottom of the list keeps the
+  count and a second download button in reach, and the note of the bar on the one-time
+  copy links to the subscription panel. On download
   the page fetches `feeds/all.ics` from its own site (the path of the feed `all` in
   `events.json`) and copies the VEVENT blocks of the selected talks verbatim, in the order
   of the feed, into one calendar, together with every VTIMEZONE block and the basic header

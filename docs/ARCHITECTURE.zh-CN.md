@@ -224,7 +224,9 @@ key 由 prompt 版本、任务和输入文字组成，模型和 provider 都不�
   `events.json` 和 `status.json`；中英文文案来自 `locales/`。所有从网上抓来的文字都会转义。
   `seminars build-site` 只根据已经提交的数据组装 `public/`。
 - **选中报告的下载**（`site/calendar.js`）：读者在列表里勾选的报告是页面状态，只保存在内存里，
-  从不写进地址栏或浏览器存储。下载时，页面从自己的网站取回 `feeds/all.ics`（`events.json` 里 feed
+  从不写进地址栏或浏览器存储。列表上方的选择栏是一个 region landmark；选中了报告而选择栏滚出屏幕时
+  （由 IntersectionObserver 判断），列表底部的一条横栏显示选中的数量和第二个下载按钮，
+  选择栏里关于一次性副本的说明链接到订阅面板。下载时，页面从自己的网站取回 `feeds/all.ics`（`events.json` 里 feed
   `all` 的路径），把选中报告的 VEVENT 块按 feed 里的顺序原样复制进一个日历，连同 feed 的全部 VTIMEZONE
   块和基本的头部（`VERSION`、`PRODID`，以及存在时的 `CALSCALE`、`METHOD` 和 `X-WR-TIMEZONE`），
   但不带只有订阅才需要的头部属性（`X-WR-CALNAME`、`X-WR-CALDESC`、`REFRESH-INTERVAL`、
