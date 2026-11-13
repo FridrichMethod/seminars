@@ -126,9 +126,15 @@ class LLMUsage(Model):
     the tagger and the page extractor, so it always reports ``cache_hits``
     as 0. The pipeline, which opens the cache, fills the field in:
     ``chain.usage().evolve(cache_hits=cache.stats().hits)``.
+
+    A run without a provider is not ``enabled`` either, but unlike a
+    rules-only run it applies the answers that earlier runs stored
+    (``stored_answers_only``); ``cache_hits`` then counts the answers it
+    used, and every other count is 0.
     """
 
-    enabled: bool = False  # False in rules-only mode
+    enabled: bool = False  # False in rules-only mode and without a provider
+    stored_answers_only: bool = False  # no provider: only answers stored by earlier runs
     provider: str | None = None  # provider that answered the most recent successful call
     calls: Count = 0  # requests sent to providers
     cache_hits: Count = 0  # answers served from data/llm_cache/; set by the pipeline

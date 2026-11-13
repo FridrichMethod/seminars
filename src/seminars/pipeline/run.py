@@ -390,23 +390,36 @@ def _llm_failure(what: str, error: Exception) -> str:
     return f"{what} failed ({type(error).__name__})"
 
 
+def _cache_hits(cache: LLMCache | None) -> tuple[int, list[str]]:
+    """The hits of ``cache`` in this run, and a warning when they could not be read."""
+    if cache is None:
+        return 0, []
+    try:
+        return cache.stats().hits, []
+    except Exception as error:  # the optional LLM must not fail the run
+        return 0, [_llm_failure("reading the LLM cache counters", error)]
+
+
 def _llm_usage(services: Services) -> tuple[LLMUsage, list[str]]:
-    """What the LLM did in this run, and warnings when that could not be read."""
+    """What the LLM did in this run, and warnings when that could not be read.
+
+    A run without a provider whose tagger or page extractor answers from
+    the stored answers reports how many of them it used
+    (``LLMUsage.stored_answers_only``).
+    """
     if services.llm is None:
-        return LLMUsage(enabled=False), []
+        if services.llm_tagger is None and services.page_extractor is None:
+            return LLMUsage(enabled=False), []
+        hits, warnings = _cache_hits(services.read_only_cache)
+        return LLMUsage(stored_answers_only=True, cache_hits=hits), warnings
     warnings: list[str] = []
     try:
         usage = services.llm.usage()
     except Exception as error:  # the optional LLM must not fail the run
         usage = LLMUsage(enabled=True)
         warnings.append(_llm_failure("reading the LLM usage", error))
-    hits = 0
-    if services.llm_cache is not None:
-        try:
-            hits = services.llm_cache.stats().hits
-        except Exception as error:  # as above
-            warnings.append(_llm_failure("reading the LLM cache counters", error))
-    return usage.evolve(cache_hits=hits), warnings
+    hits, unread = _cache_hits(services.llm_cache)
+    return usage.evolve(cache_hits=hits), [*warnings, *unread]
 
 
 def _prune(cache: LLMCache | None) -> list[str]:
