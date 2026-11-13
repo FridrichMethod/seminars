@@ -39,9 +39,15 @@ from test_site_browser import (
     serve_json,
     widen_text,
 )
-from test_site_browser_calendar import block_of, crlf_only, expected_calendar, parts
+from test_site_browser_calendar import (
+    FETCH_TIMEOUT_MS,
+    block_of,
+    crlf_only,
+    expected_calendar,
+    parts,
+)
 from test_site_browser_loading import loading
-from test_site_browser_search import LIST_KEPT, MARK_LIST
+from test_site_browser_search import LIST_KEPT, MARK_LIST, paused
 
 pytestmark = pytest.mark.browser
 
@@ -517,6 +523,37 @@ class TestDownload:
         assert_file_of(download(current), feed, ["sample-pick", "sample-arc"])
         assert alert.count() == 0
         assert note(current) == counted("en", "site.select.saved", 2)
+        current.assert_clean()
+
+    def test_a_stalled_request_is_given_up_and_a_retry_succeeds(
+        self, session: Callable[..., Session], feed: str
+    ) -> None:
+        current = paused(session)
+        page = current.page
+        downloads: list[Any] = []
+        page.on("download", lambda saved: downloads.append(saved))
+        held: list[Any] = []
+        page.route(f"**/{FEED_PATH}", lambda route: held.append(route))
+        select(current, "sample-pick", "sample-arc")
+        with page.expect_request(f"**/{FEED_PATH}"):
+            page.locator(DOWNLOAD).click()
+        page.clock.run_for(FETCH_TIMEOUT_MS - 1)
+        assert page.locator(DOWNLOAD).get_attribute("aria-busy") == "true"
+        assert note(current) == catalog("en")["site.select.preparing"]
+        page.clock.run_for(1)
+        alert = page.locator(f"{NOTE} [role=alert]")
+        alert.wait_for()
+        assert alert.text_content() == catalog("en")["site.select.failed"]
+        assert page.locator(DOWNLOAD).get_attribute("aria-busy") == "false"
+        assert page.locator(DOWNLOAD).is_enabled()
+        assert checked(current) == ["sample-pick", "sample-arc"]
+        assert downloads == []
+        drop_expected_errors(current, rf"{re.escape(FEED_PATH)}: no answer within")
+
+        page.unroute(f"**/{FEED_PATH}")
+        assert_file_of(download(current), feed, ["sample-pick", "sample-arc"])
+        assert alert.count() == 0
+        assert len(held) == 1
         current.assert_clean()
 
     def test_a_talk_missing_from_the_feed_is_left_out_and_counted(

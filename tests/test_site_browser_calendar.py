@@ -39,6 +39,7 @@ CRLF = "\r\n"
 FEED_PATH = "feeds/all.ics"
 FILE_NAME = "seminars-selected.ics"
 CALENDAR_TYPE = "text/calendar;charset=utf-8"
+FETCH_TIMEOUT_MS = 30 * 1000  # how long fetchCalendar waits for a feed (calendar.js)
 KEPT = ("VERSION", "PRODID", "CALSCALE", "METHOD", "X-WR-TIMEZONE")
 SUBSCRIPTION_ONLY = ("X-WR-CALNAME", "X-WR-CALDESC", "REFRESH-INTERVAL", "X-PUBLISHED-TTL")
 SAMPLE_UIDS = [event["uid"] for event in sample("events.json")["events"]]
@@ -96,6 +97,33 @@ FETCH = """async (path) => {
   } catch (error) {
     return { error: error instanceof Error, message: String(error.message) };
   }
+}"""
+
+# The requests the page makes through fetch, with the options it gives each.
+RECORD_FETCHES = """() => {
+  window.__fetches = [];
+  const original = window.fetch;
+  window.fetch = (input, init) => {
+    window.__fetches.push({
+      path: new URL(String(input), document.baseURI).pathname,
+      cache: init?.cache ?? null,
+      signal: init?.signal instanceof AbortSignal,
+    });
+    return original.call(window, input, init);
+  };
+}"""
+
+# Start fetchCalendar(path) and leave its outcome in window.__fetched.
+START_FETCH = """(path) => {
+  window.__fetched = null;
+  import("./calendar.js")
+    .then(({ fetchCalendar }) => fetchCalendar(path))
+    .then(
+      (text) => { window.__fetched = { text }; },
+      (error) => {
+        window.__fetched = { error: error instanceof Error, message: String(error.message) };
+      },
+    );
 }"""
 
 # Object URLs made and given up by the page, with the media type of each file.
@@ -478,7 +506,32 @@ class TestCalendarFor:
 
 class TestFetchCalendar:
     def test_the_feed_is_fetched_as_served(self, current: Session, feed: str) -> None:
-        assert current.page.evaluate(FETCH, FEED_PATH) == {"text": feed}
+        page = current.page
+        page.evaluate(RECORD_FETCHES)
+        assert page.evaluate(FETCH, FEED_PATH) == {"text": feed}
+        # Revalidated with the server, not taken from the HTTP cache, and given a time limit.
+        fetches = page.evaluate("window.__fetches")
+        assert fetches == [{"path": f"/{FEED_PATH}", "cache": "no-cache", "signal": True}]
+        current.assert_clean()
+
+    def test_a_feed_that_does_not_arrive_in_time_rejects(
+        self, session: Callable[..., Session]
+    ) -> None:
+        current = paused(session)
+        page = current.page
+        held: list[Any] = []
+        page.route(f"**/{FEED_PATH}", lambda route: held.append(route))
+        with page.expect_request(f"**/{FEED_PATH}"):
+            page.evaluate(START_FETCH, FEED_PATH)
+        page.clock.run_for(FETCH_TIMEOUT_MS - 1)
+        assert page.evaluate("window.__fetched") is None
+        page.clock.run_for(1)
+        page.wait_for_function("window.__fetched !== null")
+        assert page.evaluate("window.__fetched") == {
+            "error": True,
+            "message": f"{FEED_PATH}: no answer within {FETCH_TIMEOUT_MS} ms",
+        }
+        assert len(held) == 1
         current.assert_clean()
 
     @pytest.mark.parametrize(

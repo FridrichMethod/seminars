@@ -31,6 +31,9 @@ const PROPERTY_NAME = /^[A-Za-z0-9-]+$/;
 // The browser reads a saved file from its object URL after the click, at its own pace;
 // the URL is given up this long afterwards.
 const REVOKE_AFTER_MS = 30 * 1000;
+// A feed that has not arrived in full this long after its request is given up, so a
+// stalled request fails like any other and can be tried again.
+const FETCH_TIMEOUT_MS = 30 * 1000;
 
 /** Whether a physical line continues the line before it (RFC 5545 folding). */
 function continues(line) {
@@ -228,17 +231,28 @@ export function calendarFor(parsed, uids) {
 
 /**
  * The text of the calendar feed at ``path``, which has to be a feed of this site
- * (feeds/<id>.ics). Anything else, and an answer that is not OK, rejects.
+ * (feeds/<id>.ics), revalidated with the server rather than taken from the HTTP cache.
+ * Anything else, an answer that is not OK and a feed that has not arrived in full within
+ * FETCH_TIMEOUT_MS (a timer of the page, which the tests can move) reject.
  */
 export async function fetchCalendar(path) {
   if (typeof path !== "string" || !FEED_PATH.test(path)) {
     throw new Error("only a feed of this site is fetched: feeds/<id>.ics");
   }
-  const response = await fetch(siteUrl(path), { cache: "no-cache" });
-  if (!response.ok) {
-    throw new Error(`${path}: HTTP status ${response.status}`);
+  const controller = new AbortController();
+  const timer = window.setTimeout(
+    () => controller.abort(new Error(`${path}: no answer within ${FETCH_TIMEOUT_MS} ms`)),
+    FETCH_TIMEOUT_MS,
+  );
+  try {
+    const response = await fetch(siteUrl(path), { cache: "no-cache", signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`${path}: HTTP status ${response.status}`);
+    }
+    return await response.text();
+  } finally {
+    window.clearTimeout(timer);
   }
-  return response.text();
 }
 
 /**
