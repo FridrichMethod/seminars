@@ -31,6 +31,7 @@ from test_site_browser import (
     DESKTOP,
     OVERFLOW,
     PHONE,
+    READY,
     UPCOMING,
     Session,
     assert_page_in,
@@ -238,6 +239,10 @@ class TestSelecting:
         assert page.locator("input.select-talk").count() == len(UPCOMING)
         assert checked(current) == []
         assert status(current) == catalog("en")["site.select.none"]
+        # A screen reader hears the status and the note when they change, without a jump.
+        assert page.locator(STATUS).get_attribute("role") == "status"
+        assert page.locator(STATUS).get_attribute("aria-live") == "polite"
+        assert page.locator(NOTE).get_attribute("aria-live") == "polite"
         assert page.locator(DOWNLOAD).is_disabled()
         assert page.locator(CLEAR).is_disabled()
         assert page.locator(SELECT_SHOWN).is_enabled()
@@ -397,6 +402,19 @@ class TestBarButtons:
         assert page.evaluate(LIST_KEPT) is True
         current.assert_clean()
 
+    def test_select_all_shown_adds_to_the_selection(self, current: Session) -> None:
+        page = current.page
+        select(current, "sample-arc")  # not a talk of the field cs
+        page.locator('#field-chips button[data-value="cs"]').click()
+        assert current.shown() == CS_TALKS
+        page.locator(SELECT_SHOWN).click()
+        assert checked(current) == CS_TALKS
+        assert status(current) == status_text("en", 4, hidden=1)
+        page.locator("#clear").click()
+        assert checked(current) == ["sample-xss", "sample-online", "sample-arc", "sample-defense"]
+        assert status(current) == "4 talks selected"
+        current.assert_clean()
+
     def test_a_selected_talk_the_filters_hide_is_counted_and_downloaded(
         self, current: Session, feed: str
     ) -> None:
@@ -446,10 +464,13 @@ class TestBarButtons:
         page.locator("#clear").click()
         assert checked(current) == ["sample-tba", "sample-biohub"]
         assert status(current) == "2 talks selected"
-        assert current.query() == {}
-        stored = page.evaluate("JSON.stringify({ ...localStorage, ...sessionStorage })")
+        assert page.url == current.base_url + "index.html"  # no query, no fragment
+        stored = page.evaluate(
+            "JSON.stringify([history.state, { ...localStorage, ...sessionStorage }])"
+        )
         assert "sample-" not in stored
-        current.open("index.html")
+        page.reload()
+        page.wait_for_function(READY)
         assert checked(current) == []
         assert status(current) == catalog("en")["site.select.none"]
         current.assert_clean()
@@ -554,6 +575,54 @@ class TestDownload:
         assert_file_of(download(current), feed, ["sample-pick", "sample-arc"])
         assert alert.count() == 0
         assert len(held) == 1
+        current.assert_clean()
+
+    def test_the_feed_is_the_one_events_json_lists_as_all(
+        self, session: Callable[..., Session], feed: str
+    ) -> None:
+        payload = sample("events.json")
+        moved = "feeds/every-talk.ics"
+        payload["feeds"] = [
+            {**entry, "path": moved} if entry["id"] == "all" else entry
+            for entry in payload["feeds"]
+        ]
+        current = session()
+        serve_json(current, "events.json", payload)
+        current.page.route(
+            f"**/{moved}",
+            lambda route: route.fulfill(status=200, content_type="text/calendar", body=feed),
+        )
+        current.open("index.html")
+        page = current.page
+        requests: list[str] = []
+        page.on("request", lambda request: requests.append(request.url))
+        select(current, "sample-pick", "sample-arc")
+        assert_file_of(download(current), feed, ["sample-pick", "sample-arc"])
+        assert [url for url in requests if "/feeds/" in url] == [current.base_url + moved]
+        current.assert_clean()
+
+    def test_without_a_feed_of_every_talk_nothing_is_fetched_or_saved(
+        self, session: Callable[..., Session]
+    ) -> None:
+        payload = sample("events.json")
+        payload["feeds"] = [entry for entry in payload["feeds"] if entry["id"] != "all"]
+        current = session()
+        serve_json(current, "events.json", payload)
+        current.open("index.html")
+        page = current.page
+        requests: list[str] = []
+        page.on("request", lambda request: requests.append(request.url))
+        downloads: list[Any] = []
+        page.on("download", lambda saved: downloads.append(saved))
+        select(current, "sample-pick")
+        page.locator(DOWNLOAD).click()
+        alert = page.locator(f"{NOTE} [role=alert]")
+        alert.wait_for()
+        assert alert.text_content() == catalog("en")["site.select.failed"]
+        assert [url for url in requests if "/feeds/" in url] == []
+        assert downloads == []
+        assert page.locator(DOWNLOAD).is_enabled()
+        drop_expected_errors(current, r"events\.json lists no feed of every talk")
         current.assert_clean()
 
     def test_a_talk_missing_from_the_feed_is_left_out_and_counted(
