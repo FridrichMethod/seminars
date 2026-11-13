@@ -128,6 +128,29 @@ IN_VIEWPORT = """(selector) => {
   const rect = document.querySelector(selector).getBoundingClientRect();
   return rect.top >= 0 && rect.bottom <= window.innerHeight;
 }"""
+# Counts the changes below each of ``selectors`` (its children, their text and their
+# attributes) in window.__changes; window.__alert keeps the alert of the note.
+WATCH = """(selectors) => {
+  window.__alert = document.querySelector("#selection-note [role=alert]");
+  window.__changes = {};
+  for (const selector of selectors) {
+    window.__changes[selector] = 0;
+    new MutationObserver((records) => {
+      window.__changes[selector] += records.length;
+    }).observe(document.querySelector(selector), {
+      childList: true,
+      characterData: true,
+      attributes: true,
+      subtree: true,
+    });
+  }
+}"""
+# The changes counted since the last call, and a new count from zero.
+CHANGES = """() => {
+  const changes = window.__changes;
+  window.__changes = Object.fromEntries(Object.keys(changes).map((key) => [key, 0]));
+  return changes;
+}"""
 # Counts the clicks that reach a button (a key press clicks it too).
 COUNT_PRESSES = """(selector) => {
   window.__presses = 0;
@@ -240,6 +263,17 @@ def search_for(current: Session, text: str) -> None:
     """Search the list for ``text`` at once (Enter, without the pause of typing)."""
     current.page.locator("#search").fill(text)
     current.page.locator("#search").press("Enter")
+
+
+def type_search(current: Session, text: str, shown: list[str]) -> None:
+    """Type ``text`` into the search box key by key and wait until the list is ``shown``."""
+    page = current.page
+    page.locator("#search").press_sequentially(text)
+    page.wait_for_function(
+        "(shown) => JSON.stringify([...document.querySelectorAll('#events article')]"
+        ".map((article) => article.dataset.uid)) === JSON.stringify(shown)",
+        arg=shown,
+    )
 
 
 def download(current: Session) -> str:
@@ -404,6 +438,22 @@ class TestSelecting:
         assert status(current) == catalog("en")["site.select.none"]
         assert note(current) == counted("en", "site.select.saved", 1)
         assert_one_time_copy_shown(current, "en")
+        current.assert_clean()
+
+    def test_an_unchanged_status_is_not_written_again(self, current: Session) -> None:
+        # The status is a live region: written again, it would be said again.
+        page = current.page
+        select(current, "sample-pick")
+        page.evaluate(WATCH, [STATUS, "#events"])
+        type_search(current, "protein", ["sample-pick"])
+        assert page.evaluate(CHANGES)["#events"] > 0  # the list was drawn again
+        page.locator("#picks").check()
+        page.locator("#picks").uncheck()
+        changes = page.evaluate(CHANGES)
+        assert changes["#events"] > 0
+        assert changes[STATUS] == 0
+        assert current.shown() == ["sample-pick"]
+        assert status(current) == "1 talk selected"
         current.assert_clean()
 
     def test_the_bar_counts_in_english_and_chinese(self, current: Session) -> None:
