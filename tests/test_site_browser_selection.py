@@ -335,7 +335,7 @@ class TestDownload:
         text = download(current)
         assert not text.isascii()  # the accented speaker name of the TBA talk
         assert_file_of(text, feed, selected)
-        assert note(current) == "Downloaded a calendar file with 3 talks."
+        assert note(current) == "A calendar file with 3 talks was passed to your browser to save."
         assert current.page.locator(f"{NOTE} [role=alert]").count() == 0
         assert checked(current) == selected
         current.assert_clean()
@@ -415,7 +415,7 @@ class TestDownload:
             missing=counted("en", "site.select.missing", 1),
         )
         assert english == (
-            "Downloaded a calendar file with 2 talks. "
+            "A calendar file with 2 talks was passed to your browser to save. "
             "1 selected talk is not in the calendar feed and was left out."
         )
         assert note(current) == english
