@@ -20,8 +20,8 @@ point of view of the contracts)::
 What a run guarantees:
 
 * One source cannot fail or stall the run. A run fails only when every
-  source failed (exit status 1) or an output check found something (exit
-  status 3).
+  source failed or an output writer failed (exit status 1), or an output
+  check found something (exit status 3).
 * No LLM is no reason for a run to fail. An error of the optional LLM
   parts (the tagger, its usage, the counters and the pruning of the
   cache) becomes a warning of the report, whatever kind of error it is.
