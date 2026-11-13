@@ -5,16 +5,19 @@ same title (TBA) are told apart. The bar above the list counts the
 selection, says how many selected talks the filters hide, and offers Select all shown,
 Clear selection and Download selected (.ics). A tick or a press of a bar button updates
 the checkboxes and the bar in place, so the focus, the scroll position and the list
-stay as they are. The saved file is checked in Python: with the feed validator of the
-pipeline (``seminars.outputs.ics.validate_ics``) and against a cut of the served feed
-made line by line (``expected_calendar`` of test_site_browser_calendar.py). The server,
-the browser and the sessions are those of test_site_browser.py; its fixtures are bound
-to names of this module, so pytest finds them here as well. Marked ``browser`` like that
-module: ``uv run pytest -m browser``.
+stay as they are. While talks are selected and the bar is scrolled away, a dock at the
+bottom of the list shows their count and a second Download button. The saved file is
+checked in Python: with the feed validator of the pipeline
+(``seminars.outputs.ics.validate_ics``) and against a cut of the served feed made line by
+line (``expected_calendar`` of test_site_browser_calendar.py). The server, the browser
+and the sessions are those of test_site_browser.py; its fixtures are bound to names of
+this module, so pytest finds them here as well. Marked ``browser`` like that module:
+``uv run pytest -m browser``.
 """
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -65,6 +68,10 @@ SELECT_SHOWN = "#select-shown"
 CLEAR = "#select-clear"
 DOWNLOAD = "#select-download"
 BUTTONS = (SELECT_SHOWN, CLEAR, DOWNLOAD)
+DOCK = "#selection-dock"
+DOCK_COUNT = "#selection-dock-count"
+DOCK_DOWNLOAD = "#selection-dock-download"
+MIDDLE_TALK = "sample-all-day"  # in the middle of the list
 ONE_TIME_COPY = "#selection .selection-copy"  # a downloaded file is a one-time copy
 SUBSCRIBE_LINK = f'{ONE_TIME_COPY} a[href="#subscribe"]'  # its last sentence
 CS_TALKS = ["sample-xss", "sample-online", "sample-defense"]  # shown with field=cs
@@ -152,6 +159,40 @@ CHANGES = """() => {
   return changes;
 }"""
 SAME_ALERT = '() => document.querySelector("#selection-note [role=alert]") === window.__alert'
+# Waits until the page has drawn two more frames: the bar is observed on or off screen.
+SETTLE = "() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))"
+# Puts a talk in the middle of the viewport.
+CENTER_TALK = """(uid) => document
+  .querySelector(`#events article[data-uid="${CSS.escape(uid)}"]`)
+  .scrollIntoView({ block: "center" })"""
+# Where the dock is in the viewport, and whether any of the bar is on screen.
+DOCK_PLACE = """() => {
+  const dock = document.getElementById("selection-dock").getBoundingClientRect();
+  const bar = document.getElementById("selection").getBoundingClientRect();
+  return {
+    top: dock.top,
+    bottom: dock.bottom,
+    viewport: window.innerHeight,
+    bar: bar.bottom > 0 && bar.top < window.innerHeight,
+  };
+}"""
+# Whether the focused element and its focus ring (2px outline, 2px offset) are above
+# the dock; null while the dock is hidden or holds the focus.
+FOCUS_CLEAR = """() => {
+  const dock = document.getElementById("selection-dock");
+  const focused = document.activeElement;
+  if (!dock.classList.contains("is-shown") || dock.contains(focused)) {
+    return null;
+  }
+  return focused.getBoundingClientRect().bottom + 4 <= dock.getBoundingClientRect().top;
+}"""
+# Focuses, without scrolling, the element that Tab leaves for the checkbox of a talk.
+FOCUS_BEFORE = """(uid) => {
+  const box = document.querySelector(`input.select-talk[data-uid="${CSS.escape(uid)}"]`);
+  const stops = [...document.querySelectorAll("a[href], input, button, select, summary")]
+    .filter((element) => element.getClientRects().length > 0);
+  stops[stops.indexOf(box) - 1].focus({ preventScroll: true });
+}"""
 # Counts the clicks that reach a button (a key press clicks it too).
 COUNT_PRESSES = """(selector) => {
   window.__presses = 0;
@@ -277,11 +318,25 @@ def type_search(current: Session, text: str, shown: list[str]) -> None:
     )
 
 
-def download(current: Session) -> str:
-    """Press Download selected and return the text of the saved file."""
+def settle(current: Session) -> None:
+    current.page.evaluate(SETTLE)
+
+
+def dock_shown_at(current: Session, uid: str) -> None:
+    """Scroll the talk ``uid`` (far below the bar, far above the end of the list) to the
+    middle of the viewport, where the dock is shown at the bottom of the screen."""
+    current.page.evaluate(CENTER_TALK, uid)
+    current.page.locator(DOCK).wait_for(state="visible")
+    place = current.page.evaluate(DOCK_PLACE)
+    assert place["bar"] is False
+    assert place["bottom"] == pytest.approx(place["viewport"], abs=1)
+
+
+def download(current: Session, button: str = DOWNLOAD) -> str:
+    """Press a Download button and return the text of the saved file."""
     page = current.page
     with page.expect_download() as info:
-        page.locator(DOWNLOAD).click()
+        page.locator(button).click()
     saved = info.value
     assert saved.suggested_filename == FILE_NAME
     return Path(saved.path()).read_bytes().decode("utf-8")
@@ -737,6 +792,9 @@ class TestDownload:
         button = page.locator(DOWNLOAD)
         assert button.get_attribute("aria-busy") == "true"
         assert button.is_disabled()
+        # The Download button of the dock shares the state.
+        assert page.locator(DOCK_DOWNLOAD).get_attribute("aria-busy") == "true"
+        assert page.locator(DOCK_DOWNLOAD).is_disabled()
         assert page.evaluate(FOCUSED) == "select-download"
         assert note(current) == catalog("en")["site.select.preparing"]
         page.keyboard.press("Enter")  # a second press while the file is prepared does nothing
@@ -747,6 +805,8 @@ class TestDownload:
         assert len(held) == 1
         assert button.get_attribute("aria-busy") == "false"
         assert button.is_enabled()
+        assert page.locator(DOCK_DOWNLOAD).get_attribute("aria-busy") == "false"
+        assert page.locator(DOCK_DOWNLOAD).is_enabled()
         assert page.evaluate(FOCUSED) == "select-download"
         current.assert_clean()
 
@@ -808,15 +868,18 @@ class TestDownload:
         assert len(downloads) == 2
         current.assert_clean()
 
-    def test_holding_enter_saves_one_file(self, current: Session, feed: str) -> None:
+    @pytest.mark.parametrize("button", [DOWNLOAD, DOCK_DOWNLOAD], ids=["bar", "dock"])
+    def test_holding_enter_saves_one_file(self, current: Session, feed: str, button: str) -> None:
         page = current.page
         downloads: list[Any] = []
         page.on("download", lambda saved: downloads.append(saved))
         requests: list[str] = []
         page.on("request", lambda request: requests.append(request.url))
-        page.evaluate(COUNT_PRESSES, DOWNLOAD)
+        page.evaluate(COUNT_PRESSES, button)
         select(current, "sample-pick")
-        page.locator(DOWNLOAD).focus()
+        if button == DOCK_DOWNLOAD:
+            dock_shown_at(current, MIDDLE_TALK)
+        page.locator(button).focus()
         with page.expect_download() as info:
             page.keyboard.down("Enter")
         assert_file_of(Path(info.value.path()).read_bytes().decode("utf-8"), feed, ["sample-pick"])
@@ -826,7 +889,7 @@ class TestDownload:
             page.keyboard.down("Enter")
         page.keyboard.up("Enter")
         assert page.evaluate("window.__presses") == 1
-        assert page.locator(DOWNLOAD).get_attribute("aria-busy") == "false"
+        assert page.locator(button).get_attribute("aria-busy") == "false"
         assert note(current) == counted("en", "site.select.saved", 1)
         assert [url for url in requests if "/feeds/" in url] == [current.base_url + FEED_PATH]
         assert len(downloads) == 1
@@ -1040,13 +1103,118 @@ class TestDownload:
         current.assert_clean()
 
 
+class TestDock:
+    @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
+    def test_the_dock_keeps_the_count_and_the_download_in_reach(
+        self, session: Callable[..., Session], feed: str, viewport: dict[str, int]
+    ) -> None:
+        current = session(viewport=viewport).open("index.html")
+        page = current.page
+        region = page.get_by_role("region", name=catalog("en")["site.select.label"], exact=True)
+        assert region.get_attribute("id") == "selection"  # a landmark to jump back to
+        # Nothing selected: no dock, wherever the list is scrolled.
+        page.evaluate(CENTER_TALK, "sample-arc")
+        settle(current)
+        assert page.evaluate(DOCK_PLACE)["bar"] is False
+        assert page.locator(DOCK).is_hidden()
+        tap_in_place(current, "sample-arc")  # far below the bar
+        page.locator(DOCK).wait_for(state="visible")
+        page.evaluate(CENTER_TALK, "sample-defense")
+        tap_in_place(current, "sample-defense")
+        dock_shown_at(current, MIDDLE_TALK)
+        assert page.locator(DOCK_COUNT).text_content() == "2 talks selected"
+        assert status(current) == "2 talks selected"
+        # The status of the bar is the one live region that announces the count.
+        for selector in (DOCK, DOCK_COUNT):
+            assert page.locator(selector).get_attribute("role") is None
+            assert page.locator(selector).get_attribute("aria-live") is None
+        text = download(current, DOCK_DOWNLOAD)
+        assert_file_of(text, feed, ["sample-arc", "sample-defense"])
+        page.locator(f"{NOTE} .note-saved").wait_for()
+        assert note(current) == counted("en", "site.select.saved", 2)
+        assert page.locator(DOCK).is_visible()
+        # The bar back on screen: the dock goes, and the two are never shown together.
+        page.evaluate(BAR_ON_SCREEN)
+        page.locator(DOCK).wait_for(state="hidden")
+        assert page.evaluate(DOCK_PLACE)["bar"] is True
+        dock_shown_at(current, MIDDLE_TALK)
+        page.evaluate(CENTER_TALK, "sample-defense")
+        tap_in_place(current, "sample-defense")
+        assert page.locator(DOCK_COUNT).text_content() == "1 talk selected"
+        page.evaluate(CENTER_TALK, "sample-arc")
+        tap_in_place(current, "sample-arc")  # nothing selected: the dock goes
+        page.locator(DOCK).wait_for(state="hidden")
+        assert page.evaluate(DOCK_PLACE)["bar"] is False
+        current.assert_clean()
+
+    @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
+    def test_the_keyboard_focus_stays_above_the_dock(
+        self, session: Callable[..., Session], viewport: dict[str, int]
+    ) -> None:
+        current = session(viewport=viewport).open("index.html")
+        page = current.page
+        select(current, "sample-xss")
+        page.locator(DOWNLOAD).focus()
+        # Tab through the list to the Download button of the dock, the stop after it.
+        above_the_dock = []
+        for _ in range(200):
+            page.keyboard.press("Tab")
+            settle(current)
+            focused = page.evaluate(FOCUSED)
+            if focused == "selection-dock-download":
+                break
+            clear = page.evaluate(FOCUS_CLEAR)
+            assert clear is not False, focused
+            if clear and focused in UPCOMING:
+                above_the_dock.append(focused)
+        assert page.evaluate(FOCUSED) == "selection-dock-download"
+        # The dock was shown below every checkbox from the middle of the list on.
+        middle = UPCOMING.index(MIDDLE_TALK)
+        assert above_the_dock[middle - len(UPCOMING) :] == UPCOMING[middle:]
+        # The bar back on screen hides the dock: its focus goes to the Download of the bar.
+        page.evaluate(BAR_ON_SCREEN)
+        page.locator(DOCK).wait_for(state="hidden")
+        assert page.evaluate(FOCUSED) == "select-download"
+        current.assert_clean()
+
+    def test_a_dock_that_appears_over_the_focus_moves_the_focus_above_it(
+        self, session: Callable[..., Session]
+    ) -> None:
+        current = session().open("index.html")
+        page = current.page
+        select(current, "sample-xss")
+        # A viewport that holds the bar (one pixel of it) and the checkbox of sample-pick
+        # in its last 20 pixels, where the dock appears.
+        bar = page.evaluate("document.getElementById('selection').getBoundingClientRect().bottom")
+        box = page.evaluate(PLACE, "sample-pick")
+        top = math.floor(page.evaluate("window.scrollY") + bar) - 1
+        height = round(box["scrolled"] + box["y"] + 10 - top + 20)
+        assert 300 < height < DESKTOP["height"] * 2
+        page.set_viewport_size({"width": DESKTOP["width"], "height": height})
+        page.evaluate(f"window.scrollTo(0, {top})")
+        settle(current)
+        page.evaluate(FOCUS_BEFORE, "sample-pick")
+        page.keyboard.press("Tab")  # the checkbox is on screen: Tab does not scroll
+        settle(current)
+        assert page.evaluate(FOCUSED) == "sample-pick"
+        assert page.evaluate(SCROLLED) == top
+        assert page.locator(DOCK).is_hidden()
+        page.evaluate("window.scrollBy(0, 2)")  # the bar leaves the screen
+        page.locator(DOCK).wait_for(state="visible")
+        settle(current)
+        assert page.evaluate(FOCUSED) == "sample-pick"
+        assert page.evaluate(FOCUS_CLEAR) is True
+        current.assert_clean()
+
+
 class TestStates:
     def test_the_bar_waits_for_the_talks(self, session: Callable[..., Session]) -> None:
         state = loading(session, "index.html")
         page = state.page
-        assert all(page.locator(button).is_disabled() for button in BUTTONS)
+        assert all(page.locator(button).is_disabled() for button in (*BUTTONS, DOCK_DOWNLOAD))
+        assert page.locator(DOCK).is_hidden()
         assert status(state.current) == catalog("en")["site.select.none"]
-        for button in BUTTONS:
+        for button in (*BUTTONS, DOCK_DOWNLOAD):
             page.locator(button).dispatch_event("click")
         assert note(state.current) == ""
         state.arrive()
@@ -1065,7 +1233,8 @@ class TestStates:
         page = current.page
         assert page.locator("#events .notice[role=alert]").count() == 1
         assert page.locator("input.select-talk").count() == 0
-        assert all(page.locator(button).is_disabled() for button in BUTTONS)
+        assert all(page.locator(button).is_disabled() for button in (*BUTTONS, DOCK_DOWNLOAD))
+        assert page.locator(DOCK).is_hidden()
         assert status(current) == catalog("en")["site.select.none"]
         drop_expected_errors(current, FAILED_REQUEST, r"events\.json: HTTP status 404")
         current.assert_clean()
@@ -1095,6 +1264,23 @@ class TestPhone:
         download(current)
         assert note(current) == counted(lang, "site.select.saved", 2)
         assert all(page.locator(button).is_visible() for button in BUTTONS)
+        result = page.evaluate(OVERFLOW)
+        assert result["scroll"] <= result["width"]
+        assert result["wide"] == []
+        # The dock, shown below the bar scrolled away, fits as well and hides the list
+        # behind it with the background of the bar.
+        page.locator("#clear").click()
+        dock_shown_at(current, MIDDLE_TALK)
+        assert page.locator(DOCK_COUNT).text_content() == counted(lang, "site.select.count", 2)
+        box = page.locator(DOCK).bounding_box()
+        assert box is not None
+        assert box["x"] >= 0
+        assert box["x"] + box["width"] <= width
+        backgrounds = page.evaluate(
+            "[...document.querySelectorAll('#selection, #selection-dock')]"
+            ".map((element) => getComputedStyle(element).backgroundColor)"
+        )
+        assert backgrounds[0] == backgrounds[1] != "rgba(0, 0, 0, 0)"
         result = page.evaluate(OVERFLOW)
         assert result["scroll"] <= result["width"]
         assert result["wide"] == []

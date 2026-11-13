@@ -1,5 +1,7 @@
 // The talk list (index.html): filters, the list grouped by day, the selection of talks
-// to download as one calendar file and the subscription panel.
+// to download as one calendar file (the bar above the list, and the dock that keeps the
+// count and the download in reach while the bar is scrolled away) and the subscription
+// panel.
 
 import { calendarFor, fetchCalendar, parseCalendar, saveFile } from "./calendar.js";
 import { h, link, replaceChildren } from "./dom.js";
@@ -42,12 +44,16 @@ const ui = {
   picks: byId("picks"),
   clear: byId("clear"),
   count: byId("count"),
+  selection: byId("selection"),
   selectionStatus: byId("selection-status"),
   selectShown: byId("select-shown"),
   selectClear: byId("select-clear"),
   download: byId("select-download"),
   note: byId("selection-note"),
   events: byId("events"),
+  dock: byId("selection-dock"),
+  dockCount: byId("selection-dock-count"),
+  dockDownload: byId("selection-dock-download"),
   steps: byId("apple-steps"),
   feeds: byId("feeds"),
 };
@@ -77,6 +83,10 @@ const EVERY_TALK_FEED = "all";
 // The hidden label (index.html) that each checkbox of the list reads before the title of
 // its talk.
 const SELECT_LABEL_ID = "select-label";
+// The class of the dock while it is shown, and the room kept between an element scrolled
+// into view and the dock, for its focus ring (style.css).
+const DOCK_SHOWN = "is-shown";
+const DOCK_GAP_PX = 8;
 
 // The download of the selected talks: whether it is being prepared, and the note on its
 // outcome (null: none).
@@ -90,7 +100,8 @@ const FAILED = Object.freeze({ kind: "failed" });
 // checked against what exists. The selection (uids in the order they were ticked) lives
 // here only: neither the address nor the storage of the browser holds it, so a reload
 // starts empty; a talk that has ended leaves it when the list is drawn again. ``listed``
-// holds the uids of the talks the list shows.
+// holds the uids of the talks the list shows; ``barShown`` whether any of the selection
+// bar is on screen.
 let view = Object.freeze({
   model: null,
   failed: false,
@@ -98,6 +109,7 @@ let view = Object.freeze({
   selected: Object.freeze([]),
   listed: Object.freeze([]),
   download: IDLE,
+  barShown: true,
 });
 
 /** The payload of events.json prepared for the page. */
@@ -246,8 +258,15 @@ function connectControls() {
   });
   ui.selectShown.addEventListener("click", selectShown);
   ui.selectClear.addEventListener("click", clearSelection);
-  ui.download.addEventListener("keydown", ignoreRepeatedKey);
-  ui.download.addEventListener("click", pressDownload);
+  for (const button of downloadButtons()) {
+    button.addEventListener("keydown", ignoreRepeatedKey);
+    button.addEventListener("click", pressDownload);
+  }
+}
+
+/** The Download buttons of the bar and of the dock: one state, one handler. */
+function downloadButtons() {
+  return [ui.download, ui.dockDownload];
 }
 
 /**
@@ -284,9 +303,9 @@ function canDownload() {
 }
 
 /**
- * Mark a button of the bar as unavailable. aria-disabled instead of disabled keeps the
- * focus on a button that its own press makes unavailable (Clear selection, a download
- * being prepared); its handler checks the state and does nothing then.
+ * Mark a button of the bar or the dock as unavailable. aria-disabled instead of disabled
+ * keeps the focus on a button that its own press makes unavailable (Clear selection, a
+ * download being prepared); its handler checks the state and does nothing then.
  */
 function setUnavailable(button, unavailable) {
   button.setAttribute("aria-disabled", String(unavailable));
@@ -308,25 +327,105 @@ function selectionStatus({ selected, listed }) {
   });
 }
 
+/** Replace the text of ``node`` when it differs; unchanged text is left alone. */
+function writeText(node, text) {
+  if (node.textContent !== text) {
+    replaceChildren(node, text);
+  }
+}
+
 /**
- * The checkboxes of the list, the status and the buttons of the bar, updated in place:
- * nothing is rebuilt and the bar keeps its height (style.css reserves the status two
- * lines on a phone), so the focus, the scroll position and the list stay where they are.
+ * The checkboxes of the list, the status and the buttons of the bar and the dock, updated
+ * in place: nothing is rebuilt and the bar keeps its height (style.css reserves the
+ * status two lines on a phone), so the focus, the scroll position and the list stay where
+ * they are.
  */
 function syncSelection() {
   const { selected, download } = view;
   for (const box of ui.events.querySelectorAll("input.select-talk")) {
     box.checked = selected.includes(box.dataset.uid);
   }
-  const status = selectionStatus(view);
-  // Unchanged text is left alone, so the live region does not say it again.
-  if (ui.selectionStatus.textContent !== status) {
-    replaceChildren(ui.selectionStatus, status);
-  }
+  // The status is a live region: unchanged text is left alone, so it is not said again.
+  writeText(ui.selectionStatus, selectionStatus(view));
+  // The count of the dock is plain text; the status of the bar is the one announcer.
+  writeText(ui.dockCount, selected.length ? plural("site.select.count", selected.length) : "");
   setUnavailable(ui.selectShown, !canSelectShown());
   setUnavailable(ui.selectClear, !canClear());
-  setUnavailable(ui.download, !canDownload());
-  ui.download.setAttribute("aria-busy", String(download.busy));
+  for (const button of downloadButtons()) {
+    setUnavailable(button, !canDownload());
+    button.setAttribute("aria-busy", String(download.busy));
+  }
+  syncDock();
+}
+
+/** Whether the dock is shown (style.css hides it, keeping its place, otherwise). */
+function dockShown() {
+  return ui.dock.classList.contains(DOCK_SHOWN);
+}
+
+/**
+ * Show the dock while talks are selected and the bar is off screen, so the two are never
+ * on screen together. A dock that hides while it holds the focus hands it to the Download
+ * button of the bar first, so the focus is not lost.
+ */
+function syncDock() {
+  const shown = view.selected.length > 0 && !view.barShown;
+  if (shown === dockShown()) {
+    return;
+  }
+  if (!shown && ui.dock.contains(document.activeElement)) {
+    ui.download.focus();
+  }
+  ui.dock.classList.toggle(DOCK_SHOWN, shown);
+  fitDockSpace();
+  keepFocusClear();
+}
+
+/**
+ * Make the scroll padding of the page (--dock-space in style.css) the height of the dock
+ * while it is shown, 0 while it is hidden: an element scrolled into view stops above it.
+ */
+function fitDockSpace() {
+  const space = dockShown() ? ui.dock.offsetHeight + DOCK_GAP_PX : 0;
+  document.documentElement.style.setProperty("--dock-space", `${space}px`);
+}
+
+/**
+ * Keep the keyboard focus out from under the dock. The scroll padding makes the browser
+ * stop an element reached with Tab above the dock, but the dock may appear only after
+ * that (when the same move scrolls the bar away), and a browser may scroll only elements
+ * that are off screen: a focused element under the dock is then scrolled into view above
+ * it. A tap or a click (no focus ring) never scrolls the page.
+ */
+function keepFocusClear() {
+  const focused = document.activeElement;
+  if (!dockShown() || focused === null || ui.dock.contains(focused)) {
+    return;
+  }
+  if (!focused.matches(":focus-visible")) {
+    return;
+  }
+  const box = focused.getBoundingClientRect();
+  const dock = ui.dock.getBoundingClientRect();
+  const under = box.bottom > dock.top && box.top < dock.bottom;
+  if (under && box.right > dock.left && box.left < dock.right) {
+    focused.scrollIntoView({ block: "nearest" });
+  }
+}
+
+/** Follow whether the bar is on screen: the dock stands in for it while it is not. */
+function watchBar() {
+  const observer = new IntersectionObserver((entries) => {
+    view = Object.freeze({ ...view, barShown: entries[entries.length - 1].isIntersecting });
+    syncDock();
+  });
+  observer.observe(ui.selection);
+}
+
+/** Keep the focus clear of the dock as the focus moves and as the dock changes size. */
+function watchDock() {
+  new ResizeObserver(fitDockSpace).observe(ui.dock);
+  document.addEventListener("focusin", keepFocusClear);
 }
 
 /** The note on the last download, in the active language. */
@@ -689,6 +788,8 @@ async function main() {
   // nothing typed or ticked meanwhile is lost.
   connectControls();
   syncControls();
+  watchBar();
+  watchDock();
   const refresh = await startPage(render);
   try {
     const { payload, error } = await loading;

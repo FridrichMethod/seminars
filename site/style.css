@@ -61,6 +61,10 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* While the selection dock is shown at the bottom of the screen, an element scrolled
+     into view (a checkbox reached with Tab) stops above it: app.js sets --dock-space to
+     the height of the dock, 0 while it is hidden. */
+  scroll-padding-bottom: var(--dock-space, 0px);
 }
 
 body {
@@ -404,6 +408,39 @@ button.primary[aria-disabled="true"] {
 .selection-copy {
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+/* The count and the Download button of the selection, at the bottom of the screen within
+   the list while talks are selected and the bar is scrolled away (app.js adds is-shown).
+   At the end of the list it rests below the last talk. Hidden, it keeps its place, so
+   the page keeps its height and a tick at the end of the list moves nothing. */
+.selection-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-top: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: 0 -0.25rem 0.75rem rgb(0 0 0 / 15%);
+}
+
+.selection-dock:not(.is-shown) {
+  visibility: hidden;
+}
+
+/* One line, also while it is empty: the dock keeps its height. */
+.selection-dock-count {
+  min-height: 1.5em;
+  min-height: 1lh;
+  margin: 0;
+  font-weight: 600;
 }
 
 /* The link to the subscription panel is the last sentence of the note: a space between
@@ -823,6 +860,12 @@ button.primary[aria-disabled="true"] {
   .selection-status {
     min-height: 3em;
     min-height: 2lh;
+  }
+
+  /* The count above the button, whatever its length, so the dock keeps its height. */
+  .selection-dock {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .event-when,
