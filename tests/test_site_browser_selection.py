@@ -287,7 +287,10 @@ class TestSelecting:
         page = current.page
         page.evaluate(MARK_LIST)
         box = checkbox(current, "sample-defense")
-        box.focus()
+        # The keyboard reaches the checkbox: it is the stop before the title of its talk.
+        page.locator('#events article[data-uid="sample-defense"] .event-title a').focus()
+        page.keyboard.press("Shift+Tab")
+        assert page.evaluate(FOCUSED) == "sample-defense"
         box.scroll_into_view_if_needed()
         scrolled = page.evaluate(SCROLLED)
         assert scrolled > 0
