@@ -14,10 +14,12 @@ fixtures are bound to names of this module, so pytest finds them here as well. M
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Iterable
+import threading
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -40,6 +42,7 @@ FEED_PATH = "feeds/all.ics"
 FILE_NAME = "seminars-selected.ics"
 CALENDAR_TYPE = "text/calendar;charset=utf-8"
 FETCH_TIMEOUT_MS = 30 * 1000  # how long fetchCalendar waits for a feed (calendar.js)
+STALLED_AFTER = 200  # octets of the feed a stalled answer sends
 KEPT = ("VERSION", "PRODID", "CALSCALE", "METHOD", "X-WR-TIMEZONE")
 SUBSCRIPTION_ONLY = ("X-WR-CALNAME", "X-WR-CALDESC", "REFRESH-INTERVAL", "X-PUBLISHED-TTL")
 SAMPLE_UIDS = [event["uid"] for event in sample("events.json")["events"]]
@@ -99,17 +102,23 @@ FETCH = """async (path) => {
   }
 }"""
 
-# The requests the page makes through fetch, with the options it gives each.
+# The requests the page makes through fetch, with the options it gives each and the
+# status of the answer once its headers have arrived.
 RECORD_FETCHES = """() => {
   window.__fetches = [];
   const original = window.fetch;
   window.fetch = (input, init) => {
-    window.__fetches.push({
+    const request = {
       path: new URL(String(input), document.baseURI).pathname,
       cache: init?.cache ?? null,
       signal: init?.signal instanceof AbortSignal,
+      status: null,
+    };
+    window.__fetches.push(request);
+    return original.call(window, input, init).then((response) => {
+      request.status = response.status;
+      return response;
     });
-    return original.call(window, input, init);
   };
 }"""
 
@@ -293,6 +302,32 @@ def feed(site_dir: Path) -> str:
     text = read_text(site_dir / FEED_PATH)
     assert crlf_only(text)
     return text
+
+
+@pytest.fixture
+def stalled_feed(monkeypatch: pytest.MonkeyPatch, site_dir: Path) -> Iterator[None]:
+    """Make the server answer FEED_PATH with its headers and the first STALLED_AFTER
+    octets of the feed, and then send nothing more until the test ends."""
+    body = (site_dir / FEED_PATH).read_bytes()
+    assert len(body) > STALLED_AFTER
+    release = threading.Event()
+    serve = harness.QuietHandler.do_GET
+
+    def stall(handler: harness.QuietHandler) -> None:
+        if urlsplit(handler.path).path != f"/{FEED_PATH}":
+            serve(handler)
+            return
+        handler.send_response(200)
+        handler.send_header("Content-Type", CALENDAR_TYPE)
+        handler.send_header("Content-Length", str(len(body)))
+        handler.end_headers()
+        handler.wfile.write(body[:STALLED_AFTER])
+        release.wait(timeout=60)
+        handler.close_connection = True
+
+    monkeypatch.setattr(harness.QuietHandler, "do_GET", stall)
+    yield
+    release.set()
 
 
 def cut(current: Session, uids: list[str], text: str | None = None, *, as_set: bool = False) -> Any:
@@ -534,7 +569,9 @@ class TestFetchCalendar:
         assert page.evaluate(FETCH, FEED_PATH) == {"text": feed}
         # Revalidated with the server, not taken from the HTTP cache, and given a time limit.
         fetches = page.evaluate("window.__fetches")
-        assert fetches == [{"path": f"/{FEED_PATH}", "cache": "no-cache", "signal": True}]
+        assert fetches == [
+            {"path": f"/{FEED_PATH}", "cache": "no-cache", "signal": True, "status": 200}
+        ]
         current.assert_clean()
 
     def test_a_feed_that_does_not_arrive_in_time_rejects(
@@ -549,12 +586,32 @@ class TestFetchCalendar:
         page.clock.run_for(FETCH_TIMEOUT_MS - 1)
         assert page.evaluate("window.__fetched") is None
         page.clock.run_for(1)
-        page.wait_for_function("window.__fetched !== null")
+        page.wait_for_function("() => window.__fetched !== null")
         assert page.evaluate("window.__fetched") == {
             "error": True,
             "message": f"{FEED_PATH}: no answer within {FETCH_TIMEOUT_MS} ms",
         }
         assert len(held) == 1
+        current.assert_clean()
+
+    @pytest.mark.usefixtures("stalled_feed")
+    def test_a_feed_that_stops_arriving_rejects_in_time(
+        self, session: Callable[..., Session]
+    ) -> None:
+        current = paused(session)
+        page = current.page
+        page.evaluate(RECORD_FETCHES)
+        page.evaluate(START_FETCH, FEED_PATH)
+        # The headers have arrived, the rest of the feed does not come.
+        page.wait_for_function("() => window.__fetches[0]?.status === 200")
+        page.clock.run_for(FETCH_TIMEOUT_MS - 1)
+        assert page.evaluate("window.__fetched") is None
+        page.clock.run_for(1)
+        page.wait_for_function("() => window.__fetched !== null")
+        assert page.evaluate("window.__fetched") == {
+            "error": True,
+            "message": f"{FEED_PATH}: no answer within {FETCH_TIMEOUT_MS} ms",
+        }
         current.assert_clean()
 
     @pytest.mark.parametrize(
