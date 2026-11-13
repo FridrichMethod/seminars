@@ -111,6 +111,47 @@ def test_an_honorific_or_a_label_in_front_of_the_name_names_the_person_before_an
 @pytest.mark.parametrize(
     ("title", "abstract"),
     [
+        # "speaker" and "presenter" at the end of a sentence label nothing: only an
+        # abbreviated honorific ("Dr.", "Prof.") takes a dot in front of a name.
+        (
+            "Seminar: Jane Roe - Ocean Mixing",
+            "We thank the speaker. Ocean Mixing Lab members will attend.",
+        ),
+        (
+            "Seminar: Jane Roe - Ocean Mixing",
+            "Lunch provided by the presenter. Ocean Mixing Center tours follow.",
+        ),
+        (
+            "Seminar: Jane Roe - Ocean Mixing",
+            "Questions go to the professor. Ocean Mixing Lab members will attend.",
+        ),
+    ],
+)
+def test_a_sentence_that_ends_with_a_label_word_does_not_label_the_next_name(
+    title: str, abstract: str
+) -> None:
+    assert speakers_from_title(title, abstract) == []
+
+
+@pytest.mark.parametrize(
+    ("title", "abstract", "name"),
+    [
+        ("Seminar: Ocean Mixing - Jane Roe", "Dr. Jane Roe Lab members will attend.", "Jane Roe"),
+        ("Seminar: Ocean Mixing - Jane Roe", "Prof Jane Roe Lab members will attend.", "Jane Roe"),
+        ("Seminar: Ocean Mixing - Jane Roe", "Speaker: Jane Roe Lab, MIT", "Jane Roe"),
+        ("Seminar: Ocean Mixing - Jane Roe", "Presenter Jane Roe Lab, MIT", "Jane Roe"),
+        ("Seminar: Ocean Mixing - Jane Roe", "Mrs. Jane Roe Center, MIT", "Jane Roe"),
+    ],
+)
+def test_an_abbreviated_honorific_or_a_label_still_names_the_person_with_or_without_a_dot(
+    title: str, abstract: str, name: str
+) -> None:
+    assert speakers_from_title(title, abstract) == [ParsedSpeaker(name, None)]
+
+
+@pytest.mark.parametrize(
+    ("title", "abstract"),
+    [
         ("Seminar: Jane Roe", "The Jane Roe Lab studies knots."),
         ("Seminar: Jane Roe - Ocean Mixing", "Jane Roe received her PhD at MIT."),
         ("Seminar: Ocean Mixing - Jane Roe", "Jane Roe received her PhD at MIT."),

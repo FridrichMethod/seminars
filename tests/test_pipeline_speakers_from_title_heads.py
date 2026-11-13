@@ -1,10 +1,12 @@
 """Tests for the heads of a title that tell what the name after them stands for.
 
-A head that honours a person ("In Memoriam", "Tribute", "Celebration of Life") names
-the person a memorial is for, not a speaker, so such a title gives no speaker at all.
-A head that is only a term or a year ("Spring 2025") is no series either, and an
-honorific after it does not vouch for the name: an honorific goes with a person, not
-with a speaker.
+A head that honours a person ("In Memoriam", "In Honor of", "Obituary", "Tribute",
+"Celebration of Life") names the person a memorial is for, not a speaker, so such a
+title gives no speaker at all. Every part in front of the last one is such a head,
+except inside a quoted talk title.
+A head that is only a term, a month or a year ("Spring 2025", "Jan. 2025") is no series
+either, and an honorific in any part after it does not vouch for the name: an honorific
+goes with a person, not with a speaker.
 """
 
 from __future__ import annotations
@@ -33,6 +35,27 @@ OBITUARY = "Dr. Jane Doe was a professor of physics at MIT for forty years."
         "In Memoriam: Jane Doe, PhD",
         "In Memoriam: Jane Doe (MIT)",
         "Memorial: Jane Doe in conversation with John Roe",
+        "In Remembrance: Dr. Jane Doe",
+        "In Remembrance of: Dr. Jane Doe",
+        "In Memory of: Dr. Jane Doe",
+        "In Loving Memory of: Dr. Jane Doe",
+        "In Honor of: Dr. Jane Doe",
+        "In Honour of: Dr. Jane Doe",
+        "Honoring: Dr. Jane Doe",
+        "Honouring: Dr. Jane Doe",
+        "Obituary: Dr. Jane Doe",
+        "Obituaries: Dr. Jane Doe",
+        "Celebrating the Life of: Dr. Jane Doe",
+        "Celebrating Life of: Dr. Jane Doe",
+        "Celebration of the Life of: Dr. Jane Doe",
+        '"In Memoriam": Dr. Jane Doe',
+        # The first separator ends the head even after a quote that is never closed.
+        '"In Memoriam: Dr. Jane Doe',
+        # A memorial in any part in front of the last one, not only in the first.
+        "Physics Colloquium | In Memoriam | Dr. Jane Doe",
+        "Seminar Series: Tribute: Prof. Jane Doe",
+        "Physics Colloquium | In Honor of | Jane Doe, PhD",
+        "Seminar: In Memoriam - Jane Doe (MIT)",
     ],
 )
 def test_a_head_that_honours_a_person_gives_no_speaker(title: str) -> None:
@@ -46,9 +69,40 @@ def test_a_head_that_honours_a_person_gives_no_speaker(title: str) -> None:
         "Smith Memorial Lecture: Dr. Jane Doe",
         "The Smith Memorial Lecture - Prof. Jane Doe",
         "Celebration: Dr. Jane Doe",
+        "Physics Colloquium | Smith Memorial Lecture | Dr. Jane Doe",
     ],
 )
 def test_a_memorial_that_names_a_series_keeps_its_speaker(title: str) -> None:
+    assert speakers_from_title(title) == [ParsedSpeaker("Jane Doe", None)]
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        # The last part is the talk title, and so is a quoted title: a memorial there is
+        # the topic of the talk, not a head.
+        "Physics Colloquium: Dr. Jane Doe - In Memoriam",
+        'Seminar: Dr. Jane Doe - "Tribute: Songs of the Sea"',
+        'Seminar: Dr. Jane Doe, "In Memoriam: The Last Glacier"',
+        'Seminar | "In Memoriam: The Last Glacier" | Dr. Jane Doe',
+        'Seminar: "Tribute: Songs of the Sea" - Dr. Jane Doe',
+        "Seminar | \u201cIn Memoriam: The Last Glacier\u201d | Dr. Jane Doe",
+    ],
+)
+def test_a_memorial_in_the_talk_title_keeps_its_speaker(title: str) -> None:
+    assert speakers_from_title(title) == [ParsedSpeaker("Jane Doe", None)]
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Tribute to Euler: Dr. Jane Doe",
+        "Seminar: Tribute to Euler - Dr. Jane Doe",
+        "Physics Colloquium | Remembering Slavery | Dr. Jane Doe",
+        "Seminar | Honoring Indigenous Knowledge | Dr. Jane Doe",
+    ],
+)
+def test_a_memorial_word_inside_a_longer_part_keeps_its_speaker(title: str) -> None:
     assert speakers_from_title(title) == [ParsedSpeaker("Jane Doe", None)]
 
 
@@ -62,6 +116,17 @@ def test_a_memorial_that_names_a_series_keeps_its_speaker(title: str) -> None:
         "Winter 2025-26 | Dr. Jane Doe",
         "AY 2025/26 - Professor Jane Doe",
         "Spring 2025: Dr. Jane Doe - Ocean Mixing",
+        # The honorific of a later part is no mark either.
+        "Spring 2025: Ocean Mixing - Dr. Jane Roe",
+        "Spring 2025 | Ocean Mixing | Dr. Jane Roe",
+        # A month, with or without a year, is a term as well.
+        "January 2025: Dr. Jane Doe",
+        "Jan. 2025: Dr. Jane Doe",
+        "Jan 2025: Dr. Jane Doe",
+        "Sept. 2025 | Prof. Jane Doe",
+        "September: Dr. Jane Doe",
+        "May 2025 - Dr. Jane Doe",
+        "Dec. 2025: Ocean Mixing - Dr. Jane Roe",
     ],
 )
 def test_an_honorific_after_a_term_or_a_year_does_not_vouch_for_the_name(title: str) -> None:
@@ -80,9 +145,18 @@ def test_an_honorific_after_a_term_or_a_year_does_not_vouch_for_the_name(title: 
             "Dr. Jane Doe is a professor of physics.",
             [("Jane Doe", None)],
         ),
+        ("January 2025: Jane Doe (MIT)", None, [("Jane Doe", "MIT")]),
+        ("Spring 2025: Ocean Mixing - Jane Roe, PhD", None, [("Jane Roe", None)]),
+        (
+            "Spring 2025: Ocean Mixing - Dr. Jane Roe",
+            "Dr. Jane Roe is a professor of oceanography.",
+            [("Jane Roe", None)],
+        ),
         # A term in front of a series is a series.
         ("Spring 2025 Seminar: Dr. Jane Doe", None, [("Jane Doe", None)]),
         ("Winter Quarter Colloquium: Prof. Jane Doe", None, [("Jane Doe", None)]),
+        ("January 2025 Colloquium: Dr. Jane Doe", None, [("Jane Doe", None)]),
+        ("Seminar: Ocean Mixing - Dr. Jane Roe", None, [("Jane Roe", None)]),
     ],
 )
 def test_a_term_or_a_year_leaves_the_other_marks_of_a_name(
