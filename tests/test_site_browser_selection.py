@@ -113,6 +113,21 @@ NAME_PARTS = """(uid) => {
   ].map((element) => element.textContent.trim());
 }"""
 LISTED = "es => es.map((e) => e.dataset.uid)"
+# The focused element, whether it is unavailable, and how its focus ring is drawn: the
+# opacity of the element dims the ring with it. ``token`` is the focus colour of the page.
+FOCUS_RING = """() => {
+  const element = document.activeElement;
+  const style = getComputedStyle(element);
+  return {
+    id: element.id,
+    unavailable: element.getAttribute("aria-disabled"),
+    visible: element.matches(":focus-visible"),
+    opacity: style.opacity,
+    outline: [style.outlineStyle, style.outlineWidth, style.outlineColor],
+    border: style.borderTopStyle,
+    token: getComputedStyle(document.documentElement).getPropertyValue("--focus").trim(),
+  };
+}"""
 # Where the checkbox of a talk is in the viewport, the scroll position and the height of
 # the bar.
 PLACE = """(uid) => {
@@ -224,6 +239,26 @@ def tap_in_place(current: Session, uid: str) -> None:
     page.mouse.click(before["x"], before["y"])
     assert page.evaluate(CHECKED_ONE, uid) is not ticked
     assert page.evaluate(PLACE, uid) == before
+
+
+def rgb(color: str) -> str:
+    """A colour of the form #rrggbb as getComputedStyle writes it."""
+    red, green, blue = (int(color[index : index + 2], 16) for index in (1, 3, 5))
+    return f"rgb({red}, {green}, {blue})"
+
+
+def assert_focus_ring(current: Session, button_id: str) -> None:
+    """The focused button is ``button_id``, unavailable, with the full focus ring."""
+    ring = current.page.evaluate(FOCUS_RING)
+    focus = rgb(ring.pop("token"))
+    assert ring == {
+        "id": button_id,
+        "unavailable": "true",
+        "visible": True,
+        "opacity": "1",
+        "outline": ["solid", "2px", focus],
+        "border": "dashed",
+    }
 
 
 def drop_expected_errors(current: Session, *patterns: str) -> None:
@@ -421,6 +456,25 @@ class TestBarButtons:
         assert page.locator(CLEAR).is_disabled()
         assert page.locator(DOWNLOAD).is_disabled()
         assert page.evaluate(LIST_KEPT) is True
+        current.assert_clean()
+
+    @pytest.mark.parametrize("scheme", ["light", "dark"])
+    def test_an_unavailable_button_keeps_its_focus_ring(
+        self, session: Callable[..., Session], scheme: str
+    ) -> None:
+        # Opacity would dim the ring along with the button; the unavailable look is
+        # muted text and a dashed border instead.
+        current = session(color_scheme=scheme).open("index.html")
+        page = current.page
+        select(current, "sample-pick")
+        page.locator(SELECT_SHOWN).focus()
+        page.keyboard.press("Enter")  # every shown talk is selected now
+        assert_focus_ring(current, "select-shown")
+        page.keyboard.press("Tab")
+        page.keyboard.press("Enter")  # Clear selection: nothing is selected
+        assert_focus_ring(current, "select-clear")
+        page.keyboard.press("Tab")
+        assert_focus_ring(current, "select-download")
         current.assert_clean()
 
     @pytest.mark.parametrize("talks_shown", [True, False], ids=["field", "no-talk"])
