@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "started_at": "2026-11-13T07:06:43Z",
-  "finished_at": "2026-11-13T07:12:40Z",
+  "started_at": "2026-11-13T19:36:49Z",
+  "finished_at": "2026-11-13T19:43:18Z",
   "mode": "live",
   "dry_run": false,
   "ok": true,
@@ -9,7 +9,7 @@
     {
       "source_id": "bayarea-biohub",
       "status": "ok",
-      "duration_seconds": 3.066,
+      "duration_seconds": 2.859,
       "requests": 2,
       "drafts": 1,
       "events": 1,
@@ -27,7 +27,7 @@
     {
       "source_id": "bayarea-glam",
       "status": "ok",
-      "duration_seconds": 61.097,
+      "duration_seconds": 61.408,
       "requests": 2,
       "drafts": 8,
       "events": 8,
@@ -45,7 +45,7 @@
     {
       "source_id": "bayarea-kipac",
       "status": "ok",
-      "duration_seconds": 121.258,
+      "duration_seconds": 125.041,
       "requests": 4,
       "drafts": 33,
       "events": 25,
@@ -63,7 +63,7 @@
     {
       "source_id": "bayarea-litp",
       "status": "ok",
-      "duration_seconds": 31.015,
+      "duration_seconds": 31.106,
       "requests": 1,
       "drafts": 9,
       "events": 9,
@@ -81,7 +81,7 @@
     {
       "source_id": "bayarea-pulse",
       "status": "ok",
-      "duration_seconds": 60.993,
+      "duration_seconds": 61.408,
       "requests": 2,
       "drafts": 1,
       "events": 1,
@@ -99,7 +99,7 @@
     {
       "source_id": "bayarea-qfarm",
       "status": "ok",
-      "duration_seconds": 61.552,
+      "duration_seconds": 61.082,
       "requests": 2,
       "drafts": 20,
       "events": 14,
@@ -117,7 +117,7 @@
     {
       "source_id": "bayarea-slac-colloquium",
       "status": "ok",
-      "duration_seconds": 5.549,
+      "duration_seconds": 5.457,
       "requests": 5,
       "drafts": 4,
       "events": 4,
@@ -135,7 +135,7 @@
     {
       "source_id": "custom-ai4science",
       "status": "ok",
-      "duration_seconds": 1.396,
+      "duration_seconds": 1.429,
       "requests": 1,
       "drafts": 20,
       "events": 12,
@@ -153,7 +153,7 @@
     {
       "source_id": "custom-csb-events",
       "status": "ok",
-      "duration_seconds": 3.729,
+      "duration_seconds": 3.992,
       "requests": 3,
       "drafts": 4,
       "events": 2,
@@ -171,7 +171,7 @@
     {
       "source_id": "custom-dbds-workshop",
       "status": "failed",
-      "duration_seconds": 87.128,
+      "duration_seconds": 87.244,
       "requests": 1,
       "drafts": 0,
       "events": 0,
@@ -189,7 +189,7 @@
     {
       "source_id": "custom-hai-events",
       "status": "ok",
-      "duration_seconds": 4.505,
+      "duration_seconds": 3.675,
       "requests": 3,
       "drafts": 9,
       "events": 8,
@@ -207,12 +207,12 @@
     {
       "source_id": "custom-isl-colloquium",
       "status": "ok",
-      "duration_seconds": 1.419,
+      "duration_seconds": 1.573,
       "requests": 1,
       "drafts": 152,
-      "events": 5,
+      "events": 4,
       "invalid": 0,
-      "outside_window": 147,
+      "outside_window": 148,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -225,7 +225,7 @@
     {
       "source_id": "custom-mlsys-seminar",
       "status": "empty",
-      "duration_seconds": 1.229,
+      "duration_seconds": 1.113,
       "requests": 1,
       "drafts": 87,
       "events": 0,
@@ -243,7 +243,7 @@
     {
       "source_id": "custom-nlp-seminar",
       "status": "failed",
-      "duration_seconds": 87.131,
+      "duration_seconds": 87.286,
       "requests": 1,
       "drafts": 0,
       "events": 0,
@@ -261,7 +261,7 @@
     {
       "source_id": "custom-rain-seminar",
       "status": "ok",
-      "duration_seconds": 1.243,
+      "duration_seconds": 1.107,
       "requests": 1,
       "drafts": 10,
       "events": 7,
@@ -279,7 +279,7 @@
     {
       "source_id": "custom-synbio-events",
       "status": "ok",
-      "duration_seconds": 1.44,
+      "duration_seconds": 1.302,
       "requests": 1,
       "drafts": 96,
       "events": 2,
@@ -297,12 +297,12 @@
     {
       "source_id": "custom-theory-lunch",
       "status": "ok",
-      "duration_seconds": 1.242,
+      "duration_seconds": 1.332,
       "requests": 1,
       "drafts": 11,
-      "events": 6,
+      "events": 5,
       "invalid": 0,
-      "outside_window": 5,
+      "outside_window": 6,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -315,10 +315,10 @@
     {
       "source_id": "localist-stanford",
       "status": "ok",
-      "duration_seconds": 40.455,
+      "duration_seconds": 53.892,
       "requests": 7,
-      "drafts": 613,
-      "events": 613,
+      "drafts": 586,
+      "events": 586,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -329,18 +329,18 @@
       "error_kind": null,
       "error": null,
       "warnings": [
-        "76 text(s) or address(es) held a credential or a meeting password and were withheld"
+        "73 text(s) or address(es) held a credential or a meeting password and were withheld"
       ]
     },
     {
       "source_id": "rsorg-topos-colloquium",
       "status": "ok",
-      "duration_seconds": 3.218,
+      "duration_seconds": 3.236,
       "requests": 1,
       "drafts": 233,
-      "events": 13,
+      "events": 12,
       "invalid": 0,
-      "outside_window": 220,
+      "outside_window": 221,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -353,7 +353,7 @@
     {
       "source_id": "sites-aimi",
       "status": "ok",
-      "duration_seconds": 151.52,
+      "duration_seconds": 151.762,
       "requests": 5,
       "drafts": 6,
       "events": 4,
@@ -371,7 +371,7 @@
     {
       "source_id": "sites-biochemistry",
       "status": "ok",
-      "duration_seconds": 60.761,
+      "duration_seconds": 62.494,
       "requests": 2,
       "drafts": 3,
       "events": 3,
@@ -389,7 +389,7 @@
     {
       "source_id": "sites-biology",
       "status": "ok",
-      "duration_seconds": 30.884,
+      "duration_seconds": 30.79,
       "requests": 1,
       "drafts": 9,
       "events": 9,
@@ -409,7 +409,7 @@
     {
       "source_id": "sites-cheme",
       "status": "ok",
-      "duration_seconds": 91.061,
+      "duration_seconds": 91.377,
       "requests": 3,
       "drafts": 2,
       "events": 2,
@@ -427,7 +427,7 @@
     {
       "source_id": "sites-chemh",
       "status": "ok",
-      "duration_seconds": 61.012,
+      "duration_seconds": 61.571,
       "requests": 2,
       "drafts": 4,
       "events": 4,
@@ -445,10 +445,10 @@
     {
       "source_id": "sites-chemistry",
       "status": "ok",
-      "duration_seconds": 31.039,
+      "duration_seconds": 31.057,
       "requests": 1,
-      "drafts": 19,
-      "events": 19,
+      "drafts": 18,
+      "events": 18,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -463,7 +463,7 @@
     {
       "source_id": "sites-icme",
       "status": "ok",
-      "duration_seconds": 91.215,
+      "duration_seconds": 91.165,
       "requests": 3,
       "drafts": 10,
       "events": 3,
@@ -481,10 +481,10 @@
     {
       "source_id": "sites-mathematics",
       "status": "ok",
-      "duration_seconds": 61.102,
+      "duration_seconds": 62.621,
       "requests": 2,
-      "drafts": 56,
-      "events": 56,
+      "drafts": 54,
+      "events": 54,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -499,7 +499,7 @@
     {
       "source_id": "sites-mrc",
       "status": "ok",
-      "duration_seconds": 30.606,
+      "duration_seconds": 30.801,
       "requests": 1,
       "drafts": 2,
       "events": 2,
@@ -517,7 +517,7 @@
     {
       "source_id": "sites-mse",
       "status": "ok",
-      "duration_seconds": 60.786,
+      "duration_seconds": 60.989,
       "requests": 2,
       "drafts": 4,
       "events": 3,
@@ -535,7 +535,7 @@
     {
       "source_id": "sites-physics",
       "status": "ok",
-      "duration_seconds": 30.614,
+      "duration_seconds": 30.77,
       "requests": 1,
       "drafts": 7,
       "events": 7,
@@ -555,7 +555,7 @@
     {
       "source_id": "sites-statistics",
       "status": "ok",
-      "duration_seconds": 30.624,
+      "duration_seconds": 30.94,
       "requests": 1,
       "drafts": 10,
       "events": 10,
@@ -573,10 +573,10 @@
     {
       "source_id": "sites-systemx",
       "status": "ok",
-      "duration_seconds": 91.108,
-      "requests": 3,
-      "drafts": 1,
-      "events": 1,
+      "duration_seconds": 124.875,
+      "requests": 4,
+      "drafts": 2,
+      "events": 2,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -752,16 +752,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54352465151313"
-      ],
-      "title": "Postgrad Fellowships Info Session (Cardinal Careers)",
-      "start": "2026-10-29T11:45:00-07:00",
-      "url": "https://events.stanford.edu/event/postgrad-fellowships-info-session-cardinal-careers",
-      "reason": "admissions",
-      "detail": "title matches \"info session\""
-    },
-    {
-      "source_ids": [
         "localist-stanford:54420408876947"
       ],
       "title": "Earth Systems Program Coterm Info Session",
@@ -852,16 +842,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53550046971470"
-      ],
-      "title": "Yes, And! Improv Techniques for Confident Communication and Creative Thinking",
-      "start": "2026-10-29T12:00:00-07:00",
-      "url": "https://events.stanford.edu/event/quick-bytes-yes-and-improv-techniques-for-confident-communication-and-creative-thinking-2026",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
         "localist-stanford:53741880677240"
       ],
       "title": "Perimenopause and Menopause",
@@ -872,11 +852,41 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54004331780743"
+      ],
+      "title": "Upstander Workshop with PEERs: FREE boba!",
+      "start": "2026-11-02T19:00:00-08:00",
+      "url": "https://events.stanford.edu/event/upstander-workshop-with-peers-free-boba-7088",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53737115473195"
       ],
       "title": "Living with OCD",
       "start": "2026-11-03T15:30:00-08:00",
       "url": "https://events.stanford.edu/event/copy-of-living-with-ocd-6052",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:53941861021518"
+      ],
+      "title": "Creative Teaching with AI",
+      "start": "2026-11-03T16:00:00-08:00",
+      "url": "https://events.stanford.edu/event/creative-teaching-with-ai",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54038409120395"
+      ],
+      "title": "The Art of Raising Teenagers - November 2026",
+      "start": "2026-11-03T16:00:00-08:00",
+      "url": "https://events.stanford.edu/event/the-art-of-raising-teenagers-november-2026",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -902,6 +912,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:53986116299901"
+      ],
+      "title": "Benefits Open Enrollment Session",
+      "start": "2026-11-04T14:00:00-08:00",
+      "url": "https://events.stanford.edu/event/benefits-open-enrollment-session-3706",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53454592685357"
       ],
       "title": "Global Risk Resource Review for Faculty, Researchers (Autumn 2026)",
@@ -912,11 +932,61 @@
     },
     {
       "source_ids": [
+        "localist-stanford:53994605586594"
+      ],
+      "title": "Stegner Fellow Reading with Daniel Lurie and Katerina Ivanov Prado",
+      "start": "2026-11-04T18:30:00-08:00",
+      "url": "https://events.stanford.edu/event/stegner-fellow-reading-with-daniel-lurie-and-katerina-ivanov-prado",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54003952174869"
+      ],
+      "title": "You Belong Here: A Student Workshop",
+      "start": "2026-11-04T18:30:00-08:00",
+      "url": "https://events.stanford.edu/event/you-belong-here-a-student-workshop",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53741880762244"
       ],
       "title": "Building Resilience for High Stress Moments Through Meditation (November 5 - 19)",
       "start": "2026-11-05T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/building-resilience-for-high-stress-moments-through-meditation-november-5-19",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54011243977907"
+      ],
+      "title": "No Ideas But in Things",
+      "start": "2026-11-05T16:30:00-08:00",
+      "url": "https://events.stanford.edu/event/no-ideas-but-in-things",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54002119865911"
+      ],
+      "title": "First Fridays Collab Lab",
+      "start": "2026-11-06T11:30:00-08:00",
+      "url": "https://events.stanford.edu/event/collab-lab-nov6",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:53898107752586"
+      ],
+      "title": "OMAC First Fridays",
+      "start": "2026-11-06T17:00:00-08:00",
+      "url": "https://events.stanford.edu/event/omac-first-fridays",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -972,6 +1042,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54004113610700"
+      ],
+      "title": "FREE Naloxone (Narcan) Training Including Jellycat Rafffle!",
+      "start": "2026-11-16T19:00:00-08:00",
+      "url": "https://events.stanford.edu/event/free-naloxone-narcan-training-including-jellycat-rafffle",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53737115475245"
       ],
       "title": "Living with OCD",
@@ -982,11 +1062,41 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54031148397687"
+      ],
+      "title": "Another Look presents Tobias Wolff’s “Old School”",
+      "start": "2026-11-17T19:00:00-08:00",
+      "url": "https://events.stanford.edu/event/another-look-presents-tobias-wolffs-old-school",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53741881111471"
       ],
       "title": "Landscapes as a Creative Path for Mindful Well-being",
       "start": "2026-11-18T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/landscapes-as-a-creative-path-for-mindful-well-being",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54365766240476"
+      ],
+      "title": "Drop-In Samizdat* Workshop (*DIY Unofficial, Unsanctioned, Limited Edition Publication)",
+      "start": "2026-11-18T15:00:00-08:00",
+      "url": "https://events.stanford.edu/event/samizdat-november-2026",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:53871184671743"
+      ],
+      "title": "Deadline for departments to update course grading basis, unit, and/or component configuration for classes offered in Winter (noon)",
+      "start": "2026-11-20T00:00:00-08:00",
+      "url": "https://events.stanford.edu/event/deadline-for-departments-to-update-course-grading-basis-unit-andor-component-configuration-for-classes-offered-in-winter-noon-830",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -1012,6 +1122,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54004270300364"
+      ],
+      "title": "Bring Your Own PEER (Alcohol 101 training): Boba + Jellycat Raffle!",
+      "start": "2026-11-26T19:00:00-08:00",
+      "url": "https://events.stanford.edu/event/bring-your-own-peer-alcohol-101-training-boba-jellycat-raffle",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:51754668920592"
       ],
       "title": "Friday after Thanksgiving",
@@ -1027,6 +1147,16 @@
       "title": "Global Risk Resource Review for Faculty, Researchers (Autumn 2026)",
       "start": "2026-12-01T10:00:00-08:00",
       "url": "https://events.stanford.edu/event/global-risk-resource-review-for-faculty-researchers-autumn",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:53898107753611"
+      ],
+      "title": "OMAC First Fridays",
+      "start": "2026-12-04T17:00:00-08:00",
+      "url": "https://events.stanford.edu/event/omac-first-fridays",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -1082,11 +1212,31 @@
     },
     {
       "source_ids": [
+        "localist-stanford:53994806337231"
+      ],
+      "title": "Stegner Fellow Reading with Cheyenne Fletcher and Yi Jiang",
+      "start": "2027-01-27T18:30:00-08:00",
+      "url": "https://events.stanford.edu/event/copy-of-stegner-fellow-reading-with-daniel-lurie-and-katerina-ivanov-prado",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53801295928663"
       ],
       "title": "Lunchtime Curator Talk | California Current: Art and Histories from the Bay Area",
       "start": "2027-02-04T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/copy-of-lunchtime-curator-talk-california-current-art-and-histories-from-the-bay-area-2439",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:53898107754636"
+      ],
+      "title": "OMAC First Fridays",
+      "start": "2027-02-05T17:00:00-08:00",
+      "url": "https://events.stanford.edu/event/omac-first-fridays",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -1102,244 +1252,43 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54046892778465",
-        "localist-stanford:54312299358766"
+        "localist-stanford:53853582945229"
       ],
-      "title": "Page Mill: Flu & COVID-19 Vaccination Clinic",
-      "start": "2026-10-29T09:00:00-07:00",
-      "url": "https://events.stanford.edu/event/page-mill-flu-covid-19-vaccination-clinic",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
+      "title": "Reading with Robin Coste Lewis, the Mohr Visiting Poet",
+      "start": "2027-02-17T20:00:00-08:00",
+      "url": "https://events.stanford.edu/event/reading-with-robin-coste-lewis-the-mohr-visiting-poet",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
     },
     {
       "source_ids": [
-        "localist-stanford:54191255696310"
+        "localist-stanford:53880716348747"
       ],
-      "title": "The Alliance for Civics in the Academy discussing Civics Programs And Their Critics",
-      "start": "2026-10-29T09:00:00-07:00",
-      "url": "https://events.stanford.edu/event/the-alliance-for-civics-in-the-academy-discussing-civics-programs-and-their-critics",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
+      "title": "Drop-In Samizdat* Workshop (*DIY Unofficial, Unsanctioned, Limited Edition Publication)",
+      "start": "2027-02-18T15:00:00-08:00",
+      "url": "https://events.stanford.edu/event/samizdat-february-2027",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
     },
     {
       "source_ids": [
-        "localist-stanford:53941768563971"
+        "localist-stanford:53871660141992"
       ],
-      "title": "Korea’s Nuclear Odyssey Beyond Borders: From KEDO to the Age of AI",
-      "start": "2026-10-29T12:00:00-07:00",
-      "url": "https://events.stanford.edu/event/koreas-nuclear-odyssey-beyond-borders-from-kedo-to-the-age-of-ai",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
+      "title": "Deadline for departments to update course grading basis, unit, and/or component configuration for classes offered in Spring.",
+      "start": "2027-02-19T00:00:00-08:00",
+      "url": "https://events.stanford.edu/event/deadline-for-departments-to-update-course-grading-basis-unit-andor-component-configuration-for-classes-offered-in-spring-4698",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
     },
     {
       "source_ids": [
-        "localist-stanford:54001907478256"
+        "localist-stanford:53898107755661"
       ],
-      "title": "From Yahweh to Jupiter: Orthodox Muscovy Deals with the Classical World",
-      "start": "2026-10-29T12:00:00-07:00",
-      "url": "https://events.stanford.edu/event/from-yahweh-to-jupiter-orthodox-muscovy-deals-with-the-classical-world",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54004011507794"
-      ],
-      "title": "Benjamin Yoel — International Pressure and Opposition to Democratic Backsliding",
-      "start": "2026-10-29T12:00:00-07:00",
-      "url": "https://events.stanford.edu/event/benjamin-yoel-international-pressure-and-opposition-to-democratic-backsliding",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54231229362959"
-      ],
-      "title": "SCRIPTA - Jutta Eming: A Sleeping Giant: The Transmission of the Sindbad / Seven Sages of Rome-Narrative",
-      "start": "2026-10-29T12:00:00-07:00",
-      "url": "https://events.stanford.edu/event/scripta-jutta-eming-a-sleeping-giant",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54242650519833"
-      ],
-      "title": "Comics: More Than Words: Hanako Asakura - Manga as (or in?) Conversation: History, Fandom, and the Classroom",
-      "start": "2026-10-29T12:00:00-07:00",
-      "url": "https://events.stanford.edu/event/comics-more-than-words-hanako-asakura-manga-as-or-in-conversation",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54285039439805"
-      ],
-      "title": "LECTURE | LUXURY LINER",
-      "start": "2026-10-29T12:00:00-07:00",
-      "url": "https://events.stanford.edu/event/lecture-luxury-liner",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54312969996465"
-      ],
-      "title": "Earth System Science Seminar Series: Dr. Jennifer K. Balch",
-      "start": "2026-10-29T12:00:00-07:00",
-      "url": "https://events.stanford.edu/event/earth-system-science-seminar-series-dr-jennifer-k-balch",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54357825529150"
-      ],
-      "title": "Face Time with Jaclyn Zhou",
-      "start": "2026-10-29T12:00:00-07:00",
-      "url": "https://events.stanford.edu/event/face-time-with-jaclyn-zhou",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54346848286023"
-      ],
-      "title": "Challenging the Archives: Reconstructing the Lives and Networks of Sex Workers in Early Modern Venice through Digital Tools",
-      "start": "2026-10-29T12:15:00-07:00",
-      "url": "https://events.stanford.edu/event/challenging-the-archives-reconstructing-the-lives-and-networks-of-sex-workers-in-early-modern-venice-through-digital-tools",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53940417053127"
-      ],
-      "title": "Urban Studies Model Scholar Lecture | How Surprising Neighborhood Changes Are Bringing Down Black-White Segregation",
-      "start": "2026-10-29T12:30:00-07:00",
-      "url": "https://events.stanford.edu/event/urban-studies-20th-annual-model-scholar-lecturehow-surprising-neighborhood-changes-are-bringing-down-black-white-segregation",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54321173888525"
-      ],
-      "title": "Green Library Book Display: Witches and Witchcraft",
-      "start": "2026-10-29T13:00:00-07:00",
-      "url": "https://events.stanford.edu/event/green-library-book-display-witches-and-witchcraft",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53701722184920"
-      ],
-      "title": "Environmental Behavioral Sciences Seminar with Fran Moore",
-      "start": "2026-10-29T13:15:00-07:00",
-      "url": "https://events.stanford.edu/event/environmental-behavioral-sciences-seminar-with-fran-moore",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53481317823257"
-      ],
-      "title": "Worse than War: The Global Costs of Violence",
-      "start": "2026-10-29T15:30:00-07:00",
-      "url": "https://events.stanford.edu/event/worse-than-war-the-global-costs-of-violence",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54162087226130"
-      ],
-      "title": "Midterms Debrief - Academic Advising Workshop",
-      "start": "2026-10-29T15:30:00-07:00",
-      "url": "https://events.stanford.edu/event/midterms-academic-advising-workshop",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53550068770234"
-      ],
-      "title": "Leadership Bootcamp: Communication, Negotiation and Influence",
-      "start": "2026-10-29T16:00:00-07:00",
-      "url": "https://events.stanford.edu/event/leadership-bootcamp-communication-negotiation-and-influence-oct28-oct29-2026",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54242401712953"
-      ],
-      "title": "A Conversation with Matthew L. Jones, Princeton University, on his book How Data Happened and the development of AI, with comments by Tom Mullaney, Stanford University",
-      "start": "2026-10-29T16:30:00-07:00",
-      "url": "https://events.stanford.edu/event/a-conversation-withmatthew-l-jones-princeton-university-on-his-bookhow-data-happenedand-the-development-of-ai-with-comments-by-tom-mullaney-stanford-university",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54366010710516"
-      ],
-      "title": "CBPA Artist Circle | With Benjamin Lundberg Torres Sanchéz",
-      "start": "2026-10-29T16:30:00-07:00",
-      "url": "https://events.stanford.edu/event/cbpa-artist-cricle-WK6",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53666468339419"
-      ],
-      "title": "InterPlay Salon with Austin Anderson, Jussi Ängeslevä, and Patrick R. Crowley | Stanford Affiliates Only",
-      "start": "2026-10-29T17:00:00-07:00",
-      "url": "https://events.stanford.edu/event/InterPlay_Oct_2026",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54232746102437"
-      ],
-      "title": "Environmental Humanities Project: Public Lecture: “Ripple Effects: Making with Rivers in War and Peace” with Amanda M. Smith",
-      "start": "2026-10-29T17:00:00-07:00",
-      "url": "https://events.stanford.edu/event/environmental-humanities-project-public-lectureripple-effects-making-with-rivers-in-war-and-peace-with-amanda-m-smith",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54240494180461"
-      ],
-      "title": "Archivos, Guerra Fria Y Revolucion",
-      "start": "2026-10-29T17:00:00-07:00",
-      "url": "https://events.stanford.edu/event/ilac-archivos-guerra-fria-y-revolucion",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:52144974567419"
-      ],
-      "title": "Weintz Art Lecture Series: Elizabeth Dospěl Williams",
-      "start": "2026-10-29T17:30:00-07:00",
-      "url": "https://events.stanford.edu/event/weintz-art-lecture-series-elizabeth-dospel-williams-2203",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53745897362220"
-      ],
-      "title": "Witness to Iran’s Paradigm Shift: From Flight PS752 to Woman, Life, Freedom and Beyond",
-      "start": "2026-10-29T18:30:00-07:00",
-      "url": "https://events.stanford.edu/event/witness-to-irans-paradigm-shift-from-flight-ps752-to-woman-life-freedom-and-beyond",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
+      "title": "OMAC First Fridays",
+      "start": "2027-03-05T17:00:00-08:00",
+      "url": "https://events.stanford.edu/event/omac-first-fridays",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
     },
     {
       "source_ids": [
@@ -1358,16 +1307,6 @@
       "title": "Archivos, Guerra Fria Y Revolucion",
       "start": "2026-10-30T08:30:00-07:00",
       "url": "https://events.stanford.edu/event/ilac-archivos-guerra-fria-y-revolucion",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53944726910062"
-      ],
-      "title": "Carpentries: Introduction to R",
-      "start": "2026-10-30T09:00:00-07:00",
-      "url": "https://events.stanford.edu/event/carpentries-introduction-to-r",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -1458,16 +1397,6 @@
       "title": "Green Library Book Display: Witches and Witchcraft",
       "start": "2026-11-01T13:00:00-08:00",
       "url": "https://events.stanford.edu/event/green-library-book-display-witches-and-witchcraft",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53922734573266"
-      ],
-      "title": "Big Earth Hackathon: Wildland Fire Challenge",
-      "start": "2026-11-02T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/big-earth-hackathon-wildland-fire-challenge",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -1593,16 +1522,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54004331780743"
-      ],
-      "title": "Upstander Workshop with PEERs: FREE boba!",
-      "start": "2026-11-02T19:00:00-08:00",
-      "url": "https://events.stanford.edu/event/upstander-workshop-with-peers-free-boba-7088",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54312312883607"
       ],
       "title": "EH&S: Flu & COVID-19 Vaccination Clinic",
@@ -1673,26 +1592,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53941861021518"
-      ],
-      "title": "Creative Teaching with AI",
-      "start": "2026-11-03T16:00:00-08:00",
-      "url": "https://events.stanford.edu/event/creative-teaching-with-ai",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54038409120395"
-      ],
-      "title": "The Art of Raising Teenagers - November 2026",
-      "start": "2026-11-03T16:00:00-08:00",
-      "url": "https://events.stanford.edu/event/the-art-of-raising-teenagers-november-2026",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54356260705082"
       ],
       "title": "Creating What's Possible: A Panel Discussion with First-Generation Students in STEM",
@@ -1708,16 +1607,6 @@
       "title": "Artist Talk with CFGNY: A Practice in Collaboration",
       "start": "2026-11-03T17:30:00-08:00",
       "url": "https://events.stanford.edu/event/artist-talk-with-cfgny-a-practice-in-collaboration",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53922734578388"
-      ],
-      "title": "Big Earth Hackathon: Wildland Fire Challenge",
-      "start": "2026-11-04T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/big-earth-hackathon-wildland-fire-challenge",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -1758,16 +1647,6 @@
       "title": "The Hoover Institution Center for Revitalizing American Institutions discussing America Votes 2026: Understanding The Midterm Elections",
       "start": "2026-11-04T10:00:00-08:00",
       "url": "https://events.stanford.edu/event/the-hoover-institution-center-for-revitalizing-american-institutions-discussing-america-votes-2026-understanding-the-midterm-elections",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53944511822010"
-      ],
-      "title": "How to Be More Effective with AI Tools While Coding",
-      "start": "2026-11-04T11:00:00-08:00",
-      "url": "https://events.stanford.edu/event/how-to-be-more-effective-with-ai-tools-while-coding-8412",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -1843,16 +1722,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53986116299901"
-      ],
-      "title": "Benefits Open Enrollment Session",
-      "start": "2026-11-04T14:00:00-08:00",
-      "url": "https://events.stanford.edu/event/benefits-open-enrollment-session-3706",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54046853112610"
       ],
       "title": "Reimagining Democracy: America at 250",
@@ -1868,16 +1737,6 @@
       "title": "The Rise and Fall of Tunisian Democracy: Populism, Polarization, and the Perils of Power-Sharing",
       "start": "2026-11-04T16:00:00-08:00",
       "url": "https://events.stanford.edu/event/the-rise-and-fall-of-tunisian-democracy-populism-polarization-and-the-perils-of-power-sharing",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54004063488689"
-      ],
-      "title": "Celine Halioua @ Entrepreneurial Thought Leaders Speaker Series (ETL)",
-      "start": "2026-11-04T16:30:00-08:00",
-      "url": "https://events.stanford.edu/event/celine-halioua-entrepreneurial-thought-leaders-speaker-series-etl",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -1908,26 +1767,6 @@
       "title": "Stanford in Haus Cramer: A Berlin Microhistory - Book Launch and Reception",
       "start": "2026-11-04T17:30:00-08:00",
       "url": "https://events.stanford.edu/event/stanford-in-haus-cramer-a-berlin-microhistory-book-launch-and-reception",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53994605586594"
-      ],
-      "title": "Stegner Fellow Reading with Daniel Lurie and Katerina Ivanov Prado",
-      "start": "2026-11-04T18:30:00-08:00",
-      "url": "https://events.stanford.edu/event/stegner-fellow-reading-with-daniel-lurie-and-katerina-ivanov-prado",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54003952174869"
-      ],
-      "title": "You Belong Here: A Student Workshop",
-      "start": "2026-11-04T18:30:00-08:00",
-      "url": "https://events.stanford.edu/event/you-belong-here-a-student-workshop",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -2063,31 +1902,11 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53944560649281"
-      ],
-      "title": "Text Analysis in Python",
-      "start": "2026-11-05T15:00:00-08:00",
-      "url": "https://events.stanford.edu/event/text-analysis-in-python",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:53977038029919"
       ],
       "title": "The Fate of the Social in Modern Life: American Social Scientists and Japan as Archive",
       "start": "2026-11-05T16:30:00-08:00",
       "url": "https://events.stanford.edu/event/the-fate-of-the-social-in-modern-life-american-social-scientists-and-japan-as-archive",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54011243977907"
-      ],
-      "title": "No Ideas But in Things",
-      "start": "2026-11-05T16:30:00-08:00",
-      "url": "https://events.stanford.edu/event/no-ideas-but-in-things",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -2138,16 +1957,6 @@
       "title": "Day of the Dead Celebrations | Lecture by Rubí Tsanda Huerta",
       "start": "2026-11-05T17:00:00-08:00",
       "url": "https://events.stanford.edu/event/day-of-the-dead-celebrations-day-3",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53871308387148"
-      ],
-      "title": "36th Annual Jonathan J. King Lecture: Dr. Bryant Lin & Dr. Shoshana Ungerleider",
-      "start": "2026-11-05T17:30:00-08:00",
-      "url": "https://events.stanford.edu/event/36th-annual-jonathan-j-king-lecture",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -2233,16 +2042,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54002119865911"
-      ],
-      "title": "First Fridays Collab Lab",
-      "start": "2026-11-06T11:30:00-08:00",
-      "url": "https://events.stanford.edu/event/collab-lab-nov6",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54108634211737"
       ],
       "title": "Paweł Adamowicz and the Civic Ethos of Inclusion: Urban Democracy After the Assassination",
@@ -2293,16 +2092,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53898107752586"
-      ],
-      "title": "OMAC First Fridays",
-      "start": "2026-11-06T17:00:00-08:00",
-      "url": "https://events.stanford.edu/event/omac-first-fridays",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54321173925398"
       ],
       "title": "Green Library Book Display: Witches and Witchcraft",
@@ -2318,16 +2107,6 @@
       "title": "Green Library Book Display: Witches and Witchcraft",
       "start": "2026-11-08T13:00:00-08:00",
       "url": "https://events.stanford.edu/event/green-library-book-display-witches-and-witchcraft",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53922734592729"
-      ],
-      "title": "Big Earth Hackathon: Wildland Fire Challenge",
-      "start": "2026-11-09T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/big-earth-hackathon-wildland-fire-challenge",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -2473,16 +2252,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53944542458283"
-      ],
-      "title": "Using AI to Find Sources",
-      "start": "2026-11-10T14:00:00-08:00",
-      "url": "https://events.stanford.edu/event/using-ai-to-find-sources",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54348710965241"
       ],
       "title": "Science, Statecraft, and National Resilience: Rethinking Governance in the Philippines",
@@ -2553,16 +2322,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53922734597851"
-      ],
-      "title": "Big Earth Hackathon: Wildland Fire Challenge",
-      "start": "2026-11-11T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/big-earth-hackathon-wildland-fire-challenge",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54322876803293"
       ],
       "title": "Graduate Students Writing Session",
@@ -2618,16 +2377,6 @@
       "title": "Lunch Club Series | Beneath Tiahuanacu’s Streets: Ceramic iconography and Ancient Heritage in an Aymara town",
       "start": "2026-11-11T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/lunch-club-series-beneath-tiahuanacus-streets-ceramic-iconography-and-ancient-heritage-in-an-aymara-town",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54037513552790"
-      ],
-      "title": "Planetary Science and Exploration Seminar, Clive Neal - \"Why the Moon Needs an International Lunar Resource Prospecting Campaign\"",
-      "start": "2026-11-11T12:30:00-08:00",
-      "url": "https://events.stanford.edu/event/planetary-science-and-exploration-seminar-clive-neal-why-the-moon-needs-an-international-lunar-resource-prospecting-campaign",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -3003,16 +2752,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53922734613216"
-      ],
-      "title": "Big Earth Hackathon: Wildland Fire Challenge",
-      "start": "2026-11-16T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/big-earth-hackathon-wildland-fire-challenge",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:53808840548140"
       ],
       "title": "Neil Rogachevsky — Israel's Declaration of Independence: Founding Values and Contemporary Debates",
@@ -3188,16 +2927,6 @@
       "title": "Aditya Balasubramanian | Before Public Works: Roads in Late Company Period India",
       "start": "2026-11-16T17:30:00-08:00",
       "url": "https://events.stanford.edu/event/aditya-balasubramanian-before-public-works-roads-in-late-company-period-india",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54004113610700"
-      ],
-      "title": "FREE Naloxone (Narcan) Training Including Jellycat Rafffle!",
-      "start": "2026-11-16T19:00:00-08:00",
-      "url": "https://events.stanford.edu/event/free-naloxone-narcan-training-including-jellycat-rafffle",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -3383,26 +3112,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54031148397687"
-      ],
-      "title": "Another Look presents Tobias Wolff’s “Old School”",
-      "start": "2026-11-17T19:00:00-08:00",
-      "url": "https://events.stanford.edu/event/another-look-presents-tobias-wolffs-old-school",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53922734621410"
-      ],
-      "title": "Big Earth Hackathon: Wildland Fire Challenge",
-      "start": "2026-11-18T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/big-earth-hackathon-wildland-fire-challenge",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54225562985263"
       ],
       "title": "Stanford Physician Leadership Certificate Program",
@@ -3568,16 +3277,6 @@
       "title": "Slavic Languages and Literatures - A Ukrainian Century: Émigré Poets in Prague",
       "start": "2026-11-18T13:00:00-08:00",
       "url": "https://events.stanford.edu/event/slavic-languages-and-literatures-a-ukrainian-century-emigre-poets-in-prague",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54365766240476"
-      ],
-      "title": "Drop-In Samizdat* Workshop (*DIY Unofficial, Unsanctioned, Limited Edition Publication)",
-      "start": "2026-11-18T15:00:00-08:00",
-      "url": "https://events.stanford.edu/event/samizdat-november-2026",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -3833,16 +3532,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53871184671743"
-      ],
-      "title": "Deadline for departments to update course grading basis, unit, and/or component configuration for classes offered in Winter (noon)",
-      "start": "2026-11-20T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/deadline-for-departments-to-update-course-grading-basis-unit-andor-component-configuration-for-classes-offered-in-winter-noon-830",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54438180058341"
       ],
       "title": "Immigration Pathways Beyond F-1",
@@ -3904,26 +3593,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53922734637799"
-      ],
-      "title": "Big Earth Hackathon: Wildland Fire Challenge",
-      "start": "2026-11-23T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/big-earth-hackathon-wildland-fire-challenge",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53922734644969"
-      ],
-      "title": "Big Earth Hackathon: Wildland Fire Challenge",
-      "start": "2026-11-25T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/big-earth-hackathon-wildland-fire-challenge",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54322876815583"
       ],
       "title": "Graduate Students Writing Session",
@@ -3944,51 +3613,11 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54004270300364"
-      ],
-      "title": "Bring Your Own PEER (Alcohol 101 training): Boba + Jellycat Raffle!",
-      "start": "2026-11-26T19:00:00-08:00",
-      "url": "https://events.stanford.edu/event/bring-your-own-peer-alcohol-101-training-boba-jellycat-raffle",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53922734663406"
-      ],
-      "title": "Big Earth Hackathon: Wildland Fire Challenge",
-      "start": "2026-11-30T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/big-earth-hackathon-wildland-fire-challenge",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:53986242956937"
       ],
       "title": "Global Implications of the U.S. Midterm Elections",
       "start": "2026-11-30T16:30:00-08:00",
       "url": "https://events.stanford.edu/event/global-implications-of-the-us-midterm-elections",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54004226824880"
-      ],
-      "title": "Learn about Consent & Communication (CoCo Workshop) + Free Boba!",
-      "start": "2026-11-30T19:00:00-08:00",
-      "url": "https://events.stanford.edu/event/learn-about-consent-communication-coco-free-boba",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53922734668527"
-      ],
-      "title": "Big Earth Hackathon: Wildland Fire Challenge",
-      "start": "2026-12-01T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/big-earth-hackathon-wildland-fire-challenge",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4244,6 +3873,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54505813512938"
+      ],
+      "title": "Book Talk with Logan Wright | Broken China: How the Economic Miracle Shattered and What it Means for the World",
+      "start": "2026-12-03T16:00:00-08:00",
+      "url": "https://events.stanford.edu/event/book-talk-with-logan-wright-broken-china-how-the-economic-miracle-shattered-and-what-it-means-for-the-world",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
         "localist-stanford:54445790003374"
       ],
       "title": "The Genesis Mission AI Project: From Materials Development to Autonomous Labs and Beyond",
@@ -4309,16 +3948,6 @@
       "title": "Ruffinelli Film Screening and Lecture",
       "start": "2026-12-04T13:30:00-08:00",
       "url": "https://events.stanford.edu/event/ruffinelli-lecture-and-film-screening",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53898107753611"
-      ],
-      "title": "OMAC First Fridays",
-      "start": "2026-12-04T17:00:00-08:00",
-      "url": "https://events.stanford.edu/event/omac-first-fridays",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4584,16 +4213,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53862726309410"
-      ],
-      "title": "Eugene Wang: \"Biocosmic Art; or How to Capture a Painter’s Brain?\"",
-      "start": "2027-01-14T17:00:00-08:00",
-      "url": "https://events.stanford.edu/event/eugene-wang-biocosmic-art-or-how-to-capture-a-painters-brain",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54038463738544"
       ],
       "title": "Get Off That Cell Phone!",
@@ -4679,16 +4298,6 @@
       "title": "Privileged Minorities: A History of Wealth Concentration in South Africa - Mesrob Vartavarian",
       "start": "2027-01-27T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/privileged-minorities-a-history-of-wealth-concentration-in-south-africa-mesrob-vartavarian",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53994806337231"
-      ],
-      "title": "Stegner Fellow Reading with Cheyenne Fletcher and Yi Jiang",
-      "start": "2027-01-27T18:30:00-08:00",
-      "url": "https://events.stanford.edu/event/copy-of-stegner-fellow-reading-with-daniel-lurie-and-katerina-ivanov-prado",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4814,16 +4423,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53898107754636"
-      ],
-      "title": "OMAC First Fridays",
-      "start": "2027-02-05T17:00:00-08:00",
-      "url": "https://events.stanford.edu/event/omac-first-fridays",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54189236964168"
       ],
       "title": "The Steven Coutre Review of the 68th Annual American Society of Hematology Meeting",
@@ -4884,16 +4483,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53853336941939"
-      ],
-      "title": "Stanford Global and Planetary Health Research Convening",
-      "start": "2027-02-11T09:00:00-08:00",
-      "url": "https://events.stanford.edu/event/stanford-global-and-planetary-health-research-convening",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:53701740865833"
       ],
       "title": "Environmental Behavioral Sciences Seminar with Aradhna Tripati",
@@ -4944,16 +4533,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53853582945229"
-      ],
-      "title": "Reading with Robin Coste Lewis, the Mohr Visiting Poet",
-      "start": "2027-02-17T20:00:00-08:00",
-      "url": "https://events.stanford.edu/event/reading-with-robin-coste-lewis-the-mohr-visiting-poet",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54038854058519"
       ],
       "title": "DAAAS Archival Gap in the Global Imagination Conference",
@@ -4969,16 +4548,6 @@
       "title": "Environmental Behavioral Sciences Seminar with Eduardo Brondizio",
       "start": "2027-02-18T13:15:00-08:00",
       "url": "https://events.stanford.edu/event/environmental-behavioral-sciences-seminar-with-eduardo-brondizio",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53880716348747"
-      ],
-      "title": "Drop-In Samizdat* Workshop (*DIY Unofficial, Unsanctioned, Limited Edition Publication)",
-      "start": "2027-02-18T15:00:00-08:00",
-      "url": "https://events.stanford.edu/event/samizdat-february-2027",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -5001,16 +4570,6 @@
       "url": "https://events.stanford.edu/event/pediatric-otolaryngology-updates",
       "reason": "out_of_scope",
       "detail": "category \"Stanford Center for Continuing Medical Education\" is out of scope"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53871660141992"
-      ],
-      "title": "Deadline for departments to update course grading basis, unit, and/or component configuration for classes offered in Spring.",
-      "start": "2027-02-19T00:00:00-08:00",
-      "url": "https://events.stanford.edu/event/deadline-for-departments-to-update-course-grading-basis-unit-andor-component-configuration-for-classes-offered-in-spring-4698",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
     },
     {
       "source_ids": [
@@ -5184,16 +4743,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53898107755661"
-      ],
-      "title": "OMAC First Fridays",
-      "start": "2027-03-05T17:00:00-08:00",
-      "url": "https://events.stanford.edu/event/omac-first-fridays",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:53994406477609"
       ],
       "title": "The 2027 William & Louise Greaves Filmmaker Seminar",
@@ -5348,29 +4897,29 @@
     "sources_ok": 29,
     "sources_empty": 1,
     "sources_failed": 2,
-    "drafts": 1444,
-    "excluded": 475,
-    "merged": 30,
-    "events": 348,
-    "added": 348,
-    "changed": 0,
-    "missing": 0,
+    "drafts": 1415,
+    "excluded": 430,
+    "merged": 29,
+    "events": 364,
+    "added": 23,
+    "changed": 4,
+    "missing": 2,
     "removed": 0,
     "cancelled": 0,
-    "archived": 0,
-    "picks": 31
+    "archived": 7,
+    "picks": 29
   },
   "llm": {
     "enabled": true,
     "stored_answers_only": false,
     "provider": "claude-cli",
     "calls": 60,
-    "cache_hits": 0,
+    "cache_hits": 53,
     "skipped_call_cap": 1,
     "skipped_too_long": 0,
-    "input_tokens": 119504,
-    "output_tokens": 12568,
-    "cost_usd": 0.017034680000000007,
+    "input_tokens": 122134,
+    "output_tokens": 11222,
+    "cost_usd": 0.016887679999999995,
     "providers": [
       {
         "provider": "claude-cli",

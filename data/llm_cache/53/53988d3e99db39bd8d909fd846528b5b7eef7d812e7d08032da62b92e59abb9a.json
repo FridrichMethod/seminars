@@ -1,0 +1,10 @@
+{
+  "used": "2026-11-13",
+  "value": {
+    "fields": [
+      "bio",
+      "med"
+    ],
+    "is_talk": true
+  }
+}

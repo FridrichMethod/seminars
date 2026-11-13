@@ -17,6 +17,8 @@
     "bayarea-kipac:url:https://kipac.stanford.edu/events/astrophysics-colloquium/astrophysics-colloquium-9": "bayarea-kipac._42d6abf35269ed9e433ffe59",
     "bayarea-kipac:url:https://kipac.stanford.edu/events/astrophysics-colloquium/astrophysics-colloquium-axion-dark-matter-detection-dark-matter-new": "bayarea-kipac._044dd7157b03940ba700dff7",
     "bayarea-kipac:url:https://kipac.stanford.edu/events/astrophysics-colloquium/astrophysics-colloquium-black-holes-galactic-dynamics-galactic": "bayarea-kipac._83f9e7e179a969dcd111d9d6",
+    "bayarea-kipac:url:https://kipac.stanford.edu/events/astrophysics-colloquium/astrophysics-colloquium-formation-and-detection-primordial-black": "bayarea-kipac._04bfdf4eb8f32d262751d8f8",
+    "bayarea-kipac:url:https://kipac.stanford.edu/events/astrophysics-colloquium/astrophysics-colloquium-future-gamma-ray-astronomy-space": "bayarea-kipac._336a49bcd68bfb8dad069ede",
     "bayarea-kipac:url:https://kipac.stanford.edu/events/astrophysics-colloquium/astrophysics-colloquium-gravitational-wave-cosmology": "bayarea-kipac._7b9d5918f858ef961c91ed57",
     "bayarea-kipac:url:https://kipac.stanford.edu/events/astrophysics-colloquium/astrophysics-colloquium-hidden-physics-cosmic-gas-baryon-cycle": "bayarea-kipac._26a79539fa5431570de84f45",
     "bayarea-kipac:url:https://kipac.stanford.edu/events/astrophysics-colloquium/astrophysics-colloquium-progenitors-type-1a-supernovae": "bayarea-kipac._fe8f0c7a817487cca150af71",
@@ -670,6 +672,8 @@
     "localist-stanford:54499291152003": "localist-stanford.54499291152003",
     "localist-stanford:54499448544811": "localist-stanford.54499448544811",
     "localist-stanford:54500134167116": "localist-stanford.54500134167116",
+    "localist-stanford:54505813512938": "localist-stanford.54505813512938",
+    "localist-stanford:54506606665128": "localist-stanford.54506606665128",
     "rsorg-topos-colloquium:ToposInstituteColloquium/228": "rsorg-topos-colloquium._92b8f2798d76b964aa81e3dd",
     "rsorg-topos-colloquium:ToposInstituteColloquium/232": "rsorg-topos-colloquium._a91d4bfa78be2a7d562dd90b",
     "rsorg-topos-colloquium:ToposInstituteColloquium/233": "rsorg-topos-colloquium._7c41a0537a4706e01ad9ebc6",
@@ -805,6 +809,7 @@
     "sites-statistics:aa83e3ef-6a9b-48f0-b4a0-744e63558996": "sites-statistics.aa83e3ef-6a9b-48f0-b4a0-744e63558996",
     "sites-statistics:ba9b29c6-e6ca-4986-8825-4818e526185e": "sites-statistics.ba9b29c6-e6ca-4986-8825-4818e526185e",
     "sites-statistics:f60cf599-e1c9-4393-8c23-31b92ba40d42": "sites-mathematics.4fb3ed8f-5866-418b-9c98-cf7b863b625d",
-    "sites-systemx:0f1f05e3-217d-4e23-a27b-8a285119aeca": "sites-systemx.0f1f05e3-217d-4e23-a27b-8a285119aeca"
+    "sites-systemx:0f1f05e3-217d-4e23-a27b-8a285119aeca": "sites-systemx.0f1f05e3-217d-4e23-a27b-8a285119aeca",
+    "sites-systemx:3c298b00-b5e4-48dd-964d-42c2fef93ed3": "sites-systemx.3c298b00-b5e4-48dd-964d-42c2fef93ed3"
   }
 }
