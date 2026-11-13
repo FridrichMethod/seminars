@@ -551,6 +551,36 @@ class TestDownload:
         assert page.evaluate(FOCUSED) == "select-download"
         current.assert_clean()
 
+    def test_the_second_click_of_a_double_click_saves_nothing_more(
+        self, current: Session, feed: str
+    ) -> None:
+        page = current.page
+        downloads: list[Any] = []
+        page.on("download", lambda saved: downloads.append(saved))
+        select(current, "sample-pick")
+        page.locator(DOWNLOAD).scroll_into_view_if_needed()
+        box = page.locator(DOWNLOAD).bounding_box()
+        assert box is not None
+        page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        with page.expect_download() as info:
+            page.mouse.down()
+            page.mouse.up()
+        assert_file_of(Path(info.value.path()).read_bytes().decode("utf-8"), feed, ["sample-pick"])
+        # The file was saved before the second click came, as when the feed arrives fast.
+        # A request for the feed would now be held, and the button would stay busy.
+        page.route(f"**/{FEED_PATH}", lambda route: None)
+        page.mouse.down(click_count=2)
+        page.mouse.up(click_count=2)
+        assert page.locator(DOWNLOAD).get_attribute("aria-busy") == "false"
+        assert note(current) == counted("en", "site.select.saved", 1)
+        assert len(downloads) == 1
+        page.unroute(f"**/{FEED_PATH}")
+        with page.expect_download():  # a click of its own saves the file again
+            page.mouse.down()
+            page.mouse.up()
+        assert len(downloads) == 2
+        current.assert_clean()
+
     def test_a_failed_request_saves_nothing_and_a_retry_succeeds(
         self, current: Session, feed: str
     ) -> None:

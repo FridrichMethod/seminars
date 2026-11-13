@@ -246,7 +246,13 @@ function connectControls() {
   });
   ui.selectShown.addEventListener("click", selectShown);
   ui.selectClear.addEventListener("click", clearSelection);
-  ui.download.addEventListener("click", () => {
+  ui.download.addEventListener("click", (event) => {
+    // The second click of a double click is not a press of its own: the file of the
+    // first one may be saved already when a fast feed has arrived in between. A key
+    // press has detail 0, a single click 1.
+    if (event.detail > 1) {
+      return;
+    }
     downloadSelected().catch(reportError);
   });
 }
