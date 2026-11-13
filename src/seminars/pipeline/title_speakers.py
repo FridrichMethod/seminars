@@ -24,14 +24,17 @@ after it in the same part or at the start of the next; a name suffix is
 none ("Knots II"). A part in front of the name that honours a person ("In
 Memoriam", "In Honor of", "Obituary", "Tribute", "Celebration of Life")
 names the person a memorial is for, so its title gives no speaker. The
-parts after the first one that starts with a name are the talk title,
-quoted or not, and so are the parts of a quoted talk title ("Seminar: Dr.
-Jane Doe - In Memoriam: The Last Glacier", 'Seminar: "Tribute: Songs of
-the Sea" - Dr. Jane Doe'); an unquoted talk title in front of the name
-cannot be told from a memorial head ("Seminar | In Memoriam: The Last
-Glacier | Dr. Jane Doe" gives no speaker). After a head that is only a
-term, a month or a year ("Spring 2025", "Jan. 2025", "2025-26") an
-honorific is no mark in any of the parts:
+parts after the first one that starts with a marked name are the talk
+title, quoted or not, and so are the parts of a quoted talk title
+("Seminar: Dr. Jane Doe - In Memoriam: The Last Glacier", 'Seminar:
+"Tribute: Songs of the Sea" - Dr. Jane Doe'); an unquoted talk title in
+front of the name cannot be told from a memorial head ("Seminar | In
+Memoriam: The Last Glacier | Dr. Jane Doe" gives no speaker), and neither
+can a name that nothing marks from a talk title ("Seminar | Bird Song | In
+Memoriam | Dr. Jane Doe", "Seminar: Jane Doe - In Memoriam: The Last
+Glacier" give no speaker). After a head that is only a term, a month or a
+year ("Spring 2025", "Jan. 2025", "2025-26") an honorific is no mark in
+any of the parts:
 
 * series first ("<series>: <name>[, <affiliation>][ - "<title>"]"): the
   part in front is a series, or a mark goes with the name, or the abstract
@@ -678,14 +681,18 @@ def _honours_a_person(title: str) -> bool:
     """Whether a part of ``title`` in front of the name is a memorial ("In Memoriam: Dr. Jane
     Doe", "Physics Colloquium | In Memoriam | Dr. Jane Doe").
 
-    The parts after the first one that starts with a name are the talk title,
-    so a memorial there keeps the speaker: "Seminar: Dr. Jane Doe - In
-    Memoriam: The Last Glacier".
+    The parts after the first one that starts with a marked name are the
+    talk title, so a memorial there keeps the speaker: "Seminar: Dr. Jane
+    Doe - In Memoriam: The Last Glacier". A name that nothing marks may be a
+    talk title itself ("Seminar | Bird Song | In Memoriam | Dr. Jane Doe"),
+    so a memorial after it still counts: "Seminar: Jane Doe - In Memoriam:
+    The Last Glacier" gives no speaker either.
     """
     for head in _heads(title):
         if _MEMORIAL.fullmatch(fold(head)) is not None:
             return True
-        if _leading_person(head) is not None:
+        candidate = _leading_person(head)
+        if candidate is not None and candidate.marked:
             return False
     return False
 
