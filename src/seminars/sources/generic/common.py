@@ -11,13 +11,34 @@ and the custom adapters read pages the same way, so the pieces live here:
 * text of HTML nodes (``node_text``, ``node_lines``, ``node_value``,
   ``inner_html``) and patterns applied to at most ``PATTERN_INPUT_LIMIT``
   characters (``search``, ``any_match``);
-* lists of speaker names (``split_names``, ``make_speakers``);
+* lists of speaker names (``split_names``, ``make_speakers``) and the
+  affiliations of speakers in the lines of a page (``text_lines``,
+  ``with_affiliations``, below);
 * dates and times: times of day and their ranges (``parse_clock``,
   ``split_range``, ``time_range``), days without a year (``parse_day``,
   closest to the fetch), ISO 8601 moments, English month names
   (``month_number``) and the window test (``outside_window``);
 * fetching that stays on the source's hosts (``get_document``,
   ``fetch_optional``).
+
+Affiliations from the text. The lines of a part of a page (``text_lines``)
+end at ``<br>`` and at the start and the end of a nested block element.
+The line of a speaker holds their name (the first and the last word of it,
+at most two words between them, such as a middle initial) and at most four
+other words ("Prof. Dr.", "PhD"), so a sentence that mentions the speaker
+is not it. Up to three lines below it are the affiliation, joined with ", ",
+ending before an empty line, a weekday ("Monday," "Thu."), a month and a day
+("December 3"), a line that starts with a digit (a date or a time), a label
+("Talk Title:", "Host:"), a heading of at most four words with a word such
+as "Abstract", "Bio" or "Talk" (a whole word: "Stanford Bio-X" is no
+heading), prose (more than 15 words, or a lowercase word and a period at
+the end), an e-mail address or a link, or a line that names the speaker
+again or another speaker of the talk (the next one of an announcement of
+several). The first line that names the speaker decides; when the line
+right after it names them too (a heading "Seminar: Jane Doe" above "Jane
+Doe, PhD"), that line is the line of the name. Only as many speakers of a
+talk as the pipeline keeps are looked for (the first
+``seminars.pipeline.normalize.MAX_SPEAKERS``).
 """
 
 from __future__ import annotations
@@ -43,6 +64,7 @@ from seminars.models import (
     SpeakerDraft,
     TimeWindow,
 )
+from seminars.pipeline.normalize import MAX_SPEAKERS
 from seminars.sources.base import AdapterError, ForeignHostError, on_source_host
 from seminars.textrules import ascii_printable
 
@@ -171,6 +193,152 @@ def make_speakers(names: str | None, affiliation: str | None) -> list[SpeakerDra
     return [
         SpeakerDraft(name=name, affiliation=collapse(affiliation)) for name in split_names(names)
     ]
+
+
+# --- affiliations from the text ---------------------------------------------------------
+
+_BLOCK_TAGS: Final = frozenset(
+    {
+        *("address", "article", "blockquote", "br", "dd", "div", "dl", "dt", "figcaption"),
+        *("footer", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "ol", "p"),
+        *("section", "table", "td", "th", "tr", "ul"),
+    }
+)
+MAX_AFFILIATION_LINES: Final = 3
+MAX_AFFILIATION_WORDS: Final = 15  # a longer line is prose: a bio, an abstract
+MAX_HEADING_WORDS: Final = 4
+MAX_OTHER_WORDS: Final = 4  # on the line of a name: titles and degrees ("Prof. Dr.", "PhD")
+_WEEKDAYS: Final = "monday|tuesday|wednesday|thursday|friday|saturday|sunday"
+_NO_AFFILIATION: Final = re.compile(
+    r"\s*(?:\d"  # a date or a time: "12/3/26", "11:00 AM"
+    rf"|(?:{_WEEKDAYS})\b|(?:mon|tues?|wed|thu|thurs|fri|sat|sun)[.,]"
+    r"|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d"
+    r"|[^\W\d][^:]{0,40}:(?:\s|$))",  # a label: "Talk Title:", "Host:"
+    re.IGNORECASE,
+)
+_HEADING_WORD: Final = re.compile(  # a whole word: "Bio", not the start of "Bio-X"
+    r"(?<![\w-])(?:abstract|about|bio|biography|biosketch|description|hosts?|hosted|location"
+    r"|overview|register|registration|rsvp|summary|talk|title|venue|when|where)(?![\w-])",
+    re.IGNORECASE,
+)
+_SENTENCE_END: Final = re.compile(r"(?:\b[a-z]{2,}[.!?]|\.\.\.)$")  # "We study things."
+_CONTACT: Final = ("@", "://", "www.")  # an e-mail address or a link
+
+
+def text_lines(node: LexborNode) -> list[str]:
+    """The non-empty lines below ``node``.
+
+    ``<br>`` and the start of a block element end a line, and so does the end
+    of one: text after a nested block is on a line of its own. The walk is in
+    document order, so the parent of a node comes before it: the innermost
+    block around every element (``node`` at most) is known when its children
+    come, and each node is looked at once.
+    """
+    top = node.mem_id
+    blocks: dict[int, int] = {top: top}  # mem_id of an element -> of the block around it
+    lines: list[list[str]] = [[]]
+    block = top
+    for child in node.traverse(include_text=True):
+        parent = child.parent
+        around = blocks.get(parent.mem_id, top) if parent is not None else top
+        if child.is_text_node:
+            if around != block:
+                lines.append([])
+                block = around
+            lines[-1].append(child.text_content or "")
+        elif child.tag in _BLOCK_TAGS:
+            blocks[child.mem_id] = child.mem_id
+            lines.append([])
+        else:
+            blocks[child.mem_id] = around
+    return [text for line in lines if (text := collapse("".join(line)))]
+
+
+def name_pattern(name: str) -> re.Pattern[str] | None:
+    """How a line names ``name``: its first and last word, at most two words between."""
+    words = name.split()
+    if not words:
+        return None
+    middle = r"(?:\s+\S+){0,2}?\s+" + re.escape(words[-1]) if len(words) > 1 else ""
+    return re.compile(rf"(?<!\w){re.escape(words[0])}{middle}(?!\w)", re.IGNORECASE)
+
+
+def _name_in(line: str, name: str) -> re.Match[str] | None:
+    """Where ``line`` names ``name`` (see ``name_pattern``)."""
+    pattern = name_pattern(name)
+    return None if pattern is None else pattern.search(line[:PATTERN_INPUT_LIMIT])
+
+
+def names_line(line: str, name: str) -> bool:
+    """True when ``line`` is the line of ``name``: the name and at most a few other words."""
+    match = _name_in(line, name)
+    if match is None:
+        return False
+    rest = line[: match.start()] + " " + line[match.end() :]
+    return len(re.findall(r"\w+", rest)) <= MAX_OTHER_WORDS
+
+
+def ends_affiliation(line: str, names: Sequence[re.Pattern[str]]) -> bool:
+    """True when ``line`` cannot be part of an affiliation of the speakers ``names``.
+
+    That is an empty line, a date, a time, a label, a heading ("Abstract",
+    "Speaker Bio"), prose (a sentence, a long line), an e-mail address or a
+    link, and a line that names one of the speakers (the same one again, or
+    another one); ``names`` are their ``name_pattern``.
+    """
+    words = line.split()
+    return (
+        not words
+        or _NO_AFFILIATION.match(line) is not None
+        or (len(words) <= MAX_HEADING_WORDS and _HEADING_WORD.search(line) is not None)
+        or len(words) > MAX_AFFILIATION_WORDS
+        or _SENTENCE_END.search(line) is not None
+        or any(mark in line for mark in _CONTACT)
+        or any(name.search(line[:PATTERN_INPUT_LIMIT]) is not None for name in names)
+    )
+
+
+def affiliation_after(
+    lines: Sequence[str], name: str, names: Sequence[re.Pattern[str]] = ()
+) -> str | None:
+    """The lines below the line that names ``name``; see the module docstring.
+
+    ``names`` are the ``name_pattern`` of the speakers of the talk: a line
+    that names one of them ends the affiliation, like a line that names
+    ``name`` again.
+    """
+    own = name_pattern(name)
+    if own is None:
+        return None
+    stops = (own, *names)
+    found: list[str] | None = None  # None until a line names the speaker
+    for line in lines:
+        if not found and names_line(line, name):
+            found = []  # the first line of the name, or the next one right after it
+        elif found is not None:
+            if len(found) == MAX_AFFILIATION_LINES or ends_affiliation(line, stops):
+                break
+            found.append(line)
+    return ", ".join(found) if found else None
+
+
+def with_affiliations(speakers: Sequence[SpeakerDraft], lines: Sequence[str]) -> list[SpeakerDraft]:
+    """``speakers``, each without an affiliation given the one the text has for them.
+
+    Only the first ``MAX_SPEAKERS`` are looked for: the pipeline keeps no
+    more speakers of a talk, and a page that names thousands would otherwise
+    cost thousands of walks through its text. The others are kept as they
+    are. The names of all of them still end an affiliation, each compiled
+    once.
+    """
+    if not lines:
+        return list(speakers)
+    names = [pattern for speaker in speakers if (pattern := name_pattern(speaker.name))]
+    completed: list[SpeakerDraft] = []
+    for speaker in speakers[:MAX_SPEAKERS]:
+        found = None if speaker.affiliation else affiliation_after(lines, speaker.name, names)
+        completed.append(speaker.evolve(affiliation=found) if found else speaker)
+    return [*completed, *speakers[MAX_SPEAKERS:]]
 
 
 # --- dates and times ---------------------------------------------------------------------
