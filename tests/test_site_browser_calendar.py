@@ -267,7 +267,7 @@ def event(*inner: str, uid: str | None = "talk", uid_lines: Iterable[str] = ()) 
 def calendar(*components: list[str], header: Iterable[str] | None = None) -> str:
     """A calendar of ``components`` with CRLF line endings."""
     if header is None:
-        header = ["VERSION:2.0", "PRODID:-//seminars.example.org//tests//EN"]
+        header = ["VERSION:2.0", f"PRODID:-//{UID_DOMAIN}//tests//EN"]
     lines = ["BEGIN:VCALENDAR", *header, *(line for part in components for line in part)]
     return CRLF.join([*lines, "END:VCALENDAR"]) + CRLF
 
@@ -363,9 +363,9 @@ class TestParseCalendar:
     def test_the_site_uid_is_the_uid_up_to_its_last_at_sign(self, current: Session) -> None:
         text = calendar(
             event(uid_lines=["UID:no-domain"]),
-            event(uid_lines=["UID:a@b@seminars.example.org"]),
+            event(uid_lines=[f"UID:a@b@{UID_DOMAIN}"]),
             event(uid_lines=['UID;X-NOTE="a:b@c":quoted@other.example.net']),
-            event(uid_lines=["uid:lower-case@seminars.example.org"]),
+            event(uid_lines=[f"uid:lower-case@{UID_DOMAIN}"]),
         )
         parsed = current.page.evaluate(PARSE, text)
         uids = [found["uid"] for found in parsed["events"]]
@@ -460,6 +460,29 @@ class TestCalendarFor:
         header = CRLF.join(["BEGIN:VCALENDAR", *kept]) + CRLF
         body = feed[feed.index("BEGIN:VTIMEZONE") :]
         assert result["text"] == header + body
+        assert validate_ics(result["text"]) == []
+        current.assert_clean()
+
+    def test_only_the_basic_header_is_kept_and_a_folded_property_stays_folded(
+        self, current: Session
+    ) -> None:
+        prodid = fold(f"PRODID:-//{UID_DOMAIN}//a calendar product with a long name//tests//EN")
+        assert len(prodid) == 2
+        header = [
+            "VERSION:2.0",
+            "X-WR-RELCALID:abc",
+            *prodid,
+            "X-OTHER:1",
+            "METHOD:PUBLISH",
+            "X-WR-CALNAME:Talks",
+        ]
+        text = calendar(event(), header=header)
+        parsed = current.page.evaluate(PARSE, text)
+        assert parsed["properties"] == [["VERSION:2.0"], prodid, ["METHOD:PUBLISH"]]
+        result = cut(current, ["talk"], text)
+        assert result["text"] == calendar(
+            event(), header=["VERSION:2.0", *prodid, "METHOD:PUBLISH"]
+        )
         assert validate_ics(result["text"]) == []
         current.assert_clean()
 
