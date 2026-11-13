@@ -399,12 +399,13 @@ sources:
       # date is read by dateutil), "Speakers:" with several names, a row without a
       # "Title:" line, and the title before the speaker. A label ends the part before it.
       date_pattern: 'Date:\s*(?:[A-Z][a-z]+day,?\s+)?(?P<date>[A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s+\d{4})'
-      speaker_pattern: 'Speakers?:(?!\s*No\s+(?:seminar|class|workshop)\b)\s*(?P<speaker>.+?)\s*(?:\bTitle:|\bDate:|$)'
+      speaker_pattern: 'Speakers?:(?!\s*(?i:no\s+(?:seminar|class|workshop|talk))\b)\s*(?P<speaker>.+?)\s*(?:\bTitle:|\bDate:|$)'
       # "Coming soon" until the talk title is announced; normalization reads it as TBA.
       title_pattern: 'Title:\s*(?P<title>.+?)\s*(?:\bSpeakers?:|\bDate:|$)'
-      # A week without a talk ("Speaker: No seminar (Thanksgiving)", "Title: No class")
-      # is no talk: the speaker pattern finds no name in it, or the title is skipped.
-      skip_title_patterns: ['^No\s+(?:seminar|class|workshop)\b']
+      # A week without a talk ("Speaker: No Seminar (Thanksgiving)", "Title: NO CLASS",
+      # in any case) is no talk: the speaker pattern finds no name in it, or the title
+      # is skipped.
+      skip_title_patterns: ['(?i)^no\s+(?:seminar|class|workshop|talk)\b']
       # No time and no room on a talk. The heading of the page says "Thursdays 1:30
       # <en dash> 2:50PM Li Ka Shing Center (Room: LKSC 120)" for every talk of the year.
       default_start_time: "13:30"

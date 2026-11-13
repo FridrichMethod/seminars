@@ -219,6 +219,35 @@ def test_a_row_written_another_way_is_still_a_talk(
             + label("Title:", "No class: Thanksgiving break"),
             id="in the title line",
         ),
+        pytest.param(
+            "<strong>Date:</strong> November 26, 2026</span><br />\n"
+            + label("Speaker:", "No Seminar (Thanksgiving)"),
+            id="capitalised in the speaker line",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> November 26, 2026</span><br />\n"
+            + label("Speaker:", "NO SEMINAR - Thanksgiving"),
+            id="in capitals in the speaker line",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> November 26, 2026</span><br />\n"
+            + label("Speaker:", "No talk this week"),
+            id="no talk in the speaker line",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> November 26, 2026</span><br />\n"
+            + label("Speaker:", "-")
+            + "<br />\n"
+            + label("Title:", "No Class - Thanksgiving"),
+            id="capitalised in the title line",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> November 26, 2026</span><br />\n"
+            + label("Speaker:", "-")
+            + "<br />\n"
+            + label("Title:", "NO CLASS - Thanksgiving"),
+            id="in capitals in the title line",
+        ),
     ],
 )
 def test_a_row_that_says_there_is_no_talk_is_none(markup: str) -> None:
@@ -226,5 +255,6 @@ def test_a_row_that_says_there_is_no_talk_is_none(markup: str) -> None:
     assert len(drafts) == 9
     days = {draft.start.date() for draft in drafts if isinstance(draft.start, datetime)}
     assert date(2026, 11, 26) not in days
-    names = {name for draft in drafts for name, _ in people(draft)}
-    assert not any("seminar" in name.lower() for name in names)
+    names = {name.lower() for draft in drafts for name, _ in people(draft)}
+    assert not any(word in name for name in names for word in ("seminar", "talk"))
+    assert not any((draft.title or "").lower().startswith("no ") for draft in drafts)
