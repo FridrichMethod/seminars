@@ -113,6 +113,13 @@ NAME_PARTS = """(uid) => {
   ].map((element) => element.textContent.trim());
 }"""
 LISTED = "es => es.map((e) => e.dataset.uid)"
+# Counts the clicks that reach a button (a key press clicks it too).
+COUNT_PRESSES = """(selector) => {
+  window.__presses = 0;
+  document.querySelector(selector).addEventListener("click", () => {
+    window.__presses += 1;
+  });
+}"""
 # The focused element, whether it is unavailable, and how its focus ring is drawn: the
 # opacity of the element dims the ring with it. ``token`` is the focus colour of the page.
 FOCUS_RING = """() => {
@@ -670,6 +677,33 @@ class TestDownload:
         with page.expect_download():  # a click of its own saves the file again
             page.mouse.down()
             page.mouse.up()
+        assert len(downloads) == 2
+        current.assert_clean()
+
+    def test_holding_enter_saves_one_file(self, current: Session, feed: str) -> None:
+        page = current.page
+        downloads: list[Any] = []
+        page.on("download", lambda saved: downloads.append(saved))
+        requests: list[str] = []
+        page.on("request", lambda request: requests.append(request.url))
+        page.evaluate(COUNT_PRESSES, DOWNLOAD)
+        select(current, "sample-pick")
+        page.locator(DOWNLOAD).focus()
+        with page.expect_download() as info:
+            page.keyboard.down("Enter")
+        assert_file_of(Path(info.value.path()).read_bytes().decode("utf-8"), feed, ["sample-pick"])
+        page.locator(f"{NOTE} .note-saved").wait_for()
+        # The key is still held: the keyboard repeats it, as it does after a short delay.
+        for _ in range(5):
+            page.keyboard.down("Enter")
+        page.keyboard.up("Enter")
+        assert page.evaluate("window.__presses") == 1
+        assert page.locator(DOWNLOAD).get_attribute("aria-busy") == "false"
+        assert note(current) == counted("en", "site.select.saved", 1)
+        assert [url for url in requests if "/feeds/" in url] == [current.base_url + FEED_PATH]
+        assert len(downloads) == 1
+        with page.expect_download():  # a press of its own saves the file again
+            page.keyboard.press("Enter")
         assert len(downloads) == 2
         current.assert_clean()
 

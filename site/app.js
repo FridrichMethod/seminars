@@ -246,15 +246,29 @@ function connectControls() {
   });
   ui.selectShown.addEventListener("click", selectShown);
   ui.selectClear.addEventListener("click", clearSelection);
-  ui.download.addEventListener("click", (event) => {
-    // The second click of a double click is not a press of its own: the file of the
-    // first one may be saved already when a fast feed has arrived in between. A key
-    // press has detail 0, a single click 1.
-    if (event.detail > 1) {
-      return;
-    }
-    downloadSelected().catch(reportError);
-  });
+  ui.download.addEventListener("keydown", ignoreRepeatedKey);
+  ui.download.addEventListener("click", pressDownload);
+}
+
+/**
+ * A held Enter repeats its keydown, and every repeat clicks the button again: once the
+ * file of the first press is saved, each would save it once more. Only the first keydown
+ * of a held Enter or Space is a press.
+ */
+function ignoreRepeatedKey(event) {
+  if (event.repeat && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+  }
+}
+
+function pressDownload(event) {
+  // The second click of a double click is not a press of its own: the file of the first
+  // one may be saved already when a fast feed has arrived in between. A key press has
+  // detail 0, a single click 1.
+  if (event.detail > 1) {
+    return;
+  }
+  downloadSelected().catch(reportError);
 }
 
 function canSelectShown() {
