@@ -93,3 +93,51 @@ def test_a_mark_that_goes_with_a_name_tells_the_speaker(
 ) -> None:
     found = speakers_from_title(title)
     assert found == [ParsedSpeaker(name, affiliation) for name, affiliation in people]
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # First names that end like a common word ("-ic", "-ence", "-ance", "-ment", "-ity").
+        "Dominic Price",
+        "Cedric Black",
+        "Frederic Long",
+        "Clarence Green",
+        "Constance Field",
+        "Florence Green",
+        "Prudence Banks",
+        "Patience Young",
+        "Laurence Young",
+        "Lawrence Young",
+        "Terence Gray",
+        "Clement Price",
+        "Charity Price",
+        "Felicity Stone",
+    ],
+)
+def test_a_first_name_that_ends_like_a_common_word_is_a_name(name: str) -> None:
+    assert speakers_from_title(f"Seminar: {name}") == [ParsedSpeaker(name, None)]
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        # "Forest" and "River" start topics far more often than names; a name of them and a
+        # common surname needs its abstract.
+        "Seminar: Forest Fires",
+        "Seminar: River Floods",
+        "Seminar: Forest White",
+        "Seminar: River Stone",
+        # A first name is no common word, but "-ity" at the end still ends a topic.
+        "Seminar: Public Charity",
+    ],
+)
+def test_common_words_that_are_first_names_as_well_still_read_like_a_topic(title: str) -> None:
+    assert speakers_from_title(title) == []
+
+
+def test_a_name_of_common_words_only_is_a_speaker_when_the_abstract_names_it() -> None:
+    abstract = "River Stone is a professor of hydrology."
+    assert speakers_from_title("Seminar: River Stone", abstract) == [
+        ParsedSpeaker("River Stone", None)
+    ]

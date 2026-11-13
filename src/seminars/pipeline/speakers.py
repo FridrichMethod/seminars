@@ -101,15 +101,18 @@ with "A" or with a verb in "-ing" ("Navigating Heritage"), or whose every
 word is a common word of English or of a field ("Heart Failure", "Sea
 Level Rise", "Elliptic Curves", "Wound Healing"). The endings of a field
 leave out the short words that names end in as well ("Lawrence",
-"Clement", "Davies", "de Vries"), and the common words leave out the ones
-that are first names as well ("Grace", "Mark", "Ray"): a person's name
-holds at least one word outside them ("Emily Fox", "Anthony Green").
+"Clement", "Davies", "de Vries"), and the common words leave out first
+names ("Grace", "Mark", "Ray", "Dominic", "Constance", "Clement"), so most
+names hold a word outside them ("Emily Fox", "Anthony Green", "Clement
+Price").
 
 These tests are word lists and endings, not a general rule, and that is
 their limit: a topic of words they do not hold ("Salt Marshes", "Bird
 Song") still reads like a name after a series, and a name of common words
-only ("Coral Banks") needs its abstract. A wrong speaker is worse than
-none, so the lists err towards topics.
+only ("Coral Banks", "River Stone", "Forest White") needs its abstract:
+"River" and "Forest" start topics far more often ("River Floods", "Forest
+Fires"). A wrong speaker is worse than none, so the lists err towards
+topics.
 """
 
 from __future__ import annotations
@@ -519,8 +522,12 @@ _COMMON_WORDS: Final = word_set(
 """Common words of English that topics are made of. A name read from a title whose every
 word is one of them, or a word of a field, reads like a topic ("Heart Failure", "Sea Level
 Rise", "Elliptic Curves"). Words that are also first names ("Grace", "Mark", "Rose",
-"Ray", "Will") or common surnames in Chinese ("Sun") are not in it: a person's name holds
-at least one word outside it."""
+"Ray", "Will") or common surnames in Chinese ("Sun") are not in it."""
+_FIRST_NAMES: Final = word_set(
+    "dominic cedric frederic clarence constance florence laurence lawrence terence terrence"
+    " clement prudence patience charity felicity verity"
+)
+"""First names that end like a common word ("Dominic", "Constance", "Clement"): none is one."""
 _COMMON_ENDINGS: Final = re.compile(
     r"\w{2,}(?:tions?|sions?)|\w{3,}(?:ments?|ness|ity|ities|ism|isms|ist|ists|osis|itis)"
     r"|\w{4,}(?:ures?|ances?|ences?|ive|ives|ous|ings?)|\w{3,}(?:ency|ancy)"
@@ -631,6 +638,8 @@ def _singular(word: str) -> str:
 
 def _is_common(word: str) -> bool:
     """Whether a folded word is a common word of English or of a field (``_COMMON_WORDS``)."""
+    if word in _FIRST_NAMES:
+        return False
     if word in _COMMON_WORDS or _singular(word) in _COMMON_WORDS:
         return True
     if f"{word}s" in _TOPIC_WORDS:  # "planet" of "planets"
