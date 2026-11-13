@@ -10,7 +10,10 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+import pytest
+
 from factories import make_window
+from fakes import FakeHttpClient
 from seminars.config import load_sources
 from seminars.http import offline_client
 from seminars.models import EventDraft
@@ -22,6 +25,14 @@ SOURCE_ID = "custom-dbds-workshop"
 PAGE = "https://dbds.stanford.edu/weekly-seminar/"
 NOW = datetime(2026, 11, 12, 23, 18, 7, tzinfo=UTC)
 """The latest recording time of the fixtures, which is also the "now" of an offline run."""
+RECORDING = REPO_ROOT / "tests" / "fixtures" / SOURCE_ID / "weekly-seminar.html"
+ROOM = "LKSC 120 (Li Ka Shing Center)"
+ZITNIK = (
+    "<strong>Date:</strong> November 19, 2026</span><br />\n"
+    '<span style="font-size: 18pt;"><strong>Speaker:</strong> Marinka Zitnik</span><br />\n'
+    '<span style="font-size: 18pt;"><strong>Title: </strong>Coming soon</span>'
+)
+"""The markup of one recorded row, which the tests below write in other ways."""
 
 
 def run() -> tuple[list[str], list[EventDraft]]:
@@ -30,6 +41,17 @@ def run() -> tuple[list[str], list[EventDraft]]:
     adapter = get_adapter(source.adapter)
     drafts = adapter.parse(adapter.fetch(http, source, window=make_window(NOW)), source)
     return list(http.requests), drafts
+
+
+def run_with_row(markup: str) -> list[EventDraft]:
+    """The drafts of the recorded page with the row of Marinka Zitnik written as ``markup``."""
+    text = RECORDING.read_text(encoding="utf-8")
+    assert text.count(ZITNIK) == 1
+    http = FakeHttpClient()
+    http.add(PAGE, text.replace(ZITNIK, markup))
+    source = SOURCES[SOURCE_ID]
+    adapter = get_adapter(source.adapter)
+    return adapter.parse(adapter.fetch(http, source, window=make_window(NOW)), source)
 
 
 def on(drafts: list[EventDraft], day: date) -> EventDraft:
@@ -72,7 +94,7 @@ def test_a_talk_with_speaker_and_title() -> None:
     assert talk.title == (
         "Chiseling: Powerful and Valid Subgroup Selection via Interactive Machine Learning"
     )
-    assert talk.location is None  # the room is in the heading of the page only
+    assert talk.location == ROOM  # the heading of the page names it for every talk
     assert talk.url is None  # no page per talk; the title links to a PDF flyer
 
 
@@ -110,3 +132,99 @@ def test_the_description_above_the_schedule_is_no_talk() -> None:
         isinstance(draft.start, datetime) and draft.start.date() == date(2026, 10, 27)
         for draft in drafts
     )
+
+
+def test_every_talk_is_in_the_room_the_heading_names() -> None:
+    _, drafts = run()
+    assert {draft.location for draft in drafts} == {ROOM}
+
+
+def label(name: str, text: str) -> str:
+    return f'<span style="font-size: 18pt;"><strong>{name}</strong> {text}</span>'
+
+
+@pytest.mark.parametrize(
+    ("markup", "speakers", "title"),
+    [
+        pytest.param(
+            "<strong>Date:</strong> November 19, 2026</span><br />\n"
+            + label("Speaker:", "Marinka Zitnik"),
+            [("Marinka Zitnik", None)],
+            None,
+            id="no title line",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> November 19, 2026</span><br />\n"
+            + label("Speakers:", "Marinka Zitnik and Jure Leskovec")
+            + "<br />\n"
+            + label("Title:", "Graph learning"),
+            [("Marinka Zitnik", None), ("Jure Leskovec", None)],
+            "Graph learning",
+            id="two speakers",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> Thursday, November 19, 2026</span><br />\n"
+            + label("Speaker:", "Marinka Zitnik")
+            + "<br />\n"
+            + label("Title:", "Coming soon"),
+            [("Marinka Zitnik", None)],
+            "Coming soon",
+            id="a weekday before the date",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> Nov. 19, 2026</span><br />\n"
+            + label("Speaker:", "Marinka Zitnik")
+            + "<br />\n"
+            + label("Title:", "Coming soon"),
+            [("Marinka Zitnik", None)],
+            "Coming soon",
+            id="an abbreviated month",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> Nov 19 2026</span><br />\n"
+            + label("Title:", "Coming soon")
+            + "<br />\n"
+            + label("Speaker:", "Marinka Zitnik"),
+            [("Marinka Zitnik", None)],
+            "Coming soon",
+            id="the title before the speaker",
+        ),
+    ],
+)
+def test_a_row_written_another_way_is_still_a_talk(
+    markup: str, speakers: list[tuple[str, None]], title: str | None
+) -> None:
+    drafts = run_with_row(markup)
+    assert len(drafts) == 10
+    talk = on(drafts, date(2026, 11, 19))
+    assert (people(talk), talk.title, talk.location) == (speakers, title, ROOM)
+    assert (talk.start, talk.end) == (
+        datetime(2026, 11, 19, 13, 30),
+        datetime(2026, 11, 19, 14, 50),
+    )
+
+
+@pytest.mark.parametrize(
+    "markup",
+    [
+        pytest.param(
+            "<strong>Date:</strong> November 26, 2026</span><br />\n"
+            + label("Speaker:", "No seminar (Thanksgiving)"),
+            id="in the speaker line",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> November 26, 2026</span><br />\n"
+            + label("Speaker:", "-")
+            + "<br />\n"
+            + label("Title:", "No class: Thanksgiving break"),
+            id="in the title line",
+        ),
+    ],
+)
+def test_a_row_that_says_there_is_no_talk_is_none(markup: str) -> None:
+    drafts = run_with_row(markup)
+    assert len(drafts) == 9
+    days = {draft.start.date() for draft in drafts if isinstance(draft.start, datetime)}
+    assert date(2026, 11, 26) not in days
+    names = {name for draft in drafts for name, _ in people(draft)}
+    assert not any("seminar" in name.lower() for name in names)

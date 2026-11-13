@@ -392,15 +392,24 @@ sources:
         date: "p"
         speaker: "p"
         title: "p"
-      date_pattern: 'Date:\s*(?P<date>[A-Z][a-z]+ \d{1,2}, \d{4})'
-      date_format: "%B %d, %Y"
-      speaker_pattern: 'Speaker:\s*(?P<speaker>.+?)\s*Title:'
+      # The text of a paragraph is one line ("Date: ... Speaker: ... Title: ..."). The
+      # patterns also take the ways a row may be written that the recording does not
+      # show, so that such a row is not dropped: a weekday before the date
+      # ("Thursday, November 19, 2026"), an abbreviated month ("Nov. 19, 2026"; the
+      # date is read by dateutil), "Speakers:" with several names, a row without a
+      # "Title:" line, and the title before the speaker. A label ends the part before it.
+      date_pattern: 'Date:\s*(?:[A-Z][a-z]+day,?\s+)?(?P<date>[A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s+\d{4})'
+      speaker_pattern: 'Speakers?:(?!\s*No\s+(?:seminar|class|workshop)\b)\s*(?P<speaker>.+?)\s*(?:\bTitle:|\bDate:|$)'
       # "Coming soon" until the talk title is announced; normalization reads it as TBA.
-      title_pattern: 'Title:\s*(?P<title>.+?)\s*$'
-      # No time on a talk. The heading of the page says "Thursdays 1:30 <en dash>
-      # 2:50PM Li Ka Shing Center (Room: LKSC 120)" for every talk of the year.
+      title_pattern: 'Title:\s*(?P<title>.+?)\s*(?:\bSpeakers?:|\bDate:|$)'
+      # A week without a talk ("Speaker: No seminar (Thanksgiving)", "Title: No class")
+      # is no talk: the speaker pattern finds no name in it, or the title is skipped.
+      skip_title_patterns: ['^No\s+(?:seminar|class|workshop)\b']
+      # No time and no room on a talk. The heading of the page says "Thursdays 1:30
+      # <en dash> 2:50PM Li Ka Shing Center (Room: LKSC 120)" for every talk of the year.
       default_start_time: "13:30"
       default_end_time: "14:50"
+      default_location: LKSC 120 (Li Ka Shing Center)
       require: [date, speaker]
     research:
       verified: 2026-11-12
@@ -422,7 +431,7 @@ sources:
       localist_department: "Department of Biomedical Data Science (mapped to [bio, med] in localist.yaml)"
       notes:
         - 'Weekly on Thursdays, 1:30 to 2:50 pm in LKSC 120, during the autumn, winter and spring quarters. The page shows the schedule of the current quarter (10 talks of autumn 2026, the last two titled "Coming soon"); earlier quarters move to an archive page.'
-        - 'The time and the room are only in the heading of the page, so every talk gets the default times and no location (html_list has no default location).'
+        - 'The time and the room are only in the heading of the page, so every talk gets them from the source entry (default times and default_location).'
         - 'The talk title links to a PDF flyer once there is one. It is not used as the url, because a PDF is no page to fetch and the link appears only some time before the talk; a draft has no url and its uid falls back to the day and the speaker.'
         - 'The talks are on statistics, machine learning and computational methods for medicine and genomics, hence the three default fields; rules add bio where a title names it.'
         - 'Overlap: none (see the header of this file).'
