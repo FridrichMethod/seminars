@@ -49,6 +49,14 @@ PLACEHOLDERS = [
     # an English and a CJK placeholder without a space between them
     "TBA\u5f85\u5b9a",
     "\u5f85\u5b9aTBD",
+    # the English kind of event or "title" before a CJK placeholder
+    "Seminar: \u5f85\u5b9a",
+    "Talk: \u5f85\u5b9a",
+    "Lecture: \u5f85\u5b9a",
+    "Colloquium: \u5f85\u5b9a",
+    "Talk title: \u5f85\u5b9a",
+    "Title is \u5f85\u5b9a",
+    "Seminar: \u5f85\u5b9a (TBD)",
 ]
 
 
@@ -68,6 +76,9 @@ def test_a_placeholder_in_cjk_is_no_title(title: str) -> None:
         "\u8bb2\u5ea7",
         "\u8bb2\u5ea7\uff1a\u86cb\u767d\u8d28\u8bbe\u8ba1",
         "\u9898\u76ee\uff1aTBA \u86cb\u767d\u8d28",
+        "Seminar: \u86cb\u767d\u8d28\u8bbe\u8ba1",
+        "Seminar",
+        "Talk title",
     ],
 )
 def test_a_title_that_holds_a_placeholder_word_is_a_title(title: str) -> None:
