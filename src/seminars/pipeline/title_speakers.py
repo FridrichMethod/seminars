@@ -24,8 +24,8 @@ after it; a name suffix is none ("Knots II"). A part in front of the last
 one that honours a person ("In Memoriam", "In Honor of", "Obituary",
 "Tribute", "Celebration of Life") names the person a memorial is for, so
 its title gives no speaker; the parts of a quoted talk title are no such
-part. After a head that is only a term or a year ("Spring 2025") an
-honorific is no mark:
+part. After a head that is only a term, a month or a year ("Spring 2025",
+"Jan. 2025", "2025-26") an honorific is no mark in any of the parts:
 
 * series first ("<series>: <name>[, <affiliation>][ - "<title>"]"): the
   part in front is a series, or a mark goes with the name, or the abstract
@@ -117,10 +117,13 @@ _MEMORIAL: Final = re.compile(
 """A head that honours a person, folded ("In Memoriam", "In Honor of", "Obituary", "Tribute",
 "Celebration of Life"): the name after it is the person the memorial is for."""
 _TERM: Final = re.compile(
-    r"(?:(?:ay|academic year) )?(?:(?:spring|summer|fall|autumn|winter)(?: (?:quarter|semester"
-    r"|term))?)? ?(?:(?:19|20)\d{2}(?: \d{2}(?:\d{2})?)?)?"
+    r"(?:(?:(?:ay|academic year) )?(?:(?:spring|summer|fall|autumn|winter)(?: (?:quarter"
+    r"|semester|term))?)?|jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?"
+    r"|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
+    r" ?(?:(?:19|20)\d{2}(?: \d{2}(?:\d{2})?)?)?"
 )
-"""A head that is only a term or a year, folded ("Spring 2025", "Autumn Quarter", "2025-26")."""
+"""A head that is only a term, a month or a year, folded ("Spring 2025", "Autumn Quarter",
+"Jan. 2025", "September", "2025-26")."""
 _NOT_IN_A_NAME: Final = _SERIES_WORDS | word_set(
     "speaker speakers presenter tba tbd tbc title an the of and or in on for with to at from by"
     " vs via into about beyond toward towards through new how why what when is are initiative"
@@ -547,6 +550,13 @@ def _rival(tail: str) -> _Candidate | None:
     return None if separator is None else _leading_person(tail[separator.end() :])
 
 
+def _after_term(candidate: _Candidate | None, term: bool) -> _Candidate | None:
+    """``candidate`` of a part after a head that is only a term (``term``), where an
+    honorific is no mark: "Spring 2025: Dr. Jane Doe", "Spring 2025: Ocean Mixing - Dr. Jane
+    Roe"."""
+    return replace(candidate, honorific=False) if term and candidate is not None else candidate
+
+
 def _either(
     first: _Candidate, second: _Candidate, vouched: bool, abstract: str | None, title: str
 ) -> list[ParsedSpeaker]:
@@ -576,14 +586,13 @@ def _after_separator(title: str, abstract: str | None) -> list[ParsedSpeaker]:
     if separator is None:
         return []
     head, tail = title[: separator.start()].strip(), title[separator.end() :].strip()
-    following = _leading_person(tail)
-    if following is not None and _is_term(head):  # "Spring 2025: Dr. Jane Doe"
-        following = replace(following, honorific=False)
+    term = _is_term(head)  # "Spring 2025: Dr. Jane Doe"
+    following = _after_term(_leading_person(tail), term)
     if _is_series(head) or (following is not None and not _title_name(_bare(head))):
         if following is None:
             return _last_part(title, abstract) if _is_series(head) else []
         vouched = _is_series(head) or following.marked
-        rival = None if following.marked else _rival(tail)
+        rival = None if following.marked else _after_term(_rival(tail), term)
         if rival is not None:
             return _either(following, rival, vouched, abstract, title)
         return [following.person] if _taken(following.person, vouched, abstract, title) else []

@@ -4,9 +4,9 @@ A head that honours a person ("In Memoriam", "In Honor of", "Obituary", "Tribute
 "Celebration of Life") names the person a memorial is for, not a speaker, so such a
 title gives no speaker at all. Every part in front of the last one is such a head,
 except inside a quoted talk title.
-A head that is only a term or a year ("Spring 2025") is no series either, and an
-honorific after it does not vouch for the name: an honorific goes with a person, not
-with a speaker.
+A head that is only a term, a month or a year ("Spring 2025", "Jan. 2025") is no series
+either, and an honorific in any part after it does not vouch for the name: an honorific
+goes with a person, not with a speaker.
 """
 
 from __future__ import annotations
@@ -116,6 +116,17 @@ def test_a_memorial_word_inside_a_longer_part_keeps_its_speaker(title: str) -> N
         "Winter 2025-26 | Dr. Jane Doe",
         "AY 2025/26 - Professor Jane Doe",
         "Spring 2025: Dr. Jane Doe - Ocean Mixing",
+        # The honorific of a later part is no mark either.
+        "Spring 2025: Ocean Mixing - Dr. Jane Roe",
+        "Spring 2025 | Ocean Mixing | Dr. Jane Roe",
+        # A month, with or without a year, is a term as well.
+        "January 2025: Dr. Jane Doe",
+        "Jan. 2025: Dr. Jane Doe",
+        "Jan 2025: Dr. Jane Doe",
+        "Sept. 2025 | Prof. Jane Doe",
+        "September: Dr. Jane Doe",
+        "May 2025 - Dr. Jane Doe",
+        "Dec. 2025: Ocean Mixing - Dr. Jane Roe",
     ],
 )
 def test_an_honorific_after_a_term_or_a_year_does_not_vouch_for_the_name(title: str) -> None:
@@ -134,9 +145,18 @@ def test_an_honorific_after_a_term_or_a_year_does_not_vouch_for_the_name(title: 
             "Dr. Jane Doe is a professor of physics.",
             [("Jane Doe", None)],
         ),
+        ("January 2025: Jane Doe (MIT)", None, [("Jane Doe", "MIT")]),
+        ("Spring 2025: Ocean Mixing - Jane Roe, PhD", None, [("Jane Roe", None)]),
+        (
+            "Spring 2025: Ocean Mixing - Dr. Jane Roe",
+            "Dr. Jane Roe is a professor of oceanography.",
+            [("Jane Roe", None)],
+        ),
         # A term in front of a series is a series.
         ("Spring 2025 Seminar: Dr. Jane Doe", None, [("Jane Doe", None)]),
         ("Winter Quarter Colloquium: Prof. Jane Doe", None, [("Jane Doe", None)]),
+        ("January 2025 Colloquium: Dr. Jane Doe", None, [("Jane Doe", None)]),
+        ("Seminar: Ocean Mixing - Dr. Jane Roe", None, [("Jane Roe", None)]),
     ],
 )
 def test_a_term_or_a_year_leaves_the_other_marks_of_a_name(
