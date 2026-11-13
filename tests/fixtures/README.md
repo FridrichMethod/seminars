@@ -280,8 +280,8 @@ The `offline_http` pytest fixture in `tests/conftest.py` does the same:
 
 ## Sample payloads for the web site (`_site/`)
 
-`_site/events.json` and `_site/status.json` are examples of the two files the
-static site reads (`public/events.json` and `public/status.json`; schemas:
+`_site/events.json` and `_site/status.json` are examples of the two payloads
+the static site reads (`public/events.json` and `public/status.json`; schemas:
 `PublicEventsPayload` and `PublicStatusPayload` in `seminars.models`).
 `_site/feeds/all.ics` is the `all` feed of the same events, as
 `seminars.outputs.ics.write_ics_feeds` writes it; the site cuts the download
