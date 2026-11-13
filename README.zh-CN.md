@@ -228,14 +228,16 @@ public 仓库 60 天没有活动时，GitHub 会停用它的定时 workflow。�
 uv sync --locked
 uv run seminars run --offline       # recorded pages from tests/fixtures/, no network
 uv run seminars run --no-llm        # the real sites, rules only
-uv run seminars validate
 uv run seminars build-site          # assembles public/
+uv run seminars validate            # checks data/ and public/
 uv run python -m http.server --directory public 8000
 uv run seminars digest --dry-run    # prints the digest instead of opening an issue
 ```
 
-一次运行会改写你本地的 `data/`。真实联网的运行很礼貌，所以很慢：有些网站要求两次请求之间
-间隔 30 秒。`uv run seminars --help` 列出所有命令和选项。
+真实联网的运行会改写你本地的 `data/`。离线运行只在 `data/` 里没有真实运行的结果时才写进去；
+提交的 `data/` 是真实运行的结果，所以在刚 clone 的仓库里，离线运行在一个临时目录里进行，并会说明这一点。
+真实联网的运行很礼貌，所以很慢：有些网站要求两次请求之间间隔 30 秒。`uv run seminars --help`
+列出所有命令和选项。
 
 ### 检查
 
