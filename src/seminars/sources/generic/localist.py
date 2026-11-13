@@ -68,6 +68,9 @@ How a record (``events[].event``) becomes a draft:
 * ``url``: ``localist_url``, the event page on the calendar (``url`` is
   whatever the organizer entered: a form, a ticket shop, a home page).
 * ``title``: ``title`` as it is (it can hold HTML entities).
+* ``host_org``: the name of the first department in ``departments`` that
+  has one; a record without a named department keeps the ``host_org`` of
+  the source. Groups never count as the host.
 * ``location``: ``location_name`` (else ``location``) and ``room_number``,
   joined with ", "; the street ``address`` only when both are missing.
 * ``is_online``: ``experience``: ``inperson`` false, ``hybrid`` and
@@ -340,6 +343,7 @@ def _draft(
         native_id=str(native_id),
         url=absolute_url(document.final_url, _text(record.get("localist_url"))),
         title=_text(record.get("title")),
+        host_org=departments[0] if departments else None,
         start=start,
         end=end,
         all_day=all_day,

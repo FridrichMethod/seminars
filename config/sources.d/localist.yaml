@@ -42,6 +42,8 @@ sources:
     url: https://events.stanford.edu/api/2/events
     homepage: https://events.stanford.edu/
     institution: stanford
+    # The host of a record that names no department. A record with departments is hosted
+    # by the first of them (the adapter sets host_org of the draft to its name).
     host_org: Stanford University
     default_fields: []
     default_event_type: seminar

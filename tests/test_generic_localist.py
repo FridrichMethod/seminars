@@ -243,6 +243,15 @@ class TestRecordedRun:
         assert drafts_by_id["54037513552790"].field_hints == []
         assert drafts_by_id["53809587119189"].field_hints == []
 
+    def test_the_first_department_hosts_and_none_leaves_the_host_of_the_source(
+        self, drafts_by_id: dict[str, EventDraft]
+    ) -> None:
+        assert drafts_by_id["54047808526631"].host_org == "Wu Tsai Neurosciences Institute"
+        assert (
+            drafts_by_id["54037513552790"].host_org == "Department of Aeronautics and Astronautics"
+        )
+        assert drafts_by_id["53809587119189"].host_org is None
+
     def test_groups_are_categories(self, drafts_by_id: dict[str, EventDraft]) -> None:
         draft = drafts_by_id["54307369440521"]
         assert {"Cardinal Courage", "Stanford Chapter of AAUP"} <= set(draft.categories)
@@ -636,6 +645,30 @@ class TestRecordMapping:
         ]
         assert draft.tags == ["Robotics"]
         assert draft.event_type_hint == "seminar"
+
+    def test_the_only_department_is_the_host(self) -> None:
+        draft = parse_one(departments=[{"id": 1, "name": " Department of Chemistry "}])
+        assert draft.host_org == "Department of Chemistry"
+
+    def test_the_first_of_several_departments_is_the_host(self) -> None:
+        draft = parse_one(
+            departments=[
+                {"id": 3},
+                {"id": 1, "name": "Wu Tsai Neurosciences Institute"},
+                {"id": 2, "name": "Department of Neurobiology"},
+            ],
+            groups=[{"id": 4, "name": "Robotics Club"}],
+        )
+        assert draft.host_org == "Wu Tsai Neurosciences Institute"
+
+    @pytest.mark.parametrize(
+        "departments", [None, [], [{"id": 1}, {"id": 2, "name": " "}], "Biology"]
+    )
+    def test_without_a_named_department_the_host_of_the_source_stays(
+        self, departments: Any
+    ) -> None:
+        draft = parse_one(departments=departments, groups=[{"id": 4, "name": "Robotics Club"}])
+        assert draft.host_org is None
 
     def test_odd_shapes_of_lists_give_nothing(self) -> None:
         draft = parse_one(departments="Biology", groups=None, filters=["x"], tags="tag")
