@@ -66,6 +66,7 @@ CLEAR = "#select-clear"
 DOWNLOAD = "#select-download"
 BUTTONS = (SELECT_SHOWN, CLEAR, DOWNLOAD)
 CS_TALKS = ["sample-xss", "sample-online", "sample-defense"]  # shown with field=cs
+NO_TALK = "qqqzzz"  # a search that no talk matches
 UID_VALUE = re.compile(r"^UID:([^\r\n]*)", re.MULTILINE)
 UNFOLD = re.compile(r"\r\n[ \t]")
 INJECTED = "script, img, svg, iframe, object, embed, b, i, u, [onerror], [onload]"
@@ -177,6 +178,12 @@ def note(current: Session) -> str:
 def select(current: Session, *uids: str) -> None:
     for uid in uids:
         checkbox(current, uid).check()
+
+
+def search_for(current: Session, text: str) -> None:
+    """Search the list for ``text`` at once (Enter, without the pause of typing)."""
+    current.page.locator("#search").fill(text)
+    current.page.locator("#search").press("Enter")
 
 
 def download(current: Session) -> str:
@@ -415,6 +422,22 @@ class TestBarButtons:
         assert status(current) == "4 talks selected"
         current.assert_clean()
 
+    def test_select_all_shown_is_unavailable_when_no_talk_is_shown(self, current: Session) -> None:
+        page = current.page
+        select(current, "sample-arc")
+        search_for(current, NO_TALK)
+        assert current.shown() == []
+        assert status(current) == status_text("en", 1, hidden=1)
+        assert page.locator(SELECT_SHOWN).is_disabled()
+        assert page.locator(CLEAR).is_enabled()
+        assert page.locator(DOWNLOAD).is_enabled()
+        page.locator(SELECT_SHOWN).dispatch_event("click")
+        assert status(current) == status_text("en", 1, hidden=1)
+        page.locator("#clear").click()
+        assert checked(current) == ["sample-arc"]
+        assert status(current) == "1 talk selected"
+        current.assert_clean()
+
     def test_a_selected_talk_the_filters_hide_is_counted_and_downloaded(
         self, current: Session, feed: str
     ) -> None:
@@ -433,8 +456,9 @@ class TestBarButtons:
         assert note(current) == counted("zh-CN", "site.select.saved", 2)
         current.assert_clean()
 
+    @pytest.mark.parametrize("talks_shown", [True, False], ids=["picks", "no-talk"])
     def test_a_selected_talk_that_ends_leaves_the_selection(
-        self, session: Callable[..., Session], feed: str
+        self, session: Callable[..., Session], feed: str, talks_shown: bool
     ) -> None:
         # 12:30 in Stanford on November 12: sample-xss (12:00 to 13:00) is under way.
         current = session(now="2026-11-12T20:30:00Z").open("index.html")
@@ -442,9 +466,14 @@ class TestBarButtons:
         select(current, "sample-xss", "sample-online")
         assert status(current) == "2 talks selected"
         page.clock.set_fixed_time("2026-11-12T21:30:00Z")  # 13:30: sample-xss has ended
-        page.locator("#picks").check()
+        # The list is drawn again, with the picks or with no talk at all.
+        if talks_shown:
+            page.locator("#picks").check()
+        else:
+            search_for(current, NO_TALK)
+            assert current.shown() == []
         assert status(current) == status_text("en", 1, hidden=1)
-        page.locator("#picks").uncheck()
+        page.locator("#clear").click()
         assert "sample-xss" not in current.shown()
         assert checked(current) == ["sample-online"]
         assert status(current) == "1 talk selected"
@@ -455,8 +484,7 @@ class TestBarButtons:
     def test_the_selection_lives_in_the_page_only(self, current: Session) -> None:
         page = current.page
         select(current, "sample-tba", "sample-biohub")
-        page.locator("#search").fill("zoe muller")
-        page.locator("#search").press("Enter")
+        search_for(current, "zoe muller")
         assert current.shown() == ["sample-tba"]
         assert status(current) == status_text("en", 2, hidden=1)
         page.locator('.lang-switch button[lang="zh-CN"]').click()
