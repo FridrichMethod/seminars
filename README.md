@@ -113,9 +113,9 @@ state of every source.
 32 of the 42 configured sources are enabled. In the first public run 29 of them delivered
 talks, 1 was empty and 2 failed, and 348 talks were stored. A talk that several sources
 list counts once for each of them in this table. "Extraction" is how the run read a
-source: api from a JSON interface of the site, feed from its iCalendar feed, html from the
-page itself by rules; for a source that failed or was empty, it is the method of its
-adapter.
+source: api from a JSON interface of the site, feed from its RSS or iCalendar feed, html
+from the page itself by rules; for a source that failed or was empty, it is the method of
+its adapter.
 
 | Source | Group | State | Next four weeks | Extraction |
 |---|---|---|---:|---|
