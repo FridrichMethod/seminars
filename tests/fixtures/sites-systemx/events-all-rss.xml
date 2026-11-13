@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://systemx.stanford.edu/">
+  <channel>
+    <title>Events</title>
+    <link>https://systemx.stanford.edu/</link>
+    <description>Upcoming Events</description>
+    <language>en</language>
+    
+    <item>
+  <title><h2><a href="/events/seminars/computing-encrypted-data-concept-reality" hreflang="en">Computing on encrypted data: from concept to reality</a></h2></title>
+  <link>https://systemx.stanford.edu/events/seminars/computing-encrypted-data-concept-reality</link>
+  <description/>
+  <pubDate>Thu, 12 Nov 2026 16:30:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">50904a2e-32db-4144-9262-5a1dac455999</guid>
+    </item>
+<item>
+  <title><h2><a href="/events/workshop/systemx-physical-intelligence-summit" hreflang="en">SystemX Physical Intelligence Summit</a></h2></title>
+  <link>https://systemx.stanford.edu/events/workshop/systemx-physical-intelligence-summit</link>
+  <description/>
+  <pubDate>Thu, 03 Dec 2026 09:00:00 -0800</pubDate>
+    <dc:creator/>
+    <guid isPermaLink="false">0f1f05e3-217d-4e23-a27b-8a285119aeca</guid>
+    </item>
+
+  </channel>
+</rss>

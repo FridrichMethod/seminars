@@ -1,7 +1,8 @@
 # Stanford department sites on Stanford Sites (Drupal): the "stanford-sites" group.
 # Schema of one entry: seminars.models.SourceConfig. Everything below was checked
-# against the live sites on 2026-11-11; the answers are stored in tests/fixtures/sites-*/,
-# and the README.md of each fixture directory describes what was recorded.
+# against the live sites on 2026-11-11 (aimi, mse and systemx on 2026-11-12); the answers
+# are stored in tests/fixtures/sites-*/, and the README.md of each fixture directory
+# describes what was recorded.
 #
 # The department sites use two templates with different interfaces.
 #
@@ -29,7 +30,7 @@
 #   with Unix seconds as the value. An ISO 8601 value was not tried.
 #
 # Template B, the Stanford Sites standard template (Drupal 11, class prefix "su-event-"):
-#   bioengineering, chemh, cheme, icme, cs, biochemistry.
+#   bioengineering, chemh, cheme, icme, cs, biochemistry, aimi, mse, systemx.
 #   JSON:API is closed (HTTP 502). /events/all/rss lists the upcoming events
 #   with a title, the start time, a link and a guid, nothing else. The list page /events
 #   shows the same events, in the same order, as cards with start, end, type and
@@ -140,7 +141,7 @@ x-hs-jsonapi-params: &hs-jsonapi-params
   # applies. Series come first because they are the more specific name: on
   # mathematics the series "Department Colloquium" has the type term "Seminar".
 
-# Shared by the six template B sources.
+# Shared by the template B sources.
 x-su-event-params: &su-event-params
   feed:
     # <title> holds unescaped markup: <h2><a href="/events/...">Title</a></h2>.
@@ -742,3 +743,138 @@ sources:
         - The room is only in the free-text subheadline ("11/18/26, @Clark Auditorium, 4PM").
         - The detail page (fixture detail-native.html) has no abstract and no location
           field, so it adds nothing to the card.
+
+  - <<: *site
+    id: sites-aimi
+    name: Stanford AIMI
+    adapter: rss
+    url: https://aimi.stanford.edu/events/all/rss
+    urls:
+      - https://aimi.stanford.edu/events
+    homepage: https://aimi.stanford.edu/events
+    host_org: Stanford Center for Artificial Intelligence in Medicine and Imaging (AIMI)
+    default_fields: [ai-ml, med]
+    default_event_type: seminar
+    params:
+      <<: *su-event-params
+      # Optional hints, match 5 of the 7 titles of the fixture (the other two, a course
+      # and a symposium, have no series prefix). The series is the prefix up to the first
+      # colon, and it ends in a word that names a series, so a talk title with a colon
+      # is not read as one. A degree after the name ("Nigam Shah, MBBS, PhD") stays
+      # outside the speaker group. In the order of the patterns:
+      #   "<series>: <talk title> - <speaker>, <degrees>"
+      #   "<series>: <speaker>, <degrees>" (no talk title yet; the title stays as it is)
+      #   "<series>: <talk title>" ("AIMI Grand Rounds: TBA")
+      title_patterns:
+        - '^(?P<series>[^:]*\b(?:Seminar|Colloquium|Rounds|Lecture|Series|Forum)s?):\s*(?P<title>.+)\s+-\s+(?P<speaker>[^,]+?)(?:\s*,\s*(?:MD|PhD|MBBS|MPH|MS|MSc|MA|MBA|JD|DrPH|ScD|DPhil|FACS|RN|PharmD|DO))*\s*$'
+        - '^(?P<series>[^:]*\b(?:Seminar|Colloquium|Rounds|Lecture|Series|Forum)s?):\s*(?P<speaker>[A-Z][\w.''-]*(?:\s+[A-Z][\w.''-]*){1,3})(?:\s*,\s*(?:MD|PhD|MBBS|MPH|MS|MSc|MA|MBA|JD|DrPH|ScD|DPhil|FACS|RN|PharmD|DO))+\s*$'
+        - '^(?P<series>[^:]*\b(?:Seminar|Colloquium|Rounds|Lecture|Series|Forum)s?):\s*(?P<title>.+?)\s*$'
+    research:
+      verified: 2026-11-12
+      sample_events: 7
+      has_rss: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 5
+      series_seen:
+        - Computational Medicine Research Colloquium
+        - AI4MH Seminar
+        - IBIIS-AIMI Seminar
+        - AIMI Grand Rounds
+      notes:
+        - '7 upcoming events on 2026-11-12, 5 in the run window. The weekly Computational Medicine Research Colloquium (Thursdays at noon) is listed one talk at a time; its card links to the series page on computationalmedicine.stanford.edu, which lists past talks and the current one, nothing later.'
+        - 'Two cards (the colloquium and the AI4MH Seminar) link to other hosts; the link is the url of the event and is not fetched. The detail pages of the native cards in the window are fetched (3 on 2026-11-12); they add the abstract or a description of the series.'
+        - 'The title holds series, talk title and speaker ("<series>: <talk title> - <speaker>, <degrees>"); see title_patterns.'
+        - 'The HAILS leadership course (2027-05-14) and the AIMI Symposium (2027-05-17) are outside the window; the course is not a talk, and nothing in this entry drops it (the rss adapter has no title filter, and the taxonomy has no exclusion phrase for it).'
+        - 'Overlap: none. localist.yaml maps the departments "Center for Artificial Intelligence in Medicine and Imaging (AIMI)" and IBIIS, but no record of the Stanford Events calendar carried either in the window of 2026-11-12, and no other recording names one of these talks or speakers.'
+
+  - <<: *site
+    id: sites-mse
+    name: Stanford Materials Science and Engineering
+    adapter: rss
+    url: https://mse.stanford.edu/events/all/rss
+    urls:
+      - https://mse.stanford.edu/events
+    homepage: https://mse.stanford.edu/events
+    host_org: Stanford Materials Science and Engineering
+    default_fields: [chem, physics]
+    default_event_type: colloquium
+    params:
+      <<: *su-event-params
+      detail_page:
+        fetch: never  # the page of a colloquium repeats the card and has no body
+      event_type_names:
+        MSE Colloquium: colloquium
+        Lecture / Reading: lecture
+        Class/Seminar: seminar
+        Lecture/Presentation/Talk: lecture
+        Conference/Symposium: conference
+        Workshop: workshop
+        PhD Defense: defense
+        Seminar: seminar
+      # Optional hint, matches the 3 colloquia of the fixture. The title of a colloquium
+      # is "MSE Colloquium: <speaker>" and stays so (the site never shows a talk title);
+      # "MSE Colloquium: Speaker TBA" names nobody and has no title yet.
+      title_patterns:
+        - '^(?P<series>MSE Colloquium):\s*(?!(?:Speaker\s+)?(?:TBA|TBD)\b)(?P<speaker>[^:]+?)\s*$'
+      tba_title_patterns:
+        - '^MSE Colloquium:\s*(?:Speaker\s+)?(?:TBA|TBD)\s*$'
+    research:
+      verified: 2026-11-12
+      sample_events: 4
+      has_rss: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 2
+      series_seen:
+        - MSE Colloquium
+      notes:
+        - 'The MSE Colloquium is every other Wednesday at 11:30 in the Mechanical Engineering Building (530-127); 3 colloquia and the William D. Nix Lecture (2027-04-02) were upcoming on 2026-11-12.'
+        - 'Speaker only, no talk title, in the title ("MSE Colloquium: Robert Hovden"); before the speaker is known "MSE Colloquium: Speaker TBA". The page address changes when the speaker is announced and the old one redirects, but the guid stays, so the uid does too.'
+        - 'The detail page of a colloquium repeats the card and has no body, so it is not fetched (detail_page.fetch is never).'
+        - 'Overlap: none. localist.yaml maps the department Materials Science and Engineering to [chem, physics], but the Stanford Events calendar carries none of its colloquia (one MSE record in 135 days, the Claiborne Lecture of 2027-02-11); no other recording names one of these speakers.'
+
+  - <<: *site
+    id: sites-systemx
+    name: Stanford SystemX Alliance
+    adapter: rss
+    url: https://systemx.stanford.edu/events/all/rss
+    urls:
+      - https://systemx.stanford.edu/events
+    homepage: https://systemx.stanford.edu/events
+    host_org: Stanford SystemX Alliance
+    default_fields: [cs]
+    default_event_type: seminar
+    params:
+      <<: *su-event-params
+      event_type_names:
+        Seminars: seminar
+        Workshop: workshop
+        Class/Seminar: seminar
+        Lecture/Presentation/Talk: lecture
+        Conference/Symposium: conference
+        PhD Defense: defense
+        Seminar: seminar
+    research:
+      verified: 2026-11-12
+      sample_events: 2
+      has_rss: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 30
+      template: B
+      requests_per_run: 4
+      series_seen:
+        - SystemX Seminar
+      notes:
+        - 'The SystemX Seminar of Electrical Engineering (Thursdays at 4:30 pm) and the events of the SystemX Alliance; 2 upcoming on 2026-11-12, the seminar of that day and a one-day summit on 2026-12-03 (type Workshop).'
+        - 'The title of a seminar is the talk title. The speaker is only in the body of the detail page, under "Speaker Bio:"; the template has no speaker field, so the drafts have no speaker. The body becomes the abstract.'
+        - 'The list page also has a "Past Events" block of 20 cards, which the item selector leaves out.'
+        - 'Overlap: none. The Stanford Events calendar has no event of Electrical Engineering between 2026-10-28 and 2027-03-12 (see stanford-extra.yaml), and no other recording names these events.'

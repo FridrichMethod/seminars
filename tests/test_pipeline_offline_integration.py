@@ -3,15 +3,17 @@
 Nothing is faked here: the configured sources, the real adapters, normalization,
 classification and the output writers run over tests/fixtures, as
 ``seminars run --offline --no-llm`` does. The run happens at the latest recording
-time of all fixtures, 2026-11-12T06:37:13Z (22:37 on 11 November in Stanford), so
+time of all fixtures, 2026-11-12T23:18:07Z (15:18 on 12 November in Stanford), so
 the talks of the afternoon of 11 November have already taken place.
 """
 
 from __future__ import annotations
 
+import json
 import shutil
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 from typer.testing import CliRunner
@@ -22,7 +24,7 @@ from seminars.config import PROVIDER_CREDENTIAL_ENV, load_settings
 from seminars.fixtures import reference_time
 from seminars.models import FIELD_IDS, Event, read_events
 
-RUN_TIME = datetime(2026, 11, 12, 6, 37, 13, tzinfo=UTC)
+RUN_TIME = datetime(2026, 11, 12, 23, 18, 7, tzinfo=UTC)
 """The latest recording time of the fixtures: the "now" of an offline run."""
 
 PAST_AFTERNOON = {
@@ -250,3 +252,72 @@ def test_no_timed_talk_ends_at_its_own_time_on_a_later_day(
         and event.end.date() > event.start.date()
         and event.end.time() == event.start.time()
     ] == []
+
+
+def test_no_source_skips_a_page_it_asks_for(offline_run: tuple[str, Path]) -> None:
+    # Every detail page an adapter fetches in the window is recorded, so no source is
+    # read only in part (the Sieber post of Chemical and Systems Biology included).
+    _, root = offline_run
+    report = json.loads((root / "data" / "run_report.json").read_text(encoding="utf-8"))
+    assert report["sources"]
+    assert {item["source_id"]: item["skipped_pages"] for item in report["sources"]} == {
+        item["source_id"]: 0 for item in report["sources"]
+    }
+
+
+STANFORD = ZoneInfo("America/Los_Angeles")
+
+COMING_TALKS = [
+    (
+        "sites-aimi",
+        datetime(2026, 12, 15, 8, 0, tzinfo=STANFORD),
+        "Genetic Diagnosis and Discovery Enabled by Large Language Models",
+        ["Konstantina Stankovic"],
+        {"ai-ml", "med"},
+    ),
+    (
+        "sites-mse",
+        datetime(2026, 11, 18, 11, 30, tzinfo=STANFORD),
+        "MSE Colloquium: Robert Hovden",
+        ["Robert Hovden"],
+        {"chem", "physics"},
+    ),
+    (
+        "sites-systemx",
+        datetime(2026, 11, 12, 16, 30, tzinfo=STANFORD),
+        "Computing on encrypted data: from concept to reality",
+        [],
+        {"cs"},
+    ),
+    (
+        "custom-dbds-workshop",
+        datetime(2026, 11, 19, 13, 30, tzinfo=STANFORD),
+        "TBA",  # "Coming soon" on the page
+        ["Marinka Zitnik"],
+        {"ai-ml", "math", "med"},
+    ),
+]
+"""A talk after the run time of each series that only its own source lists."""
+
+
+@pytest.mark.parametrize(("source", "start", "title", "speakers", "fields"), COMING_TALKS)
+def test_each_added_series_lists_a_talk_after_the_run(
+    offline_run: tuple[str, Path],
+    source: str,
+    start: datetime,
+    title: str,
+    speakers: list[str],
+    fields: set[str],
+) -> None:
+    _, root = offline_run
+    (event,) = [
+        event
+        for event in stored(root)
+        if event.start == start and any(key.startswith(f"{source}:") for key in event.source_ids)
+    ]
+    assert event.start > RUN_TIME
+    assert event.start.utcoffset() == timedelta(hours=-8)
+    assert event.title == title
+    assert [person.name for person in event.speakers] == speakers
+    assert fields <= set(event.fields)
+    assert {key.split(":")[0] for key in event.source_ids} == {source}

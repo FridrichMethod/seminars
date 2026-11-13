@@ -1,14 +1,16 @@
-# Four Stanford talk series the owner added to the source list on 2026-11-11: Bio-X,
-# AI + Data for Science (the Marlowe seminar), Chemical and Systems Biology, and the two
-# series of the Information Systems Laboratory (ISL Colloquium, Information Theory Forum).
+# Stanford talk series the owner added to the source list: Bio-X, AI + Data for Science
+# (the Marlowe seminar), Chemical and Systems Biology, the two series of the Information
+# Systems Laboratory (ISL Colloquium, Information Theory Forum) and the Workshop in
+# Biomedical Data Science.
 # Schema of one entry: seminars.models.SourceConfig. Everything under "params" and the
 # extra keys under "research" are settings and notes for the adapter of that source.
 #
-# Researched on 2026-11-11. Every URL below was requested through the project's polite
-# client; the pages an adapter needs are recorded under tests/fixtures/<id>/, and the
-# README.md there describes the markup in more detail. None of these sites is a Stanford
-# Sites template A or B site that could be verified as one, so every entry is in the
-# group stanford-custom (prefix custom-).
+# Researched on 2026-11-11, the Workshop in Biomedical Data Science on 2026-11-12. Every
+# URL below was requested through the project's polite client; the pages an adapter
+# needs are recorded under tests/fixtures/<id>/, and the README.md there describes the
+# markup in more detail. None of these sites is a Stanford Sites template A or B site
+# that could be verified as one, so every entry is in the group stanford-custom (prefix
+# custom-).
 #
 # Adapter names: "html_list" and "llm_page" are generic adapters. "it_forum" is a
 # proposed module for seminars.sources.custom that does not exist yet (its source is
@@ -26,7 +28,10 @@
 # ChEM-H list (sites-chemh) re-lists both upcoming special seminars of Chemical and
 # Systems Biology with the same chemsysbio.stanford.edu post addresses and with the real
 # talk titles; see the notes of custom-csb-events. No recording of any other source
-# mentions a talk of the ISL Colloquium (searched by speaker name and host name).
+# mentions a talk of the ISL Colloquium (searched by speaker name and host name). The
+# Workshop in Biomedical Data Science is in no other source either: the department of
+# Biomedical Data Science has no record on the Stanford Events calendar in the window of
+# 2026-11-12, and no other recording names one of its speakers.
 #
 # Patterns are Python regular expressions. Characters outside ASCII are written as
 # escapes: \u2022 is the bullet, \u2013 the en dash.
@@ -242,13 +247,13 @@ sources:
         - WordPress. The events page is the category archive "Events" (category 30) with the 10 newest posts, 2026-08-21 to 2026-12-11 when checked. Posts are announcements, not event records; the date, time and room of an event are written into the post title (and again in the post text).
         - Of the 10 posts, 4 are talks (two special seminars, 2026-11-16 David Garfield and 2026-12-03 Stephan Sieber, and two PhD defenses in September); the other 6 are social events (holiday party, Friendsgiving, lab happy hours, a reception) or news without a date (new PhD cohort), which the skip patterns and require drop.
         - The feed and wp-json were tried first. They hold the same posts with the publication time only, so the rss adapter (which needs an element with the start) cannot use them, and wp-json has no event fields. Reading the titles of the list page needs no further request.
-        - The post text has the speaker's affiliation, the talk title, the abstract and the speaker's bio (for example "Talk Title:" and "Abstract:" in the Garfield post). html_list reads the affiliation from it (detail_page.body); the title and the abstract are not read. The post of the Garfield seminar is recorded; the post of the Sieber seminar is not, so offline its fetch fails and that talk keeps what its title says.
+        - 'The post text has the speaker''s affiliation, the talk title, the abstract and the speaker''s bio (for example "Talk Title:" and "Abstract:" in the Garfield post). html_list reads the affiliation from it (detail_page.body); the title and the abstract are not read. The posts of both seminars are recorded (Garfield on 2026-11-11, Sieber on 2026-11-12), with the affiliations "AI for Life Sciences, Partnerships, Anthropic" and "Department of Chemistry, Technical University Munich (TUM)".'
         - A title without a year ("Tuesday, September 15, 12 pm") gets the year closest to the fetch, which is right as long as the list keeps moving (the 10 posts spanned four months).
         - The department's own calendar is a Google Calendar (csbdept@gmail.com) on /department/special-programs-events/. Like the other Google Calendar sources it is not used, because robots.txt of calendar.google.com disallows the feed. The same page announced "Science Circle Faculty Talk, November 17, 12:00pm, Alway M112" in its sidebar, a talk that has no post in the category; such talks are missed.
         - Detail links are /events/<slug>/ or /uncategorized/<slug>/ (WordPress uses the first category of a post); both are pages of a post.
         - The Stanford Events calendar has no event of this department between 2026-10-28 and 2027-03-12.
         - 'Overlap with sites-chemh: 2 of the 2 upcoming talks are already there. The ChEM-H list re-lists both special seminars (2026-11-16 David Garfield, 2026-12-03 Stephan Sieber) with the same chemsysbio.stanford.edu post addresses and with the real talk titles ("Science with Claude: Agentic Biology, Data Analysis, and Human Interactions in a World of LLMs", "Breaking Bacterial Resistance via Chemical Dysregulation"), but without speaker or room. Dedup merges each pair through the shared detail page (checked offline on the recordings: the 6 candidates of the two sources in the window become 4). What this source adds: the speaker and the room of those talks, and the posts that only the department lists (the PhD defenses, none upcoming in the sample).'
-        - 'Open issue, not fixable in this entry: the merged event takes the title of the member whose uid sorts first, and "custom-csb-events." sorts before "sites-chemh.", so the announcement title ("CSB Special Seminar & Open Discussion, David Garfield, PhD") replaces the talk title, and the classifier, which runs after the merge, no longer sees the words of the talk title. A fix belongs into the merge rule (prefer a title that does not contain a speaker name, or the more informative one) or into html_list (a detail_page key that reads the title from the "Talk Title:" text of the post, as recorded for the Garfield seminar).'
+        - 'Merging: the merged event keeps the talk title of the ChEM-H listing, not the announcement title that names the speaker ("CSB Special Seminar & Open Discussion, David Garfield, PhD"), so the classifier sees the words of the talk title (pinned by tests/test_pipeline_offline_integration.py for the Garfield seminar).'
 
   # --- ISL Colloquium ----------------------------------------------------------------------
   - <<: *stanford-extra
@@ -364,3 +369,60 @@ sources:
         - The Hugo feed is not usable (every pubDate is the same 2020-09-03, and the talk of 2026 is missing).
         - The home page names the organizer with a personal e-mail address; it is not recorded.
         - The Stanford Events calendar has no event of the Information Systems Lab or of Electrical Engineering between 2026-10-28 and 2027-03-12.
+
+  # --- Workshop in Biomedical Data Science ---------------------------------------------------
+  - <<: *stanford-extra
+    id: custom-dbds-workshop
+    name: Stanford Workshop in Biomedical Data Science
+    adapter: html_list
+    url: https://dbds.stanford.edu/weekly-seminar/
+    host_org: Stanford Department of Biomedical Data Science
+    default_fields: [ai-ml, math, med]
+    default_event_type: seminar
+    series: Workshop in Biomedical Data Science
+    params:
+      selectors:
+        # WordPress with a page builder. The schedule is one column per talk, five to a
+        # row: a figure (the speaker's photo, captioned with the name) above a text
+        # block whose one paragraph reads "<b>Date:</b> November 12, 2026<br>
+        # <b>Speaker:</b> Lucas Janson<br><b>Title:</b> <a href=flyer.pdf>Chiseling:
+        # ...</a>". The text blocks above the schedule (the description of the workshop)
+        # are paragraphs of the same kind without these labels; require drops them.
+        item: "div.wpb_text_column p"
+        date: "p"
+        speaker: "p"
+        title: "p"
+      date_pattern: 'Date:\s*(?P<date>[A-Z][a-z]+ \d{1,2}, \d{4})'
+      date_format: "%B %d, %Y"
+      speaker_pattern: 'Speaker:\s*(?P<speaker>.+?)\s*Title:'
+      # "Coming soon" until the talk title is announced; normalization reads it as TBA.
+      title_pattern: 'Title:\s*(?P<title>.+?)\s*$'
+      # No time on a talk. The heading of the page says "Thursdays 1:30 <en dash>
+      # 2:50PM Li Ka Shing Center (Room: LKSC 120)" for every talk of the year.
+      default_start_time: "13:30"
+      default_end_time: "14:50"
+      require: [date, speaker]
+    research:
+      verified: 2026-11-12
+      sample_events: 10
+      upcoming_events: 2
+      has_rss: false
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: true
+      structured_data:
+        - "/events/?ical=1 (The Events Calendar, linked): text/calendar with a forum and a retreat only, no talk of the workshop"
+        - "/wp-json/wp/v2/pages/9094 (linked): the same page as JSON, its content is the HTML of the schedule"
+        - "JSON-LD: WebPage, BreadcrumbList, WebSite and Organization only, no Event"
+        - "/events/all/rss: HTTP 404 (not a Stanford Sites site)"
+      extraction: html
+      crawl_delay: 0
+      robots: "Yoast default: User-agent * with an empty Disallow, no Crawl-delay"
+      requests_per_run: 1
+      localist_department: "Department of Biomedical Data Science (mapped to [bio, med] in localist.yaml)"
+      notes:
+        - 'Weekly on Thursdays, 1:30 to 2:50 pm in LKSC 120, during the autumn, winter and spring quarters. The page shows the schedule of the current quarter (10 talks of autumn 2026, the last two titled "Coming soon"); earlier quarters move to an archive page.'
+        - 'The time and the room are only in the heading of the page, so every talk gets the default times and no location (html_list has no default location).'
+        - 'The talk title links to a PDF flyer once there is one. It is not used as the url, because a PDF is no page to fetch and the link appears only some time before the talk; a draft has no url and its uid falls back to the day and the speaker.'
+        - 'The talks are on statistics, machine learning and computational methods for medicine and genomics, hence the three default fields; rules add bio where a title names it.'
+        - 'Overlap: none (see the header of this file).'

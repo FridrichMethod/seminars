@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "source_id": "sites-aimi",
+  "entries": {
+    "https://aimi.stanford.edu/events": {
+      "file": "events.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T23:16:36Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://aimi.stanford.edu/events/all/rss": {
+      "file": "events-all-rss.xml",
+      "status": 200,
+      "content_type": "application/rss+xml",
+      "fetched_at": "2026-11-12T23:16:06Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://aimi.stanford.edu/events/grand-rounds/aimi-grand-rounds-genetic-diagnosis-and-discovery-enabled-large-language-models": {
+      "file": "detail-grand-rounds-stankovic.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T23:18:07Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://aimi.stanford.edu/events/grand-rounds/aimi-grand-rounds-tba-5": {
+      "file": "detail-grand-rounds-tba.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T23:17:36Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://aimi.stanford.edu/events/ibiis-aimi-seminar-prateek-prasanna-phd": {
+      "file": "detail-ibiis-aimi-seminar.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-12T23:17:06Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}
