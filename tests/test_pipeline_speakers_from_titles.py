@@ -237,6 +237,9 @@ def test_a_name_first_title_needs_its_abstract_or_an_affiliation(
         ("Seminar: Human Rights", None),
         ("Seminar: Fast Radio Bursts", None),
         ("Seminar | Ocean Science | Sea Level Rise, Stanford University", None),
+        ("Seminar: Light Switches", None),
+        ("Seminar: Convex Bodies", None),
+        ("Seminar: Planet Earth", None),
     ],
 )
 def test_titles_that_name_no_speaker(title: str, abstract: str | None) -> None:
@@ -290,6 +293,8 @@ def test_a_series_followed_by_two_parts_that_read_like_names(
         "Neil Lawrence",
         "Hunter Spink",
         "Bang Nhan",
+        "Bo Huang",
+        "Jane Marshes",
     ],
 )
 def test_a_name_with_a_common_word_is_still_a_speaker(name: str) -> None:

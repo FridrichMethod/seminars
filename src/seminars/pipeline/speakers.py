@@ -606,7 +606,7 @@ def _is_common(word: str) -> bool:
     """Whether a folded word is a common word of English or of a field (``_COMMON_WORDS``)."""
     if word in _COMMON_WORDS or _singular(word) in _COMMON_WORDS:
         return True
-    if word in _TOPIC_WORDS or f"{word}s" in _TOPIC_WORDS:
+    if f"{word}s" in _TOPIC_WORDS:  # "planet" of "planets"
         return True
     return any(
         pattern.fullmatch(word) for pattern in (_COMMON_ENDINGS, _TOPIC_ENDINGS, _ADJECTIVE_ENDINGS)
