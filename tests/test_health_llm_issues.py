@@ -150,3 +150,11 @@ class TestEarlierProviderAnswers:
         assert "when another provider of the chain answers instead" in body
         assert "when the provider leaves the chain" in body
         assert body.isascii()
+
+    def test_the_body_says_what_the_pipeline_uses_without_the_provider(self, chain: Chain) -> None:
+        failing_claude(chain)
+        body = " ".join(llm_issue_body("claude-cli", chain.health.llm["claude-cli"]).split())
+        assert (
+            "The pipeline goes on without this provider: it uses the next one of the chain, "
+            "or, when none is left, the answers stored by earlier runs and the rules."
+        ) in body
