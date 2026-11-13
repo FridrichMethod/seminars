@@ -181,6 +181,31 @@ class TestTheBioOfASystemXSpeaker:
                 id="an abbreviation at the end of the line",
             ),
             pytest.param(
+                "Ann Lee is a Professor at Stanford Univ., where she studies chips.",
+                ("Ann Lee", "Stanford Univ"),
+                id="an abbreviation before a comma",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Stanford Univ.; she studies chips.",
+                ("Ann Lee", "Stanford Univ"),
+                id="an abbreviation before a semicolon",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Stanford Univ. (Palo Alto).",
+                ("Ann Lee", "Stanford Univ"),
+                id="an abbreviation before a bracket",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Mount St.",
+                ("Ann Lee", "Mount St"),
+                id="the abbreviation St at the end of the line",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Washington U.",
+                ("Ann Lee", "Washington U"),
+                id="a single capital at the end of the line",
+            ),
+            pytest.param(
                 "Ann Lee is a Scientist at Apple Inc. She builds chips.",
                 ("Ann Lee", "Apple Inc"),
                 id="the abbreviation Inc ends the sentence",

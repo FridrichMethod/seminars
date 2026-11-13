@@ -877,7 +877,9 @@ sources:
         # Berkeley", "St. Jude Children's Research Hospital", "Univ. College London",
         # "Argonne Natl. Laboratory") is left out as well. After any other word the
         # period ends the sentence ("Texas A&M.", "MIT.", "Apple Inc.", "the Media
-        # Lab."), and so does a period at the end of the line ("Stanford Univ.").
+        # Lab.", and, a limit, "Mass." of "Mass. General Hospital"). The period of any
+        # word ends the affiliation right before a comma, a semicolon or a parenthesis
+        # and at the end of the line ("Stanford Univ., where", "Mount St.").
         # The pattern is verbose ((?x)): its spaces and line breaks are not part of it.
         <<: *su-detail-page
         speaker_label: '^Speaker Bio:?$'
@@ -890,7 +892,7 @@ sources:
           (?P<affiliation>[A-Z][\w&'-]*
           (?:\s+(?:(?:of|for|at|the|de|des|di|du|del|der|la|y|&)\s+)*[A-Z][\w&'-]*)*
           (?:,\s+(?!(?:Dr|Prof|Professor)\b)[A-Z][\w&'-]*(?:\s+[A-Z][\w&'-]*)*)?)
-          (?=\s*[,;(]|\.?\s*$
+          (?=\.?\s*[,;(]|\.?\s*$
           |(?<![\s.][A-Z])(?<!\b(?:St|Mt|Ft))(?<!\b(?:Univ|Inst|Dept|Natl))\.(?!\s*[a-z])
           |\s+(?:and|as|in|since|where|who|with)\s+[a-z])
           )?
