@@ -297,7 +297,7 @@ def run(
         now = run_time(offline=offline, fixtures_dir=config.paths.fixtures_dir)
         options = RunOptions(offline=offline, dry_run=dry_run, source_ids=tuple(source or ()))
         if skip_if_done_today and _done_today(config, options, now):
-            say(f"skipped: a {options.mode} run already succeeded today")
+            say(f"skipped: today's {options.mode} run already succeeded")
             return
         options = _protect_live_state(config, options)
         report = _run(project, options, now, use_llm=not no_llm and (not offline or bool(llm)))
@@ -358,11 +358,19 @@ def _run(project: Project, options: RunOptions, now: datetime, *, use_llm: bool)
 
 
 def provider_line(result: LLMProviderResult) -> str:
-    """One line of ``seminars llm-smoke`` about one provider."""
+    """One line of ``seminars llm-smoke`` about one provider.
+
+    A failed provider ends with the kind of failure and its message, an
+    unused one with its first warning: the reason the probe gives for it
+    ("not configured: CLAUDE_CODE_OAUTH_TOKEN is not set"), which names a
+    variable and never its value.
+    """
     model = f" (model {result.model})" if result.model else ""
     if result.status == "failed":
         detail = f"{result.failure_kind or 'other'}: {result.error or 'no detail'}"
         return ascii_printable(f"{result.provider}: failed{model}: {detail}")
+    if result.status == "unused" and result.warnings:
+        return ascii_printable(f"{result.provider}: unused{model}: {result.warnings[0]}")
     return ascii_printable(f"{result.provider}: {result.status}{model}")
 
 

@@ -275,7 +275,7 @@ class TestRunOffline:
         assert invoke("run", "--offline").exit_code == 0
         result = invoke("run", "--offline", "--skip-if-done-today")
         assert result.exit_code == 0
-        assert result.output == "skipped: a offline run already succeeded today\n"
+        assert result.output == "skipped: today's offline run already succeeded\n"
 
     def test_no_skip_after_a_failed_run(self, project: Path, fakes: Fakes) -> None:
         record = LastRun(
@@ -334,7 +334,7 @@ class TestRunRules:
         go_live(monkeypatch, at=REFERENCE_NOW + timedelta(hours=2))
         result = invoke("run", "--skip-if-done-today")
         assert result.exit_code == 0
-        assert result.output == "skipped: a live run already succeeded today\n"
+        assert result.output == "skipped: today's live run already succeeded\n"
         assert snapshot(project / "data") == before
 
     def test_a_live_run_rewrites_the_record_when_nothing_else_changed(
@@ -504,13 +504,26 @@ class TestLLMSmoke:
             LLMProviderResult(
                 provider="anthropic", status="failed", failure_kind="auth", error="bad key"
             ),
-            LLMProviderResult(provider="openai", status="unused"),
+            LLMProviderResult(
+                provider="openai",
+                status="unused",
+                warnings=["not configured: OPENAI_API_KEY is not set"],
+            ),
+            LLMProviderResult(
+                provider="openai-compat",
+                status="unused",
+                model="local",
+                warnings=["not configured: LLM_BASE_URL is not set", "second"],
+            ),
+            LLMProviderResult(provider="codex-cli", status="unused"),
         ]
         result = invoke("llm-smoke")
         assert result.output.splitlines() == [
             "claude-cli: ok (model m1)",
             "anthropic: failed: auth: bad key",
-            "openai: unused",
+            "openai: unused: not configured: OPENAI_API_KEY is not set",
+            "openai-compat: unused (model local): not configured: LLM_BASE_URL is not set",
+            "codex-cli: unused",
         ]
         assert result.exit_code == 1
 
