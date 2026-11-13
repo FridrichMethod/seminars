@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from seminars.pipeline.speakers import ParsedSpeaker, speakers_from_title
+from seminars.pipeline.speakers import ParsedSpeaker
+from seminars.pipeline.title_speakers import speakers_from_title
 
 ENERGY_FAN = (
     "Stanford Energy Seminar | Electrified metamaterial reactors for process intensified"

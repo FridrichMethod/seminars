@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from seminars.pipeline.speakers import ParsedSpeaker, speakers_from_title
+from seminars.pipeline.speakers import ParsedSpeaker
+from seminars.pipeline.title_speakers import speakers_from_title
 
 OBITUARY = "Dr. Jane Doe was a professor of physics at MIT for forty years."
 
