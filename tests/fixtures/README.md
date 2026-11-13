@@ -237,12 +237,20 @@ only ways to send a request to a source site by hand.
     passcodes written out in text, API keys, session and CSRF tokens;
   - personal contact data: personal e-mail addresses and telephone numbers.
 
-  Use `REDACTED` (repeated if a test needs the original length) and
-  `redacted@example.edu`, keep parameter names (`?pwd=REDACTED`) so tests can
-  still see that such a link must never be published, and list every
-  replacement in the `README.md` of the fixture directory. Speaker names and
-  affiliations shown on the public page stay, and so do the shared addresses
-  of departments and centers. A value that reached a commit is in the
+  Use `REDACTED` (repeated if a test needs the original length) for a
+  credential and keep parameter names (`?pwd=REDACTED`) so tests can still
+  see that such a link must never be published. A personal e-mail address
+  becomes `redacted@` plus its original domain (`redacted@mit.edu`), or
+  `redacted@example.edu`. List every replacement in the `README.md` of the
+  fixture directory. Speaker names and affiliations shown on the public page
+  stay, and so do the shared and role addresses of departments, centers and
+  series. `tests/test_fixtures_contact_addresses.py` enforces the address
+  rule on every recording: an address must be a placeholder, on an example
+  domain, a public Google Calendar id, or listed in `SHARED_ADDRESSES` in
+  that file, which is where a shared or role address is added (by name,
+  never by pattern). The same test fails on a file with a suffix it does not
+  scan, so a new kind of recording (a `.txt` body) needs its suffix added to
+  `RECORDING_SUFFIXES` there. A value that reached a commit is in the
   history even after a later commit replaces it: tell the maintainer, and do
   not merge that history.
 - Never record pages that need a login, and nothing that contains personal

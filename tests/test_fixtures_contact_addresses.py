@@ -15,12 +15,17 @@ Addresses are looked for after decoding the forms in which pages write the
 at sign: JSON escapes (``\\u0040``), HTML character references (``&#64;``)
 and percent-encoding (``%40``); the folded lines of an ICS file are joined
 first. Image names for dense screens (``logo@2x.png``) are no addresses.
+
+Every file below tests/fixtures is a README.md, a manifest.json or a recording
+with a suffix in ``RECORDING_SUFFIXES``, so every recording is scanned: a new
+kind of recording fails ``test_there_are_recordings`` until its suffix is added.
 """
 
 from __future__ import annotations
 
 import html
 import re
+import time
 from pathlib import Path
 from typing import Final
 from urllib.parse import unquote
@@ -29,10 +34,12 @@ import pytest
 
 FIXTURES: Final = Path(__file__).resolve().parent / "fixtures"
 RECORDING_SUFFIXES: Final = frozenset({".html", ".json", ".xml", ".ics"})
+NOT_RECORDINGS: Final = frozenset({"README.md", "manifest.json"})
+"""The notes and the manifest of a fixture directory: written by hand or by the tool."""
 RECORDINGS: Final = sorted(
     path
     for path in FIXTURES.rglob("*")
-    if path.is_file() and path.suffix in RECORDING_SUFFIXES and path.name != "manifest.json"
+    if path.is_file() and path.suffix in RECORDING_SUFFIXES and path.name not in NOT_RECORDINGS
 )
 
 SHARED_ADDRESSES: Final = frozenset(
@@ -60,8 +67,18 @@ EXAMPLE_DOMAIN: Final = re.compile(
 )
 
 ADDRESS: Final = re.compile(
-    r"[A-Za-z0-9._%+-]+@(?![0-9.]+x\.)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}"
+    r"[A-Za-z0-9._%+-]{1,64}@(?![0-9.]{1,8}x\.)"
+    r"[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,6}\.[A-Za-z]{2,24}"
 )
+"""An e-mail address: a local part, then at most eight labels, the last one the top level.
+
+Every quantifier is bounded (the limits of an address: 64 characters before the at
+sign, 63 to a label), so ``findall`` stays linear in the length of a recording: a
+long run of address characters without an at sign costs each start position at most
+64 steps, never a walk to the end of the text. A local part over the limit is found
+by its last 64 characters, which keeps the domain and so the verdict of ``may_stay``.
+"""
+SCAN_BUDGET_SECONDS: Final = 2.0
 _JSON_ESCAPE: Final = re.compile(r"\\u([0-9a-fA-F]{4})")
 _ICS_FOLD: Final = re.compile(r"\r?\n[ \t]")
 
@@ -92,6 +109,16 @@ def may_stay(address: str) -> bool:
 def test_there_are_recordings() -> None:
     assert len(RECORDINGS) > 50
     assert {path.suffix for path in RECORDINGS} == RECORDING_SUFFIXES
+    # Only the suffixes above are scanned. A recording of another kind (the fixture tool
+    # also stores text/plain bodies as .txt) fails here until its suffix is added.
+    unscanned = sorted(
+        str(path.relative_to(FIXTURES))
+        for path in FIXTURES.rglob("*")
+        if path.is_file()
+        and path.name not in NOT_RECORDINGS
+        and path.suffix not in RECORDING_SUFFIXES
+    )
+    assert unscanned == []
 
 
 @pytest.mark.parametrize("path", RECORDINGS, ids=lambda path: str(path.relative_to(FIXTURES)))
@@ -157,6 +184,24 @@ class TestTheScan:
 
     def test_json_escapes_before_a_placeholder_leave_it_a_placeholder(self) -> None:
         assert addresses('"\\u003eredacted@stanford.edu\\u003c"') == {"redacted@stanford.edu"}
+
+    @pytest.mark.parametrize(
+        "text",
+        ["a" * 200_000, "a." * 100_000, "a@" * 100_000, "a@" + "b." * 100_000, "x@1" * 70_000],
+        ids=lambda text: repr(text[:6]),
+    )
+    def test_a_long_run_without_an_address_is_scanned_in_linear_time(self, text: str) -> None:
+        # With unbounded quantifiers every start position runs to the end of the text and
+        # back, so "a" * 200_000 takes about 20 seconds; bounded, it takes milliseconds.
+        # The budget is a hundred times that, which also holds on a loaded machine.
+        started = time.perf_counter()
+        addresses(text)
+        assert time.perf_counter() - started < SCAN_BUDGET_SECONDS
+
+    def test_a_local_part_over_the_limit_is_found_by_its_end(self) -> None:
+        calendar = "c_" + "0" * 64 + "@group.calendar.google.com"
+        assert addresses(calendar) == {calendar[2:]}
+        assert addresses("j" * 70 + ".doe@mit.edu") == {"j" * 60 + ".doe@mit.edu"}
 
 
 def test_the_synbio_readme_names_the_replaced_address() -> None:
