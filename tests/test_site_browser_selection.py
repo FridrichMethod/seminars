@@ -409,6 +409,30 @@ class TestBarButtons:
         assert page.evaluate(LIST_KEPT) is True
         current.assert_clean()
 
+    @pytest.mark.parametrize("talks_shown", [True, False], ids=["field", "no-talk"])
+    def test_clear_selection_drops_the_talks_the_filters_hide_too(
+        self, current: Session, talks_shown: bool
+    ) -> None:
+        page = current.page
+        select(current, "sample-arc", "sample-xss")
+        if talks_shown:
+            page.locator('#field-chips button[data-value="cs"]').click()  # hides sample-arc
+            assert current.shown() == CS_TALKS
+            assert checked(current) == ["sample-xss"]
+        else:
+            search_for(current, NO_TALK)
+            assert current.shown() == []
+        assert status(current) == status_text("en", 2, hidden=1 if talks_shown else 2)
+        page.locator(CLEAR).click()
+        assert status(current) == catalog("en")["site.select.none"]
+        assert page.locator(CLEAR).is_disabled()
+        assert page.locator(DOWNLOAD).is_disabled()
+        page.locator("#clear").click()
+        assert current.shown() == UPCOMING
+        assert checked(current) == []
+        assert status(current) == catalog("en")["site.select.none"]
+        current.assert_clean()
+
     def test_select_all_shown_adds_to_the_selection(self, current: Session) -> None:
         page = current.page
         select(current, "sample-arc")  # not a talk of the field cs
