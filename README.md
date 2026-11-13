@@ -112,42 +112,45 @@ state of every source.
 
 32 of the 42 configured sources are enabled. In the first public run 29 of them delivered
 talks, 1 was empty and 2 failed, and 348 talks were stored. A talk that several sources
-list counts once for each of them in this table.
+list counts once for each of them in this table. "Extraction" is how the run read a
+source: api from a JSON interface of the site, feed from its iCalendar feed, html from the
+page itself by rules; for a source that failed or was empty, it is the method of its
+adapter.
 
-| Source | Group | State | Next four weeks |
-|---|---|---|---:|
-| Stanford Events (`localist-stanford`) | `localist` | ok | 43 |
-| Stanford AIMI (`sites-aimi`) | `stanford-sites` | ok | 3 |
-| Stanford Biochemistry (`sites-biochemistry`) | `stanford-sites` | ok | 3 |
-| Stanford Biology (`sites-biology`) | `stanford-sites` | ok | 4 |
-| Stanford Chemical Engineering (`sites-cheme`) | `stanford-sites` | ok | 2 |
-| Stanford ChEM-H (`sites-chemh`) | `stanford-sites` | ok | 4 |
-| Stanford Chemistry (`sites-chemistry`) | `stanford-sites` | ok | 6 |
-| Stanford ICME (`sites-icme`) | `stanford-sites` | ok | 2 |
-| Stanford Mathematics (`sites-mathematics`) | `stanford-sites` | ok | 20 |
-| Stanford Mathematics Research Center (`sites-mrc`) | `stanford-sites` | ok | 0 |
-| Stanford Materials Science and Engineering (`sites-mse`) | `stanford-sites` | ok | 2 |
-| Stanford Physics (`sites-physics`) | `stanford-sites` | ok | 2 |
-| Stanford Statistics (`sites-statistics`) | `stanford-sites` | ok | 6 |
-| Stanford SystemX Alliance (`sites-systemx`) | `stanford-sites` | ok | 1 |
-| AI + Data for Science Seminar (`custom-ai4science`) | `stanford-custom` | ok | 2 |
-| Stanford Chemical and Systems Biology Events (`custom-csb-events`) | `stanford-custom` | ok | 2 |
-| Stanford Workshop in Biomedical Data Science (`custom-dbds-workshop`) | `stanford-custom` | failed: robots.txt timed out from GitHub | 0 |
-| Stanford HAI Events (`custom-hai-events`) | `stanford-custom` | ok | 3 |
-| Stanford ISL Colloquium (`custom-isl-colloquium`) | `stanford-custom` | ok | 2 |
-| Stanford MLSys Seminar (`custom-mlsys-seminar`) | `stanford-custom` | empty: every talk on its page is past | 0 |
-| Stanford NLP Seminar (`custom-nlp-seminar`) | `stanford-custom` | failed: robots.txt timed out from GitHub | 0 |
-| Stanford RAIN/OR Seminar (`custom-rain-seminar`) | `stanford-custom` | ok | 3 |
-| Stanford Synthetic Biology Events (`custom-synbio-events`) | `stanford-custom` | ok | 1 |
-| Stanford CS Theory Lunch (`custom-theory-lunch`) | `stanford-custom` | ok | 3 |
-| Topos Institute Colloquium (`rsorg-topos-colloquium`) | `researchseminars` | ok | 3 |
-| Biohub events (`bayarea-biohub`) | `bayarea` | ok | 1 |
-| Condensed Matter Physics Seminars (GLAM) (`bayarea-glam`) | `bayarea` | ok | 3 |
-| KIPAC Seminars and Events (`bayarea-kipac`) | `bayarea` | ok | 12 |
-| Leinweber Institute for Theoretical Physics (LITP, formerly SITP) seminars (`bayarea-litp`) | `bayarea` | ok | 4 |
-| SLAC Photon Science Seminar Series (Stanford PULSE Institute) (`bayarea-pulse`) | `bayarea` | ok | 1 |
-| Q-FARM Seminars and Events (`bayarea-qfarm`) | `bayarea` | ok | 5 |
-| SLAC Colloquium Series (`bayarea-slac-colloquium`) | `bayarea` | ok | 3 |
+| Source | Group | State | Next four weeks | Extraction |
+|---|---|---|---:|---|
+| Stanford Events (`localist-stanford`) | `localist` | ok | 43 | api |
+| Stanford AIMI (`sites-aimi`) | `stanford-sites` | ok | 3 | feed |
+| Stanford Biochemistry (`sites-biochemistry`) | `stanford-sites` | ok | 3 | feed |
+| Stanford Biology (`sites-biology`) | `stanford-sites` | ok | 4 | api |
+| Stanford Chemical Engineering (`sites-cheme`) | `stanford-sites` | ok | 2 | feed |
+| Stanford ChEM-H (`sites-chemh`) | `stanford-sites` | ok | 4 | feed |
+| Stanford Chemistry (`sites-chemistry`) | `stanford-sites` | ok | 6 | api |
+| Stanford ICME (`sites-icme`) | `stanford-sites` | ok | 2 | feed |
+| Stanford Mathematics (`sites-mathematics`) | `stanford-sites` | ok | 20 | api |
+| Stanford Mathematics Research Center (`sites-mrc`) | `stanford-sites` | ok | 0 | api |
+| Stanford Materials Science and Engineering (`sites-mse`) | `stanford-sites` | ok | 2 | feed |
+| Stanford Physics (`sites-physics`) | `stanford-sites` | ok | 2 | api |
+| Stanford Statistics (`sites-statistics`) | `stanford-sites` | ok | 6 | api |
+| Stanford SystemX Alliance (`sites-systemx`) | `stanford-sites` | ok | 1 | feed |
+| AI + Data for Science Seminar (`custom-ai4science`) | `stanford-custom` | ok | 2 | html |
+| Stanford Chemical and Systems Biology Events (`custom-csb-events`) | `stanford-custom` | ok | 2 | html |
+| Stanford Workshop in Biomedical Data Science (`custom-dbds-workshop`) | `stanford-custom` | failed: robots.txt timed out from GitHub | 0 | html |
+| Stanford HAI Events (`custom-hai-events`) | `stanford-custom` | ok | 3 | html |
+| Stanford ISL Colloquium (`custom-isl-colloquium`) | `stanford-custom` | ok | 2 | html |
+| Stanford MLSys Seminar (`custom-mlsys-seminar`) | `stanford-custom` | empty: every talk on its page is past | 0 | html |
+| Stanford NLP Seminar (`custom-nlp-seminar`) | `stanford-custom` | failed: robots.txt timed out from GitHub | 0 | html |
+| Stanford RAIN/OR Seminar (`custom-rain-seminar`) | `stanford-custom` | ok | 3 | html |
+| Stanford Synthetic Biology Events (`custom-synbio-events`) | `stanford-custom` | ok | 1 | html |
+| Stanford CS Theory Lunch (`custom-theory-lunch`) | `stanford-custom` | ok | 3 | html |
+| Topos Institute Colloquium (`rsorg-topos-colloquium`) | `researchseminars` | ok | 3 | feed |
+| Biohub events (`bayarea-biohub`) | `bayarea` | ok | 1 | html |
+| Condensed Matter Physics Seminars (GLAM) (`bayarea-glam`) | `bayarea` | ok | 3 | feed |
+| KIPAC Seminars and Events (`bayarea-kipac`) | `bayarea` | ok | 12 | feed |
+| Leinweber Institute for Theoretical Physics (LITP, formerly SITP) seminars (`bayarea-litp`) | `bayarea` | ok | 4 | api |
+| SLAC Photon Science Seminar Series (Stanford PULSE Institute) (`bayarea-pulse`) | `bayarea` | ok | 1 | feed |
+| Q-FARM Seminars and Events (`bayarea-qfarm`) | `bayarea` | ok | 5 | feed |
+| SLAC Colloquium Series (`bayarea-slac-colloquium`) | `bayarea` | ok | 3 | html |
 
 ### Talks per feed
 

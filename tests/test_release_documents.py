@@ -6,24 +6,26 @@ numbers and permissions they quote are those of the configuration, the code and 
 workflows, and every direct import between the functional packages is named.
 CHANGELOG.md records the version of pyproject.toml. Both READMEs link every feed at the
 address the site is deployed to, give the webcal form of each, and link the site, its
-status page, the architecture and the changelog.
+status page, the architecture and the changelog; their tables of sources give each source
+the same extraction method.
 """
 
 from __future__ import annotations
 
 import ast
+import itertools
 import re
 import tomllib
 from collections import Counter
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, get_args
 
 import pytest
 import yaml
 
 from seminars.config import load_config
 from seminars.contracts import llm_cache_refresh_days
-from seminars.models import FEED_IDS
+from seminars.models import FEED_IDS, ExtractionMethod
 from seminars.models.health import HEALTH_HISTORY_LIMIT
 from seminars.pipeline.collect import MAX_FETCH_WORKERS, SOURCE_FETCH_LIMIT_SECONDS
 
@@ -245,3 +247,29 @@ def test_the_readme_links_the_site_the_status_page_and_the_release_documents(
     readme = text(path)
     for target in (base, f"{base}status.html", architecture, "CHANGELOG.md"):
         assert f"]({target})" in readme, target
+
+
+def extraction_by_source(path: str, heading: str) -> dict[str, str]:
+    """The last column (``heading``) of a README's table of sources, by source id."""
+    lines = text(path).splitlines()
+    start = next(
+        i
+        for i, line in enumerate(lines)
+        if line.startswith("|") and line.endswith(f"| {heading} |")
+    )
+    methods: dict[str, str] = {}
+    for line in itertools.takewhile(lambda row: row.startswith("|"), lines[start + 2 :]):
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        source = re.fullmatch(r".* \(`([a-z0-9-]+)`\)", cells[0])
+        assert source, line
+        methods[source.group(1)] = cells[-1]
+    return methods
+
+
+def test_both_readmes_give_each_source_the_same_extraction_method() -> None:
+    english = extraction_by_source("README.md", "Extraction")
+    chinese = extraction_by_source("README.zh-CN.md", "\u62bd\u53d6\u65b9\u5f0f")
+    assert english
+    assert english == chinese
+    assert set(english) <= {source.id for source in CONFIG.sources}
+    assert set(english.values()) <= set(get_args(ExtractionMethod))
