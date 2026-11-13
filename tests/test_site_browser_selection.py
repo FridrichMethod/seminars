@@ -27,6 +27,7 @@ from seminars.outputs.ics import validate_ics
 from seminars.textio import read_text
 from site_sample import UID_DOMAIN, XSS_TITLE
 from test_site_browser import (
+    DESKTOP,
     OVERFLOW,
     PHONE,
     UPCOMING,
@@ -66,6 +67,9 @@ FAILED_REQUEST = r"Failed to load resource: the server responded with a status o
 FEED_ERROR = r"feeds/all\.ics: HTTP status 404"
 
 CHECKED = "es => es.filter((e) => e.checked).map((e) => e.dataset.uid)"
+CHECKED_ONE = (
+    '(uid) => document.querySelector(`input.select-talk[data-uid="${CSS.escape(uid)}"]`).checked'
+)
 # The uid of the focused checkbox, or the id of the focused element.
 FOCUSED = "() => document.activeElement.dataset.uid || document.activeElement.id"
 FOCUSED_TALK = "() => document.activeElement.closest('article')?.dataset.uid ?? null"
@@ -75,6 +79,30 @@ BOXES = """() => [...document.querySelectorAll("input.select-talk")].map((box) =
   const rect = box.getBoundingClientRect();
   return { left: rect.left, right: rect.right, width: rect.width, height: rect.height };
 })"""
+# Scroll anchoring off, as in Safari: a change of height above the viewport moves what is
+# on screen instead of the scroll position.
+NO_SCROLL_ANCHORING = """() => {
+  document.documentElement.style.overflowAnchor = "none";
+  document.body.style.overflowAnchor = "none";
+}"""
+# Scroll so that the bottom of the bar is a fifth of the way down the viewport, with the
+# first talks of the list below it.
+BAR_ON_SCREEN = """() => {
+  const bottom = document.getElementById("selection").getBoundingClientRect().bottom;
+  window.scrollTo(0, window.scrollY + bottom - window.innerHeight / 5);
+}"""
+# Where the checkbox of a talk is in the viewport, the scroll position and the height of
+# the bar.
+PLACE = """(uid) => {
+  const box = document.querySelector(`input.select-talk[data-uid="${CSS.escape(uid)}"]`);
+  const rect = box.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+    scrolled: window.scrollY,
+    bar: document.getElementById("selection").getBoundingClientRect().height,
+  };
+}"""
 
 
 def title_shown(uid: str, lang: str) -> str:
@@ -143,6 +171,17 @@ def assert_file_of(text: str, feed: str, uids: list[str]) -> None:
     wanted = set(uids)
     assert parts(text).events == [event for event in parts(feed).events if event[0] in wanted]
     assert text == expected_calendar(feed, uids)
+
+
+def tap_in_place(current: Session, uid: str) -> None:
+    """Tap the checkbox of a talk where it is; the bar, the box and the scroll stay put."""
+    page = current.page
+    before = page.evaluate(PLACE, uid)
+    assert 0 < before["y"] < page.viewport_size["height"]
+    ticked = page.evaluate(CHECKED_ONE, uid)
+    page.mouse.click(before["x"], before["y"])
+    assert page.evaluate(CHECKED_ONE, uid) is not ticked
+    assert page.evaluate(PLACE, uid) == before
 
 
 def drop_expected_errors(current: Session, *patterns: str) -> None:
@@ -227,6 +266,25 @@ class TestSelecting:
         page.keyboard.press("Tab")
         assert page.evaluate(FOCUSED_TALK) == "sample-defense"
         assert page.evaluate("document.activeElement.tagName") == "A"
+        current.assert_clean()
+
+    @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
+    def test_a_tick_keeps_the_bar_and_the_list_in_place(
+        self, session: Callable[..., Session], viewport: dict[str, int]
+    ) -> None:
+        current = session(viewport=viewport).open("index.html")
+        page = current.page
+        page.evaluate(NO_SCROLL_ANCHORING)
+        page.evaluate(BAR_ON_SCREEN)
+        tap_in_place(current, "sample-xss")  # the first tick: the count takes the hint's place
+        download(current)
+        page.locator(f"{NOTE} .note-saved").wait_for()
+        page.evaluate(BAR_ON_SCREEN)
+        tap_in_place(current, "sample-cancelled")  # the note on the download stays
+        tap_in_place(current, "sample-cancelled")
+        tap_in_place(current, "sample-xss")  # the last talk unticked: the hint is back
+        assert status(current) == catalog("en")["site.select.none"]
+        assert note(current) == counted("en", "site.select.saved", 1)
         current.assert_clean()
 
     def test_the_bar_counts_in_english_and_chinese(self, current: Session) -> None:

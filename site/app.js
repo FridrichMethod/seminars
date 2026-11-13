@@ -289,7 +289,8 @@ function selectionStatus({ selected, listed }) {
 
 /**
  * The checkboxes of the list, the status and the buttons of the bar, updated in place:
- * nothing is rebuilt, so the focus and the scroll position stay where they are.
+ * nothing is rebuilt and the bar keeps its height (style.css reserves the status two
+ * lines on a phone), so the focus, the scroll position and the list stay where they are.
  */
 function syncSelection() {
   const { selected, download } = view;
@@ -338,19 +339,13 @@ function renderNote() {
   replaceChildren(ui.note, note === null ? null : noteContent(note));
 }
 
-/** Make ``uids`` the selection; the note on an earlier download no longer applies. */
+/**
+ * Make ``uids`` the selection. The note on the last download stays until the next one:
+ * a tick never changes the height of the bar, so the list below it does not move.
+ */
 function setSelection(uids) {
-  const { download } = view;
-  const dropsNote = !download.busy && download.note !== null;
-  view = Object.freeze({
-    ...view,
-    selected: Object.freeze([...new Set(uids)]),
-    download: dropsNote ? IDLE : download,
-  });
+  view = Object.freeze({ ...view, selected: Object.freeze([...new Set(uids)]) });
   syncSelection();
-  if (dropsNote) {
-    renderNote();
-  }
 }
 
 function toggleTalk(uid, checked) {

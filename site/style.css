@@ -796,6 +796,13 @@ button.primary {
     grid-row: span 2;
   }
 
+  /* The hint and the count of the selection wrap differently on a narrow screen; two
+     lines for either keep the list below the bar in place when a talk is ticked. */
+  .selection-status {
+    min-height: 3em;
+    min-height: 2lh;
+  }
+
   .event-when,
   .event-main {
     grid-column: 2;
