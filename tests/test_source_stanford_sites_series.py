@@ -281,7 +281,9 @@ class TestSystemx:
         assert talk.abstract_html is not None
         assert "fully homomorphic encryption" in talk.abstract_html
         assert "Ingrid Verbauwhede" in talk.abstract_html
-        assert talk.speakers == []  # the template has no speaker field
+        # The template has no speaker field; the first sentence under "Speaker Bio:"
+        # ("Dr. Ir. Ingrid Verbauwhede is a Professor ... at KU Leuven.") names her.
+        assert people(talk) == [("Ingrid Verbauwhede", "KU Leuven")]
 
     def test_the_summit_is_a_workshop_of_one_day(self) -> None:
         _, drafts = run("sites-systemx")
@@ -289,6 +291,7 @@ class TestSystemx:
         assert ends(talk, datetime(2026, 12, 3, 18, 0, tzinfo=PST))
         assert talk.title == "SystemX Physical Intelligence Summit"
         assert talk.event_type_hint == "workshop"
+        assert talk.speakers == []  # its page has a programme, no "Speaker Bio:"
         assert (
             talk.location
             == "Frances C. Arrillaga Alumni Center, Stanford University, United States"

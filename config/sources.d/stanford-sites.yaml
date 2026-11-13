@@ -162,7 +162,7 @@ x-su-event-params: &su-event-params
     subheadline: '.event-list-item__subheadline'
     dek: '.event-list_item__dek'
     join_on: [title, start]  # a card and a feed item are the same event when both agree
-  detail_page:
+  detail_page: &su-detail-page
     # Only for a card whose link stays on the site. The link of a feed item always
     # points at the site, but for an event taken from somewhere else it redirects to
     # that other host (events.stanford.edu, another department, a PDF).
@@ -858,6 +858,15 @@ sources:
     default_event_type: seminar
     params:
       <<: *su-event-params
+      detail_page:
+        # The shared detail_page, plus the speaker. A seminar names its speaker only in
+        # the body, in the first sentence under the heading "Speaker Bio:" ("Dr. Ir.
+        # Ingrid Verbauwhede is a Professor in the research group COSIC at KU Leuven.").
+        # A bio that starts another way names nobody: a wrong speaker is worse than none.
+        <<: *su-detail-page
+        speaker_label: '^Speaker Bio:?$'
+        speaker_pattern: >-
+          ^(?:(?:Dr|Prof|Professor|Ir)\.?\s+)*(?P<speaker>[A-Z][\w'-]+(?:\s+[A-Z][\w.'-]*){1,3}?)\s+is\s+(?:an?|the)\s+[^.]*?\bat\s+(?:the\s+)?(?P<affiliation>[A-Z][\w&'-]*(?:\s+[A-Z][\w&'-]*)*)
       event_type_names:
         Seminars: seminar
         Workshop: workshop
@@ -880,6 +889,6 @@ sources:
         - SystemX Seminar
       notes:
         - 'The SystemX Seminar of Electrical Engineering (Thursdays at 4:30 pm) and the events of the SystemX Alliance; 2 upcoming on 2026-11-12, the seminar of that day and a one-day summit on 2026-12-03 (type Workshop).'
-        - 'The title of a seminar is the talk title. The speaker is only in the body of the detail page, under "Speaker Bio:"; the template has no speaker field, so the drafts have no speaker. The body becomes the abstract.'
+        - 'The title of a seminar is the talk title. The speaker is only in the body of the detail page, under "Speaker Bio:"; the template has no speaker field, so detail_page.speaker_label and speaker_pattern read name and affiliation from the first sentence of the bio. The body becomes the abstract.'
         - 'The list page also has a "Past Events" block of 20 cards, which the item selector leaves out.'
         - 'Overlap: none. The Stanford Events calendar has no event of Electrical Engineering between 2026-10-28 and 2027-03-12 (see stanford-extra.yaml), and no other recording names these events.'

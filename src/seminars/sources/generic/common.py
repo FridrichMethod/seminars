@@ -13,7 +13,8 @@ and the custom adapters read pages the same way, so the pieces live here:
   characters (``search``, ``any_match``);
 * lists of speaker names (``split_names``, ``make_speakers``) and the
   affiliations of speakers in the lines of a page (``text_lines``,
-  ``with_affiliations``, below);
+  ``with_affiliations``, below), and speakers named after a label in them
+  (``speakers_after_label``);
 * dates and times: times of day and their ranges (``parse_clock``,
   ``split_range``, ``time_range``), days without a year (``parse_day``,
   closest to the fetch), ISO 8601 moments, English month names
@@ -339,6 +340,35 @@ def with_affiliations(speakers: Sequence[SpeakerDraft], lines: Sequence[str]) ->
         found = None if speaker.affiliation else affiliation_after(lines, speaker.name, names)
         completed.append(speaker.evolve(affiliation=found) if found else speaker)
     return [*completed, *speakers[MAX_SPEAKERS:]]
+
+
+def speakers_after_label(
+    lines: Sequence[str], label: Pattern, pattern: Pattern | None
+) -> list[SpeakerDraft]:
+    """The speakers named right after the first of ``lines`` that ``label`` matches.
+
+    They are in the rest of that line, or else in the next line: the groups
+    ``speaker`` and ``affiliation`` of ``pattern`` there (no match: nobody),
+    or without a pattern the whole text as a list of names. A speaker
+    without an affiliation takes the lines below the line of their name
+    (``with_affiliations``).
+    """
+    for index, line in enumerate(lines):
+        found = search(label, line)
+        if found is None:
+            continue
+        rest = collapse(line[found.end() :])
+        following = lines[index:] if rest else lines[index + 1 :]
+        text = rest or (following[0] if following else None)
+        if pattern is None:
+            return with_affiliations(make_speakers(text, None), following)
+        match = search(pattern, text or "")
+        if match is None:
+            return []
+        groups = match.groupdict()
+        speakers = make_speakers(groups.get("speaker"), groups.get("affiliation"))
+        return with_affiliations(speakers, following)
+    return []
 
 
 # --- dates and times ---------------------------------------------------------------------

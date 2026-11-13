@@ -43,9 +43,19 @@ Keys of ``params`` (an unknown key is an error that names it;
   attribute of the root, Unix seconds: the end when the card has none),
   ``type``, ``title``, ``subheadline``, ``dek``, ``location`` (fallbacks for
   what the card lacks), ``date_text`` / ``time_text`` (the end as text, a
-  last resort), ``audience`` (categories), ``body`` (the abstract) and
-  ``schedule`` (``date`` headings, each followed by ``item`` elements with
-  ``time``, ``headline`` and ``description``).
+  last resort), ``audience`` (categories), ``body`` (the abstract),
+  ``speaker_label`` and ``speaker_pattern`` (below) and ``schedule``
+  (``date`` headings, each followed by ``item`` elements with ``time``,
+  ``headline`` and ``description``).
+* ``detail_page.speaker_label``: for a page that names the speaker only in
+  its text, under a heading such as "Speaker Bio:". The speakers are named
+  right after the first line of the body that this pattern matches, in the
+  rest of that line or in the next one: the groups ``speaker`` and
+  ``affiliation`` of ``detail_page.speaker_pattern`` there (no match:
+  nobody), or without one the whole text as a list of names. The lines, and
+  the affiliation from the lines below a name, are "Affiliations from the
+  text" of ``seminars.sources.generic.common``. A draft without speakers of
+  its own takes these.
 * ``expand_schedule``: one draft per session of the detail page's schedule
   instead of one draft for the whole series (the series title becomes the
   series, the description the speaker text); sessions whose headline
@@ -88,7 +98,7 @@ from typing import Annotated, Any, Final, Literal
 from zoneinfo import ZoneInfo
 
 import feedparser
-from pydantic import Field, ValidationError
+from pydantic import Field, ValidationError, model_validator
 from selectolax.lexbor import LexborHTMLParser, LexborNode
 
 from seminars.http import HttpClient
@@ -129,8 +139,11 @@ from seminars.sources.generic.common import (
     outside_window,
     parse_day,
     parse_moment,
+    require_groups,
     search,
+    speakers_after_label,
     split_range,
+    text_lines,
     time_range,
 )
 from seminars.textrules import ascii_printable
@@ -200,7 +213,21 @@ class DetailPageParams(Model):
     location: Selector | None = None
     audience: Selector | None = None
     body: Selector | None = None
+    speaker_label: Pattern | None = None
+    speaker_pattern: Pattern | None = None
     schedule: ScheduleParams | None = None
+
+    @model_validator(mode="after")
+    def _check_speaker(self) -> DetailPageParams:
+        if self.speaker_pattern is not None and self.speaker_label is None:
+            raise ValueError("speaker_pattern needs detail_page.speaker_label")
+        if self.speaker_label is not None and self.body is None:
+            raise ValueError("speaker_label needs detail_page.body")
+        require_groups(self.speaker_pattern, "speaker_pattern", "speaker")
+        groups = set(self.speaker_pattern.groupindex) if self.speaker_pattern else set()
+        if unknown := sorted(groups - {"speaker", "affiliation"}):
+            raise ValueError(f"speaker_pattern has unknown groups: {', '.join(unknown)}")
+        return self
 
 
 class RssParams(Model):
@@ -467,6 +494,7 @@ class Detail:
     body: str | None = None
     audience: tuple[str, ...] = ()
     sessions: tuple[Session, ...] = ()
+    speakers: tuple[SpeakerDraft, ...] = ()  # named in the body, after speaker_label
 
 
 def read_detail(params: DetailPageParams, document: FetchedDocument, reference: date) -> Detail:
@@ -491,12 +519,17 @@ def read_detail(params: DetailPageParams, document: FetchedDocument, reference: 
             texts[name] = value
     body = matches(params.body)
     audience = tuple(text for node in matches(params.audience) if (text := node_text(node)))
+    speakers: list[SpeakerDraft] = []
+    if params.speaker_label is not None and body:
+        lines = text_lines(body[0])
+        speakers = speakers_after_label(lines, params.speaker_label, params.speaker_pattern)
     return Detail(
         texts=texts,
         end=unix_time(root.attributes.get(params.end_attribute) if params.end_attribute else None),
         body=inner_html(body[0]) if body else None,
         audience=audience,
         sessions=read_sessions(params.schedule, root, matches, reference),
+        speakers=tuple(speakers),
     )
 
 
@@ -673,7 +706,7 @@ def build_drafts(
         "categories": [name for name in (fields.type_name, *detail.audience) if name],
         "event_type_hint": params.type_of(fields.type_name),
     }
-    speakers = fields.speakers
+    speakers = fields.speakers or list(detail.speakers)
     speaker_text = None if speakers or item is None else item.fields.get("speaker")
     native_id = item.native_id if item else None
     if params.expand_schedule and detail.sessions:
