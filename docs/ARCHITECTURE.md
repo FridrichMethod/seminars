@@ -311,9 +311,10 @@ the checkout keeps no token. Jobs:
 
 **`update.yml`**: every day at 04:23 Pacific time, a catch-up at 10:23, and by hand with the
 mode `full` or `llm-smoke`. A scheduled run passes `--skip-if-done-today`, so the catch-up
-does nothing after a successful run of the same day. All runs share one concurrency group
-and are queued, never cancelled. The top-level token is read-only, and each job gets only
-what it needs:
+does nothing after a successful run of the same day. All runs share one concurrency group,
+so two never run at the same time. A run in progress is never cancelled; GitHub keeps one
+waiting run per group, so a newer run replaces one that is still waiting. The top-level
+token is read-only, and each job gets only what it needs:
 
 | Job | Permissions | What it does |
 |---|---|---|

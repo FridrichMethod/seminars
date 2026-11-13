@@ -150,6 +150,25 @@ class TestTrueToTheProject:
             for name, job in jobs.items()
         }
 
+    def test_it_states_the_concurrency_rule_of_the_update_workflow(self, path: str) -> None:
+        # GitHub never cancels a run in progress of a group without cancel-in-progress, but
+        # keeps only one waiting run per group: a newer one replaces it.
+        assert workflow("update.yml")["concurrency"]["cancel-in-progress"] is False
+        rule = {
+            ENGLISH: (
+                "A run in progress is never cancelled; GitHub keeps one waiting run per group, "
+                "so a newer run replaces one that is still waiting."
+            ),
+            CHINESE: (
+                "\u6b63\u5728\u8fdb\u884c\u7684\u8fd0\u884c\u4ece\u4e0d\u53d6\u6d88\uff1b"
+                "GitHub \u5728\u6bcf\u4e2a group \u91cc\u53ea\u4fdd\u7559\u4e00\u4e2a"
+                "\u7b49\u5f85\u4e2d\u7684\u8fd0\u884c\uff0c\u6240\u4ee5\u8f83\u65b0\u7684"
+                "\u8fd0\u884c\u4f1a\u53d6\u4ee3\u4ecd\u5728\u7b49\u5f85\u7684\u90a3\u4e00\u4e2a\u3002"
+            ),
+        }
+        # A line of the Chinese text may wrap anywhere, so white space does not count.
+        assert "".join(rule[path].split()) in "".join(prose(path).split())
+
     def test_the_numbers_it_quotes_are_those_of_the_configuration(self, path: str) -> None:
         settings, llm = CONFIG.settings, CONFIG.llm
         refresh = llm_cache_refresh_days(llm.cache_ttl_days)
