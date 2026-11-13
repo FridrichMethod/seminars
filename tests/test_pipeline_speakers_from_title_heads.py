@@ -49,6 +49,12 @@ OBITUARY = "Dr. Jane Doe was a professor of physics at MIT for forty years."
         "Celebrating the Life of: Dr. Jane Doe",
         "Celebrating Life of: Dr. Jane Doe",
         "Celebration of the Life of: Dr. Jane Doe",
+        "In Honor: Dr. Jane Doe",
+        "Honoring the Life of: Dr. Jane Doe",
+        "Remembering the Life of: Dr. Jane Doe",
+        "Celebrating the Life and Work of: Dr. Jane Doe",
+        "Celebration of the Life and Legacy of: Dr. Jane Doe",
+        "Honouring the Life: Dr. Jane Doe",
         '"In Memoriam": Dr. Jane Doe',
         # The first separator ends the head even after a quote that is never closed.
         '"In Memoriam: Dr. Jane Doe',

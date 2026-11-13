@@ -119,12 +119,14 @@ _SERIES_WORDS: Final = word_set(
 """Words of the name of a series or an event; no person's name holds one."""
 _MEMORIAL: Final = re.compile(
     r"(?:(?:a|an|the) )?(?:in (?:loving )?(?:memoriam|memory)(?: of)?|in remembrance(?: of)?"
-    r"|in honou?r of|honou?ring|obituar(?:y|ies)|memorial(?: (?:service|gathering))?|tributes?"
-    r"|remembering|remembrance|celebrat(?:ion|ing) of (?:the )?life(?: of)?"
-    r"|celebrating (?:the )?life of)"
+    r"|in honou?r(?: of)?|honou?ring|obituar(?:y|ies)|memorial(?: (?:service|gathering))?"
+    r"|tributes?|remembering|remembrance"
+    r"|(?:celebrat(?:ion of|ing)|honou?ring|remembering) (?:the )?life(?: and (?:work|legacy))?"
+    r"(?: of)?)"
 )
 """A head that honours a person, folded ("In Memoriam", "In Honor of", "Obituary", "Tribute",
-"Celebration of Life"): the name after it is the person the memorial is for."""
+"Celebration of Life", "Remembering the Life and Work of"): the name after it is the person
+the memorial is for."""
 _TERM: Final = re.compile(
     r"(?:(?:(?:ay|academic year) )?(?:(?:spring|summer|fall|autumn|winter)(?: (?:quarter"
     r"|semester|term))?)?|jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?"
