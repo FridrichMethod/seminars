@@ -65,6 +65,7 @@ SELECT_SHOWN = "#select-shown"
 CLEAR = "#select-clear"
 DOWNLOAD = "#select-download"
 BUTTONS = (SELECT_SHOWN, CLEAR, DOWNLOAD)
+ONE_TIME_COPY = "#selection .selection-copy"  # a downloaded file is a one-time copy
 CS_TALKS = ["sample-xss", "sample-online", "sample-defense"]  # shown with field=cs
 NO_TALK = "qqqzzz"  # a search that no talk matches
 UID_VALUE = re.compile(r"^UID:([^\r\n]*)", re.MULTILINE)
@@ -175,6 +176,13 @@ def note(current: Session) -> str:
     return current.page.locator(NOTE).text_content() or ""
 
 
+def assert_one_time_copy_shown(current: Session, lang: str) -> None:
+    """The bar shows, in ``lang``, that a downloaded file is a one-time copy."""
+    copy = current.page.locator(ONE_TIME_COPY)
+    assert copy.is_visible()
+    assert copy.text_content() == catalog(lang)["site.select.one_time"]
+
+
 def select(current: Session, *uids: str) -> None:
     for uid in uids:
         checkbox(current, uid).check()
@@ -253,6 +261,7 @@ class TestSelecting:
         assert page.locator(DOWNLOAD).is_disabled()
         assert page.locator(CLEAR).is_disabled()
         assert page.locator(SELECT_SHOWN).is_enabled()
+        assert_one_time_copy_shown(current, "en")
         requests: list[str] = []
         page.on("request", lambda request: requests.append(request.url))
         page.locator(DOWNLOAD).dispatch_event("click")
@@ -326,6 +335,7 @@ class TestSelecting:
         tap_in_place(current, "sample-xss")  # the last talk unticked: the hint is back
         assert status(current) == catalog("en")["site.select.none"]
         assert note(current) == counted("en", "site.select.saved", 1)
+        assert_one_time_copy_shown(current, "en")
         current.assert_clean()
 
     def test_the_bar_counts_in_english_and_chinese(self, current: Session) -> None:
@@ -338,6 +348,7 @@ class TestSelecting:
         assert status(current) == status_text("zh-CN", 2)
         assert checked(current) == ["sample-online", "sample-arc"]
         assert_page_in(current, "zh-CN")
+        assert_one_time_copy_shown(current, "zh-CN")
         checkbox(current, "sample-arc", "zh-CN").uncheck()
         assert status(current) == status_text("zh-CN", 1)
         page.locator('.lang-switch button[lang="en"]').click()
