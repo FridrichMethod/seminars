@@ -51,6 +51,9 @@ Keys of ``params`` (an unknown key is an error that names it;
 * ``default_start_time`` / ``default_end_time``: local time of day ("12:00")
   for rows without one. A row without any time is an all-day talk; with
   ``end_date`` it lasts to that day (inclusive).
+* ``default_location``: the place of a row that names none, neither in the
+  row nor on its detail page (a page that states the room of every talk once,
+  in its heading).
 * ``require``: fields a row needs to count as a talk (default: ``date``).
 * ``skip_title_patterns`` / ``skip_summary_patterns``: rows whose title or
   summary matches one of them are dropped; ``exclude_regions``: rows whose
@@ -117,7 +120,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Annotated, Any, Final, Literal, get_args
 from zoneinfo import ZoneInfo
 
-from pydantic import Field, ValidationError, model_validator
+from pydantic import Field, StringConstraints, ValidationError, model_validator
 from selectolax.lexbor import LexborHTMLParser, LexborNode
 
 from seminars.http import HttpClient
@@ -182,6 +185,7 @@ FieldName = Literal[
 ]
 FIELDS: Final[tuple[str, ...]] = get_args(FieldName)
 EXTRA_GROUPS: Final = ("end_date", "start", "end", "meridiem")
+PlaceName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 # --- the adapter -------------------------------------------------------------------------
@@ -239,6 +243,7 @@ class HtmlListParams(Model):
     time_format: str | None = None
     default_start_time: time | None = None
     default_end_time: time | None = None
+    default_location: PlaceName | None = None
     require: list[FieldName] = ["date"]
     allow_empty: bool = False
     empty_marker: Selector | None = None
@@ -744,7 +749,7 @@ class HtmlListAdapter:
             start=start,
             end=end,
             speakers=with_affiliations(row_speakers(row) or detail.speakers, detail.lines),
-            location=row.get("location") or detail.location,
+            location=row.get("location") or detail.location or params.default_location,
             stream_url=absolute_url(document.final_url, row.get("stream_link")),
             abstract=None if row.abstract_html else row.get("summary"),
             abstract_html=row.abstract_html,
