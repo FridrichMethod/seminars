@@ -54,8 +54,10 @@ The field tagger (``build_field_tagger``) decides the fields of a candidate:
    the talk ("Abstract", "Title", "About the seminar", ..., also "Talk:",
    "Topic:", "Abstract - We ..." and "AbstractWe ...") or to the end. A
    line that opens such a section and holds an "Abstract" heading further
-   on (a page flattened into one line: "About the SpeakerJane ...
-   AbstractWe ...") keeps the text from that heading on. A speaker who
+   on, after the end of a sentence or run on from its last word (a page
+   flattened into one line: "About the SpeakerJane ... AbstractWe ..."),
+   keeps the text from that heading on; "Abstract" after a word and a space
+   is the name of a work ("the book Abstract: ..."). A speaker who
    holds a degree in physics, or a series that "bridges neuroscience and
    data science", says nothing about the field of the talk. A biography
    without a heading is read like the talk, and a talk that follows a
@@ -145,9 +147,13 @@ _TALK_HEADING: Final = re.compile(
 """A line that opens a section on the talk, which ends a section on the speaker or the series:
 a heading of ``_TALK``, "Talk:" or "Topic:", or "Abstract" followed by a dash or run into its
 first sentence."""
-_EMBEDDED_ABSTRACT: Final = re.compile(rf"Abstract(?=[A-Z]|\s*:|{_DASH})")
+_EMBEDDED_ABSTRACT: Final = re.compile(
+    rf"(?:(?<=[.!?])\s*|(?<=[a-z]))(?P<heading>Abstract)(?=[A-Z]|\s*:|{_DASH})"
+)
 """An "Abstract" heading inside a line that opened a section on the speaker, where a page
-was flattened into one line ("About the SpeakerJane ... AbstractWe ...")."""
+was flattened into one line ("About the SpeakerJane ... AbstractWe ..."). It follows the end
+of a sentence or runs on from the last word ("a chemistAbstract: ..."); after a word and a
+space it is the name of a work ("wrote the book Abstract: The Art of Design")."""
 
 
 def _fold(text: str) -> str:
@@ -182,7 +188,7 @@ def talk_text(abstract: str | None) -> str | None:
             embedded = _EMBEDDED_ABSTRACT.search(line)
             aside = embedded is None
             if embedded is not None:
-                kept.append(line[embedded.start() :])
+                kept.append(line[embedded.start("heading") :])
             continue
         if _TALK_HEADING.fullmatch(line):
             aside = False

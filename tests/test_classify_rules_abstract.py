@@ -179,6 +179,14 @@ class TestTalkAfterABiography:
                 "Bio: Jane is a chemist. Abstract - We design enzymes.",
                 "Abstract - We design enzymes.",
             ),
+            (
+                "About the SpeakerJane Doe is a chemistAbstract: We design enzymes.",
+                "Abstract: We design enzymes.",
+            ),
+            (
+                "Bio: Jane is a chemist!  Abstract\u2014We design enzymes.",
+                "Abstract\u2014We design enzymes.",
+            ),
         ],
     )
     def test_a_flattened_line_keeps_the_talk_after_its_abstract_heading(
@@ -217,12 +225,35 @@ class TestTalkAfterABiography:
         assert talk_text(f"{TALK}\n{line}\nMore.") == TALK
 
     @pytest.mark.parametrize(
+        ("line", "rest"),
+        [
+            (
+                "Bio: Jane curated the exhibition Abstract \u2013 Figurative at MoMA.",
+                "She won prizes in physics.",
+            ),
+            (
+                "Bio: Jane wrote the book Abstract: The Art of Design.",
+                "She holds a degree in physics.",
+            ),
+            ("Bio: Jane wrote the book Abstract - The Art of Design.", "She studied physics."),
+            ("About the SpeakerJane wrote Abstract: A Memoir.", "She studied physics."),
+        ],
+    )
+    def test_a_work_called_abstract_inside_a_biography_is_no_heading(
+        self, line: str, rest: str
+    ) -> None:
+        """Only a heading after the end of a sentence, or run into the text, ends the bio."""
+        assert talk_text(f"{TALK}\n{line}\n{rest}") == TALK
+
+    @pytest.mark.parametrize(
         "text",
         [
             "Bio: " + "Abstract " * 30_000,
             "Bio: " + "Abstract" + " " * 100_000 + "x",
             "Bio\nAbstract" + " " * 100_000 + "x",
             "About the SpeakerJane" + " -" * 50_000,
+            "Bio: ." + " " * 100_000 + "x",
+            "Bio: " + ". " * 50_000 + "Abstractx",
         ],
     )
     def test_a_hostile_line_takes_linear_time(self, text: str) -> None:
