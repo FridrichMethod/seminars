@@ -10,25 +10,44 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from factories import make_source, make_window
 from fakes import FakeHttpClient
+from seminars.config import load_sources
 from seminars.models import EventDraft, SourceConfig
 from seminars.sources.base import get_adapter
-from seminars.sources.generic.common import AdapterConfigError, speakers_after_label
+from seminars.sources.generic.common import (
+    AdapterConfigError,
+    Pattern,
+    load_params,
+    speakers_after_label,
+)
+from seminars.sources.generic.rss import RssParams
 
 FEED_URL = "https://dept.example.edu/events/feed"
 LIST_URL = "https://dept.example.edu/events"
 DETAIL_URL = "https://dept.example.edu/events/talk-one"
 WINDOW = make_window(datetime(2026, 11, 11, 20, 0, tzinfo=UTC))
 LABEL = re.compile(r"^Speakers?(?: Bio)?:")
-BIO = re.compile(
-    r"^(?:(?:Dr|Prof|Ir)\.\s+)*(?P<speaker>[A-Z][\w'-]+(?:\s+[A-Z][\w.'-]*){1,3}?)\s+is\s+"
-    r"(?:an?|the)\s+[^.]*?\bat\s+(?:the\s+)?(?P<affiliation>[A-Z][\w&'-]*(?:\s+[A-Z][\w&'-]*)*)"
-)
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SOURCES = {source.id: source for source in load_sources(REPO_ROOT / "config" / "sources.d")}
+
+
+def systemx_bio() -> tuple[Pattern, Pattern]:
+    """The label and the pattern that the source sites-systemx reads its speaker with."""
+    detail = load_params(RssParams, SOURCES["sites-systemx"]).detail_page
+    assert detail is not None
+    assert detail.speaker_label is not None
+    assert detail.speaker_pattern is not None
+    return detail.speaker_label, detail.speaker_pattern
+
+
+BIO = systemx_bio()[1]
+"""The pattern of a source configured with one: name and affiliation in the first sentence."""
 
 
 def people(speakers: Any) -> list[tuple[str, str | None]]:
@@ -77,6 +96,95 @@ class TestTheLinesAfterTheLabel:
     def test_only_the_first_label_counts(self) -> None:
         lines = ["Speaker:", "Jane Doe", "Speaker:", "John Roe"]
         assert people(speakers_after_label(lines, LABEL, None)) == [("Jane Doe", None)]
+
+
+class TestTheBioOfASystemXSpeaker:
+    """The configured label and pattern of sites-systemx over first sentences of a bio."""
+
+    @pytest.mark.parametrize(
+        ("bio", "speaker"),
+        [
+            pytest.param(
+                "Jane Doe is an Assistant Professor of Electrical Engineering at the "
+                "University of California, Berkeley.",
+                ("Jane Doe", "University of California, Berkeley"),
+                id="a university of a state and its campus",
+            ),
+            pytest.param(
+                "John Smith is a Professor at Massachusetts Institute of Technology, where "
+                "he leads the Lab for Things.",
+                ("John Smith", "Massachusetts Institute of Technology"),
+                id="an institute of something",
+            ),
+            pytest.param(
+                "Prof. Ada Byron is a Professor of Computer Science at Stanford University.",
+                ("Ada Byron", "Stanford University"),
+                id="a university named after a place",
+            ),
+            pytest.param(
+                "Dr. Ir. Ingrid Verbauwhede is a Professor in the research group COSIC at "
+                "KU Leuven. She leads a lab.",
+                ("Ingrid Verbauwhede", "KU Leuven"),
+                id="the recorded bio",
+            ),
+            pytest.param(
+                "Mary Major is a Research Scientist at the Max Planck Institute for "
+                "Intelligent Systems (Tuebingen).",
+                ("Mary Major", "Max Planck Institute for Intelligent Systems"),
+                id="an institute for something",
+            ),
+            pytest.param(
+                "Raj Patel is a PhD student at the Ecole Polytechnique Federale de Lausanne.",
+                ("Raj Patel", "Ecole Polytechnique Federale de Lausanne"),
+                id="a name with de",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at the University of Texas at Austin and a member "
+                "of its robotics center.",
+                ("Ann Lee", "University of Texas at Austin"),
+                id="a campus after at, then and a lowercase word",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Texas A&M University.",
+                ("Ann Lee", "Texas A&M University"),
+                id="an ampersand in a word",
+            ),
+            pytest.param(
+                "Ann Lee is an Associate Professor at Stanford University in the Department "
+                "of Electrical Engineering.",
+                ("Ann Lee", "Stanford University"),
+                id="in and a lowercase word after the affiliation",
+            ),
+        ],
+    )
+    def test_a_bio_names_the_speaker_and_the_whole_affiliation(
+        self, bio: str, speaker: tuple[str, str]
+    ) -> None:
+        label, pattern = systemx_bio()
+        assert people(speakers_after_label(["Speaker Bio:", bio], label, pattern)) == [speaker]
+
+    @pytest.mark.parametrize(
+        "bio",
+        [
+            pytest.param("Ann Lee is a Professor at the Univ. of Texas.", id="an abbreviation"),
+            pytest.param(
+                "Ann Lee is a Professor at Stanford University and Director of the Center "
+                "for Integrated Systems.",
+                id="and a capitalised word after the affiliation",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at the Department of Electrical Engineering and "
+                "Computer Science.",
+                id="and inside the affiliation",
+            ),
+            pytest.param("Ann Lee is a researcher at heart.", id="no capitalised word after at"),
+        ],
+    )
+    def test_an_affiliation_the_pattern_cannot_bound_is_left_out(self, bio: str) -> None:
+        label, pattern = systemx_bio()
+        assert people(speakers_after_label(["Speaker Bio:", bio], label, pattern)) == [
+            ("Ann Lee", None)
+        ]
 
 
 def source(**detail: Any) -> SourceConfig:
