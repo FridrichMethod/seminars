@@ -793,7 +793,7 @@ sources:
         - '7 upcoming events on 2026-11-12, 5 in the run window. The weekly Computational Medicine Research Colloquium (Thursdays at noon) is listed one talk at a time; its card links to the series page on computationalmedicine.stanford.edu, which lists past talks and the current one, nothing later.'
         - 'Two cards (the colloquium and the AI4MH Seminar) link to other hosts; the link is the url of the event and is not fetched. The detail pages of the native cards in the window are fetched (3 on 2026-11-12); they add the abstract or a description of the series.'
         - 'The title holds series, talk title and speaker ("<series>: <talk title> - <speaker>, <degrees>"); see title_patterns.'
-        - 'The HAILS leadership course (2027-05-14) and the AIMI Symposium (2027-05-17) are outside the window; the course is not a talk, and nothing in this entry drops it (the rss adapter has no title filter, and the taxonomy has no exclusion phrase for it).'
+        - 'The HAILS leadership course (2027-05-14) and the AIMI Symposium (2027-05-17) are outside the window; the course is a paid executive program, not a talk, and the taxonomy excludes it as a course ("leadership strategy course").'
         - 'Overlap: none. localist.yaml maps the departments "Center for Artificial Intelligence in Medicine and Imaging (AIMI)" and IBIIS, but no record of the Stanford Events calendar carried either in the window of 2026-11-12, and no other recording names one of these talks or speakers.'
 
   - <<: *site

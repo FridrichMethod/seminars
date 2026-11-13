@@ -1032,6 +1032,7 @@ exclusions:
     - certificate program
     - certificate programme
     - certificate course
+    - leadership strategy course  # AIMI's HAILS, an executive program
   office_hours:
     - office hours
     - office hour
