@@ -151,6 +151,7 @@ CHANGES = """() => {
   window.__changes = Object.fromEntries(Object.keys(changes).map((key) => [key, 0]));
   return changes;
 }"""
+SAME_ALERT = '() => document.querySelector("#selection-note [role=alert]") === window.__alert'
 # Counts the clicks that reach a button (a key press clicks it too).
 COUNT_PRESSES = """(selector) => {
   window.__presses = 0;
@@ -827,6 +828,36 @@ class TestDownload:
         assert_file_of(download(current), feed, ["sample-pick", "sample-arc"])
         assert alert.count() == 0
         assert note(current) == counted("en", "site.select.saved", 2)
+        current.assert_clean()
+
+    def test_a_tick_or_a_filter_leaves_the_failure_note_alone(self, current: Session) -> None:
+        # The note is drawn when a download ends: drawn again, its alert would be said again.
+        page = current.page
+        page.route(f"**/{FEED_PATH}", lambda route: route.fulfill(status=404, body=""))
+        select(current, "sample-pick")
+        page.locator(DOWNLOAD).click()
+        page.locator(f"{NOTE} [role=alert]").wait_for()
+        drop_expected_errors(current, FAILED_REQUEST, FEED_ERROR)
+        page.evaluate(WATCH, [NOTE, "#events"])
+
+        def assert_note_kept() -> None:
+            changes = page.evaluate(CHANGES)
+            assert changes[NOTE] == 0
+            assert page.evaluate(SAME_ALERT) is True
+
+        select(current, "sample-online")
+        assert status(current) == "2 talks selected"
+        assert_note_kept()
+        page.locator('#field-chips button[data-value="cs"]').click()
+        assert current.shown() == CS_TALKS
+        assert_note_kept()
+        type_search(current, "compilers", ["sample-defense"])
+        assert_note_kept()
+        page.locator(SELECT_SHOWN).click()
+        assert checked(current) == ["sample-defense"]
+        assert status(current) == status_text("en", 3, hidden=2)
+        assert_note_kept()
+        assert note(current) == catalog("en")["site.select.failed"]
         current.assert_clean()
 
     def test_a_stalled_request_is_given_up_and_a_retry_succeeds(
