@@ -22,3 +22,9 @@ Crawl-delay).
   users); /events/feed/ is 404; /feed/?post_type=event is a 527 KB RSS of 36 items
   (33 of them with an /events/ link) whose pubDate is the publication date and which
   carries no event date at all.
+
+## What was replaced
+
+- The WordPress nonce (`"nonce":"..."` in the script data of every page) by
+  `REDACTED`, as in the other fixtures: it is a session-like token. Nothing else
+  was changed.
