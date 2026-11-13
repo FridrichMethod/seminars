@@ -150,6 +150,26 @@ class TestTheBioOfASystemXSpeaker:
                 id="an ampersand in a word",
             ),
             pytest.param(
+                "Ann Lee is a Professor at Texas A&M. She leads a lab.",
+                ("Ann Lee", "Texas A&M"),
+                id="a capital after an ampersand at the end of the sentence",
+            ),
+            pytest.param(
+                "Ann Lee is a Senior Researcher at NVIDIA Research. She builds chips.",
+                ("Ann Lee", "NVIDIA Research"),
+                id="a word in capitals before the end of the sentence",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at MIT.",
+                ("Ann Lee", "MIT"),
+                id="an acronym at the end of the bio",
+            ),
+            pytest.param(
+                "Ann Lee is a Lecturer at Stanford. She teaches circuits.",
+                ("Ann Lee", "Stanford"),
+                id="one word before the end of the sentence",
+            ),
+            pytest.param(
                 "Ann Lee is an Associate Professor at Stanford University in the Department "
                 "of Electrical Engineering.",
                 ("Ann Lee", "Stanford University"),
@@ -178,6 +198,18 @@ class TestTheBioOfASystemXSpeaker:
                 id="and inside the affiliation",
             ),
             pytest.param("Ann Lee is a researcher at heart.", id="no capitalised word after at"),
+            pytest.param(
+                "Ann Lee is a Professor at St. Jude Children's Research Hospital.",
+                id="the abbreviation St",
+            ),
+            pytest.param(
+                "Ann Lee is a Scientist at the U.S. Naval Research Laboratory.",
+                id="an abbreviation of single capitals",
+            ),
+            pytest.param("Ann Lee is a Professor at Mt. Sinai Hospital.", id="the abbreviation Mt"),
+            pytest.param(
+                "Ann Lee is a Professor at U.C. Berkeley.", id="an abbreviated university"
+            ),
         ],
     )
     def test_an_affiliation_the_pattern_cannot_bound_is_left_out(self, bio: str) -> None:
