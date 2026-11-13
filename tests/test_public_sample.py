@@ -1,8 +1,9 @@
-"""The committed sample payloads for the web site match the models and the generator."""
+"""The committed sample payloads and feed of the web site match the models and the generator."""
 
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
@@ -14,14 +15,21 @@ from seminars.models import (
     dump_json,
     load_json,
 )
+from seminars.outputs.ics import validate_ics
+from seminars.textio import read_text
 from site_sample import (
+    FEED_ID,
+    FEEDS_DIR,
     GENERATED_AT,
     SAMPLE_DIR,
+    UID_DOMAIN,
     XSS_ABSTRACT,
     XSS_TITLE,
     sample_events_payload,
+    sample_feed,
     sample_files,
     sample_status_payload,
+    served_feed,
 )
 
 INTERNAL_KEYS = {
@@ -35,6 +43,9 @@ INTERNAL_KEYS = {
     "extraction",
     "picks_score",
 }
+FEED = FEEDS_DIR / f"{FEED_ID}.ics"
+FOLD = re.compile(r"\r\n[ \t]")
+UID_LINE = re.compile(r"^UID:(.*)\r$", re.MULTILINE)
 
 
 @pytest.fixture(scope="module")
@@ -49,11 +60,21 @@ def status_payload() -> PublicStatusPayload:
     return load_json(text, PublicStatusPayload)
 
 
+@pytest.fixture(scope="module")
+def feed() -> str:
+    """The committed sample feed as the site serves it (CRLF line endings)."""
+    return served_feed(read_text(FEED))
+
+
 def test_committed_files_match_the_generator() -> None:
     for path, expected in sample_files().items():
-        assert path.read_text(encoding="utf-8") == expected, (
+        assert read_text(path) == expected, (
             f"{path.name} is stale; run: uv run python tests/site_sample.py"
         )
+
+
+def test_the_feed_of_every_event_is_the_only_committed_feed() -> None:
+    assert sorted(path.name for path in FEEDS_DIR.iterdir()) == [FEED.name]
 
 
 def test_files_round_trip_through_the_models(
@@ -147,3 +168,20 @@ def test_status_sample_covers_every_state(status_payload: PublicStatusPayload) -
     assert "<img" in failed.error
     assert failed.consecutive_failures == 3
     assert status_payload.event_count == len(sample_events_payload().events)
+
+
+def test_the_feed_is_stored_with_lf_and_served_as_written(feed: str) -> None:
+    """The repository keeps LF line endings; putting CRLF back gives the writer's bytes."""
+    assert "\r" not in read_text(FEED)
+    assert feed == sample_feed()
+
+
+def test_the_feed_is_valid(feed: str) -> None:
+    assert validate_ics(feed) == []
+
+
+def test_the_feed_holds_the_events_of_the_sample_payload(
+    feed: str, events_payload: PublicEventsPayload
+) -> None:
+    uids = UID_LINE.findall(FOLD.sub("", feed))
+    assert uids == [f"{event.uid}@{UID_DOMAIN}" for event in events_payload.events]

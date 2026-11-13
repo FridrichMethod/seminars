@@ -1,13 +1,27 @@
 """Builds the sample public payloads committed under tests/fixtures/_site/.
 
-The web site is developed and tested against these two files:
+The web site is developed and tested against these three files:
 
-* tests/fixtures/_site/events.json   a PublicEventsPayload
-* tests/fixtures/_site/status.json   a PublicStatusPayload
+* tests/fixtures/_site/events.json      a PublicEventsPayload
+* tests/fixtures/_site/status.json      a PublicStatusPayload
+* tests/fixtures/_site/feeds/all.ics    the calendar feed of every sample event
 
-They are generated from the models, so they always follow the schema.
-tests/test_public_sample.py fails when the files and this module disagree;
-regenerate them with ``uv run python tests/site_sample.py``.
+They are generated from the models and the feed writer, so they always follow
+the schema. tests/test_public_sample.py fails when the files and this module
+disagree; regenerate them with ``uv run python tests/site_sample.py``.
+
+The feed is what ``seminars.outputs.ics.write_ics_feeds`` writes for the
+events that events.json is projected from. It is written with a
+configuration of its own (``sample_config``) instead of config/, with the
+English messages of locales/. Two things set it apart from a deployed feed:
+
+* the uid domain is an example domain, because the fixtures hold no
+  address-like text outside example domains
+  (tests/test_fixtures_contact_addresses.py); the site never knows the
+  domain, so this changes nothing for it;
+* the committed copy has LF line endings, the rule for every file of the
+  repository (.gitattributes, scripts/check_ascii.py). ``served_feed`` puts
+  back the CRLF line endings of RFC 5545, as the site serves the feed.
 
 The events cover what the site has to cope with: HTML and script injection
 in every text field, an all-day event, a cancelled and a tentative event,
@@ -21,11 +35,24 @@ smaller than usual) or that took a smaller listing as the usual size.
 
 from __future__ import annotations
 
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from factories import PACIFIC, make_event
+from seminars.config import (
+    AppConfig,
+    EventSettings,
+    FeedSettings,
+    HttpSettings,
+    Interests,
+    LLMConfig,
+    ProjectPaths,
+    Settings,
+    SiteSettings,
+    Taxonomy,
+)
 from seminars.models import (
     Event,
     PublicEvent,
@@ -34,11 +61,18 @@ from seminars.models import (
     PublicStatusPayload,
     dump_json,
 )
-from seminars.textio import write_text_atomic
+from seminars.outputs.ics import write_ics_feeds
+from seminars.textio import read_text, write_text_atomic
 
-SAMPLE_DIR = Path(__file__).resolve().parent / "fixtures" / "_site"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SAMPLE_DIR = REPO_ROOT / "tests" / "fixtures" / "_site"
+FEEDS_DIR = SAMPLE_DIR / "feeds"
 GENERATED_AT = datetime(2026, 11, 10, 12, 30, tzinfo=UTC)
 PICKS_THRESHOLD = 3.0
+TIMEZONE = "America/Los_Angeles"
+UID_DOMAIN = "seminars.example.org"
+"""Right-hand side of every UID of the sample feed: ``<uid>@seminars.example.org``."""
+FEED_ID = "all"
 
 # Non-ASCII letters for realistic names; written as code points to keep this file ASCII.
 A_ACUTE = chr(0xE1)
@@ -257,7 +291,7 @@ def sample_events_payload() -> PublicEventsPayload:
     ordered = sorted(sample_events(), key=lambda event: (event.start, event.uid))
     return PublicEventsPayload(
         generated_at=GENERATED_AT,
-        timezone="America/Los_Angeles",
+        timezone=TIMEZONE,
         events=[
             PublicEvent.from_event(event, picks_threshold=PICKS_THRESHOLD) for event in ordered
         ],
@@ -359,11 +393,50 @@ def sample_status_payload() -> PublicStatusPayload:
     )
 
 
+def sample_config() -> AppConfig:
+    """The configuration the sample feed is written with; nothing is read from config/."""
+    base_url = f"https://{UID_DOMAIN}/"
+    return AppConfig(
+        paths=ProjectPaths(REPO_ROOT),
+        settings=Settings(
+            timezone=TIMEZONE,
+            uid_domain=UID_DOMAIN,
+            site=SiteSettings(base_url=base_url),
+            http=HttpSettings(user_agent=f"seminars-bot/1.0 (+{base_url})"),
+            events=EventSettings(default_duration_minutes=60),
+            feeds=FeedSettings(refresh_interval_hours=6),
+        ),
+        llm=LLMConfig(),
+        taxonomy=Taxonomy(),
+        interests=Interests(threshold=PICKS_THRESHOLD),
+        sources=(),
+    )
+
+
+def sample_feed() -> str:
+    """The ``all`` feed of the sample events as the feed writer writes it (CRLF)."""
+    with tempfile.TemporaryDirectory() as directory:
+        out_dir = Path(directory)
+        write_ics_feeds(sample_events(), out_dir, config=sample_config())
+        return read_text(out_dir / f"{FEED_ID}.ics")
+
+
+def stored_feed(served: str) -> str:
+    """A feed as it is committed: with the LF line endings of every file of the repository."""
+    return served.replace("\r\n", "\n")
+
+
+def served_feed(stored: str) -> str:
+    """A committed feed as the site serves it: with the CRLF line endings of RFC 5545."""
+    return stored.replace("\n", "\r\n")
+
+
 def sample_files() -> dict[Path, str]:
     """Path and expected text of each committed sample file."""
     return {
         SAMPLE_DIR / "events.json": dump_json(sample_events_payload()),
         SAMPLE_DIR / "status.json": dump_json(sample_status_payload()),
+        FEEDS_DIR / f"{FEED_ID}.ics": stored_feed(sample_feed()),
     }
 
 
