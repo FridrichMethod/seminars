@@ -275,6 +275,19 @@ replaced by an empty placeholder.
   step, reading `events.json` and `status.json`; English and Chinese from `locales/`. All
   text from the web is escaped. `seminars build-site` assembles `public/` from the committed
   data alone.
+- **Download of selected talks** (`site/calendar.js`): the talks a reader ticks in the list
+  are page state held in memory, never written to the address or to storage. On download
+  the page fetches `feeds/all.ics` from its own site (the path of the feed `all` in
+  `events.json`) and copies the VEVENT blocks of the selected talks verbatim, in the order
+  of the feed, into one calendar, together with every VTIMEZONE block and the basic header
+  of the feed (`VERSION`, `PRODID` and, when present, `CALSCALE`, `METHOD` and
+  `X-WR-TIMEZONE`), but without the header properties that only a subscription needs
+  (`X-WR-CALNAME`, `X-WR-CALDESC`, `REFRESH-INTERVAL`, `X-PUBLISHED-TTL`). A talk is the
+  VEVENT whose UID, up to its last `@`, is the uid of the talk. The calendar is saved
+  through a Blob as `seminars-selected.ics`; selected talks missing from the feed are left
+  out and counted, and a feed that cannot be fetched or read gives no file. No ICS is
+  written in JavaScript, and neither the backend nor `events.json` has anything of its own
+  for the download: the file is made from the feed that `outputs/ics.py` writes.
 - **Digest** (`outputs/digest.py`): the talks of the week (Monday to Sunday), the picks first,
   then one table per field, the talks new since the previous issue and the state of the
   sources, with every label in English and Chinese. No state is kept: "new" is measured from
