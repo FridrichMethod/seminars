@@ -181,6 +181,33 @@ def label(name: str, text: str) -> str:
             id="an abbreviated month",
         ),
         pytest.param(
+            "<strong>Date:</strong> Thurs., Nov. 19, 2026</span><br />\n"
+            + label("Speaker:", "Marinka Zitnik")
+            + "<br />\n"
+            + label("Title:", "Coming soon"),
+            [("Marinka Zitnik", None)],
+            "Coming soon",
+            id="an abbreviated weekday",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> November 19, 2026</span><br />\n"
+            + label("Speaker:", "Marinka Zitnik")
+            + "<br />\n"
+            + label("Title:", "Up-to-Date: methods for cohort data"),
+            [("Marinka Zitnik", None)],
+            "Up-to-Date: methods for cohort data",
+            id="a label inside a word of the title",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> November 19, 2026</span><br />\n"
+            + label("Title:", "Keeping models up-to-Date: a guide")
+            + "<br />\n"
+            + label("Speaker:", "Marinka Zitnik"),
+            [("Marinka Zitnik", None)],
+            "Keeping models up-to-Date: a guide",
+            id="a label inside a word of a title before the speaker",
+        ),
+        pytest.param(
             "<strong>Date:</strong> Nov 19 2026</span><br />\n"
             + label("Title:", "Coming soon")
             + "<br />\n"

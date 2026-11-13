@@ -394,14 +394,16 @@ sources:
         title: "p"
       # The text of a paragraph is one line ("Date: ... Speaker: ... Title: ..."). The
       # patterns also take the ways a row may be written that the recording does not
-      # show, so that such a row is not dropped: a weekday before the date
-      # ("Thursday, November 19, 2026"), an abbreviated month ("Nov. 19, 2026"; the
-      # date is read by dateutil), "Speakers:" with several names, a row without a
-      # "Title:" line, and the title before the speaker. A label ends the part before it.
-      date_pattern: 'Date:\s*(?:[A-Z][a-z]+day,?\s+)?(?P<date>[A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s+\d{4})'
-      speaker_pattern: 'Speakers?:(?!\s*(?i:no\s+(?:seminar|class|workshop|talk))\b)\s*(?P<speaker>.+?)\s*(?:\bTitle:|\bDate:|$)'
+      # show, so that such a row is not dropped: a weekday before the date, written out
+      # or abbreviated ("Thursday, November 19, 2026", "Thurs., Nov. 19, 2026"), an
+      # abbreviated month ("Nov. 19, 2026"; the date is read by dateutil, which ignores
+      # the weekday), "Speakers:" with several names, a row without a "Title:" line,
+      # and the title before the speaker. A label ends the part before it; a label is
+      # a word of its own, not the end of a word with a hyphen ("Up-to-Date:").
+      date_pattern: '(?<![\w-])Date:\s*(?:[A-Z][a-z]{2,8}\.?,?\s+)?(?P<date>[A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s+\d{4})'
+      speaker_pattern: '(?<![\w-])Speakers?:(?!\s*(?i:no\s+(?:seminar|class|workshop|talk))\b)\s*(?P<speaker>.+?)\s*(?:(?<![\w-])(?:Title|Date):|$)'
       # "Coming soon" until the talk title is announced; normalization reads it as TBA.
-      title_pattern: 'Title:\s*(?P<title>.+?)\s*(?:\bSpeakers?:|\bDate:|$)'
+      title_pattern: '(?<![\w-])Title:\s*(?P<title>.+?)\s*(?:(?<![\w-])(?:Speakers?|Date):|$)'
       # A week without a talk ("Speaker: No Seminar (Thanksgiving)", "Title: NO CLASS",
       # in any case) is no talk: the speaker pattern finds no name in it, or the title
       # is skipped.
