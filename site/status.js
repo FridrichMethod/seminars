@@ -87,12 +87,18 @@ function summaryLines(status, lang) {
         total: formatNumber(active.length),
       }),
     ),
-    h(
-      "li",
-      {},
-      provider === "" ? t("site.status.llm_none") : t("site.status.llm", { provider }),
-    ),
+    h("li", {}, llmLine(provider, count(status.llm_stored_answers))),
   ];
+}
+
+/** What the LLM of the last run used: a provider, answers stored by earlier runs, or no LLM. */
+function llmLine(provider, storedAnswers) {
+  if (provider !== "") {
+    return t("site.status.llm", { provider });
+  }
+  return storedAnswers > 0
+    ? plural("site.status.llm_stored", storedAnswers)
+    : t("site.status.llm_none");
 }
 
 /**

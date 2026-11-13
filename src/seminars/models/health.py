@@ -9,7 +9,13 @@ from typing import Annotated, Final, Literal, Self
 from pydantic import AfterValidator, Field
 
 from seminars.models.base import Model, Timestamp, Uid, sorted_dict
-from seminars.models.report import Count, LLMFailureKind, LLMProviderStatus, SourceStatus
+from seminars.models.report import (
+    Count,
+    LLMFailureKind,
+    LLMProviderStatus,
+    LLMUsage,
+    SourceStatus,
+)
 
 HEALTH_HISTORY_LIMIT: Final = 30
 """Number of most recent runs kept per source and per LLM provider."""
@@ -46,6 +52,20 @@ class LLMHealthEntry(Model):
     calls: Count = 0
     failure_kind: LLMFailureKind | None = None
     error: str | None = None
+
+
+class LLMRunEntry(Model):
+    """What the LLM of the most recent run used, for the digest.
+
+    ``provider`` is the provider that answered (``LLMUsage.provider``);
+    ``stored_answers`` counts the answers stored by earlier runs that the
+    run applied while no provider answered (``LLMUsage.stored_answers``).
+    Neither of them: rules only.
+    """
+
+    at: Timestamp  # start time of the run
+    provider: str | None = None
+    stored_answers: Count | None = None
 
 
 def _trailing[E: (SourceHealthEntry, LLMHealthEntry)](history: list[E], statuses: set[str]) -> int:
@@ -109,11 +129,17 @@ class LLMProviderHealth(Model):
 
 
 class HealthFile(Model):
-    """Content of data/health.json: run history per source and per LLM provider."""
+    """Content of data/health.json: run history per source and per LLM provider.
+
+    ``llm_last_run`` says what the LLM of the most recent run used, a
+    provider, stored answers or rules only (``with_llm_run``); ``None`` in
+    files written before it was kept.
+    """
 
     schema_version: Literal[1] = 1
     sources: Annotated[dict[str, SourceHealth], AfterValidator(sorted_dict)] = {}
     llm: Annotated[dict[str, LLMProviderHealth], AfterValidator(sorted_dict)] = {}
+    llm_last_run: LLMRunEntry | None = None
 
     def with_source_entry(self, source_id: str, entry: SourceHealthEntry) -> Self:
         """Return a copy with ``entry`` appended to the capped history of ``source_id``."""
@@ -131,10 +157,17 @@ class HealthFile(Model):
         wrote data/health.json but did not finish (see
         ``seminars.pipeline.store``).
         """
+        last = self.llm_last_run
         return self.evolve(
             sources={key: value.until(moment) for key, value in self.sources.items()},
             llm={key: value.until(moment) for key, value in self.llm.items()},
+            llm_last_run=last if last is not None and last.at <= moment else None,
         )
+
+    def with_llm_run(self, at: datetime, usage: LLMUsage) -> Self:
+        """Return a copy that records what the LLM of the run that started at ``at`` used."""
+        entry = LLMRunEntry(at=at, provider=usage.provider, stored_answers=usage.stored_answers)
+        return self.evolve(llm_last_run=entry)
 
     def with_llm_entry(self, provider: str, entry: LLMHealthEntry) -> Self:
         """Return a copy with ``entry`` appended to the capped history of ``provider``."""

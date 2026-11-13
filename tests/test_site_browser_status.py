@@ -223,3 +223,54 @@ class TestStatusPage:
         summary = current.page.locator("#summary").text_content() or ""
         assert "0 of 1 active sources are healthy." in summary
         current.assert_clean()
+
+    @pytest.mark.parametrize(
+        ("path", "lang", "stored", "key"),
+        [
+            ("status.html", "en", 4, "site.status.llm_stored_other"),
+            ("status.html", "en", 1, "site.status.llm_stored_one"),
+            ("status.html?lang=zh", "zh-CN", 4, "site.status.llm_stored_other"),
+        ],
+    )
+    def test_a_run_whose_provider_did_not_answer_says_how_many_stored_answers_it_used(
+        self, session: Callable[..., Session], path: str, lang: str, stored: int, key: str
+    ) -> None:
+        payload = {
+            "generated_at": "2026-11-10T12:30:00Z",
+            "llm_provider": None,
+            "llm_stored_answers": stored,
+            "sources": [],
+        }
+        current = session()
+        serve_json(current, "status.json", payload)
+        current.open(path)
+        lines = current.page.locator("#summary li").all_text_contents()
+        assert lines[-1] == catalog(lang)[key].replace("{count}", str(stored))
+        current.assert_clean()
+
+    @pytest.mark.parametrize("stored", [0, -2, 2.5, "4", None])
+    def test_no_stored_answer_or_an_odd_count_is_rules_only(
+        self, session: Callable[..., Session], stored: object
+    ) -> None:
+        payload = {"generated_at": "2026-11-10T12:30:00Z", "llm_stored_answers": stored}
+        current = session()
+        serve_json(current, "status.json", payload)
+        current.open("status.html")
+        lines = current.page.locator("#summary li").all_text_contents()
+        assert lines[-1] == catalog("en")["site.status.llm_none"]
+        current.assert_clean()
+
+    def test_a_provider_that_answered_is_named_whatever_the_count(
+        self, session: Callable[..., Session]
+    ) -> None:
+        payload = {
+            "generated_at": "2026-11-10T12:30:00Z",
+            "llm_provider": "claude-cli",
+            "llm_stored_answers": 4,
+        }
+        current = session()
+        serve_json(current, "status.json", payload)
+        current.open("status.html")
+        lines = current.page.locator("#summary li").all_text_contents()
+        assert lines[-1] == catalog("en")["site.status.llm"].replace("{provider}", "claude-cli")
+        current.assert_clean()

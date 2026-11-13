@@ -145,6 +145,18 @@ class LLMUsage(Model):
     cost_usd: Annotated[float, Field(ge=0)] = 0.0
     providers: list[LLMProviderResult] = []
 
+    @property
+    def stored_answers(self) -> int | None:
+        """The answers stored by earlier runs that a run applied while no provider answered.
+
+        That is a run without a provider (``stored_answers_only``), and one
+        whose providers answered nothing while the cache did (every answer
+        it needed was stored already, or the providers failed). ``None``
+        when a provider answered, and when no stored answer was used either:
+        such a run used rules only.
+        """
+        return self.cache_hits if self.provider is None and self.cache_hits else None
+
 
 class SecretFinding(Model):
     """One hit of the secret scanner. Never contains the matched text itself."""
@@ -155,7 +167,14 @@ class SecretFinding(Model):
 
 
 class LastRun(Model):
-    """Compact record written to data/last_run.json on every run."""
+    """Compact record written to data/last_run.json on every run.
+
+    ``llm_provider`` is the provider that answered (``LLMUsage.provider``).
+    ``llm_stored_answers`` counts the answers stored by earlier runs that the
+    run applied while no provider answered, a run without a provider among
+    them (``LLMUsage.stored_answers``). Neither of them: the run used rules
+    only.
+    """
 
     schema_version: Literal[1] = 1
     started_at: Timestamp
@@ -164,6 +183,7 @@ class LastRun(Model):
     mode: RunMode
     counts: RunCounts = RunCounts()
     llm_provider: str | None = None
+    llm_stored_answers: Count | None = None
     failed_sources: list[SourceId] = []
 
 
@@ -211,5 +231,6 @@ class RunReport(Model):
             mode=self.mode,
             counts=self.counts,
             llm_provider=self.llm.provider,
+            llm_stored_answers=self.llm.stored_answers,
             failed_sources=sorted(s.source_id for s in self.sources if s.status == "failed"),
         )

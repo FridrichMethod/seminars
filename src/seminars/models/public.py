@@ -246,12 +246,17 @@ class PublicSourceStatus(Model):
 
 
 class PublicStatusPayload(Model):
-    """Content of public/status.json, sources sorted by id."""
+    """Content of public/status.json, sources sorted by id.
+
+    ``llm_provider`` and ``llm_stored_answers`` are those of ``LastRun``:
+    neither of them means that the last run used rules only.
+    """
 
     schema_version: Literal[1] = 1
     generated_at: Timestamp
     last_run_at: Timestamp | None = None  # when the last run finished
     last_run_ok: bool | None = None
     event_count: Count = 0  # events in public/events.json
-    llm_provider: str | None = None  # provider used by the last run; null means rules only
+    llm_provider: str | None = None  # provider used by the last run
+    llm_stored_answers: Count | None = None  # stored answers used while no provider answered
     sources: list[PublicSourceStatus] = []
