@@ -527,7 +527,8 @@ _FIRST_NAMES: Final = word_set(
     "dominic cedric frederic clarence constance florence laurence lawrence terence terrence"
     " clement prudence patience charity felicity verity"
 )
-"""First names that end like a common word ("Dominic", "Constance", "Clement"): none is one."""
+"""First names that end like a common word ("Dominic", "Constance", "Clement"), which are
+not counted as common words."""
 _COMMON_ENDINGS: Final = re.compile(
     r"\w{2,}(?:tions?|sions?)|\w{3,}(?:ments?|ness|ity|ities|ism|isms|ist|ists|osis|itis)"
     r"|\w{4,}(?:ures?|ances?|ences?|ive|ives|ous|ings?)|\w{3,}(?:ency|ancy)"
@@ -653,12 +654,9 @@ def _taken(person: ParsedSpeaker, vouched: bool, abstract: str | None, title: st
     """Whether a name read from ``title`` is a speaker.
 
     It is when the abstract names the person, or when the form of the title
-    vouches for it (``vouched``) and the abstract does not speak of it as
-    something else. A name that reads like a topic as well (see the module
-    docstring) is far more often a talk title than a person, so for it only
-    the abstract counts. That includes a name that starts with a verb in
-    "-ing": "Navigating Heritage" and "Building Bridges" are titles, and
-    "Channing Dungey" needs the abstract too.
+    vouches for it (``vouched``), the abstract does not speak of it as
+    something else and it does not read like a topic ("Navigating
+    Heritage"; "Channing Dungey" needs the abstract too).
     """
     said = _mentions(person.name, abstract, title)
     if said.as_person:
@@ -739,13 +737,10 @@ def _either(
 ) -> list[ParsedSpeaker]:
     """The speaker of "<series>: <name> - <name>", where the first name is not marked.
 
-    One of the two parts is a talk title, and both read like a name. The
-    speaker is the part that does not read like a topic and that the
-    abstract names as a person, where an organisation named after it does
-    not count; else the second when a mark goes with it; else the first
-    when the second reads like a topic or the abstract names an
-    organisation after it ("the Ocean Mixing Lab"). Otherwise neither:
-    "Seminar: Public Health - Jane Roe" names nobody without more to go on.
+    One of the two parts is a talk title, and both read like a name; the
+    module docstring says which is the speaker. An organisation named after
+    a part ("the Ocean Mixing Lab") shows that it is no speaker, not that
+    it is one.
     """
     parts = (first, second)
     said = [_mentions(part.person.name, abstract, title, organisation=False) for part in parts]
