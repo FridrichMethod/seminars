@@ -163,7 +163,8 @@ source offers:
 
 1. the native id of the source (Localist instance, JSON:API resource, RSS guid, ICS UID):
    `<source id>:<native id>`;
-2. the address of its own detail page, when no other draft of the run points at it:
+2. the address of its own detail page, when no other draft of its source points at it in
+   the run:
    `<source id>:url:<address>`;
 3. the local day of the start plus the first speaker, or else the title, or else the time of
    day: `<source id>:day:<date>:<words>`.
@@ -193,8 +194,8 @@ When a stored event comes back with a change a reader can see, its `sequence` go
 update the event. An event that the run did not deliver is judged by what is known about
 it: one that started before the window goes to `data/archive/<year>.jsonl`; one of a
 disabled or removed source leaves at once; one that has started or is cancelled stays as it
-is; one whose sources were all read in full counts a missing run and is removed after 3 of
-them in a row. A source that failed, came back empty or was not read in full says nothing
+is; one whose sources were all read in full counts a missing run, and it is removed once it
+has missed 3 such runs without coming back. A source that failed, came back empty or was not read in full says nothing
 about its events, so a broken site never deletes talks. When one source of a merged event
 fails, the stored event stands in for its missing listing.
 
@@ -222,10 +223,10 @@ fields of the events that the rules cannot decide, and reading pages without str
 (a Claude subscription token), `codex-cli` (the local ChatGPT login; only when named in
 `LLM_PROVIDERS`, never in GitHub Actions, and only for tagging), `anthropic`, `openai`,
 `openai-compat` (API keys). A provider joins when it is configured: its credential is set
-and, for an API, a model is named. `LLM_PROVIDERS` reorders and selects. A request goes to
-the first provider that is still usable; a provider that fails (credential, quota, rate
-limit, timeout, network) is passed over for the rest of the run, and after the last one the
-run goes on with the rules only. The first request of a run is the probe of the chain; a run
+and, for an API, a model is named (for `openai-compat` also its address). `LLM_PROVIDERS`
+reorders and selects. A request goes to the first provider that is still usable; a
+provider that fails (credential, quota, rate limit, timeout, network) is passed over for
+the rest of the run, and after the last one the run goes on with the rules only. The first request of a run is the probe of the chain; a run
 that sends nothing sends one probe, so an expired credential shows in health on a quiet day
 too. A run sends at most `max_calls_per_run` requests (60) and no prompt longer than
 `max_input_chars`.
@@ -327,7 +328,8 @@ it reads the committed data, fetches nothing and uses no LLM.
   Theory Seminar are published only on Google Calendar, whose robots.txt forbids fetching
   the feeds. Arc Institute has no public seminar calendar. The department sites of
   Bioengineering and Computer Science are off because their events are imports from the
-  campus calendar, which is collected anyway. Talks outside the seven fields (for example
+  campus calendar, which is collected anyway (and, for Computer Science, advising
+  sessions). Talks outside the seven fields (for example
   earth and planetary sciences, humanities) are out of scope by design.
 - **Hosts that GitHub's runners may not reach.** The robots.txt of the DBDS workshop and of the
   NLP seminar can time out from GitHub's runners while it answers from Stanford's network.

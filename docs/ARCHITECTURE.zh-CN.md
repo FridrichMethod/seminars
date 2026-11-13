@@ -137,7 +137,7 @@ source key，取自数据源能提供的最好的标识：
 
 1. 数据源自己的编号（Localist instance、JSON:API resource、RSS guid、ICS UID）：
    `<source id>:<native id>`；
-2. 它自己的详情页地址，前提是这次运行里没有别的 draft 指向这个页面：
+2. 它自己的详情页地址，前提是这次运行里同一个数据源没有别的 draft 指向这个页面：
    `<source id>:url:<address>`；
 3. 开始时间所在的本地日期，加上第一位讲者，没有讲者就用标题，再没有就用时刻：
    `<source id>:day:<date>:<words>`。
@@ -161,7 +161,7 @@ researchseminars.org）的。结果不取决于输入的顺序。
 看得到的改动时，它的 `sequence` 加一，`last_changed` 变成这次运行的时间；两者都写进 feed，所以订阅的
 日历会更新这个事件。这次运行没有给出的已存储事件，按已知的情况处理：在窗口开始之前就开始的，移进
 `data/archive/<year>.jsonl`；数据源被停用或删除的，立刻去掉；已经开始的或者已取消的，原样保留；
-所有来源都完整读过却没有它的，记一次缺席，连续 3 次后删除。失败了、返回空、或者没有完整读完的数据源，
+所有来源都完整读过却没有它的，记一次缺席，没有再出现、缺席累计 3 次后删除。失败了、返回空、或者没有完整读完的数据源，
 对它的事件什么都不说明，所以一个坏掉的网站永远不会删掉报告。一个合并事件的某个来源失败时，
 已存储的事件顶替那个缺掉的条目。
 
@@ -184,9 +184,9 @@ LLM 只做两件事，没有它 pipeline 也能完整运行：给规则判断不
 **provider 链**（`llm/resolve.py`、`llm/chain.py`）。默认顺序是 `claude-cli`（Claude 订阅 token）、
 `codex-cli`（本机的 ChatGPT 登录；只有写进 `LLM_PROVIDERS` 才用，从不在 GitHub Actions 里用，而且只用来
 打标签）、`anthropic`、`openai`、`openai-compat`（API key）。配置好的 provider 才参与：设置了凭证，
-API 类的还要指定模型。`LLM_PROVIDERS` 可以调整顺序和选择。请求发给第一个仍然可用的 provider；失败的
-provider（凭证、额度、限流、超时、网络）在这次运行剩下的时间里被跳过，最后一个也失败之后，运行只靠
-规则继续。一次运行的第一个请求就是对 provider 链的探测；一个请求都没发的运行会发一次探测，所以凭证过期
+API 类的还要指定模型（`openai-compat` 还要有地址）。`LLM_PROVIDERS` 可以调整顺序和选择。
+请求发给第一个仍然可用的 provider；失败的 provider（凭证、额度、限流、超时、网络）
+在这次运行剩下的时间里被跳过，最后一个也失败之后，运行只靠规则继续。一次运行的第一个请求就是对 provider 链的探测；一个请求都没发的运行会发一次探测，所以凭证过期
 在没有新事件的日子也会出现在健康记录里。一次运行最多发 `max_calls_per_run` 个请求（60），
 不发长于 `max_input_chars` 的 prompt。
 
@@ -265,8 +265,8 @@ LLM 凭证只交给运行 pipeline 的那一步和探活的那一步。项目在
 - **没有收集的数据源。** Bio-X 对所有自动化请求都返回 HTTP 403（浏览器验证），所以它的数据源停用了。
   Information Theory Forum 停用了：它几乎不再活动，列表里也没有年份。SAIL 的活动和 Theory Seminar
   只发布在 Google Calendar 上，而它的 robots.txt 禁止抓取这些 feed。Arc Institute 没有公开的 seminar
-  日历。Bioengineering 和 Computer Science 的院系网站停用了，因为上面的活动都是从学校总日历导入的，
-  而总日历本来就在收集。七个领域以外的报告（比如地球与行星科学、人文）按设计不在范围内。
+  日历。Bioengineering 和 Computer Science 的院系网站停用了，因为上面的活动都是从学校总日历导入的
+  （Computer Science 还有 advising session），而总日历本来就在收集。七个领域以外的报告（比如地球与行星科学、人文）按设计不在范围内。
 - **GitHub 的 runner 可能连不上的 host。** DBDS workshop 和 NLP seminar 的 robots.txt 从 GitHub 的
   runner 访问可能超时，从 Stanford 的网络访问则正常。robots.txt 连不上时，这个数据源在那次运行里算失败；
   连续 3 次这样的运行之后，这个数据源会有一个 `source-broken` issue。

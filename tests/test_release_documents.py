@@ -120,7 +120,7 @@ class TestTrueToTheProject:
             f"at most {settings.http.max_requests_per_host} requests per run",
             f"at most {settings.dedup.max_start_difference_minutes} minutes apart",
             f"a token set ratio of at least {settings.dedup.title_similarity}",
-            f"removed after {settings.events.delete_after_missing_runs} of them in a row",
+            f"removed once it has missed {settings.events.delete_after_missing_runs} such runs",
             f"`max_calls_per_run` requests ({llm.max_calls_per_run})",
             f"older than {refresh} days",
             f"`cache_ttl_days` ({llm.cache_ttl_days})",
@@ -138,7 +138,8 @@ class TestTrueToTheProject:
             f"\u76f8\u5dee\u4e0d\u8d85\u8fc7 {settings.dedup.max_start_difference_minutes} "
             "\u5206\u949f",
             f"token set ratio \u81f3\u5c11 {settings.dedup.title_similarity}",
-            f"\u8fde\u7eed {settings.events.delete_after_missing_runs} \u6b21\u540e\u5220\u9664",
+            f"\u7f3a\u5e2d\u7d2f\u8ba1 {settings.events.delete_after_missing_runs} "
+            "\u6b21\u540e\u5220\u9664",
             f"`max_calls_per_run` \u4e2a\u8bf7\u6c42\uff08{llm.max_calls_per_run}\uff09",
             f"\u65e9\u4e8e {refresh} \u5929",
             f"`cache_ttl_days`\uff08{llm.cache_ttl_days}\uff09",
