@@ -20,7 +20,8 @@ the words of a series ("Seminar", "Lecture", "Grand Rounds", "Defense",
 names as well. Then the form must vouch for it. A mark that goes with the
 name is an honorific ("Dr. Jane Doe"), a degree ("Jane Doe PhD", "Jane
 Doe, MD"), an organisation in brackets or after a comma, or a quoted title
-after it; a name suffix is none ("Knots II"). A part in front of the name
+after it in the same part or at the start of the next; a name suffix is
+none ("Knots II"). A part in front of the name
 that honours a person ("In Memoriam", "In Honor of", "Obituary",
 "Tribute", "Celebration of Life") names the person a memorial is for, so
 its title gives no speaker. The parts after the first one that starts with
@@ -529,6 +530,10 @@ def _leading_person(text: str) -> _Candidate | None:
 
     Text after a comma must be a degree or name an organisation; otherwise
     the comma separates the words of a title ("Media Art, AI and the Self").
+    A quoted title marks the name in the same part or when it opens the
+    next one ('Jane Roe - "Coastal Futures"'), never across a further part:
+    in 'Bird Song | Jane Roe, "Coastal Futures"' it goes with Jane Roe, not
+    with Bird Song.
     """
     quote = _QUOTE.search(text)
     head = text[: quote.start()] if quote else text
@@ -540,7 +545,8 @@ def _leading_person(text: str) -> _Candidate | None:
     first, *parts = split_outside_brackets(head, COMMA)
     if any(not is_degree(part) and not _names_organisation(part) for part in parts):
         return None
-    marks = quote is not None or bool(parts) or _before_degree(first)
+    quoted = quote is not None and (separator is None or separator.end() == quote.start())
+    marks = quoted or bool(parts) or _before_degree(first)
     return _Candidate(
         person=person,
         marks=marks or _names_organisation(person.affiliation),

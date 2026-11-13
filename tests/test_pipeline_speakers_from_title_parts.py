@@ -268,3 +268,26 @@ def test_a_name_of_common_words_only_is_a_speaker_when_the_abstract_names_it() -
     assert speakers_from_title("Seminar: River Stone", abstract) == [
         ParsedSpeaker("River Stone", None)
     ]
+
+
+@pytest.mark.parametrize(
+    ("title", "people"),
+    [
+        # A quoted title marks the name in its own part or right in front of it, never
+        # the part in front of that name.
+        ('Energy Seminar | Bird Song | Jane Roe (MIT), "Coastal Futures"', [("Jane Roe", "MIT")]),
+        ('Energy Seminar: Salt Marshes - Dr. Jane Roe, "Coastal Futures"', [("Jane Roe", None)]),
+        ('Seminar: Bird Song - Jane Roe - "Coastal Futures"', [("Jane Roe", None)]),
+        ('Frontiers in Biology: Jane Roe, "Coastal Futures"', [("Jane Roe", None)]),
+        ('Frontiers in Biology: Jane Roe - "Coastal Futures"', [("Jane Roe", None)]),
+        ('Frontiers in Biology: Jane Roe: "Coastal Futures"', [("Jane Roe", None)]),
+        # Across a further part it marks nobody: the head is no series and nothing else
+        # vouches for the name.
+        ('Frontiers in Biology: Jane Roe - Coastal - "Futures"', []),
+    ],
+)
+def test_a_quoted_title_after_a_further_part_does_not_mark_the_part_in_front(
+    title: str, people: list[tuple[str, str | None]]
+) -> None:
+    found = speakers_from_title(title)
+    assert found == [ParsedSpeaker(name, affiliation) for name, affiliation in people]
