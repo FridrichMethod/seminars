@@ -350,12 +350,14 @@ class PageExtractor(Protocol):
         link of the page, made absolute with
         ``seminars.sources.base.absolute_url(document.final_url, link)``;
         ungrounded fields are dropped. Dates and all-day events follow the
-        conventions of ``EventDraft``. The page text is read in pieces, and
-        the result holds the drafts of every piece that has an answer, stored
-        by an earlier run or new. A piece that would need a request that
-        cannot be sent (no provider is left, or the call budget is spent)
-        gives nothing, and the other pieces are still read. Never raises
-        ``LLMError``.
+        conventions of ``EventDraft``. The page text is read in pieces, in
+        order, and each piece that has an answer, stored by an earlier run or
+        new, gives its drafts. A piece that would need a request that cannot
+        be sent (no provider is left, or the call budget is spent) gives
+        nothing, and so does a piece whose answer does not validate
+        (``LLMInvalidOutputError``); the other pieces are still read. Any
+        other error of the client ends the reading of the source, and the
+        drafts found up to then are returned. Never raises ``LLMError``.
 
         Secrets: data/llm_cache/ stores answers verbatim and is covered by
         the output scan, so a page that shows a token-shaped string would
