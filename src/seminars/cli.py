@@ -297,7 +297,7 @@ def run(
         now = run_time(offline=offline, fixtures_dir=config.paths.fixtures_dir)
         options = RunOptions(offline=offline, dry_run=dry_run, source_ids=tuple(source or ()))
         if skip_if_done_today and _done_today(config, options, now):
-            say(f"skipped: a {options.mode} run already succeeded today")
+            say(f"skipped: today's {options.mode} run already succeeded")
             return
         options = _protect_live_state(config, options)
         report = _run(project, options, now, use_llm=not no_llm and (not offline or bool(llm)))

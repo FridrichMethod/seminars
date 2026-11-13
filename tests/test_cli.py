@@ -275,7 +275,7 @@ class TestRunOffline:
         assert invoke("run", "--offline").exit_code == 0
         result = invoke("run", "--offline", "--skip-if-done-today")
         assert result.exit_code == 0
-        assert result.output == "skipped: a offline run already succeeded today\n"
+        assert result.output == "skipped: today's offline run already succeeded\n"
 
     def test_no_skip_after_a_failed_run(self, project: Path, fakes: Fakes) -> None:
         record = LastRun(
@@ -334,7 +334,7 @@ class TestRunRules:
         go_live(monkeypatch, at=REFERENCE_NOW + timedelta(hours=2))
         result = invoke("run", "--skip-if-done-today")
         assert result.exit_code == 0
-        assert result.output == "skipped: a live run already succeeded today\n"
+        assert result.output == "skipped: today's live run already succeeded\n"
         assert snapshot(project / "data") == before
 
     def test_a_live_run_rewrites_the_record_when_nothing_else_changed(
