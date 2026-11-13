@@ -71,7 +71,7 @@ def smoke_lines(results: list[LLMProviderResult]) -> list[str]:
 
 
 class TestSetButRejectedCredentials:
-    """The probe of the real resolver, with every credential set, gives no line with a value."""
+    """The probe of the real resolver gives no line with the value of a credential that is set."""
 
     def test_a_key_without_a_model_or_an_address_names_what_is_missing(self) -> None:
         env = dict(CREDENTIALS)
