@@ -3,13 +3,15 @@
 docs/ARCHITECTURE.md and its Chinese twin say the same: every name, path and value written
 as code, and every table, is in both. The modules and files they name exist, and the
 numbers and permissions they quote are those of the configuration, the code and the
-workflows. CHANGELOG.md records the version of pyproject.toml. Both READMEs link every
-feed at the address the site is deployed to, give the webcal form of each, and link the
-site, its status page, the architecture and the changelog.
+workflows, and every direct import between the functional packages is named.
+CHANGELOG.md records the version of pyproject.toml. Both READMEs link every feed at the
+address the site is deployed to, give the webcal form of each, and link the site, its
+status page, the architecture and the changelog.
 """
 
 from __future__ import annotations
 
+import ast
 import re
 import tomllib
 from collections import Counter
@@ -39,6 +41,7 @@ CONFIG_FILE: Final = re.compile(r"[a-z]+\.yaml")
 PERMISSION: Final = re.compile(r"[a-z-]+: (?:read|write)")
 READ_ONLY: Final = {ENGLISH: "read only", CHINESE: "\u53ea\u8bfb"}
 UPDATE_SECTION: Final = (r"\*\*`update\.yml`\*\*", r"\*\*`digest\.yml`\*\*")
+FUNCTIONAL_PACKAGES: Final = frozenset({"classify", "llm", "outputs", "pipeline", "sources"})
 
 
 def text(path: str) -> str:
@@ -61,6 +64,39 @@ def table_rows(document: str) -> list[list[str]]:
 
 def workflow(name: str) -> dict[str, Any]:
     return yaml.safe_load(text(f".github/workflows/{name}"))
+
+
+def imported_modules(path: Path) -> list[str]:
+    """The absolute imports of a module, by module name."""
+    names: list[str] = []
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            names.append(node.module)
+        elif isinstance(node, ast.Import):
+            names.extend(alias.name for alias in node.names)
+    return names
+
+
+def module_path(name: str) -> str:
+    """``seminars.llm.base`` as ``llm/base.py``, a package as ``pipeline/``."""
+    relative = "/".join(name.split(".")[1:])
+    return f"{relative}/" if (SRC / relative).is_dir() else f"{relative}.py"
+
+
+def imports_between_functional_packages() -> set[tuple[str, str]]:
+    """Each (importing module, imported module) whose functional packages differ."""
+    pairs: set[tuple[str, str]] = set()
+    for path in sorted(SRC.rglob("*.py")):
+        importer = path.relative_to(SRC).as_posix()
+        package = importer.split("/")[0]
+        if package not in FUNCTIONAL_PACKAGES:
+            continue
+        for name in imported_modules(path):
+            parts = name.split(".")
+            target = parts[1] if parts[0] == "seminars" and len(parts) > 1 else None
+            if target in FUNCTIONAL_PACKAGES and target != package:
+                pairs.add((importer, module_path(name)))
+    return pairs
 
 
 class TestTheTwoLanguagesSayTheSame:
@@ -90,6 +126,12 @@ class TestTrueToTheProject:
             if not found:
                 missing.append(code)
         assert missing == []
+
+    def test_every_direct_import_between_functional_packages_is_named(self, path: str) -> None:
+        pairs = imports_between_functional_packages()
+        named = inline_code(path)
+        assert pairs
+        assert [pair for pair in sorted(pairs) if not set(pair) <= set(named)] == []
 
     def test_every_job_of_the_update_workflow_is_listed_with_its_permissions(
         self, path: str

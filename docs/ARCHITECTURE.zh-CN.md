@@ -30,9 +30,19 @@ public/            index.html, status.html, events.json, status.json, feeds/<id>
 
 ## 模块一览
 
-`src/seminars/` 下面的各个包从不直接互相导入。它们之间的每个接口都是 `seminars.contracts` 里的一个
-protocol，那里也写明了由哪个模块实现；pipeline 通过 `load_implementation` 加载实现。每个 contract
-在测试里都有一个 fake，所以每个包都能单独测试。
+各个功能包（`pipeline/`、`classify/`、`llm/`、`outputs/`、`sources/`）通过 `seminars.contracts` 里的
+protocol 相互衔接，那里也写明了每个 protocol 由哪个模块实现；pipeline 通过 `load_implementation` 加载
+实现。每个 contract 在测试里都有一个 fake，所以每个包都能单独测试。基础部分在需要它的地方直接导入：
+`models/`、`config/`、`contracts/`、HTTP 模块（`http*.py`、`robots.py`）、`fixtures.py` 和文本模块
+（`textrules.py`、`textio.py`、`i18n.py`）。少数共用的辅助代码也直接导入：
+
+- `pipeline/collect.py` 从 `sources/base.py` 取 adapter 注册表和它的错误类型，从
+  `sources/generic/common.py` 取 `detail_pages_optional`；
+- `sources/generic/common.py` 从 `pipeline/normalize.py` 取 `MAX_SPEAKERS`；
+- LLM 页面抽取器（`sources/generic/llm_page.py`）和 LLM 打标签模块（`classify/llm_tagger.py`）从
+  `llm/base.py` 取 `record_skipped_too_long`，页面抽取器还用 `llm/extraction.py`、`llm/grounding.py`、
+  `llm/privacy_filter.py` 和 `llm/secret_filter.py` 里的辅助代码；
+- 命令行（`cli.py`）导入 pipeline 和 `github.py`。
 
 | 部分 | 内容 |
 |---|---|

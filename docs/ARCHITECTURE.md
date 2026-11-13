@@ -33,10 +33,22 @@ public/            index.html, status.html, events.json, status.json, feeds/<id>
 
 ## Module map
 
-The packages below `src/seminars/` never import each other directly. Every interface
-between them is a protocol in `seminars.contracts`, which also says which module
-implements it; the pipeline loads the implementations through `load_implementation`.
-Every contract has a fake in the tests, so each package is tested on its own.
+The functional packages (`pipeline/`, `classify/`, `llm/`, `outputs/`, `sources/`) meet
+through the protocols in `seminars.contracts`, which also says which module implements
+each one; the pipeline loads the implementations through `load_implementation`. Every
+contract has a fake in the tests, so each package is tested on its own. The foundation is
+imported directly wherever it is needed: `models/`, `config/`, `contracts/`, the HTTP
+modules (`http*.py`, `robots.py`), `fixtures.py` and the text modules (`textrules.py`,
+`textio.py`, `i18n.py`). So are a few shared helpers:
+
+- `pipeline/collect.py` takes the adapter registry and its errors from `sources/base.py`,
+  and `detail_pages_optional` from `sources/generic/common.py`;
+- `sources/generic/common.py` takes `MAX_SPEAKERS` from `pipeline/normalize.py`;
+- the LLM page extractor (`sources/generic/llm_page.py`) and the LLM tagger
+  (`classify/llm_tagger.py`) take `record_skipped_too_long` from `llm/base.py`, and the
+  page extractor also the helpers of `llm/extraction.py`, `llm/grounding.py`,
+  `llm/privacy_filter.py` and `llm/secret_filter.py`;
+- the command line (`cli.py`) imports the pipeline and `github.py`.
 
 | Part | What it holds |
 |---|---|
