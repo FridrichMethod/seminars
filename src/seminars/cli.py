@@ -230,6 +230,8 @@ def report_lines(report: RunReport) -> list[str]:
 
 def _llm_line(report: RunReport) -> str:
     llm = report.llm
+    if llm.stored_answers_only:
+        return f"llm: no provider, {llm.cache_hits} stored answers used"
     if not llm.enabled:
         return "llm: off (rules only)"
     return ascii_printable(

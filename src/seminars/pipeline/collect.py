@@ -36,7 +36,10 @@ the run report.
 * Skipped pages. Any other request that failed while the adapter went on
   (``fetch_optional`` skips a detail page it cannot fetch, and some
   adapters drop the talk of that page) is counted in
-  ``skipped_pages``: one URL once.
+  ``skipped_pages``: one URL once. A source that keeps such a row with
+  what its list page gives (``detail_page.required: false``, see
+  ``seminars.sources.generic.common.detail_pages_optional``) loses no
+  talk: its failed pages are not counted, only named in a warning.
 * A shrunk listing (``compare_with_history``). The measure is the median
   number of drafts that normalization accepted (``accepted``, before the
   window) in the runs of the source that were read in full: the last
@@ -54,13 +57,16 @@ the run report.
   for as long as the history holds the full reads from before it: when
   the listing stays short from one run on, for
   ``HEALTH_HISTORY_LIMIT - SHRINK_MIN_RUNS + 1`` runs. A run read in full
-  ends it (its size counts again). When the measure runs out first, the
-  run that is still as short against the last measure (``carried_size``)
-  takes its size as the new usual one: ``resized_from`` is the measure it
-  gives up, it counts as read in full, so the stored events the source
-  does not list count as missing again, and the result and the run
-  report say so in a warning. The full reads from before that run are no
-  measure any more.
+  ends it (its size counts again). When the history holds too few full
+  reads for a measure, the last measure a run was judged by since the
+  last new size (``carried_size``) stays in force, also past runs read in
+  full: a run that is short against it takes its size as the new usual
+  one. ``resized_from`` is the measure it gives up, it counts as read in
+  full, so the stored events the source does not list count as missing
+  again, and the result and the run report say so in a warning. The full
+  reads from before that run are no measure any more. A run that skipped
+  a page takes no new size: it is shrunk against the last measure, and
+  the next short run read in full takes the new size.
 
 Error messages go into the run report, the health history, the status page,
 the source-broken issue, the weekly digest and the job log. They are one
@@ -116,6 +122,7 @@ from seminars.sources.base import (
     UnknownAdapterError,
     get_adapter,
 )
+from seminars.sources.generic.common import detail_pages_optional
 from seminars.textrules import ascii_printable
 
 logger = logging.getLogger(__name__)
@@ -128,9 +135,9 @@ MAX_ERROR_CHARS: Final = 300
 SCRUBBED_CHARS: Final = 4 * MAX_ERROR_CHARS
 
 SHRINK_LOOKBACK_RUNS: Final = 10
-"""Runs of the history of a source that the size of its listing is measured in."""
+"""The most recent full reads of a source (within its history) that its size is measured in."""
 SHRINK_MIN_RUNS: Final = 3
-"""Runs read in full that a measure needs."""
+"""Full reads that a measure needs; with fewer, the last measure stays in force."""
 SHRINK_FRACTION: Final = 0.5
 """A listing with less than this part of its usual size has shrunk sharply."""
 SHRINK_MIN_DROP: Final = 5
@@ -203,6 +210,7 @@ class Fetched:
     requests: int = 0
     seconds: float = 0.0
     skipped_pages: int = 0  # failed requests the adapter went on without
+    kept_without: int = 0  # failed detail pages whose rows were kept all the same
 
 
 @dataclass(frozen=True)
@@ -267,8 +275,11 @@ def _fetch(
         return Fetched(source, None, refusal or error, requests, timer() - started)
     if client.refusal is not None:  # the adapter went on with less than the source has
         return Fetched(source, None, client.refusal, client.requests, timer() - started)
-    skipped = len(client.failed_urls)
-    return Fetched(source, payload, None, client.requests, timer() - started, skipped)
+    failed = len(client.failed_urls)
+    seconds = timer() - started
+    if detail_pages_optional(source):
+        return Fetched(source, payload, None, client.requests, seconds, kept_without=failed)
+    return Fetched(source, payload, None, client.requests, seconds, skipped_pages=failed)
 
 
 def fetch_sources(
@@ -369,6 +380,11 @@ def digest_source(
             f"{fetched.skipped_pages} page(s) could not be fetched and were left out: "
             "the source was not read in full"
         )
+    if fetched.kept_without:
+        warnings.append(
+            f"{fetched.kept_without} detail page(s) could not be fetched; the rows of these "
+            "pages were kept without them (detail_page.required: false)"
+        )
     result = SourceRunResult(
         source_id=source.id,
         status="ok" if normalized.candidates else "empty",
@@ -410,15 +426,15 @@ def usual_size(history: SourceHealth | None) -> int | None:
 
 
 def carried_size(history: SourceHealth | None) -> int | None:
-    """The measure of the shortfall that the last runs of a source are in, or ``None``.
+    """The last measure a source was judged by since its last new size, or ``None``.
 
-    That is the measure of the latest shrunk run after the last full read.
+    That is the measure of the latest shrunk run since the listing was last
+    taken at a new size, also when runs read in full came after it: it
+    stands in for ``usual_size`` once that has too few full reads left.
     """
     if history is None:
         return None
     for entry in reversed(_since_resize(history)):
-        if _full_read(entry):
-            return None
         if entry.shrank_from is not None:
             return entry.shrank_from
     return None
@@ -428,29 +444,34 @@ def _short(accepted: int, usual: int) -> bool:
     return accepted < usual * SHRINK_FRACTION and usual - accepted >= SHRINK_MIN_DROP
 
 
+def _shrunk(result: SourceRunResult, usual: int) -> SourceRunResult:
+    warning = (
+        f"the source parsed {result.accepted} usable draft(s) where it usually has {usual}: "
+        "the listing is taken as incomplete"
+    )
+    return result.evolve(shrank_from=usual, warnings=[*result.warnings, warning])
+
+
 def compare_with_history(result: SourceRunResult, history: SourceHealth | None) -> SourceRunResult:
     """``result``, marked as shrunk when its listing is far smaller than usual.
 
     When the measure ran out while the listing was still short, the run
-    takes the new size instead (see the module docstring). A run that
-    failed or accepted nothing is left to the rules of failed and empty
-    runs.
+    takes the new size instead (see the module docstring), unless it
+    skipped a page: then it is still shrunk against the last measure. A
+    run that failed or accepted nothing is left to the rules of failed and
+    empty runs.
     """
     accepted = result.accepted
     if result.status == "failed" or accepted == 0:
         return result
     usual = usual_size(history)
     if usual is not None:
-        if not _short(accepted, usual):
-            return result
-        warning = (
-            f"the source parsed {accepted} usable draft(s) where it usually has {usual}: "
-            "the listing is taken as incomplete"
-        )
-        return result.evolve(shrank_from=usual, warnings=[*result.warnings, warning])
+        return _shrunk(result, usual) if _short(accepted, usual) else result
     carried = carried_size(history)
     if carried is None or not _short(accepted, carried):
         return result
+    if result.skipped_pages:  # a new size is taken only from a run without skipped pages
+        return _shrunk(result, carried)
     warning = (
         f"the source parsed {accepted} usable draft(s) where it used to have {carried}, "
         "for so long that this is now taken as the usual size of its listing: the stored "

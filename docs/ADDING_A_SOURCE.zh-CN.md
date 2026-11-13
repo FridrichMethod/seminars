@@ -81,7 +81,8 @@ sources:
   `llm_fallback`、`enabled`。完整的 schema 和每个 key 的说明在
   `src/seminars/models/source.py` 的 `SourceConfig` 里；未知的 key 会报错。
 - `enabled: false` 停用一个数据源，但保留它的条目。停用数据源或删除它的条目之后，下一次运行时
-  它的未来报告会从 feed 和网站上一并去掉。
+  它的未来报告会从 feed 和网站上一并去掉：它的 key 从存储的事件里删掉，只由它列出的报告立即去掉，
+  其中已经开始的报告移进存档。其他数据源也列出的报告保留那些数据源的 key，只按它们来判断。
 
 ## 3. 选择 adapter
 
@@ -237,6 +238,11 @@ def test_the_list_page_gives_title_time_speaker_and_location(
 uv run seminars run --offline --source custom-example-lab
 uv run seminars sources check custom-example-lab
 ```
+
+每次运行都记录每个数据源的情况（`data/health.json`、状态页和每周摘要）。一个数据源连续三次运行失败，
+或者以前列出过报告、现在连续三次没有报告，或者连续三次没有完整读取（有页面无法获取，或者列表远小于平时），
+就会开一个 `source-broken` issue；数据源再次完整读取时，issue 自动关闭。列表远小于平时的情况最多按不完整
+算 28 次运行；之后把较小的规模当作通常规模，它不再列出的已存报告开始计为缺失，issue 关闭时附上一条说明这一点的评论。
 
 ## 6. 字符集规则
 

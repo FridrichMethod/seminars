@@ -108,9 +108,15 @@ Command line surface that workflows may rely on::
 
 Exit status: 0 success (a skipped run included), 1 failure, 2 usage error,
 3 an output check failed: the secret scan found something or a file below
-data/ breaks the charset rule (nothing may be committed or deployed). Any
-non-zero status of ``seminars run`` means: commit and deploy nothing, even
-if files below data/ were written (an output writer can fail after that).
+data/ breaks the charset rule (nothing may be committed or deployed).
+Status 1 of ``seminars run`` after it rewrote data/last_run.json with
+``ok`` false (every source failed, or an output writer failed) means: the
+update workflow commits only data/health.json, data/last_run.json and
+data/run_report.json, never the events, deploys, and then fails the
+workflow run. Any other non-zero status, and status 1 with any other
+record or without a rewritten record (the run could not start, or an
+error that nothing caught ended it), means: commit and deploy nothing,
+even if files below data/ were written.
 
 Two rules of ``seminars run`` that the update workflow relies on: a run
 skipped by ``--skip-if-done-today`` writes nothing below data/, not even

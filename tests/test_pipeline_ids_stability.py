@@ -266,14 +266,42 @@ class TestTwoTalksOfOneDay:
     ) -> None:
         early = slot(MORNING + timedelta(hours=2), "Lecture I: Random matrices", "Ann Smith")
         late = slot(MORNING + timedelta(hours=6), "Lecture II: Free probability", "Ann Smith")
-        first, second = two_runs(config, fake_adapter, [early, late], [early])
+        fake_adapter.drafts = [early, late]
+        run(config, services(FakeEmitters()))
+        first = events(config)
         titles = {event.uid: event.title for event in first}
-        listed = [event for event in second if event.missing_runs == 0]
-        assert [(event.uid, event.title) for event in listed] == [(first[0].uid, early.title)]
-        assert {event.uid: event.title for event in second}.items() <= titles.items()
+        fake_adapter.drafts = [early]
+        report = run(config, services(FakeEmitters()), days=1)
+        second = events(config)
+        assert [(event.uid, event.title, event.missing_runs) for event in second] == [
+            (first[0].uid, early.title, 0),
+            (first[1].uid, late.title, 1),
+        ]
+        assert (report.counts.missing, report.counts.removed) == (1, 0)
         fake_adapter.drafts = [early, late]  # the later talk was only away for a run
         run(config, services(FakeEmitters()), days=2)
         assert {event.uid: event.title for event in events(config)} == titles
+
+    def test_the_later_talk_that_stays_away_for_two_runs_comes_back_under_its_own_uid(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        early = slot(MORNING + timedelta(hours=2), "Lecture I: Random matrices", "Ann Smith")
+        late = slot(MORNING + timedelta(hours=6), "Lecture II: Free probability", "Ann Smith")
+        fake_adapter.drafts = [early, late]
+        run(config, services(FakeEmitters()))
+        first = {event.title: event.uid for event in events(config)}
+        fake_adapter.drafts = [early]
+        missing = [run(config, services(FakeEmitters()), days=day) for day in (1, 2)]
+        assert [report.counts.missing for report in missing] == [1, 1]
+        assert [(event.uid, event.missing_runs) for event in events(config)] == [
+            (first["Lecture I: Random matrices"], 0),
+            (first["Lecture II: Free probability"], 2),
+        ]
+        fake_adapter.drafts = [early, late]
+        back = run(config, services(FakeEmitters()), days=3)
+        assert {event.title: event.uid for event in events(config)} == first
+        assert all(event.missing_runs == 0 for event in events(config))
+        assert (back.counts.added, back.counts.removed) == (0, 0)
 
     def test_each_talk_keeps_its_uid_when_the_later_one_moves_to_another_day(
         self, config: AppConfig, fake_adapter: FakeAdapter

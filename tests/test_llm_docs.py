@@ -48,7 +48,8 @@ def block_with(document: str, start: str) -> str:
 
 class TestSameContent:
     def test_the_two_versions_link_to_each_other_at_the_top(self) -> None:
-        assert text(ENGLISH).splitlines()[0] == "English | [Chinese](LLM_CREDENTIALS.zh-CN.md)"
+        first = "English | [&#20013;&#25991;](LLM_CREDENTIALS.zh-CN.md)"
+        assert text(ENGLISH).splitlines()[0] == first
         assert text(CHINESE).splitlines()[0] == "[English](LLM_CREDENTIALS.md) | \u4e2d\u6587"
 
     def test_the_same_sections(self) -> None:

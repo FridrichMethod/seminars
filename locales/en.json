@@ -103,7 +103,11 @@
       "status_ok": "OK",
       "status_empty": "No events",
       "status_failed": "Failed",
+      "status_partial": "Not read in full",
       "never": "never",
+      "skipped": "{count} page(s) could not be fetched",
+      "shrank": "{listed} usable item(s) where it usually has {usual}",
+      "resized": "{source}: the listing has been far smaller than usual for so long that its new size is now taken as the usual one ({listed} instead of {usual}).",
       "llm": "Field tagging used the LLM provider {provider}.",
       "llm_none": "Field tagging used rules only (no LLM)."
     },
@@ -239,13 +243,20 @@
       "summary": "{ok} of {total} active sources are healthy.",
       "llm": "Field tagging used the LLM provider {provider}.",
       "llm_none": "Field tagging used rules only.",
+      "partial": "Not read in full",
+      "skipped_one": "{count} page could not be fetched",
+      "skipped_other": "{count} pages could not be fetched",
+      "shrank": "Usable items: {listed}, where it usually has {usual}",
+      "resized": "The listing has been far smaller than usual for so long that its new size is now taken as the usual one ({listed} instead of {usual}).",
       "columns": {
         "group": "Group",
         "events": "Events",
         "last_run": "Last run",
         "last_success": "Last success",
         "failures": "Failures in a row",
-        "error": "Error"
+        "error": "Error",
+        "missed": "Missed in the last run",
+        "resized": "Usual size"
       },
       "groups": {
         "localist": "Stanford Events calendar",

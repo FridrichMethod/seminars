@@ -36,7 +36,10 @@ to at least one field.
 
 Each feed is the file `feeds/<feed>.ics` of the web site. Every event keeps a stable
 identifier, so a changed title or time updates the event in your calendar instead of
-adding a second one.
+adding a second one. Talks that a source lists without an id or a page of their own
+are recognised by their day, people and title. When such a talk moves and changes its
+title or speakers in the same update, moves by more than 60 days, or two similar talks
+of one speaker change at once, your calendar can show it twice for up to two days.
 
 ### Web site
 

@@ -94,7 +94,10 @@ sources:
   in `src/seminars/models/source.py`; unknown keys are an error.
 - `enabled: false` turns a source off and keeps its entry. Turning a source off, or
   removing its entry, removes its future talks at the next run, from the feeds and
-  the site alike.
+  the site alike: its keys are dropped from the stored events, a talk that only it
+  listed leaves at once, and one of those that has already started goes to the
+  archive. A talk that other sources list as well keeps their keys and is judged by
+  them alone.
 
 ## 3. Choose the adapter
 
@@ -260,6 +263,15 @@ live check shows how it does against the real site:
 uv run seminars run --offline --source custom-example-lab
 uv run seminars sources check custom-example-lab
 ```
+
+Every run records how each source did (`data/health.json`, the status page, the
+weekly digest). A source that fails three runs in a row, that listed talks before
+and comes back empty three runs in a row, or that is not read in full three runs in
+a row (pages it could not fetch, a listing far smaller than usual) gets a
+`source-broken` issue, which is closed once the source is read in full again. A
+listing far smaller than usual counts as incomplete for up to 28 runs; after that
+its smaller size is taken as the usual one, the stored talks it no longer lists
+count as missing, and the issue is closed with a comment that says so.
 
 ## 6. The charset rule
 

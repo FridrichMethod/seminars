@@ -20,8 +20,8 @@ point of view of the contracts)::
 What a run guarantees:
 
 * One source cannot fail or stall the run. A run fails only when every
-  source failed (exit status 1) or an output check found something (exit
-  status 3).
+  source failed or an output writer failed (exit status 1), or an output
+  check found something (exit status 3).
 * No LLM is no reason for a run to fail. An error of the optional LLM
   parts (the tagger, its usage, the counters and the pruning of the
   cache) becomes a warning of the report, whatever kind of error it is.
@@ -60,7 +60,7 @@ import math
 import shutil
 import tempfile
 import time
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -291,6 +291,18 @@ def _scored(event: Event, scorer: PicksScorer) -> Event:
     return event.evolve(picks_score=score, picks_reasons=result.reasons)
 
 
+def _renamed_away(
+    renamed: Mapping[str, str], final: Callable[[str], str], stored: Mapping[str, Event]
+) -> dict[str, str]:
+    """The uids that the run gave up for another one and that no stored event holds.
+
+    A stored uid that a candidate gave up (adoption handed the candidate
+    the uid of another stored event) still belongs to its stored event:
+    that event is judged like any other one the run did not deliver.
+    """
+    return {uid: final(uid) for uid in renamed if final(uid) != uid and uid not in stored}
+
+
 def _process(
     config: AppConfig, services: Services, gathered: _Gathered, state: State
 ) -> _Processed:
@@ -341,7 +353,7 @@ def _process(
         excluded_uids=frozenset(
             uid_of[key] for item in left_out for key in item.source_ids if key in uid_of
         ),
-        absorbed={**{uid: final(uid) for uid in renamed if final(uid) != uid}, **deduped.absorbed},
+        absorbed={**_renamed_away(renamed, final, stored), **deduped.absorbed},
         aliases=deduped.aliases,
         merged=len(filtered.kept) - len(deduped.candidates),
         warnings=tagged.warnings,
@@ -378,23 +390,36 @@ def _llm_failure(what: str, error: Exception) -> str:
     return f"{what} failed ({type(error).__name__})"
 
 
+def _cache_hits(cache: LLMCache | None) -> tuple[int, list[str]]:
+    """The hits of ``cache`` in this run, and a warning when they could not be read."""
+    if cache is None:
+        return 0, []
+    try:
+        return cache.stats().hits, []
+    except Exception as error:  # the optional LLM must not fail the run
+        return 0, [_llm_failure("reading the LLM cache counters", error)]
+
+
 def _llm_usage(services: Services) -> tuple[LLMUsage, list[str]]:
-    """What the LLM did in this run, and warnings when that could not be read."""
+    """What the LLM did in this run, and warnings when that could not be read.
+
+    A run without a provider whose tagger or page extractor answers from
+    the stored answers reports how many of them it used
+    (``LLMUsage.stored_answers_only``).
+    """
     if services.llm is None:
-        return LLMUsage(enabled=False), []
+        if services.llm_tagger is None and services.page_extractor is None:
+            return LLMUsage(enabled=False), []
+        hits, warnings = _cache_hits(services.read_only_cache)
+        return LLMUsage(stored_answers_only=True, cache_hits=hits), warnings
     warnings: list[str] = []
     try:
         usage = services.llm.usage()
     except Exception as error:  # the optional LLM must not fail the run
         usage = LLMUsage(enabled=True)
         warnings.append(_llm_failure("reading the LLM usage", error))
-    hits = 0
-    if services.llm_cache is not None:
-        try:
-            hits = services.llm_cache.stats().hits
-        except Exception as error:  # as above
-            warnings.append(_llm_failure("reading the LLM cache counters", error))
-    return usage.evolve(cache_hits=hits), warnings
+    hits, unread = _cache_hits(services.llm_cache)
+    return usage.evolve(cache_hits=hits), [*warnings, *unread]
 
 
 def _prune(cache: LLMCache | None) -> list[str]:

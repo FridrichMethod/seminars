@@ -16,7 +16,12 @@
       "last_run_at": "2026-11-10T12:23:00Z",
       "last_success_at": "2026-11-03T12:24:00Z",
       "consecutive_failures": 0,
-      "error": null
+      "error": null,
+      "read_in_full": true,
+      "skipped_pages": 0,
+      "listed": null,
+      "usual_size": null,
+      "resized_from": null
     },
     {
       "id": "custom-nlp",
@@ -28,7 +33,12 @@
       "last_run_at": "2026-11-10T12:23:00Z",
       "last_success_at": "2026-11-03T12:24:00Z",
       "consecutive_failures": 3,
-      "error": "HTTP 503: https://nlp.stanford.edu/seminar <img src=x onerror=alert(1)>"
+      "error": "HTTP 503: https://nlp.stanford.edu/seminar <img src=x onerror=alert(1)>",
+      "read_in_full": true,
+      "skipped_pages": 0,
+      "listed": null,
+      "usual_size": null,
+      "resized_from": null
     },
     {
       "id": "custom-theory",
@@ -40,7 +50,12 @@
       "last_run_at": null,
       "last_success_at": null,
       "consecutive_failures": 0,
-      "error": null
+      "error": null,
+      "read_in_full": true,
+      "skipped_pages": 0,
+      "listed": null,
+      "usual_size": null,
+      "resized_from": null
     },
     {
       "id": "localist-stanford",
@@ -52,7 +67,12 @@
       "last_run_at": "2026-11-10T12:23:00Z",
       "last_success_at": "2026-11-10T12:23:00Z",
       "consecutive_failures": 0,
-      "error": null
+      "error": null,
+      "read_in_full": true,
+      "skipped_pages": 0,
+      "listed": null,
+      "usual_size": null,
+      "resized_from": null
     },
     {
       "id": "rsorg-new-series",
@@ -64,7 +84,12 @@
       "last_run_at": null,
       "last_success_at": null,
       "consecutive_failures": 0,
-      "error": null
+      "error": null,
+      "read_in_full": true,
+      "skipped_pages": 0,
+      "listed": null,
+      "usual_size": null,
+      "resized_from": null
     },
     {
       "id": "sites-chemistry",
@@ -76,7 +101,46 @@
       "last_run_at": "2026-11-10T12:23:00Z",
       "last_success_at": "2026-11-10T12:23:00Z",
       "consecutive_failures": 0,
-      "error": null
+      "error": null,
+      "read_in_full": true,
+      "skipped_pages": 0,
+      "listed": null,
+      "usual_size": null,
+      "resized_from": null
+    },
+    {
+      "id": "sites-mathematics",
+      "name": "Stanford Mathematics",
+      "group": "stanford-sites",
+      "url": "https://mathematics.stanford.edu/events",
+      "state": "ok",
+      "events": 4,
+      "last_run_at": "2026-11-10T12:23:00Z",
+      "last_success_at": "2026-11-10T12:23:00Z",
+      "consecutive_failures": 0,
+      "error": null,
+      "read_in_full": false,
+      "skipped_pages": 2,
+      "listed": 5,
+      "usual_size": 20,
+      "resized_from": null
+    },
+    {
+      "id": "sites-statistics",
+      "name": "Stanford Statistics",
+      "group": "stanford-sites",
+      "url": "https://statistics.stanford.edu/events",
+      "state": "ok",
+      "events": 6,
+      "last_run_at": "2026-11-10T12:23:00Z",
+      "last_success_at": "2026-11-10T12:23:00Z",
+      "consecutive_failures": 0,
+      "error": null,
+      "read_in_full": true,
+      "skipped_pages": 0,
+      "listed": 6,
+      "usual_size": null,
+      "resized_from": 18
     }
   ]
 }

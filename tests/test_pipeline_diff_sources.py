@@ -14,6 +14,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
+import pytest
+
 from factories import REFERENCE_NOW, make_event, make_window
 from seminars.models import Event
 from seminars.pipeline.diff import Reconciled, reconcile
@@ -130,6 +132,45 @@ class TestAMergedEventWhileOneSourceIsDown:
         )
         assert (event.sequence, event.last_changed, result.changed) == (3, REFERENCE_NOW, 1)
 
+    @pytest.mark.parametrize("shift", [timedelta(days=1), timedelta(hours=-2)])
+    def test_a_new_time_that_the_healthy_source_reports_goes_through(
+        self, shift: timedelta
+    ) -> None:
+        before = merged()
+        start, end = before.start + shift, before.start + shift + timedelta(hours=1)
+        fresh = stats_only(start=start, end=end)
+        result = run([before], [fresh], healthy=frozenset({"sites-stats"}))
+        (event,) = result.events
+        assert (event.start, event.end, event.all_day) == (start, end, False)
+        assert event.evolve(start=before.start, end=before.end, sequence=2) == before.evolve(
+            last_changed=REFERENCE_NOW
+        )
+        assert (event.sequence, event.last_changed, result.changed) == (3, REFERENCE_NOW, 1)
+
+    def test_a_new_end_alone_goes_through(self) -> None:
+        before = merged(end=None)
+        end = before.start + timedelta(minutes=90)
+        result = run([before], [stats_only(end=end)], healthy=frozenset({"sites-stats"}))
+        (event,) = result.events
+        assert (event.start, event.end, event.title) == (before.start, end, "Probability Seminar")
+        assert (event.sequence, result.changed) == (3, 1)
+
+    def test_a_talk_that_is_on_again_goes_through(self) -> None:
+        before = merged(status="cancelled")
+        result = run([before], [stats_only()], healthy=frozenset({"sites-stats"}))
+        (event,) = result.events
+        assert (event.status, event.title, event.location) == (
+            "confirmed",
+            "Probability Seminar",
+            "Sloan Hall 380",
+        )
+        assert (event.sequence, event.last_changed, result.changed) == (3, REFERENCE_NOW, 1)
+
+    def test_a_tentative_listing_does_not_change_a_confirmed_talk(self) -> None:
+        before = merged()
+        result = run([before], [stats_only(status="tentative")], healthy=frozenset({"sites-stats"}))
+        assert (result.events, result.changed) == ((before,), 0)
+
     def test_a_started_talk_keeps_its_content_as_well(self) -> None:
         start = REFERENCE_NOW - timedelta(minutes=30)
         before = merged(start=start, end=None)
@@ -150,13 +191,28 @@ class TestDisabledOrRemovedSources:
         assert [event.uid for event in result.events] == ["e1"]
         assert (result.removed, result.missing) == (1, 1)
 
-    def test_a_cancelled_or_started_event_of_a_removed_source_leaves_too(self) -> None:
+    def test_a_cancelled_event_of_a_removed_source_leaves_too(self) -> None:
         cancelled = stored("c1", source_ids=["sites-gone:c1"], status="cancelled")
+        result = run([cancelled], [], enabled=ENABLED)
+        assert (result.events, result.archived, result.removed) == ((), (), 1)
+
+    def test_a_started_event_of_a_removed_source_leaves_the_feeds_for_the_archive(self) -> None:
         started = stored(
             "c2", source_ids=["sites-gone:c2"], start=REFERENCE_NOW - timedelta(hours=1), end=None
         )
-        result = run([cancelled, started], [], enabled=ENABLED)
-        assert (result.events, result.removed) == ((), 2)
+        result = run([started], [], enabled=ENABLED)
+        assert (result.events, result.archived, result.removed) == ((), (started,), 0)
+
+    def test_a_started_cancelled_event_of_a_removed_source_is_archived_as_it_is(self) -> None:
+        started = stored(
+            "c3",
+            source_ids=["sites-gone:c3"],
+            start=REFERENCE_NOW - timedelta(days=2),
+            end=None,
+            status="cancelled",
+        )
+        result = run([started], [], enabled=ENABLED)
+        assert (result.events, result.archived, result.removed) == ((), (started,), 0)
 
     def test_a_past_event_of_a_removed_source_is_still_archived(self) -> None:
         old = stored(

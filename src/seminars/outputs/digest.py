@@ -17,7 +17,7 @@ label is given in both languages, English first, and every sentence on two
 lines. A table cell that holds our own words besides labels, the field
 names and the picks reasons, has an English line and a Chinese line. The
 picks reasons are read back from the lines the picks scorer stored
-(``seminars.models.public.PickReason``) and said with the messages of the
+(``seminars.models.PickReason``) and said with the messages of the
 locale files; the terms of the configuration in them stay as they are. All
 of that text comes from the locale files; this module holds none. Event
 content is not translated.
@@ -63,11 +63,13 @@ from seminars.models import (
     DigestOutcome,
     Event,
     HealthFile,
+    PickReason,
     SourceHealth,
+    SourceHealthEntry,
     Speaker,
     ascii_url,
+    signed_points,
 )
-from seminars.models.public import PickReason, signed_points
 from seminars.textrules import ascii_printable, clean_text
 
 ROW_LIMITS: Final = (40, 30, 20, 15, 10, 5, 2, 1)
@@ -389,13 +391,37 @@ def _llm_provider(health: HealthFile) -> str | None:
     return max(used)[1] if used else None
 
 
+def _well(history: SourceHealth) -> bool:
+    """Whether the last run of a source delivered events and is known to have missed none."""
+    last = history.last
+    return last is not None and last.status == "ok" and last.read_in_full
+
+
+def _shortfall(last: SourceHealthEntry, locale: Locale) -> str:
+    """What a run that was not read in full missed, in one language."""
+    reasons = []
+    if last.skipped_pages:
+        reasons.append(locale.t("digest.health.skipped", count=last.skipped_pages))
+    if last.shrank_from is not None:
+        listed = last.accepted or 0
+        reasons.append(locale.t("digest.health.shrank", listed=listed, usual=last.shrank_from))
+    return "; ".join(reasons)
+
+
 def _health_row(name: str, history: SourceHealth, ctx: _Context) -> str:
-    """One source that did not deliver: its state, and when it last did."""
+    """One source that is not well: its state, when it last delivered, and what went wrong."""
     last = history.last
     status, events, error = EMPTY_CELL, 0, ""
     if last is not None:
-        status, events = ctx.both(_HEALTH_LABELS[last.status]), last.events
+        label = (
+            "digest.health.status_partial" if last.status == "ok" else _HEALTH_LABELS[last.status]
+        )
+        status, events = ctx.both(label), last.events
         error = _cell(last.error, ERROR_MAX_CHARS)
+        if not error and not last.read_in_full:
+            error = _lines(
+                [_cell(_shortfall(last, locale), ERROR_MAX_CHARS) for locale in ctx.locales]
+            )
     success = ctx.both("digest.health.never")
     if history.last_success_at is not None:
         success = history.last_success_at.astimezone(ctx.zone).date().isoformat()
@@ -403,15 +429,25 @@ def _health_row(name: str, history: SourceHealth, ctx: _Context) -> str:
     return _row([source, status, str(events), success, error or EMPTY_CELL])
 
 
+def _resized(name: str, last: SourceHealthEntry, ctx: _Context) -> str:
+    """The sentence about a source whose last run took its smaller listing as the usual size."""
+    return ctx.sentence(
+        "digest.health.resized",
+        source=_cell(name, SOURCE_MAX_CHARS) or EMPTY_CELL,
+        listed=last.accepted or 0,
+        usual=last.resized_from,
+    )
+
+
 def _health(health: HealthFile, config: AppConfig, ctx: _Context, rows: int) -> list[str]:
-    """How many sources delivered in their last run, and a row for each one that did not."""
+    """How many sources are well, a row for each one that is not, and new usual sizes.
+
+    A source is well when its last run delivered events and was read in
+    full (``SourceHealthEntry.read_in_full``).
+    """
     sources = sorted(config.enabled_sources, key=lambda source: source.id)
     states = [(source, health.sources.get(source.id, SourceHealth())) for source in sources]
-    unwell = [
-        (source, state)
-        for source, state in states
-        if state.last is None or state.last.status != "ok"
-    ]
+    unwell = [(source, state) for source, state in states if not _well(state)]
     counts = {"total": len(states), "ok": len(states) - len(unwell)}
     blocks = [f"## {ctx.both('digest.sections.health')}"]
     if not unwell:
@@ -422,6 +458,11 @@ def _health(health: HealthFile, config: AppConfig, ctx: _Context, rows: int) -> 
         lines = [_health_row(source.name, state, ctx) for source, state in unwell[:rows]]
         blocks.append(ctx.sentence("digest.health.summary", **counts))
         blocks.append("\n".join([header, _row(["---"] * len(keys)), *lines]))
+    blocks += [
+        _resized(source.name, state.last, ctx)
+        for source, state in states[:rows]
+        if state.last is not None and state.last.resized_from is not None
+    ]
     provider = _llm_provider(health)
     if provider is None:
         blocks.append(ctx.sentence("digest.health.llm_none"))

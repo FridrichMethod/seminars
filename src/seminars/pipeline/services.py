@@ -21,9 +21,11 @@ How the parts are chosen:
   refused one: the tagger and the page extractor answer from the cache
   alone, through a client that never sends anything (``NoProvider``) and
   a view of the cache that stores nothing (``ReadOnlyCache``). Nothing new
-  is asked, and the run neither counts nor prunes that cache
-  (``Services.llm_cache`` stays ``None``). When the LLM package cannot be
-  loaded or set up, the run goes on without it and says so in a warning.
+  is asked, and the run does not prune that cache (``Services.llm_cache``
+  stays ``None``); it only counts the stored answers it used
+  (``Services.read_only_cache``, see ``LLMUsage.stored_answers_only``).
+  When the LLM package cannot be loaded or set up, the run goes on
+  without it and says so in a warning.
 * GitHub issues: only when they are wanted (never offline, never in a dry
   run) and the environment names a repository and a token.
 * The secret scanner also learns the exact values of the credentials in
@@ -93,7 +95,8 @@ class Services:
     update_health: HealthUpdater
     secret_scanner: SecretScanner
     llm: LLMChainClient | None = None
-    llm_cache: LLMCache | None = None
+    llm_cache: LLMCache | None = None  # with a provider: counted and pruned by the run
+    read_only_cache: LLMCache | None = None  # without one: only its hits are counted
     llm_tagger: LLMFieldTagger | None = None
     page_extractor: PageExtractor | None = None
     issues: IssueClient | None = None
@@ -201,6 +204,7 @@ class ReadOnlyCache:
 class _LLMParts:
     chain: LLMChainClient | None = None
     cache: LLMCache | None = None
+    read_only_cache: LLMCache | None = None
     tagger: LLMFieldTagger | None = None
     extractor: PageExtractor | None = None
 
@@ -232,6 +236,7 @@ def _llm_parts(
     if chain is None:
         stored = ReadOnlyCache(cache)
         return _LLMParts(
+            read_only_cache=stored,
             tagger=build_tagger(NoProvider(), config=config.llm, cache=stored),
             extractor=build_extractor(NoProvider(), config=config.llm, cache=stored),
         )
@@ -305,6 +310,7 @@ def build_services(
         secret_scanner=scanner,
         llm=llm.chain,
         llm_cache=llm.cache,
+        read_only_cache=llm.read_only_cache,
         llm_tagger=llm.tagger,
         page_extractor=llm.extractor,
         issues=issues,

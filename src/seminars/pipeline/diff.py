@@ -15,18 +15,22 @@ The stored events and the events of the run are compared by uid:
   event failed, and what the others list (a "TBA" title, no place, other
   fields) is not news. The stored event stands in for the listing that is
   missing: it keeps everything a reader sees and its keys, takes up the
-  new keys of the run and is no longer missing. Only a cancellation that
-  a listing of the run reports goes through, as a change. When the source
-  is back, its listing and the others make the event again, and nothing
-  has changed;
+  new keys of the run and is no longer missing. Only what a listing of
+  the run states as a fact goes through, as a change: a new time (start,
+  end, all day), a cancellation, and a talk that is on again after it was
+  cancelled. When the source is back, its listing and the others make the
+  event again;
 * a stored event that the run did not deliver is handled by what is known
   about it:
 
   - it starts before the window: it moves to the archive;
+  - every source it came from is disabled or no longer configured, and it
+    has started already: it moves to the archive as well, now;
   - the run itself excluded it (a filter rule, out of scope): it is
     removed at once;
-  - every source it came from is disabled or no longer configured: it is
-    removed at once, like the events of a deleted source;
+  - every source it came from is disabled or no longer configured (and
+    it lies ahead): it is removed at once, like the events of a deleted
+    source, cancelled or not;
   - it has started already, or it is cancelled: it stays as it is. Pages
     drop talks once they are over, and a cancelled talk is kept until
     its time has passed;
@@ -71,6 +75,9 @@ UNTRACKED_FIELDS: Final = frozenset(
 """Fields whose change is not a change a reader can see."""
 
 TRACKED_FIELDS: Final = frozenset(Event.model_fields) - UNTRACKED_FIELDS
+
+TIME_FIELDS: Final = ("start", "end", "all_day")
+"""The time of a talk, which a partial listing changes like a full one."""
 
 
 @dataclass(frozen=True)
@@ -125,16 +132,29 @@ def _bookkept(stored: Event, fresh: Event, now: datetime) -> tuple[Event, bool]:
     return updated, changed
 
 
+def _asserted(stored: Event, fresh: Event) -> dict[str, Any]:
+    """What a partial listing says that differs from the stored event and goes through.
+
+    That is its time (``TIME_FIELDS``, taken together) and whether the talk
+    is cancelled or on again.
+    """
+    changes: dict[str, Any] = {}
+    if any(getattr(stored, name) != getattr(fresh, name) for name in TIME_FIELDS):
+        changes.update({name: getattr(fresh, name) for name in TIME_FIELDS})
+    if (stored.status == "cancelled") != (fresh.status == "cancelled"):
+        changes["status"] = fresh.status
+    return changes
+
+
 def _stand_in(stored: Event, fresh: Event, silent: set[str], now: datetime) -> tuple[Event, bool]:
     """The stored event in place of a partial listing (see the module docstring)."""
     kept = [key for key in stored.source_ids if _source_of(key) in silent]
     keys = sorted({*fresh.source_ids, *kept})
-    event = stored.evolve(source_ids=keys, missing_runs=0)
-    if fresh.status == "cancelled" and stored.status != "cancelled":
-        return event.evolve(
-            status="cancelled", last_changed=now, sequence=stored.sequence + 1
-        ), True
-    return event, False
+    changes = _asserted(stored, fresh)
+    event = stored.evolve(source_ids=keys, missing_runs=0, **changes)
+    if not changes:
+        return event, False
+    return event.evolve(last_changed=now, sequence=stored.sequence + 1), True
 
 
 def _delivered(
@@ -193,7 +213,7 @@ def reconcile(
             continue
         keys = sources.live_keys(stored)
         current = stored if keys in (stored.source_ids, []) else stored.evolve(source_ids=keys)
-        if stored.start < window.start:
+        if stored.start < window.start or (not keys and stored.start < moment):
             archived.append(stored)
         elif stored.uid in excluded_uids or not keys:
             removed += 1

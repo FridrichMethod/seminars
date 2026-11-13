@@ -18,10 +18,11 @@ are defined here, once, for both directions: the picks scorer
 
 from __future__ import annotations
 
+import contextlib
 import re
 from typing import Final, Literal, Self
 
-from pydantic import FiniteFloat, HttpUrl, model_validator
+from pydantic import FiniteFloat, HttpUrl, ValidationError, model_validator
 
 from seminars.models.base import (
     FEED_IDS,
@@ -115,14 +116,17 @@ class PickReason(Model):
         """The reason ``text`` is the line of (``other`` for a line of no known form).
 
         The points are read as the line writes them, with six significant
-        digits. ``text`` must not be empty.
+        digits. A line of a known form whose parts are no reason (points
+        that overflow to infinity, ``+1e999``) is a line of no known form
+        too. ``text`` must not be empty.
         """
         for kind, pattern in _REASON_LINES:
             found = pattern.fullmatch(text)
             if found is not None:
-                return cls.model_validate(
-                    {**found.groupdict(), "kind": kind, "points": float(found["points"])}
-                )
+                values = {**found.groupdict(), "kind": kind, "points": float(found["points"])}
+                with contextlib.suppress(ValidationError):
+                    return cls.model_validate(values)
+                break
         return cls(kind="other", term=text)
 
 
@@ -213,7 +217,16 @@ class PublicEventsPayload(Model):
 
 
 class PublicSourceStatus(Model):
-    """One row of the status page."""
+    """One row of the status page.
+
+    ``read_in_full`` is false when the last run delivered events but not
+    all of them: ``skipped_pages`` pages could not be fetched, or the
+    listing had ``listed`` usable items where it usually has
+    ``usual_size``. ``resized_from`` is set when the last run took its
+    smaller listing (``listed`` items) as the usual size, in place of
+    ``resized_from``. A disabled source, and one that never ran, has
+    nothing of the kind.
+    """
 
     id: SourceId
     name: NonEmptyStr
@@ -225,6 +238,11 @@ class PublicSourceStatus(Model):
     last_success_at: Timestamp | None = None
     consecutive_failures: Count = 0
     error: str | None = None  # short message of the last failure, if it failed
+    read_in_full: bool = True  # false: the last run is known to have missed events
+    skipped_pages: Count = 0  # pages the last run could not fetch and went on without
+    listed: Count | None = None  # usable items of the last run, when its size was judged
+    usual_size: Count | None = None  # the usual number, when the last run listed far fewer
+    resized_from: Count | None = None  # the usual number the last run gave up for ``listed``
 
 
 class PublicStatusPayload(Model):

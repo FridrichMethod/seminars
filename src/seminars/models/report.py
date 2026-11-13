@@ -126,9 +126,15 @@ class LLMUsage(Model):
     the tagger and the page extractor, so it always reports ``cache_hits``
     as 0. The pipeline, which opens the cache, fills the field in:
     ``chain.usage().evolve(cache_hits=cache.stats().hits)``.
+
+    A run without a provider is not ``enabled`` either, but unlike a
+    rules-only run it applies the answers that earlier runs stored
+    (``stored_answers_only``); ``cache_hits`` then counts the answers it
+    used, and every other count is 0.
     """
 
-    enabled: bool = False  # False in rules-only mode
+    enabled: bool = False  # False in rules-only mode and without a provider
+    stored_answers_only: bool = False  # no provider: only answers stored by earlier runs
     provider: str | None = None  # provider that answered the most recent successful call
     calls: Count = 0  # requests sent to providers
     cache_hits: Count = 0  # answers served from data/llm_cache/; set by the pipeline
@@ -167,10 +173,13 @@ class RunReport(Model):
     ``ok`` is false only when every source failed, an output check found
     something (the secret scan, ``secret_findings``, or the charset check of
     data/, ``charset_findings``), or an output writer failed (the ICS feeds
-    or the site data could not be written). In each of these cases the
-    command exits non-zero and nothing of the run may be committed or
-    deployed, even though files below data/ may already have been written.
-    ``excluded`` lists every event that was
+    or the site data could not be written). An output check that found
+    something exits with status 3, and then nothing of the run may be
+    committed or deployed, even though files below data/ may already have
+    been written. When every source failed or an output writer failed, the
+    command exits with status 1, and then only the records of the run
+    (data/health.json, data/last_run.json, data/run_report.json) may be
+    committed, never the events. ``excluded`` lists every event that was
     filtered out so that false positives can be reviewed.
 
     Like everything below data/, the report must pass the charset rule (see
