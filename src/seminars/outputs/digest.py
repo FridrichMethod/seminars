@@ -443,7 +443,8 @@ def _health(health: HealthFile, config: AppConfig, ctx: _Context, rows: int) -> 
     """How many sources are well, a row for each one that is not, and new usual sizes.
 
     A source is well when its last run delivered events and was read in
-    full (``SourceHealthEntry.read_in_full``).
+    full (``SourceHealthEntry.read_in_full``). ``rows`` bounds the rows of
+    the table and, on their own, the sentences about new usual sizes.
     """
     sources = sorted(config.enabled_sources, key=lambda source: source.id)
     states = [(source, health.sources.get(source.id, SourceHealth())) for source in sources]
@@ -458,11 +459,12 @@ def _health(health: HealthFile, config: AppConfig, ctx: _Context, rows: int) -> 
         lines = [_health_row(source.name, state, ctx) for source, state in unwell[:rows]]
         blocks.append(ctx.sentence("digest.health.summary", **counts))
         blocks.append("\n".join([header, _row(["---"] * len(keys)), *lines]))
-    blocks += [
-        _resized(source.name, state.last, ctx)
-        for source, state in states[:rows]
+    resized = [
+        (source, state.last)
+        for source, state in states
         if state.last is not None and state.last.resized_from is not None
     ]
+    blocks += [_resized(source.name, last, ctx) for source, last in resized[:rows]]
     provider = _llm_provider(health)
     if provider is None:
         blocks.append(ctx.sentence("digest.health.llm_none"))
