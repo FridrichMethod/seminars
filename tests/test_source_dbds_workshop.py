@@ -208,6 +208,15 @@ def label(name: str, text: str) -> str:
             id="a label inside a word of a title before the speaker",
         ),
         pytest.param(
+            "<strong>Date:</strong> November 19, 2026</span><br />\n"
+            + label("Speaker:", "Marinka Zitnik")
+            + "<br />\n"
+            + label("Title:", "Save the Date: causal inference"),
+            [("Marinka Zitnik", None)],
+            "Save the",
+            id="a label as a word of its own cuts the title there",
+        ),
+        pytest.param(
             "<strong>Date:</strong> Nov 19 2026</span><br />\n"
             + label("Title:", "Coming soon")
             + "<br />\n"
@@ -274,6 +283,23 @@ def test_a_row_written_another_way_is_still_a_talk(
             + "<br />\n"
             + label("Title:", "NO CLASS - Thanksgiving"),
             id="in capitals in the title line",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> November 26, 2026</span><br />\n"
+            + label("Speaker:", "No Seminars (Thanksgiving week)"),
+            id="a plural in the speaker line",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> November 26, 2026</span><br />\n"
+            + label("Speaker:", "No talks this week"),
+            id="no talks in the speaker line",
+        ),
+        pytest.param(
+            "<strong>Date:</strong> November 26, 2026</span><br />\n"
+            + label("Speaker:", "-")
+            + "<br />\n"
+            + label("Title:", "No classes - Thanksgiving"),
+            id="a plural in the title line",
         ),
     ],
 )
