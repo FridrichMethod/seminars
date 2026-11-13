@@ -409,6 +409,25 @@ class TestBarButtons:
         assert note(current) == counted("zh-CN", "site.select.saved", 2)
         current.assert_clean()
 
+    def test_a_selected_talk_that_ends_leaves_the_selection(
+        self, session: Callable[..., Session], feed: str
+    ) -> None:
+        # 12:30 in Stanford on November 12: sample-xss (12:00 to 13:00) is under way.
+        current = session(now="2026-11-12T20:30:00Z").open("index.html")
+        page = current.page
+        select(current, "sample-xss", "sample-online")
+        assert status(current) == "2 talks selected"
+        page.clock.set_fixed_time("2026-11-12T21:30:00Z")  # 13:30: sample-xss has ended
+        page.locator("#picks").check()
+        assert status(current) == status_text("en", 1, hidden=1)
+        page.locator("#picks").uncheck()
+        assert "sample-xss" not in current.shown()
+        assert checked(current) == ["sample-online"]
+        assert status(current) == "1 talk selected"
+        assert page.locator(CLEAR).is_enabled()
+        assert_file_of(download(current), feed, ["sample-online"])
+        current.assert_clean()
+
     def test_the_selection_lives_in_the_page_only(self, current: Session) -> None:
         page = current.page
         select(current, "sample-tba", "sample-biohub")

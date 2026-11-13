@@ -89,7 +89,8 @@ const FAILED = Object.freeze({ kind: "failed" });
 // a change made in the meantime is added to them; once the talks arrive, the filters are
 // checked against what exists. The selection (uids in the order they were ticked) lives
 // here only: neither the address nor the storage of the browser holds it, so a reload
-// starts empty. ``listed`` holds the uids of the talks the list shows.
+// starts empty; a talk that has ended leaves it when the list is drawn again. ``listed``
+// holds the uids of the talks the list shows.
 let view = Object.freeze({
   model: null,
   failed: false,
@@ -564,9 +565,20 @@ function renderEvent(event, tz, lang, today, ids) {
   );
 }
 
-/** Note the talks the list shows and update the selection to match. */
-function setListed(events) {
-  view = Object.freeze({ ...view, listed: Object.freeze(events.map((event) => event.uid)) });
+/**
+ * Note the talks the list shows and update the selection to match. ``upcoming``, the uids
+ * of the talks that have not ended (null: the talks are not there), prunes the selection:
+ * a selected talk that has ended since it was ticked leaves it, as no filter can show it
+ * again, so "hidden by the filters" counts only talks that a filter hides.
+ */
+function setListed(events, upcoming = null) {
+  const { selected } = view;
+  const kept = upcoming === null ? selected : selected.filter((uid) => upcoming.has(uid));
+  view = Object.freeze({
+    ...view,
+    listed: Object.freeze(events.map((event) => event.uid)),
+    selected: Object.freeze(kept),
+  });
   syncSelection();
 }
 
@@ -587,13 +599,13 @@ function renderList() {
   const lang = currentLang();
   const tz = model.zone;
   const today = tz.dayKey(now);
-  const shown = model.events.filter(
-    (event) => isUpcoming(event, now, today) && matches(event, filters, today),
-  );
+  const upcoming = model.events.filter((event) => isUpcoming(event, now, today));
+  const shown = upcoming.filter((event) => matches(event, filters, today));
+  const notEnded = new Set(upcoming.map((event) => event.uid));
   replaceChildren(ui.count, plural("site.results.count", shown.length));
   if (shown.length === 0) {
     replaceChildren(ui.events, notice("site.results.empty"));
-    setListed(shown);
+    setListed(shown, notEnded);
     return;
   }
   const positions = new Map(shown.map((event, index) => [event, index + 1]));
@@ -611,7 +623,7 @@ function renderList() {
     );
   });
   replaceChildren(ui.events, days);
-  setListed(shown);
+  setListed(shown, notEnded);
 }
 
 function renderMeta() {
