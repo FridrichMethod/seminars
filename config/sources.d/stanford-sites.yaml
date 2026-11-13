@@ -37,8 +37,10 @@
 #   location. The rss adapter reads the feed ("url") and the list page ("urls") and joins
 #   the two on title and start time. Speaker and abstract exist only on the detail page
 #   of an event that the site itself hosts ("detail_page"); see the notes of each source.
-#   Two sources need a parameter beyond the shared ones: sites-cheme (colloquium_fields)
-#   and sites-icme (expand_schedule); sites-icme stays disabled until it is supported.
+#   The shared parameters are below (x-su-event-params); a source adds or replaces keys
+#   next to the merge for what its site does differently (colloquium_fields of
+#   sites-cheme, expand_schedule of sites-icme, title_patterns, detail_page and others);
+#   see each entry.
 #
 # Not in this file: appliedphysics, ee, structuralbio and genetics use neither template
 # and list no events of their own at present; sb and datascience belong to other groups.
@@ -198,7 +200,7 @@ x-su-event-params: &su-event-params
     Workshop: workshop
     PhD Defense: defense
     Seminar: seminar
-  # How the two documents map to a draft (verified on the fixtures of all six sites):
+  # How the two documents map to a draft (verified on the fixtures of the template B sites):
   #   native_id      feed <guid>
   #   url            for a card whose link has external_link_class: that link, an
   #                  absolute URL on another host (events.stanford.edu, another
