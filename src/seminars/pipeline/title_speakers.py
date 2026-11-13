@@ -20,12 +20,21 @@ the words of a series ("Seminar", "Lecture", "Grand Rounds", "Defense",
 names as well. Then the form must vouch for it. A mark that goes with the
 name is an honorific ("Dr. Jane Doe"), a degree ("Jane Doe PhD", "Jane
 Doe, MD"), an organisation in brackets or after a comma, or a quoted title
-after it; a name suffix is none ("Knots II"). A part in front of the last
-one that honours a person ("In Memoriam", "In Honor of", "Obituary",
-"Tribute", "Celebration of Life") names the person a memorial is for, so
-its title gives no speaker; the parts of a quoted talk title are no such
-part. After a head that is only a term, a month or a year ("Spring 2025",
-"Jan. 2025", "2025-26") an honorific is no mark in any of the parts:
+after it in the same part or at the start of the next; a name suffix is
+none ("Knots II"). A part in front of the name that honours a person ("In
+Memoriam", "In Honor of", "Obituary", "Tribute", "Celebration of Life")
+names the person a memorial is for, so its title gives no speaker. The
+parts after the first one that starts with a marked name are the talk
+title, quoted or not, and so are the parts of a quoted talk title
+("Seminar: Dr. Jane Doe - In Memoriam: The Last Glacier", 'Seminar:
+"Tribute: Songs of the Sea" - Dr. Jane Doe'); an unquoted talk title in
+front of the name cannot be told from a memorial head ("Seminar | In
+Memoriam: The Last Glacier | Dr. Jane Doe" gives no speaker), and neither
+can a name that nothing marks from a talk title ("Seminar | Bird Song | In
+Memoriam | Dr. Jane Doe", "Seminar: Jane Doe - In Memoriam: The Last
+Glacier" give no speaker). After a head that is only a term, a month or a
+year ("Spring 2025", "Jan. 2025", "2025-26") an honorific is no mark in
+any of the parts:
 
 * series first ("<series>: <name>[, <affiliation>][ - "<title>"]"): the
   part in front is a series, or a mark goes with the name, or the abstract
@@ -52,8 +61,11 @@ for nothing. An organisation named after the name on the same line ("the
 Jane Doe Lab") counts only for a name that does not read like a topic and
 never between two parts, as a group is named after its topic as well ("the
 Public Health Department"); an honorific or a label in front of the name
-("Dr. Jane Roe Department of ...") counts whatever follows. A title that is
-only a name, a series name, and everything else give no speaker.
+("Dr. Jane Roe Department of ...") counts whatever follows. An abbreviated
+honorific counts in title case only ("Dr.", "Ms.", not the degree "MS."),
+and a street that ends a sentence ("... on Campus Dr. Ocean Mixing Lab")
+still counts as one. A title that is only a name, a series name, and
+everything else give no speaker.
 
 A name that reads like a topic as well is a speaker only when the abstract
 names the person, whatever the form: one that holds a word of a field, a
@@ -110,12 +122,14 @@ _SERIES_WORDS: Final = word_set(
 """Words of the name of a series or an event; no person's name holds one."""
 _MEMORIAL: Final = re.compile(
     r"(?:(?:a|an|the) )?(?:in (?:loving )?(?:memoriam|memory)(?: of)?|in remembrance(?: of)?"
-    r"|in honou?r of|honou?ring|obituar(?:y|ies)|memorial(?: (?:service|gathering))?|tributes?"
-    r"|remembering|remembrance|celebrat(?:ion|ing) of (?:the )?life(?: of)?"
-    r"|celebrating (?:the )?life of)"
+    r"|in honou?r(?: of)?|honou?ring|obituar(?:y|ies)|memorial(?: (?:service|gathering))?"
+    r"|tributes?|remembering|remembrance"
+    r"|(?:celebrat(?:ion of|ing)|honou?ring|remembering) (?:the )?life(?: and (?:work|legacy))?"
+    r"(?: of)?)"
 )
 """A head that honours a person, folded ("In Memoriam", "In Honor of", "Obituary", "Tribute",
-"Celebration of Life"): the name after it is the person the memorial is for."""
+"Celebration of Life", "Remembering the Life and Work of"): the name after it is the person
+the memorial is for."""
 _TERM: Final = re.compile(
     r"(?:(?:(?:ay|academic year) )?(?:(?:spring|summer|fall|autumn|winter)(?: (?:quarter"
     r"|semester|term))?)?|jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?"
@@ -146,11 +160,14 @@ _POSSESSIVE: Final = re.compile("[^\\W\\d_]+['\u2019]s")
 _SHOUTED: Final = re.compile(r"[^\W\d_]*(?:[A-Z]{2}|[a-z][A-Z]{2})[^\W\d_]*")
 """A word in capitals ("BOOK", "TNT") or with a run of them inside ("StEMI"): no name."""
 _TITLED_BEFORE: Final = re.compile(
-    r"\b(?:(?:dr|prof|mr|mrs|ms|mx)\.?|professor|speaker|presenter)\s{0,3}:?\s{0,3}$",
+    r"\b(?:(?-i:Dr|Prof|Mr|Mrs|Ms|Mx)\.?|professor|speaker|presenter)\s{0,3}:?\s{0,3}$",
     re.IGNORECASE,
 )
 """An honorific or a label in front of a name, which only a person has ("Dr. Jane Roe").
-Only an abbreviation takes a dot: "the speaker." ends a sentence and labels nothing."""
+Only an abbreviation takes a dot: "the speaker." ends a sentence and labels nothing. An
+abbreviation counts only in title case, so the degree "MS." that ends a sentence labels
+nothing either. A street ("Campus Dr.") that ends a sentence still reads as an honorific:
+that is a limit."""
 _INTRODUCED_BEFORE: Final = re.compile(
     r"\b(?:featuring|features?|welcomes?|by)\s{0,3}:?\s{0,3}$", re.IGNORECASE
 )
@@ -524,6 +541,10 @@ def _leading_person(text: str) -> _Candidate | None:
 
     Text after a comma must be a degree or name an organisation; otherwise
     the comma separates the words of a title ("Media Art, AI and the Self").
+    A quoted title marks the name in the same part or when it opens the
+    next one ('Jane Roe - "Coastal Futures"'), never across a further part:
+    in 'Bird Song | Jane Roe, "Coastal Futures"' it goes with Jane Roe, not
+    with Bird Song.
     """
     quote = _QUOTE.search(text)
     head = text[: quote.start()] if quote else text
@@ -535,7 +556,8 @@ def _leading_person(text: str) -> _Candidate | None:
     first, *parts = split_outside_brackets(head, COMMA)
     if any(not is_degree(part) and not _names_organisation(part) for part in parts):
         return None
-    marks = quote is not None or bool(parts) or _before_degree(first)
+    quoted = quote is not None and (separator is None or separator.end() == quote.start())
+    marks = quoted or bool(parts) or _before_degree(first)
     return _Candidate(
         person=person,
         marks=marks or _names_organisation(person.affiliation),
@@ -656,9 +678,23 @@ def _heads(title: str) -> list[str]:
 
 
 def _honours_a_person(title: str) -> bool:
-    """Whether a part of ``title`` in front of its last one is a memorial ("In Memoriam: Dr.
-    Jane Doe", "Physics Colloquium | In Memoriam | Dr. Jane Doe")."""
-    return any(_MEMORIAL.fullmatch(fold(head)) is not None for head in _heads(title))
+    """Whether a part of ``title`` in front of the name is a memorial ("In Memoriam: Dr. Jane
+    Doe", "Physics Colloquium | In Memoriam | Dr. Jane Doe").
+
+    The parts after the first one that starts with a marked name are the
+    talk title, so a memorial there keeps the speaker: "Seminar: Dr. Jane
+    Doe - In Memoriam: The Last Glacier". A name that nothing marks may be a
+    talk title itself ("Seminar | Bird Song | In Memoriam | Dr. Jane Doe"),
+    so a memorial after it still counts: "Seminar: Jane Doe - In Memoriam:
+    The Last Glacier" gives no speaker either.
+    """
+    for head in _heads(title):
+        if _MEMORIAL.fullmatch(fold(head)) is not None:
+            return True
+        candidate = _leading_person(head)
+        if candidate is not None and candidate.marked:
+            return False
+    return False
 
 
 def speakers_from_title(title: str, abstract: str | None = None) -> list[ParsedSpeaker]:

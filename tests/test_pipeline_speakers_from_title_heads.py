@@ -2,8 +2,10 @@
 
 A head that honours a person ("In Memoriam", "In Honor of", "Obituary", "Tribute",
 "Celebration of Life") names the person a memorial is for, not a speaker, so such a
-title gives no speaker at all. Every part in front of the last one is such a head,
-except inside a quoted talk title.
+title gives no speaker at all. Every part in front of the name is such a head, except
+inside a quoted talk title; the parts after the first one that starts with a marked
+name are the talk title, quoted or not. A name that nothing marks may be a talk title
+itself, so a memorial after it still gives no speaker.
 A head that is only a term, a month or a year ("Spring 2025", "Jan. 2025") is no series
 either, and an honorific in any part after it does not vouch for the name: an honorific
 goes with a person, not with a speaker.
@@ -48,6 +50,12 @@ OBITUARY = "Dr. Jane Doe was a professor of physics at MIT for forty years."
         "Celebrating the Life of: Dr. Jane Doe",
         "Celebrating Life of: Dr. Jane Doe",
         "Celebration of the Life of: Dr. Jane Doe",
+        "In Honor: Dr. Jane Doe",
+        "Honoring the Life of: Dr. Jane Doe",
+        "Remembering the Life of: Dr. Jane Doe",
+        "Celebrating the Life and Work of: Dr. Jane Doe",
+        "Celebration of the Life and Legacy of: Dr. Jane Doe",
+        "Honouring the Life: Dr. Jane Doe",
         '"In Memoriam": Dr. Jane Doe',
         # The first separator ends the head even after a quote that is never closed.
         '"In Memoriam: Dr. Jane Doe',
@@ -56,6 +64,11 @@ OBITUARY = "Dr. Jane Doe was a professor of physics at MIT for forty years."
         "Seminar Series: Tribute: Prof. Jane Doe",
         "Physics Colloquium | In Honor of | Jane Doe, PhD",
         "Seminar: In Memoriam - Jane Doe (MIT)",
+        # An unquoted talk title in front of the name cannot be told from a memorial head.
+        "Seminar | In Memoriam: The Last Glacier | Dr. Jane Doe",
+        # A topic in front of a memorial head reads like a name, but nothing marks it.
+        "Seminar | Bird Song | In Memoriam | Dr. Jane Doe",
+        "Seminar | Salt Marshes | In Memoriam | Dr. Jane Doe",
     ],
 )
 def test_a_head_that_honours_a_person_gives_no_speaker(title: str) -> None:
@@ -87,10 +100,37 @@ def test_a_memorial_that_names_a_series_keeps_its_speaker(title: str) -> None:
         'Seminar | "In Memoriam: The Last Glacier" | Dr. Jane Doe',
         'Seminar: "Tribute: Songs of the Sea" - Dr. Jane Doe',
         "Seminar | \u201cIn Memoriam: The Last Glacier\u201d | Dr. Jane Doe",
+        # After a marked name, the talk title keeps its memorial head, quoted or not.
+        "Seminar: Dr. Jane Doe - In Memoriam: The Last Glacier",
+        "Seminar: Dr. Jane Doe - Tribute: Songs of the Sea",
+        "Seminar: Dr. Jane Doe - 'Tribute: Songs of the Sea'",
+        "Seminar: Jane Doe, PhD - In Memoriam: The Last Glacier",
     ],
 )
 def test_a_memorial_in_the_talk_title_keeps_its_speaker(title: str) -> None:
     assert speakers_from_title(title) == [ParsedSpeaker("Jane Doe", None)]
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["Jane Doe (MIT): Tribute - Knots", "Seminar: Jane Doe (MIT) - In Memoriam: The Last Glacier"],
+)
+def test_a_memorial_after_a_name_and_its_organisation_keeps_its_speaker(title: str) -> None:
+    assert speakers_from_title(title) == [ParsedSpeaker("Jane Doe", "MIT")]
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Seminar: Jane Doe - In Memoriam: The Last Glacier",
+        "Colloquium: Jane Roe - Tribute: Dr. Jane Doe",
+        "Jane Doe: In Memoriam - Knots",
+    ],
+)
+def test_a_memorial_after_an_unmarked_name_gives_no_speaker(title: str) -> None:
+    """A name that nothing marks may be a talk title in front of the memorial head ("Bird
+    Song"), so the memorial counts: precision before recall."""
+    assert speakers_from_title(title) == []
 
 
 @pytest.mark.parametrize(

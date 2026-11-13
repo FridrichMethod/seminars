@@ -366,10 +366,11 @@ def llm_issue_body(provider: str, history: LLMProviderHealth) -> str:
         "- Then check: run the `update` workflow by hand with mode `llm-smoke`",
         f"- Details: {CREDENTIAL_DOCS}",
         "",
-        "The pipeline goes on without this provider: it uses the next one of the chain, or "
-        "rules only when none is left. This issue is updated by every run that asks the "
-        "provider, and closed automatically when the provider answers again, when another "
-        "provider of the chain answers instead, or when the provider leaves the chain.",
+        "The pipeline goes on without this provider: it uses the next one of the chain, or, "
+        "when none is left, the answers stored by earlier runs and the rules. This issue is "
+        "updated by every run that asks the provider, and closed automatically when the "
+        "provider answers again, when another provider of the chain answers instead, or when "
+        "the provider leaves the chain.",
     ]
     return "\n".join(lines) + "\n"
 

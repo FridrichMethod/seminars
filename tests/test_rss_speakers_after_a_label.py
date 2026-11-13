@@ -175,6 +175,46 @@ class TestTheBioOfASystemXSpeaker:
                 ("Ann Lee", "Stanford University"),
                 id="in and a lowercase word after the affiliation",
             ),
+            pytest.param(
+                "Ann Lee is a Professor at Stanford Univ.",
+                ("Ann Lee", "Stanford Univ"),
+                id="an abbreviation at the end of the line",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Stanford Univ., where she studies chips.",
+                ("Ann Lee", "Stanford Univ"),
+                id="an abbreviation before a comma",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Stanford Univ.; she studies chips.",
+                ("Ann Lee", "Stanford Univ"),
+                id="an abbreviation before a semicolon",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Stanford Univ. (Palo Alto).",
+                ("Ann Lee", "Stanford Univ"),
+                id="an abbreviation before a bracket",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Mount St.",
+                ("Ann Lee", "Mount St"),
+                id="the abbreviation St at the end of the line",
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Washington U.",
+                ("Ann Lee", "Washington U"),
+                id="a single capital at the end of the line",
+            ),
+            pytest.param(
+                "Ann Lee is a Scientist at Apple Inc. She builds chips.",
+                ("Ann Lee", "Apple Inc"),
+                id="the abbreviation Inc ends the sentence",
+            ),
+            pytest.param(
+                "Ann Lee is a Postdoc at the Media Lab. She builds chips.",
+                ("Ann Lee", "Media Lab"),
+                id="the word Lab ends the sentence",
+            ),
         ],
     )
     def test_a_bio_names_the_speaker_and_the_whole_affiliation(
@@ -209,6 +249,22 @@ class TestTheBioOfASystemXSpeaker:
             pytest.param("Ann Lee is a Professor at Mt. Sinai Hospital.", id="the abbreviation Mt"),
             pytest.param(
                 "Ann Lee is a Professor at U.C. Berkeley.", id="an abbreviated university"
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Univ. College London.", id="the abbreviation Univ"
+            ),
+            pytest.param(
+                "Ann Lee is a Professor at Johns Hopkins Univ. School of Medicine.",
+                id="the abbreviation Univ inside the affiliation",
+            ),
+            pytest.param(
+                "Ann Lee is a Scientist at Argonne Natl. Laboratory.", id="the abbreviation Natl"
+            ),
+            pytest.param(
+                "Ann Lee is a Scientist at the Allen Inst. Seattle.", id="the abbreviation Inst"
+            ),
+            pytest.param(
+                "Ann Lee is a Lecturer at the EECS Dept. UC Berkeley.", id="the abbreviation Dept"
             ),
         ],
     )
