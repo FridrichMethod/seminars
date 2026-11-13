@@ -4,7 +4,8 @@ A title after a series can hold two parts that both read like a name ("Seminar: 
 Roe - Ocean Mixing"), and one of them is the talk title. What tells them apart is a
 mark that goes with the name in the title (an honorific, a degree, an organisation)
 and how the abstract speaks of each part. An organisation named after a part ("the
-Ocean Mixing Lab") shows that the part is a topic or a group, not a person.
+Ocean Mixing Lab") shows only that the part is no person: a lab is named after a
+person as well as after a topic, so it never tells that the other part is one.
 """
 
 from __future__ import annotations
@@ -23,12 +24,10 @@ JANE_ROE = [ParsedSpeaker("Jane Roe", None)]
         ("Seminar: Jane Roe - Human Rights", "Organized by the Human Rights Center."),
         ("Geophysics Seminar: Jane Roe - Ice Sheets", "Join the Ice Sheets Lab for a talk."),
         ("Seminar: Jane Roe - Global Health", "The Global Health Foundation supports this talk."),
-        ("Seminar: Jane Roe - Ocean Mixing", "Ocean Mixing Lab members will attend."),
-        ("Seminar: Jane Roe - Ocean Mixing", "The Ocean Mixing Institute hosts the series."),
         ("Seminar: Jane Roe - Public Health", "Public Health received a new grant."),
     ],
 )
-def test_an_organisation_named_after_the_talk_title_leaves_the_speaker(
+def test_an_organisation_named_after_a_talk_title_of_a_topic_leaves_the_speaker(
     title: str, abstract: str
 ) -> None:
     assert speakers_from_title(title, abstract) == JANE_ROE
@@ -43,14 +42,69 @@ def test_an_organisation_named_after_the_talk_title_leaves_the_speaker(
         ("Seminar: Ocean Mixing - Jane Roe", "Ocean Mixing Lab members will attend."),
         ("Seminar: Ocean Mixing - Jane Roe", "Sponsored by Ocean Mixing Lab."),
         # Between two parts, an organisation named after one tells only that it is no
-        # speaker: a lab is named after a person as well as after a topic.
+        # speaker: a lab is named after a person as well as after a topic, so the other
+        # part is a speaker only when it would be without the organisation.
         ("Seminar: Jane Roe - Ocean Mixing", "Jane Roe Lab members will attend."),
+        ("Seminar: Ocean Mixing - Jane Roe", "Jane Roe Lab members will attend."),
+        ("Seminar: Jane Roe - Ocean Mixing", "Ocean Mixing Lab members will attend."),
+        ("Seminar: Jane Roe - Ocean Mixing", "The Ocean Mixing Institute hosts the series."),
+        # An organisation is a whole word on the same line as the name: not "centered", and
+        # not the department line under a name in a speaker block.
+        ("Seminar: Bird Song - Jane Roe", "Jane Roe centered her career on songbirds."),
+        ("Seminar: Ocean Mixing - Jane Roe", "Jane Roe\nDepartment of Earth Sciences, MIT"),
     ],
 )
 def test_an_organisation_named_after_a_part_does_not_make_it_a_speaker(
     title: str, abstract: str
 ) -> None:
     assert speakers_from_title(title, abstract) == []
+
+
+@pytest.mark.parametrize(
+    ("title", "abstract", "name"),
+    [
+        # A speaker block: an honorific or a label in front of the name, the department or
+        # the institution on the next line, or run on to the name.
+        (
+            "Seminar: Ocean Mixing - Jane Roe",
+            "Dr. Jane Roe\nDepartment of Earth Sciences, MIT",
+            "Jane Roe",
+        ),
+        (
+            "Seminar: Ocean Mixing - Jane Roe",
+            "Speaker: Jane Roe\nUniversity of Toronto",
+            "Jane Roe",
+        ),
+        (
+            "Seminar: Ocean Mixing - Jane Roe",
+            "Dr. Jane Roe Department of Earth Sciences",
+            "Jane Roe",
+        ),
+        (
+            "Seminar: Salt Marshes - Jane Roe",
+            "Prof. Jane Roe\nInstitute of Oceanography",
+            "Jane Roe",
+        ),
+        ("Seminar: Jane Roe - John Doe", "Dr. John Doe\nDepartment of Physics", "John Doe"),
+        (
+            "Seminar: Jane Roe - Ocean Mixing",
+            "Dr. Jane Roe\nDepartment of Earth Sciences, MIT",
+            "Jane Roe",
+        ),
+        # A name of common words only, which needs its abstract.
+        ("Seminar: Coral Banks", "Dr. Coral Banks\nDepartment of Earth Sciences", "Coral Banks"),
+        ("Seminar: River Stone", "Dr. River Stone\nUniversity of Utah", "River Stone"),
+        (
+            "Seminar: River Stone",
+            "Speaker: River Stone Department of Earth Sciences, University of Utah",
+            "River Stone",
+        ),
+    ],
+)
+def test_an_honorific_or_a_label_in_front_of_the_name_names_the_person_before_an_organisation(
+    title: str, abstract: str, name: str
+) -> None:
+    assert speakers_from_title(title, abstract) == [ParsedSpeaker(name, None)]
 
 
 @pytest.mark.parametrize(
