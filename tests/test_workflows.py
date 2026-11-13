@@ -1569,10 +1569,9 @@ def test_relative_links_point_to_files_of_the_repository(path: str) -> None:
         assert resolved.exists() or relative in OTHER_NODES_DOCS, (path, target)
 
 
-def test_numbers_known_only_at_release_are_marked_in_both_readmes() -> None:
-    count = doc("README.md").count(PLACEHOLDER_EN)
-    assert count > 0
-    assert doc("README.zh-CN.md").count(PLACEHOLDER_ZH) == count
+def test_no_value_is_left_to_be_filled_in_at_release() -> None:
+    assert PLACEHOLDER_EN not in doc("README.md")
+    assert PLACEHOLDER_ZH not in doc("README.zh-CN.md")
 
 
 @pytest.mark.parametrize("path", ["README.md", "README.zh-CN.md"])

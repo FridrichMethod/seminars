@@ -24,28 +24,33 @@ to at least one field.
 
 | Feed | Contents | Subscribe |
 |---|---|---|
-| `all` | Every talk collected from Stanford, SLAC, CZ Biohub and nearby institutes | (filled in at release) |
-| `picks` | Talks that match the personal interest rules (`config/interests.yaml`) | (filled in at release) |
-| `math` | Pure mathematics, applied mathematics and statistics | (filled in at release) |
-| `cs` | Computer science | (filled in at release) |
-| `ai-ml` | Artificial intelligence and machine learning | (filled in at release) |
-| `chem` | Chemistry and chemical engineering | (filled in at release) |
-| `bio` | Biology, bioengineering, structural biology and genetics | (filled in at release) |
-| `physics` | Physics and applied physics | (filled in at release) |
-| `med` | Medicine and biomedical research | (filled in at release) |
+| `all` | Every talk collected from Stanford, SLAC, CZ Biohub and nearby institutes | [all.ics](https://fridrichmethod.github.io/seminars/feeds/all.ics) |
+| `picks` | Talks that match the personal interest rules (`config/interests.yaml`) | [picks.ics](https://fridrichmethod.github.io/seminars/feeds/picks.ics) |
+| `math` | Pure mathematics, applied mathematics and statistics | [math.ics](https://fridrichmethod.github.io/seminars/feeds/math.ics) |
+| `cs` | Computer science | [cs.ics](https://fridrichmethod.github.io/seminars/feeds/cs.ics) |
+| `ai-ml` | Artificial intelligence and machine learning | [ai-ml.ics](https://fridrichmethod.github.io/seminars/feeds/ai-ml.ics) |
+| `chem` | Chemistry and chemical engineering | [chem.ics](https://fridrichmethod.github.io/seminars/feeds/chem.ics) |
+| `bio` | Biology, bioengineering, structural biology and genetics | [bio.ics](https://fridrichmethod.github.io/seminars/feeds/bio.ics) |
+| `physics` | Physics and applied physics | [physics.ics](https://fridrichmethod.github.io/seminars/feeds/physics.ics) |
+| `med` | Medicine and biomedical research | [med.ics](https://fridrichmethod.github.io/seminars/feeds/med.ics) |
 
-Each feed is the file `feeds/<feed>.ics` of the web site. Every event keeps a stable
-identifier, so a changed title or time updates the event in your calendar instead of
-adding a second one. Talks that a source lists without an id or a page of their own
-are recognised by their day, people and title. When such a talk moves and changes its
-title or speakers in the same update, moves by more than 60 days, or two similar talks
-of one speaker change at once, your calendar can show it twice for up to two days.
+Each feed is the file `feeds/<feed>.ics` of the web site; the table links its
+`https://` address, and the section Subscribe lists its `webcal://` address. Every
+event keeps a stable identifier, so a changed title or time updates the event in your
+calendar instead of adding a second one. Talks that a source lists without an id or a
+page of their own are recognised by their day, people and title. When such a talk moves
+and changes its title or speakers in the same update, moves by more than 60 days, or two
+similar talks of one speaker change at once, your calendar can show it twice for up to
+two days.
 
 ### Web site
 
-The site lists the upcoming talks in time order, with filters by field and by source
-and a full-text search. It is available in English and Chinese. Its status page shows
-when the last update ran and how each source did.
+The site at
+[https://fridrichmethod.github.io/seminars/](https://fridrichmethod.github.io/seminars/)
+lists the upcoming talks in time order, with filters by field and by source and a
+full-text search. It is available in English and Chinese. Its
+[status page](https://fridrichmethod.github.io/seminars/status.html) shows when the last
+update ran and how each source did.
 
 ### Weekly digest
 
@@ -56,7 +61,20 @@ issue is closed.
 ## Subscribe
 
 Use the address of a feed with `webcal://` in place of `https://`; most calendar apps
-then subscribe instead of importing once.
+then subscribe instead of importing once. GitHub does not turn `webcal://` addresses
+into links, so here they are to copy:
+
+```
+webcal://fridrichmethod.github.io/seminars/feeds/all.ics
+webcal://fridrichmethod.github.io/seminars/feeds/picks.ics
+webcal://fridrichmethod.github.io/seminars/feeds/math.ics
+webcal://fridrichmethod.github.io/seminars/feeds/cs.ics
+webcal://fridrichmethod.github.io/seminars/feeds/ai-ml.ics
+webcal://fridrichmethod.github.io/seminars/feeds/chem.ics
+webcal://fridrichmethod.github.io/seminars/feeds/bio.ics
+webcal://fridrichmethod.github.io/seminars/feeds/physics.ics
+webcal://fridrichmethod.github.io/seminars/feeds/med.ics
+```
 
 A talk that belongs to several fields is in the feed of each of them, and a calendar
 app shows a talk once per feed: subscribed to two of those feeds, it shows the talk
@@ -85,13 +103,90 @@ works, but then later changes do not arrive.
 
 ## Coverage
 
-The numbers below are measured on the first public run.
+The numbers below are measured on the first public run, which started on 2026-11-12 at
+23:06 Pacific time. "Next four weeks" counts the talks that had not ended by then and
+start within 28 days of it. The status page of the web site always shows the current
+state of every source.
 
-- Sources and their state: (filled in at release)
-- Talks in the next four weeks, per feed: (filled in at release)
-- Known gaps: (filled in at release)
+### Sources and their state
 
-The status page of the web site always shows the current state of every source.
+32 of the 42 configured sources are enabled. In the first public run 29 of them delivered
+talks, 1 was empty and 2 failed, and 348 talks were stored. A talk that several sources
+list counts once for each of them in this table.
+
+| Source | Group | State | Next four weeks |
+|---|---|---|---:|
+| Stanford Events (`localist-stanford`) | `localist` | ok | 43 |
+| Stanford AIMI (`sites-aimi`) | `stanford-sites` | ok | 3 |
+| Stanford Biochemistry (`sites-biochemistry`) | `stanford-sites` | ok | 3 |
+| Stanford Biology (`sites-biology`) | `stanford-sites` | ok | 4 |
+| Stanford Chemical Engineering (`sites-cheme`) | `stanford-sites` | ok | 2 |
+| Stanford ChEM-H (`sites-chemh`) | `stanford-sites` | ok | 4 |
+| Stanford Chemistry (`sites-chemistry`) | `stanford-sites` | ok | 6 |
+| Stanford ICME (`sites-icme`) | `stanford-sites` | ok | 2 |
+| Stanford Mathematics (`sites-mathematics`) | `stanford-sites` | ok | 20 |
+| Stanford Mathematics Research Center (`sites-mrc`) | `stanford-sites` | ok | 0 |
+| Stanford Materials Science and Engineering (`sites-mse`) | `stanford-sites` | ok | 2 |
+| Stanford Physics (`sites-physics`) | `stanford-sites` | ok | 2 |
+| Stanford Statistics (`sites-statistics`) | `stanford-sites` | ok | 6 |
+| Stanford SystemX Alliance (`sites-systemx`) | `stanford-sites` | ok | 1 |
+| AI + Data for Science Seminar (`custom-ai4science`) | `stanford-custom` | ok | 2 |
+| Stanford Chemical and Systems Biology Events (`custom-csb-events`) | `stanford-custom` | ok | 2 |
+| Stanford Workshop in Biomedical Data Science (`custom-dbds-workshop`) | `stanford-custom` | failed: robots.txt timed out from GitHub | 0 |
+| Stanford HAI Events (`custom-hai-events`) | `stanford-custom` | ok | 3 |
+| Stanford ISL Colloquium (`custom-isl-colloquium`) | `stanford-custom` | ok | 2 |
+| Stanford MLSys Seminar (`custom-mlsys-seminar`) | `stanford-custom` | empty: every talk on its page is past | 0 |
+| Stanford NLP Seminar (`custom-nlp-seminar`) | `stanford-custom` | failed: robots.txt timed out from GitHub | 0 |
+| Stanford RAIN/OR Seminar (`custom-rain-seminar`) | `stanford-custom` | ok | 3 |
+| Stanford Synthetic Biology Events (`custom-synbio-events`) | `stanford-custom` | ok | 1 |
+| Stanford CS Theory Lunch (`custom-theory-lunch`) | `stanford-custom` | ok | 3 |
+| Topos Institute Colloquium (`rsorg-topos-colloquium`) | `researchseminars` | ok | 3 |
+| Biohub events (`bayarea-biohub`) | `bayarea` | ok | 1 |
+| Condensed Matter Physics Seminars (GLAM) (`bayarea-glam`) | `bayarea` | ok | 3 |
+| KIPAC Seminars and Events (`bayarea-kipac`) | `bayarea` | ok | 12 |
+| Leinweber Institute for Theoretical Physics (LITP, formerly SITP) seminars (`bayarea-litp`) | `bayarea` | ok | 4 |
+| SLAC Photon Science Seminar Series (Stanford PULSE Institute) (`bayarea-pulse`) | `bayarea` | ok | 1 |
+| Q-FARM Seminars and Events (`bayarea-qfarm`) | `bayarea` | ok | 5 |
+| SLAC Colloquium Series (`bayarea-slac-colloquium`) | `bayarea` | ok | 3 |
+
+### Talks per feed
+
+"In the feed" counts every talk that the feed held after the run: those of the last 14
+days and of the next 120.
+
+| Feed | Next four weeks | In the feed |
+|---|---:|---:|
+| `all` | 133 | 348 |
+| `picks` | 14 | 31 |
+| `math` | 35 | 92 |
+| `cs` | 20 | 49 |
+| `ai-ml` | 24 | 62 |
+| `chem` | 16 | 37 |
+| `bio` | 33 | 95 |
+| `physics` | 38 | 95 |
+| `med` | 31 | 86 |
+
+### Known gaps
+
+- Not collected: Bio-X answers automated requests with HTTP 403, and the Information
+  Theory Forum is turned off (nearly dormant; its list gives no year). The SAIL events
+  and the Theory Seminar are published only on Google Calendar, whose robots.txt forbids
+  fetching the feeds. Arc Institute has no public seminar calendar. Talks outside the
+  seven fields (for example earth and planetary sciences) are out of scope.
+- The DBDS workshop and the NLP seminar may fail from GitHub's runners, which cannot
+  always reach their robots.txt; both work from Stanford's network. The status page
+  shows such a failure, and three in a row open a `source-broken` issue.
+- The MLSys seminar comes back empty while its page announces no new talk.
+- Speakers and affiliations read from free text favour precision: a missing speaker is
+  preferred to a wrong one.
+- Without an LLM, fields are tagged by rules only: of the talks in the seven fields that
+  the campus calendar lists, the rules recognise about 75 percent, and with the LLM
+  tagger about 96 percent. A run sends the LLM at most 60 requests, so an empty cache
+  of its answers fills over a few runs.
+- A talk that is deleted and comes back starts again at `SEQUENCE:0`.
+
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) describes these limits and the others in
+detail.
 
 ## How the daily update works
 
@@ -222,6 +317,15 @@ src/seminars/      the package: sources/, pipeline/, classify/, llm/, outputs/, 
 tests/             tests, and fixtures/ with recorded pages of every source
 .github/workflows/ ci.yml, update.yml, digest.yml
 ```
+
+## Documentation
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how the project is built, what one run
+  does, and the known limits.
+- [docs/ADDING_A_SOURCE.md](docs/ADDING_A_SOURCE.md): how to add a source.
+- [docs/LLM_CREDENTIALS.md](docs/LLM_CREDENTIALS.md): the LLM providers and their
+  credentials.
+- [CHANGELOG.md](CHANGELOG.md): what each release contains.
 
 ## License and data
 
