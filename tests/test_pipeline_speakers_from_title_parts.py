@@ -65,3 +65,31 @@ def test_an_organisation_named_after_a_part_does_not_make_it_a_speaker(
 )
 def test_the_abstract_still_names_the_speaker(title: str, abstract: str) -> None:
     assert speakers_from_title(title, abstract) == JANE_ROE
+
+
+@pytest.mark.parametrize(
+    ("title", "people"),
+    [
+        # An honorific, a degree or an organisation in brackets goes with a person only.
+        ("Seminar: Dr. Jane Doe - Ocean Mixing", [("Jane Doe", None)]),
+        ("Seminar: Prof. Jane Roe - Ocean Mixing", [("Jane Roe", None)]),
+        ("Seminar: Professor Jane Roe - Ocean Mixing", [("Jane Roe", None)]),
+        ("Seminar: Jane Roe PhD - Ocean Mixing", [("Jane Roe", None)]),
+        ("Grand Rounds: Jane Roe MD - Ocean Mixing", [("Jane Roe", None)]),
+        ("Seminar: Jane Roe (MIT) - Ocean Mixing", [("Jane Roe", "MIT")]),
+        ("Seminar: Public Health - Jane Roe (MIT)", [("Jane Roe", "MIT")]),
+        ("Seminar: Public Health - Dr. Jane Roe", [("Jane Roe", None)]),
+        ("Seminar: Ocean Mixing - Jane Roe PhD", [("Jane Roe", None)]),
+        ("Seminar | Ocean Mixing in the Arctic | Dr. Jane Roe", [("Jane Roe", None)]),
+        # Brackets that name no organisation, a name suffix and nothing at all are no mark:
+        # "II" ends a part of a series as well.
+        ("Seminar: Jane Roe (she/her) - Ocean Mixing", []),
+        ("Seminar: Ocean Mixing II - Jane Roe", []),
+        ("Seminar: Jane Roe - Ocean Mixing", []),
+    ],
+)
+def test_a_mark_that_goes_with_a_name_tells_the_speaker(
+    title: str, people: list[tuple[str, str | None]]
+) -> None:
+    found = speakers_from_title(title)
+    assert found == [ParsedSpeaker(name, affiliation) for name, affiliation in people]

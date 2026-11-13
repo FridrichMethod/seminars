@@ -58,21 +58,23 @@ spaces around it). A name there must read like a person and hold none of
 the words of a series ("Seminar", "Lecture", "Grand Rounds", "Defense",
 ...), of a placeholder ("Speaker TBA") or of a talk title ("New", "And",
 "Beyond"), because "Norton Lecture" and "Quantum Computing" read like
-names as well. Then the form must vouch for it:
+names as well. Then the form must vouch for it. A mark that goes with the
+name is an honorific ("Dr. Jane Doe"), a degree ("Jane Doe PhD", "Jane
+Doe, MD"), an organisation in brackets or after a comma, or a quoted title
+after it; a name suffix is none ("Knots II"):
 
 * series first ("<series>: <name>[, <affiliation>][ - "<title>"]"): the
-  part in front is a series, or the name is followed by a degree, a quoted
-  title or a further part, or the abstract names the person. When nothing
-  marks the name and the next part reads like a name as well, either one
-  can be the talk title ("Seminar: Public Health - Jane Roe"): the speaker
-  is the one that does not read like a topic and that the abstract names,
-  else the second when a mark goes with it, else the first when the
-  second reads like a topic or the abstract names an organisation after
-  it ("the Ocean Mixing Lab"), else nobody;
+  part in front is a series, or a mark goes with the name, or the abstract
+  names the person. When nothing marks the name and the next part reads
+  like a name as well, either one can be the talk title ("Seminar: Public
+  Health - Jane Roe"): the speaker is the one that does not read like a
+  topic and that the abstract names, else the second when a mark goes
+  with it, else the first when the second reads like a topic or the
+  abstract names an organisation after it ("the Ocean Mixing Lab"), else
+  nobody;
 * series, talk title, then the name ("<series> | <title> | <name>,
   <affiliation>"): the part in front is a series and the last part is a
-  person followed by a degree or an organisation, or whom the abstract
-  names;
+  person with a mark, or whom the abstract names;
 * name first ("<name>: <title>", "<name> (<affiliation>): <title>"): the
   rest does not start with a name as well, and the affiliation in
   brackets names an organisation or the abstract names the person;
@@ -376,6 +378,9 @@ of Biology"), and an institution run on to the name ("Jane DoeUniversity of Toro
 _ORGANISATION_AFTER: Final = re.compile(rf"\s{{1,3}}{_ORGANISATION_WORD}", re.IGNORECASE)
 """An organisation named after the name before it: after a person ("the Jane Doe Lab") or
 after a topic ("the Public Health Department", "the Ocean Mixing Lab")."""
+_HONORIFIC: Final = re.compile(r"(?:dr|prof|professor|mr|mrs|ms|mx|sir|dame)\b\.?\s", re.IGNORECASE)
+_NAME_SUFFIXES: Final = word_set("jr sr ii iii iv")
+"""Suffixes of a name that end a part of a series as well ("Knots II"): no mark of a person."""
 _GERUND: Final = re.compile(r"[A-Z][a-z]{3,}ing\b")
 """A first word that is a verb in "-ing" of at least seven letters ("Navigating")."""
 _TOPIC_WORDS: Final = word_set(
@@ -684,6 +689,15 @@ def _title_person(text: str) -> ParsedSpeaker | None:
     return ParsedSpeaker(name=person.name, affiliation=", ".join(kept) or None)
 
 
+def _titled(text: str) -> bool:
+    """Whether a name comes with an honorific or a degree: "Dr. Jane Doe", "Jane Doe PhD"."""
+    words = _bare(_LABEL.sub("", text)).split()
+    if _HONORIFIC.match(" ".join(words) + " "):
+        return True
+    last = words[-1] if len(words) > 2 else ""
+    return is_degree(last) and last.rstrip(".").casefold() not in _NAME_SUFFIXES
+
+
 def _leading_person(text: str) -> _Candidate | None:
     """The person a part of a title starts with: a name, an affiliation, then a title.
 
@@ -697,11 +711,11 @@ def _leading_person(text: str) -> _Candidate | None:
     person = _title_person(head) if head else None
     if person is None:
         return None
-    parts = _split(head, _COMMA)[1:]
+    first, *parts = _split(head, _COMMA)
     if any(not is_degree(part) and not _names_organisation(part) for part in parts):
         return None
-    marked = quote is not None or bool(parts)
-    return _Candidate(person=person, marked=marked)
+    marked = quote is not None or bool(parts) or _titled(first)
+    return _Candidate(person=person, marked=marked or _names_organisation(person.affiliation))
 
 
 def _rival(tail: str) -> _Candidate | None:
