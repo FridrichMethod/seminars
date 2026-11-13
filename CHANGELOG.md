@@ -4,6 +4,18 @@ All notable changes of this project are recorded in this file. The format follow
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version numbers follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **Download of selected talks** on the web site: every listed talk has a checkbox, and a
+  bar above the list offers Select all shown, Clear selection and Download selected
+  (.ics). The download saves `seminars-selected.ics`, a calendar for a one-time import
+  with the selected talks, also those that the filters hide; `site/calendar.js` copies
+  their events unchanged, with the same UIDs, from `feeds/all.ics`. The selection is held
+  in memory only. The README says how to import the file in Apple Calendar, Google
+  Calendar and Outlook, and that a subscription, unlike the file, receives later changes.
+
 ## v0.1.0 - 2026-11-13
 
 The first release: academic seminars of Stanford, SLAC, CZ Biohub and other nearby
