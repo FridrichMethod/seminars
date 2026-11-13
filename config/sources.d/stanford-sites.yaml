@@ -761,12 +761,15 @@ sources:
       # and a symposium, have no series prefix). The series is the prefix up to the first
       # colon, and it ends in a word that names a series, so a talk title with a colon
       # is not read as one. A degree after the name ("Nigam Shah, MBBS, PhD") stays
-      # outside the speaker group. In the order of the patterns:
+      # outside the speaker group, and the first two patterns need at least one: every
+      # recorded title that names a speaker has one, and without it the part after a
+      # dash is as often the rest of the talk title ("Deep Learning for MRI - Part 2").
+      # In the order of the patterns:
       #   "<series>: <talk title> - <speaker>, <degrees>"
       #   "<series>: <speaker>, <degrees>" (no talk title yet; the title stays as it is)
       #   "<series>: <talk title>" ("AIMI Grand Rounds: TBA")
       title_patterns:
-        - '^(?P<series>[^:]*\b(?:Seminar|Colloquium|Rounds|Lecture|Series|Forum)s?):\s*(?P<title>.+)\s+-\s+(?P<speaker>[^,]+?)(?:\s*,\s*(?:MD|PhD|MBBS|MPH|MS|MSc|MA|MBA|JD|DrPH|ScD|DPhil|FACS|RN|PharmD|DO))*\s*$'
+        - '^(?P<series>[^:]*\b(?:Seminar|Colloquium|Rounds|Lecture|Series|Forum)s?):\s*(?P<title>.+)\s+-\s+(?P<speaker>[^,]+?)(?:\s*,\s*(?:MD|PhD|MBBS|MPH|MS|MSc|MA|MBA|JD|DrPH|ScD|DPhil|FACS|RN|PharmD|DO))+\s*$'
         - '^(?P<series>[^:]*\b(?:Seminar|Colloquium|Rounds|Lecture|Series|Forum)s?):\s*(?P<speaker>[A-Z][\w.''-]*(?:\s+[A-Z][\w.''-]*){1,3})(?:\s*,\s*(?:MD|PhD|MBBS|MPH|MS|MSc|MA|MBA|JD|DrPH|ScD|DPhil|FACS|RN|PharmD|DO))+\s*$'
         - '^(?P<series>[^:]*\b(?:Seminar|Colloquium|Rounds|Lecture|Series|Forum)s?):\s*(?P<title>.+?)\s*$'
     research:
@@ -815,13 +818,13 @@ sources:
         Workshop: workshop
         PhD Defense: defense
         Seminar: seminar
-      # Optional hint, matches the 3 colloquia of the fixture. The title of a colloquium
+      # Optional hints, match the 3 colloquia of the fixture. The title of a colloquium
       # is "MSE Colloquium: <speaker>" and stays so (the site never shows a talk title);
-      # "MSE Colloquium: Speaker TBA" names nobody and has no title yet.
+      # "MSE Colloquium: Speaker TBA", the usual state of the next colloquia, names
+      # nobody and has no title yet, but it is still the colloquium (the first pattern).
       title_patterns:
+        - '^(?P<series>MSE Colloquium):\s*(?:Speaker\s+)?(?P<title>TBA|TBD)\s*$'
         - '^(?P<series>MSE Colloquium):\s*(?!(?:Speaker\s+)?(?:TBA|TBD)\b)(?P<speaker>[^:]+?)\s*$'
-      tba_title_patterns:
-        - '^MSE Colloquium:\s*(?:Speaker\s+)?(?:TBA|TBD)\s*$'
     research:
       verified: 2026-11-12
       sample_events: 4

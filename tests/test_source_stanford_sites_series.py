@@ -151,6 +151,8 @@ class TestAimi:
         [
             "Foundation Models: A Survey - Jane Doe, PhD",  # no series word before the colon
             "Data Science Seminar: Jane Doe, Google",  # an affiliation is no degree
+            "IBIIS-AIMI Seminar: Deep Learning for MRI - Part 2",  # no degree: no speaker
+            "AIMI Grand Rounds: AI in radiology - a primer",
         ],
     )
     def test_a_title_only_partly_like_the_pattern_keeps_its_parts(self, title: str) -> None:
@@ -215,6 +217,7 @@ class TestMse:
         drafts = adapter.parse(adapter.fetch(http, source, window=make_window(NOW)), source)
         talk = on(drafts, datetime(2026, 12, 2, 11, 30, tzinfo=PST))
         assert talk.title == TBA_TITLE
+        assert talk.series == "MSE Colloquium"
         assert talk.speakers == []
 
     def test_the_page_of_a_colloquium_has_nothing_the_card_lacks(self) -> None:
