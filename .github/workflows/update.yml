@@ -166,7 +166,9 @@ jobs:
         if: env.HAS_CLAUDE_TOKEN == 'true'
         # The LLM is optional: whatever goes wrong here is a warning, and the provider
         # chain goes on without Claude Code. The runner is linux-x64, so the binary is
-        # the one of @anthropic-ai/claude-code-linux-x64.
+        # the one of @anthropic-ai/claude-code-linux-x64. npm does not hoist the
+        # dependencies of a global package, so that platform package sits below the CLI
+        # package; the top of the global modules is the fallback.
         run: |
           if ! version="$(uv run --locked python -c 'from pathlib import Path; from seminars.config import load_llm_config; print(load_llm_config(Path("config/llm.yaml")).cli_versions.get("claude-cli") or "")')"; then
             echo "::warning::The claude-cli version could not be read from config/llm.yaml; Claude Code is not installed and the provider chain goes on without it."
@@ -180,8 +182,20 @@ jobs:
             echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
             exit 0
           fi
-          native="$(npm root --global)/@anthropic-ai/claude-code-linux-x64/claude"
-          if [ ! -x "${native}" ] || ! ln -sf "${native}" "$(npm prefix --global)/bin/claude" || ! claude --version; then
+          if ! modules="$(npm root --global)"; then
+            echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
+            exit 0
+          fi
+          native=""
+          for candidate in \
+            "${modules}/@anthropic-ai/claude-code/node_modules/@anthropic-ai/claude-code-linux-x64/claude" \
+            "${modules}/@anthropic-ai/claude-code-linux-x64/claude"; do
+            if [ -x "${candidate}" ]; then
+              native="${candidate}"
+              break
+            fi
+          done
+          if [ -z "${native}" ] || ! ln -sf "${native}" "$(npm prefix --global)/bin/claude" || ! claude --version; then
             echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
             exit 0
           fi
@@ -460,7 +474,9 @@ jobs:
         if: env.HAS_CLAUDE_TOKEN == 'true'
         # The LLM is optional: whatever goes wrong here is a warning, and the provider
         # chain goes on without Claude Code. The runner is linux-x64, so the binary is
-        # the one of @anthropic-ai/claude-code-linux-x64.
+        # the one of @anthropic-ai/claude-code-linux-x64. npm does not hoist the
+        # dependencies of a global package, so that platform package sits below the CLI
+        # package; the top of the global modules is the fallback.
         run: |
           if ! version="$(uv run --locked python -c 'from pathlib import Path; from seminars.config import load_llm_config; print(load_llm_config(Path("config/llm.yaml")).cli_versions.get("claude-cli") or "")')"; then
             echo "::warning::The claude-cli version could not be read from config/llm.yaml; Claude Code is not installed and the provider chain goes on without it."
@@ -474,8 +490,20 @@ jobs:
             echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
             exit 0
           fi
-          native="$(npm root --global)/@anthropic-ai/claude-code-linux-x64/claude"
-          if [ ! -x "${native}" ] || ! ln -sf "${native}" "$(npm prefix --global)/bin/claude" || ! claude --version; then
+          if ! modules="$(npm root --global)"; then
+            echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
+            exit 0
+          fi
+          native=""
+          for candidate in \
+            "${modules}/@anthropic-ai/claude-code/node_modules/@anthropic-ai/claude-code-linux-x64/claude" \
+            "${modules}/@anthropic-ai/claude-code-linux-x64/claude"; do
+            if [ -x "${candidate}" ]; then
+              native="${candidate}"
+              break
+            fi
+          done
+          if [ -z "${native}" ] || ! ln -sf "${native}" "$(npm prefix --global)/bin/claude" || ! claude --version; then
             echo "::warning::Claude Code ${version} could not be installed; the provider chain goes on without it."
             exit 0
           fi

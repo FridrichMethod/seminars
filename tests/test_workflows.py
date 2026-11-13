@@ -764,30 +764,67 @@ STUB_LOGGER: Final = """#!/bin/sh
 printf '%s %s\\n' "$(basename "$0")" "$*" >> "$STUB_LOG"
 """
 
-STUB_NPM: Final = """#!/bin/sh
+PACKAGE: Final = "lib/node_modules/@anthropic-ai/claude-code"
+"""The CLI package of a global install, below the npm prefix."""
+
+NESTED_NATIVE: Final = f"{PACKAGE}/node_modules/@anthropic-ai/claude-code-linux-x64/claude"
+"""Where a global install puts the binary of the platform package: npm does not hoist the
+optional dependency of a global package, so it stays below the package."""
+
+HOISTED_NATIVE: Final = "lib/node_modules/@anthropic-ai/claude-code-linux-x64/claude"
+"""Where the binary is when the platform package is hoisted to the top of the modules."""
+
+PLACEHOLDER: Final = f"{PACKAGE}/bin/claude.exe"
+"""The command that the skipped install script of the package would replace."""
+
+STUB_NPM: Final = f"""#!/bin/sh
 printf 'npm %s\\n' "$*" >> "$STUB_LOG"
 case "$1" in
-  root) echo "$STUB_NPM_PREFIX/lib/node_modules" ;;
+  root)
+    echo "$STUB_NPM_PREFIX/lib/node_modules"
+    exit "${{STUB_NPM_ROOT_STATUS:-0}}"
+    ;;
   prefix) echo "$STUB_NPM_PREFIX" ;;
   install)
-    if [ -z "${STUB_NPM_NO_BINARY:-}" ]; then
-      native="$STUB_NPM_PREFIX/lib/node_modules/@anthropic-ai/claude-code-linux-x64/claude"
-      mkdir -p "$(dirname "$native")" "$STUB_NPM_PREFIX/bin"
+    placeholder="$STUB_NPM_PREFIX/{PLACEHOLDER}"
+    mkdir -p "$(dirname "$placeholder")" "$STUB_NPM_PREFIX/bin"
+    cp "$STUB_PLACEHOLDER" "$placeholder"
+    chmod 755 "$placeholder"
+    ln -sf "../{PLACEHOLDER}" "$STUB_NPM_PREFIX/bin/claude"
+    case "${{STUB_NPM_LAYOUT:-nested}}" in
+      nested) natives="{NESTED_NATIVE}" ;;
+      hoisted) natives="{HOISTED_NATIVE}" ;;
+      both) natives="{NESTED_NATIVE} {HOISTED_NATIVE}" ;;
+      *) natives="" ;;
+    esac
+    for relative in $natives; do
+      native="$STUB_NPM_PREFIX/$relative"
+      mkdir -p "$(dirname "$native")"
       cp "$STUB_NATIVE" "$native"
       chmod 755 "$native"
-    fi
-    exit "${STUB_NPM_STATUS:-0}"
+    done
+    exit "${{STUB_NPM_STATUS:-0}}"
     ;;
 esac
 """
-"""npm as far as the install step uses it: a global prefix, and an install that puts the
-binary of the platform package where the real one does (and runs no script)."""
+"""npm as far as the install step uses it: a global prefix, and an install that runs no
+script. Like the real global install it links ``claude`` to the placeholder of the package
+and puts the binary of the platform package below the package (STUB_NPM_LAYOUT=nested, the
+default); ``hoisted`` puts it at the top of the global modules instead, ``both`` in both
+places, and ``none`` nowhere. STUB_NPM_ROOT_STATUS and STUB_NPM_STATUS make ``npm root`` and
+the install fail."""
 
 STUB_NATIVE: Final = """#!/bin/sh
 printf 'native %s\\n' "$*" >> "$STUB_LOG"
 exit "${STUB_NATIVE_STATUS:-0}"
 """
 """The binary of the platform package, as the stub npm installs it."""
+
+STUB_PLACEHOLDER: Final = """#!/bin/sh
+printf 'placeholder %s\\n' "$*" >> "$STUB_LOG"
+exit 1
+"""
+"""The placeholder command of the package, which fails without its install script."""
 
 STUB_DAY: Final = "2026-11-02"
 STUB_DATE: Final = f"""#!/bin/sh
@@ -825,6 +862,8 @@ class Sandbox:
         self.stub("npm", STUB_NPM)
         self.native = root / "native-claude"
         self.native.write_text(STUB_NATIVE, encoding="utf-8")
+        self.placeholder = root / "placeholder-claude"
+        self.placeholder.write_text(STUB_PLACEHOLDER, encoding="utf-8")
         self.stub("claude", STUB_LOGGER)
         self.stub("date", STUB_DATE)
 
@@ -846,6 +885,7 @@ class Sandbox:
             "STUB_PYTHON": sys.executable,
             "STUB_NPM_PREFIX": str(self.npm_prefix),
             "STUB_NATIVE": str(self.native),
+            "STUB_PLACEHOLDER": str(self.placeholder),
             "RUNNER_TEMP": str(self.runner_temp),
             **extra,
         }
@@ -1357,15 +1397,29 @@ INSTALL_CALLS: Final = [INSTALL_CALL, "npm root --global", "npm prefix --global"
 
 @needs_shell
 @pytest.mark.parametrize("job_id", ["fetch", "llm-smoke"])
-def test_claude_code_is_installed_at_the_recorded_version(sandbox: Sandbox, job_id: str) -> None:
+@pytest.mark.parametrize(
+    ("layout", "native"),
+    [
+        # What a global install really produces: the platform package below the CLI.
+        ("nested", NESTED_NATIVE),
+        # The fallback, for an npm that hoists the platform package.
+        ("hoisted", HOISTED_NATIVE),
+        # The binary of the package just installed wins over one left at the top.
+        ("both", NESTED_NATIVE),
+    ],
+    ids=["nested", "hoisted", "both"],
+)
+def test_claude_code_is_installed_at_the_recorded_version(
+    sandbox: Sandbox, job_id: str, layout: str, native: str
+) -> None:
     work = sandbox.root / "work"
     claude_config(work, "2.1.322")
-    result = sandbox.run_step("update.yml", job_id, "claude", work)
+    result = sandbox.run_step("update.yml", job_id, "claude", work, {"STUB_NPM_LAYOUT": layout})
     assert result.status == 0, result.stdout
-    # "claude" on PATH is now the binary of the platform package.
+    assert "::warning" not in result.stdout
+    # "claude" on PATH is now the binary of the platform package, not the placeholder.
     assert result.calls[1:] == [*INSTALL_CALLS, "native --version"]
     linked = sandbox.npm_prefix / "bin" / "claude"
-    native = "lib/node_modules/@anthropic-ai/claude-code-linux-x64/claude"
     assert linked.resolve() == (sandbox.npm_prefix / native).resolve()
 
 
@@ -1389,9 +1443,15 @@ def test_claude_code_is_skipped_without_a_plain_recorded_version(
     ("broken", "calls"),
     [
         ({"STUB_NPM_STATUS": "1"}, [INSTALL_CALL]),
-        ({"STUB_NPM_NO_BINARY": "1"}, INSTALL_CALLS[:2]),
+        ({"STUB_NPM_LAYOUT": "none"}, INSTALL_CALLS[:2]),
+        ({"STUB_NPM_ROOT_STATUS": "1"}, INSTALL_CALLS[:2]),
         ({"STUB_NATIVE_STATUS": "1"}, [*INSTALL_CALLS, "native --version"]),
+        (
+            {"STUB_NPM_LAYOUT": "hoisted", "STUB_NATIVE_STATUS": "1"},
+            [*INSTALL_CALLS, "native --version"],
+        ),
     ],
+    ids=["install", "no-binary", "root", "version", "hoisted-version"],
 )
 def test_a_failed_claude_code_install_only_warns(
     sandbox: Sandbox, job_id: str, broken: dict[str, str], calls: list[str]

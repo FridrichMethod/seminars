@@ -729,17 +729,39 @@ COLORS = """() => {
   return [style.backgroundColor, style.color];
 }"""
 
+# The left edges of the labels (dt) and values (dd) of every fact list that is shown.
+FACT_COLUMNS = """() => [...document.querySelectorAll(".facts")].map((list) => {
+  const lefts = (tag) => [...list.children]
+    .filter((element) => element.tagName === tag && element.getClientRects().length > 0)
+    .map((element) => Math.round(element.getBoundingClientRect().left));
+  return { labels: lefts("DT"), values: lefts("DD") };
+})"""
+
+PAGES = ["index.html", "index.html?lang=zh", "status.html", "status.html?lang=zh"]
+
+# Text set wider than the fonts of this machine set it: a machine with other fonts (the
+# runner of the CI) lays the pages out with wider text, so the layout must leave room.
+WIDER_TEXT = "\n* { letter-spacing: 0.06em !important; }\n"
+
 
 def luminance(color: str) -> float:
     red, green, blue = (int(part) for part in re.findall(r"\d+", color)[:3])
     return (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255
 
 
+def widen_text(session: Session, site_dir: Path) -> None:
+    """Serve the stylesheet of the site with ``WIDER_TEXT`` appended, from its own address."""
+    css = (site_dir / "style.css").read_text(encoding="utf-8") + WIDER_TEXT
+
+    def fulfill(request_route: Any) -> None:
+        request_route.fulfill(status=200, content_type="text/css", body=css)
+
+    session.page.route("**/style.css", fulfill)
+
+
 class TestLayout:
     @pytest.mark.parametrize("scheme", ["light", "dark"])
-    @pytest.mark.parametrize(
-        "path", ["index.html", "index.html?lang=zh", "status.html", "status.html?lang=zh"]
-    )
+    @pytest.mark.parametrize("path", PAGES)
     def test_phone_width_has_no_horizontal_scroll(
         self, session: Callable[..., Session], path: str, scheme: str
     ) -> None:
@@ -752,6 +774,38 @@ class TestLayout:
             assert background < 0.2 < 0.7 < text
         else:
             assert text < 0.3 < 0.9 < background
+        current.assert_clean()
+
+    @pytest.mark.parametrize("scheme", ["light", "dark"])
+    @pytest.mark.parametrize("path", PAGES)
+    def test_phone_width_has_no_horizontal_scroll_with_wider_text(
+        self, session: Callable[..., Session], site_dir: Path, path: str, scheme: str
+    ) -> None:
+        current = session(viewport=PHONE, color_scheme=scheme)
+        widen_text(current, site_dir)
+        current.open(path)
+        assert current.page.evaluate("getComputedStyle(document.body).letterSpacing") != "normal"
+        result = current.page.evaluate(OVERFLOW)
+        assert result["scroll"] <= result["width"]
+        assert result["wide"] == []
+        current.assert_clean()
+
+    @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
+    @pytest.mark.parametrize("path", PAGES)
+    def test_every_value_of_a_fact_list_sits_in_the_value_column(
+        self, session: Callable[..., Session], path: str, viewport: dict[str, int]
+    ) -> None:
+        # A label can have several values (the reasons a source missed events); each one
+        # goes beside the labels, never into the column of the labels.
+        current = session(viewport=viewport).open(path)
+        lists = current.page.evaluate(FACT_COLUMNS)
+        assert lists
+        for columns in lists:
+            assert len(set(columns["labels"])) == 1, columns
+            assert len(set(columns["values"])) == 1, columns
+            assert columns["values"][0] > columns["labels"][0], columns
+        if path.startswith("status.html"):
+            assert any(len(columns["values"]) > len(columns["labels"]) for columns in lists)
         current.assert_clean()
 
     def test_desktop_puts_the_subscription_panel_beside_the_list(

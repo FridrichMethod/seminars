@@ -464,11 +464,15 @@ button:disabled {
   font-size: 0.95rem;
 }
 
+/* Labels in the first column and values in the second, also when a label has several
+   values: auto-placement alone would put a second value into the column of the labels. */
 .facts dt {
+  grid-column: 1;
   color: var(--muted);
 }
 
 .facts dd {
+  grid-column: 2;
   margin: 0;
   min-width: 0;
 }
