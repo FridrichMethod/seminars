@@ -183,8 +183,9 @@ sources:
       # is dropped for this run, never emitted under a fallback key: the slug of the
       # detail URL contains the title ("2026-10-22-talk-phil-bucksbaum"), so a URL key
       # would change when a TBA talk gets its title. When its detail page could not be
-      # fetched, the run counts the source as not read in full (like a refused
-      # request), so the dropped talk is not counted as missing from the source.
+      # fetched, the source counts as not read in full in that run: the run report
+      # warns, the stored events the source did not deliver are not counted as
+      # missing, and three such runs in a row open a source-broken issue.
       #
       # Times: DTSTART and DTEND of the VEVENT. Resolve TZID=America/Los_Angeles with
       # zoneinfo and ignore the embedded VTIMEZONE: it has a STANDARD component only
