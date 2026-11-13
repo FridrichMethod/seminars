@@ -3,7 +3,9 @@
 "Time series" is a method that talks of every field use ("a time series of calcium
 imaging", "EHR vital-sign time series"). On a department source the abstract counts
 like the title, so the bare words alone would add math to such a talk. They weigh 0.5
-and decide together with a second term; the phrases of the topic weigh 1.0.
+and decide together with a second term; the phrases of the topic weigh 1.0. So does
+"statistical model", which talks of every field use as well: it has no weight of its
+own beyond that of "statistical".
 """
 
 from __future__ import annotations
@@ -52,16 +54,43 @@ def candidate(title: str, abstract: str | None, source: str, fields: list[str]) 
     return make_candidate(event, **hints)
 
 
+TOPIC_PHRASES = (
+    "time series analysis",
+    "time series forecasting",
+    "time series model*",
+    "time series foundation model*",
+)
+
+
 def test_the_bare_words_are_weak_and_the_phrases_strong(taxonomy: Taxonomy) -> None:
     keywords = taxonomy.fields["math"].keywords
     assert keywords["time series"] == 0.5
-    for phrase in ("time series analysis", "time series forecasting", "time series model*"):
+    for phrase in TOPIC_PHRASES:
         assert keywords[phrase] == 1.0, phrase
 
 
-def test_the_rain_talk_keeps_math(tagger: FieldTagger) -> None:
+def test_the_rain_talk_keeps_math_through_its_topic_phrase(tagger: FieldTagger) -> None:
     decision = tagger.tag(candidate(RAIN_TITLE, RAIN_TALK, "custom-rain-seminar", ["cs", "ai-ml"]))
     assert decision.fields == ["math", "cs", "ai-ml"], decision.reasons
+    assert any("time series foundation model*" in reason for reason in decision.reasons)
+
+
+@pytest.mark.parametrize(
+    "abstract",
+    [
+        "We build statistical models of gene expression and use Bayesian methods.",
+        "Statistical modeling of single-cell data, with statistics for the masses.",
+        "We use statistical modelling and optimization of dosing.",
+        "A statistical model of probability of relapse.",
+        "We fit statistical models with Bayesian inference to single-cell data.",
+    ],
+)
+def test_a_statistical_model_and_a_method_word_add_no_math(
+    tagger: FieldTagger, abstract: str
+) -> None:
+    talk = candidate("Neural circuits of memory", abstract, "sites-biology", ["bio"])
+    decision = tagger.tag(talk)
+    assert decision.fields == ["bio"], decision.reasons
 
 
 @pytest.mark.parametrize(
@@ -83,6 +112,7 @@ def test_a_passing_mention_in_an_abstract_adds_no_math(tagger: FieldTagger, abst
         "Time series analysis of financial markets",
         "Time series forecasting with foundation models",
         "Time series models for climate risk",
+        "Time series foundation models for wearable sensors",
     ],
 )
 def test_a_topic_phrase_decides_alone(tagger: FieldTagger, title: str) -> None:
