@@ -1513,6 +1513,7 @@ def test_the_digest_step_gets_the_dispatch_input_through_env() -> None:
 DOC_PAIRS: Final = (
     ("README.md", "README.zh-CN.md"),
     ("docs/ADDING_A_SOURCE.md", "docs/ADDING_A_SOURCE.zh-CN.md"),
+    ("docs/ARCHITECTURE.md", "docs/ARCHITECTURE.zh-CN.md"),
 )
 OTHER_NODES_DOCS: Final = {"docs/LLM_CREDENTIALS.md", "docs/LLM_CREDENTIALS.zh-CN.md"}
 """Documents written elsewhere in the project that the README links to."""
