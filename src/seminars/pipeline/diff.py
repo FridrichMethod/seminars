@@ -18,8 +18,10 @@ The stored events and the events of the run are compared by uid:
   new keys of the run and is no longer missing. Only what a listing of
   the run states as a fact goes through, as a change: a new time (start,
   end, all day), a cancellation, and a talk that is on again after it was
-  cancelled. When the source is back, its listing and the others make the
-  event again;
+  cancelled. A listing that gives no end states none: with the same start
+  and all day, the stored end stays; a new start or all day takes the time
+  of the listing as a whole, with or without an end. When the source is
+  back, its listing and the others make the event again;
 * a stored event that the run did not deliver is handled by what is known
   about it:
 
@@ -132,14 +134,25 @@ def _bookkept(stored: Event, fresh: Event, now: datetime) -> tuple[Event, bool]:
     return updated, changed
 
 
+def _new_time(stored: Event, fresh: Event) -> bool:
+    """Whether a partial listing states a time other than the stored one.
+
+    A new start or all day is a new time; so is an end the listing gives
+    that differs. A listing without an end says nothing about the end.
+    """
+    if (stored.start, stored.all_day) != (fresh.start, fresh.all_day):
+        return True
+    return fresh.end is not None and fresh.end != stored.end
+
+
 def _asserted(stored: Event, fresh: Event) -> dict[str, Any]:
     """What a partial listing says that differs from the stored event and goes through.
 
-    That is its time (``TIME_FIELDS``, taken together) and whether the talk
-    is cancelled or on again.
+    That is its time (``TIME_FIELDS``, taken together, see ``_new_time``)
+    and whether the talk is cancelled or on again.
     """
     changes: dict[str, Any] = {}
-    if any(getattr(stored, name) != getattr(fresh, name) for name in TIME_FIELDS):
+    if _new_time(stored, fresh):
         changes.update({name: getattr(fresh, name) for name in TIME_FIELDS})
     if (stored.status == "cancelled") != (fresh.status == "cancelled"):
         changes["status"] = fresh.status

@@ -13,7 +13,8 @@ point of view of the contracts)::
     persist   compare with the stored events            seminars.pipeline.diff
               (a source counts as healthy only when it was read in full and
               delivered an event in the window; ``healthy_sources``)
-    health    update_health (history and issues)
+    health    update_health (history and issues), and   HealthFile.with_llm_run
+              what the LLM of the run used (for the digest)
     write     data files, then ICS feeds and site data  seminars.pipeline.store
     check     secret scan and charset rule              seminars.pipeline.checks
 
@@ -662,6 +663,7 @@ def run_pipeline(
         fresh=fresh,
     )
     health = services.update_health(state.health, report, issues, config=config)
+    health = health.with_llm_run(report.started_at, report.llm)
     published = _publish(
         config, services, destination, reconciled, processed, state, health, report, fresh=fresh
     )

@@ -41,10 +41,22 @@ def run(source_id: str) -> tuple[list[str], list[EventDraft]]:
     return list(http.requests), drafts
 
 
+def offset(moment: object) -> timedelta | None:
+    """The offset from UTC of a datetime; ``==`` of aware datetimes compares the instant only."""
+    return moment.utcoffset() if isinstance(moment, datetime) else None
+
+
 def on(drafts: list[EventDraft], start: datetime) -> EventDraft:
+    """The one draft that starts at ``start``, with the same offset from UTC."""
     found = [draft for draft in drafts if draft.start == start]
     assert len(found) == 1, [str(draft.start) for draft in drafts]
+    assert offset(found[0].start) == start.utcoffset(), str(found[0].start)
     return found[0]
+
+
+def ends(draft: EventDraft, end: datetime) -> bool:
+    """True when ``draft`` ends at ``end``, with the same offset from UTC."""
+    return draft.end == end and offset(draft.end) == end.utcoffset()
 
 
 def people(draft: EventDraft) -> list[tuple[str, str | None]]:
@@ -88,7 +100,7 @@ class TestAimi:
     def test_the_weekly_colloquium_links_to_the_page_of_its_series(self) -> None:
         _, drafts = run("sites-aimi")
         talk = on(drafts, datetime(2026, 11, 12, 12, 0, tzinfo=PST))
-        assert talk.end == datetime(2026, 11, 12, 13, 0, tzinfo=PST)
+        assert ends(talk, datetime(2026, 11, 12, 13, 0, tzinfo=PST))
         assert talk.title == "Responsible AI in Healthcare: From RWE to Agentic Systems"
         assert talk.series == "Computational Medicine Research Colloquium"
         assert people(talk) == [("Nigam Shah", None)]
@@ -102,7 +114,7 @@ class TestAimi:
     def test_grand_rounds_with_speaker_abstract_and_a_webinar(self) -> None:
         _, drafts = run("sites-aimi")
         talk = on(drafts, datetime(2026, 12, 15, 8, 0, tzinfo=PST))
-        assert talk.end == datetime(2026, 12, 15, 9, 0, tzinfo=PST)
+        assert ends(talk, datetime(2026, 12, 15, 9, 0, tzinfo=PST))
         assert talk.title == "Genetic Diagnosis and Discovery Enabled by Large Language Models"
         assert talk.series == "AIMI Grand Rounds"
         assert people(talk) == [("Konstantina Stankovic", None)]
@@ -151,6 +163,8 @@ class TestAimi:
         [
             "Foundation Models: A Survey - Jane Doe, PhD",  # no series word before the colon
             "Data Science Seminar: Jane Doe, Google",  # an affiliation is no degree
+            "IBIIS-AIMI Seminar: Deep Learning for MRI - Part 2",  # no degree: no speaker
+            "AIMI Grand Rounds: AI in radiology - a primer",
         ],
     )
     def test_a_title_only_partly_like_the_pattern_keeps_its_parts(self, title: str) -> None:
@@ -171,7 +185,7 @@ class TestMse:
     def test_a_colloquium(self) -> None:
         _, drafts = run("sites-mse")
         talk = on(drafts, datetime(2026, 11, 18, 11, 30, tzinfo=PST))
-        assert talk.end == datetime(2026, 11, 18, 12, 30, tzinfo=PST)
+        assert ends(talk, datetime(2026, 11, 18, 12, 30, tzinfo=PST))
         assert talk.title == "MSE Colloquium: Robert Hovden"
         assert talk.series == "MSE Colloquium"
         assert people(talk) == [("Robert Hovden", None)]
@@ -191,6 +205,7 @@ class TestMse:
             (datetime(2026, 12, 2, 11, 30, tzinfo=PST), [("Yanjie Shao", None)]),
             (datetime(2027, 1, 13, 11, 30, tzinfo=PST), [("Max Saccone", None)]),
         ]
+        assert {offset(draft.start) for draft in colloquia} == {timedelta(hours=-8)}
 
     def test_the_distinguished_lecture_in_summer_time(self) -> None:
         _, drafts = run("sites-mse")
@@ -215,6 +230,7 @@ class TestMse:
         drafts = adapter.parse(adapter.fetch(http, source, window=make_window(NOW)), source)
         talk = on(drafts, datetime(2026, 12, 2, 11, 30, tzinfo=PST))
         assert talk.title == TBA_TITLE
+        assert talk.series == "MSE Colloquium"
         assert talk.speakers == []
 
     def test_the_page_of_a_colloquium_has_nothing_the_card_lacks(self) -> None:
@@ -237,6 +253,7 @@ class TestMse:
         assert detail.body is None
         assert detail.texts["title"] == "MSE Colloquium: Robert Hovden"
         assert detail.end == datetime(2026, 11, 18, 20, 30, tzinfo=UTC)
+        assert offset(detail.end) == timedelta(0)  # Unix seconds of the page: UTC
         assert SOURCES["sites-mse"].params["detail_page"] == {"fetch": "never"}
 
 
@@ -257,21 +274,24 @@ class TestSystemx:
     def test_the_seminar(self) -> None:
         _, drafts = run("sites-systemx")
         talk = on(drafts, datetime(2026, 11, 12, 16, 30, tzinfo=PST))
-        assert talk.end == datetime(2026, 11, 12, 17, 30, tzinfo=PST)
+        assert ends(talk, datetime(2026, 11, 12, 17, 30, tzinfo=PST))
         assert talk.title == "Computing on encrypted data: from concept to reality"
         assert talk.event_type_hint == "seminar"
         assert talk.location == "STLC 114, United States"
         assert talk.abstract_html is not None
         assert "fully homomorphic encryption" in talk.abstract_html
         assert "Ingrid Verbauwhede" in talk.abstract_html
-        assert talk.speakers == []  # the template has no speaker field
+        # The template has no speaker field; the first sentence under "Speaker Bio:"
+        # ("Dr. Ir. Ingrid Verbauwhede is a Professor ... at KU Leuven.") names her.
+        assert people(talk) == [("Ingrid Verbauwhede", "KU Leuven")]
 
     def test_the_summit_is_a_workshop_of_one_day(self) -> None:
         _, drafts = run("sites-systemx")
         talk = on(drafts, datetime(2026, 12, 3, 9, 0, tzinfo=PST))
-        assert talk.end == datetime(2026, 12, 3, 18, 0, tzinfo=PST)
+        assert ends(talk, datetime(2026, 12, 3, 18, 0, tzinfo=PST))
         assert talk.title == "SystemX Physical Intelligence Summit"
         assert talk.event_type_hint == "workshop"
+        assert talk.speakers == []  # its page has a programme, no "Speaker Bio:"
         assert (
             talk.location
             == "Frances C. Arrillaga Alumni Center, Stanford University, United States"

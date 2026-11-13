@@ -37,8 +37,10 @@
 #   location. The rss adapter reads the feed ("url") and the list page ("urls") and joins
 #   the two on title and start time. Speaker and abstract exist only on the detail page
 #   of an event that the site itself hosts ("detail_page"); see the notes of each source.
-#   Two sources need a parameter beyond the shared ones: sites-cheme (colloquium_fields)
-#   and sites-icme (expand_schedule); sites-icme stays disabled until it is supported.
+#   The shared parameters are below (x-su-event-params); a source adds or replaces keys
+#   next to the merge for what its site does differently (colloquium_fields of
+#   sites-cheme, expand_schedule of sites-icme, title_patterns, detail_page and others);
+#   see each entry.
 #
 # Not in this file: appliedphysics, ee, structuralbio and genetics use neither template
 # and list no events of their own at present; sb and datascience belong to other groups.
@@ -160,7 +162,7 @@ x-su-event-params: &su-event-params
     subheadline: '.event-list-item__subheadline'
     dek: '.event-list_item__dek'
     join_on: [title, start]  # a card and a feed item are the same event when both agree
-  detail_page:
+  detail_page: &su-detail-page
     # Only for a card whose link stays on the site. The link of a feed item always
     # points at the site, but for an event taken from somewhere else it redirects to
     # that other host (events.stanford.edu, another department, a PDF).
@@ -198,7 +200,7 @@ x-su-event-params: &su-event-params
     Workshop: workshop
     PhD Defense: defense
     Seminar: seminar
-  # How the two documents map to a draft (verified on the fixtures of all six sites):
+  # How the two documents map to a draft (verified on the fixtures of the template B sites):
   #   native_id      feed <guid>
   #   url            for a card whose link has external_link_class: that link, an
   #                  absolute URL on another host (events.stanford.edu, another
@@ -761,12 +763,15 @@ sources:
       # and a symposium, have no series prefix). The series is the prefix up to the first
       # colon, and it ends in a word that names a series, so a talk title with a colon
       # is not read as one. A degree after the name ("Nigam Shah, MBBS, PhD") stays
-      # outside the speaker group. In the order of the patterns:
+      # outside the speaker group, and the first two patterns need at least one: every
+      # recorded title that names a speaker has one, and without it the part after a
+      # dash is as often the rest of the talk title ("Deep Learning for MRI - Part 2").
+      # In the order of the patterns:
       #   "<series>: <talk title> - <speaker>, <degrees>"
       #   "<series>: <speaker>, <degrees>" (no talk title yet; the title stays as it is)
       #   "<series>: <talk title>" ("AIMI Grand Rounds: TBA")
       title_patterns:
-        - '^(?P<series>[^:]*\b(?:Seminar|Colloquium|Rounds|Lecture|Series|Forum)s?):\s*(?P<title>.+)\s+-\s+(?P<speaker>[^,]+?)(?:\s*,\s*(?:MD|PhD|MBBS|MPH|MS|MSc|MA|MBA|JD|DrPH|ScD|DPhil|FACS|RN|PharmD|DO))*\s*$'
+        - '^(?P<series>[^:]*\b(?:Seminar|Colloquium|Rounds|Lecture|Series|Forum)s?):\s*(?P<title>.+)\s+-\s+(?P<speaker>[^,]+?)(?:\s*,\s*(?:MD|PhD|MBBS|MPH|MS|MSc|MA|MBA|JD|DrPH|ScD|DPhil|FACS|RN|PharmD|DO))+\s*$'
         - '^(?P<series>[^:]*\b(?:Seminar|Colloquium|Rounds|Lecture|Series|Forum)s?):\s*(?P<speaker>[A-Z][\w.''-]*(?:\s+[A-Z][\w.''-]*){1,3})(?:\s*,\s*(?:MD|PhD|MBBS|MPH|MS|MSc|MA|MBA|JD|DrPH|ScD|DPhil|FACS|RN|PharmD|DO))+\s*$'
         - '^(?P<series>[^:]*\b(?:Seminar|Colloquium|Rounds|Lecture|Series|Forum)s?):\s*(?P<title>.+?)\s*$'
     research:
@@ -788,7 +793,7 @@ sources:
         - '7 upcoming events on 2026-11-12, 5 in the run window. The weekly Computational Medicine Research Colloquium (Thursdays at noon) is listed one talk at a time; its card links to the series page on computationalmedicine.stanford.edu, which lists past talks and the current one, nothing later.'
         - 'Two cards (the colloquium and the AI4MH Seminar) link to other hosts; the link is the url of the event and is not fetched. The detail pages of the native cards in the window are fetched (3 on 2026-11-12); they add the abstract or a description of the series.'
         - 'The title holds series, talk title and speaker ("<series>: <talk title> - <speaker>, <degrees>"); see title_patterns.'
-        - 'The HAILS leadership course (2027-05-14) and the AIMI Symposium (2027-05-17) are outside the window; the course is not a talk, and nothing in this entry drops it (the rss adapter has no title filter, and the taxonomy has no exclusion phrase for it).'
+        - 'The HAILS leadership course (2027-05-14) and the AIMI Symposium (2027-05-17) are outside the window; the course is a paid executive program, not a talk, and the taxonomy excludes it as a course ("leadership strategy course").'
         - 'Overlap: none. localist.yaml maps the departments "Center for Artificial Intelligence in Medicine and Imaging (AIMI)" and IBIIS, but no record of the Stanford Events calendar carried either in the window of 2026-11-12, and no other recording names one of these talks or speakers.'
 
   - <<: *site
@@ -815,13 +820,13 @@ sources:
         Workshop: workshop
         PhD Defense: defense
         Seminar: seminar
-      # Optional hint, matches the 3 colloquia of the fixture. The title of a colloquium
+      # Optional hints, match the 3 colloquia of the fixture. The title of a colloquium
       # is "MSE Colloquium: <speaker>" and stays so (the site never shows a talk title);
-      # "MSE Colloquium: Speaker TBA" names nobody and has no title yet.
+      # "MSE Colloquium: Speaker TBA", the usual state of the next colloquia, names
+      # nobody and has no title yet, but it is still the colloquium (the first pattern).
       title_patterns:
+        - '^(?P<series>MSE Colloquium):\s*(?:Speaker\s+)?(?P<title>TBA|TBD)\s*$'
         - '^(?P<series>MSE Colloquium):\s*(?!(?:Speaker\s+)?(?:TBA|TBD)\b)(?P<speaker>[^:]+?)\s*$'
-      tba_title_patterns:
-        - '^MSE Colloquium:\s*(?:Speaker\s+)?(?:TBA|TBD)\s*$'
     research:
       verified: 2026-11-12
       sample_events: 4
@@ -853,6 +858,32 @@ sources:
     default_event_type: seminar
     params:
       <<: *su-event-params
+      detail_page:
+        # The shared detail_page, plus the speaker. A seminar names its speaker only in
+        # the body, in the first sentence under the heading "Speaker Bio:" ("Dr. Ir.
+        # Ingrid Verbauwhede is a Professor in the research group COSIC at KU Leuven.").
+        # A bio that starts another way names nobody: a wrong speaker is worse than none.
+        # The affiliation is what follows the first "at": capitalised words, with "of",
+        # "for", "at", "the", "de" and the like between them, and a place after a comma
+        # ("University of California, Berkeley"). It ends at a comma, a semicolon, a
+        # parenthesis, the end of the sentence, or a lowercase clause ("and a member",
+        # "in the Department"); without such an end ("Univ. of Texas", "Stanford
+        # University and Director of ...") the speaker is kept and the affiliation left
+        # out, so that no part of a longer name is taken for all of it.
+        # The pattern is verbose ((?x)): its spaces and line breaks are not part of it.
+        <<: *su-detail-page
+        speaker_label: '^Speaker Bio:?$'
+        speaker_pattern: >-
+          (?x)
+          ^(?:(?:Dr|Prof|Professor|Ir)\.?\s+)*
+          (?P<speaker>[A-Z][\w'-]+(?:\s+[A-Z][\w.'-]*){1,3}?)
+          \s+is\s+(?:an?|the)\s+[^.]*?\bat\s+(?:the\s+)?
+          (?:
+          (?P<affiliation>[A-Z][\w&'-]*
+          (?:\s+(?:(?:of|for|at|the|de|des|di|du|del|der|la|y|&)\s+)*[A-Z][\w&'-]*)*
+          (?:,\s+(?!(?:Dr|Prof|Professor)\b)[A-Z][\w&'-]*(?:\s+[A-Z][\w&'-]*)*)?)
+          (?=\s*[,;(]|\.(?!\s*[a-z])|\s*$|\s+(?:and|as|in|since|where|who|with)\s+[a-z])
+          )?
       event_type_names:
         Seminars: seminar
         Workshop: workshop
@@ -875,6 +906,6 @@ sources:
         - SystemX Seminar
       notes:
         - 'The SystemX Seminar of Electrical Engineering (Thursdays at 4:30 pm) and the events of the SystemX Alliance; 2 upcoming on 2026-11-12, the seminar of that day and a one-day summit on 2026-12-03 (type Workshop).'
-        - 'The title of a seminar is the talk title. The speaker is only in the body of the detail page, under "Speaker Bio:"; the template has no speaker field, so the drafts have no speaker. The body becomes the abstract.'
+        - 'The title of a seminar is the talk title. The speaker is only in the body of the detail page, under "Speaker Bio:"; the template has no speaker field, so detail_page.speaker_label and speaker_pattern read name and affiliation from the first sentence of the bio. The body becomes the abstract.'
         - 'The list page also has a "Past Events" block of 20 cards, which the item selector leaves out.'
         - 'Overlap: none. The Stanford Events calendar has no event of Electrical Engineering between 2026-10-28 and 2027-03-12 (see stanford-extra.yaml), and no other recording names these events.'

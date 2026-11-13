@@ -64,6 +64,7 @@ DIGEST_KEYS = {
     "digest.health.resized",
     "digest.health.llm",
     "digest.health.llm_none",
+    "digest.health.llm_stored",
     "digest.footer.site",
     "digest.footer.notify",
 }

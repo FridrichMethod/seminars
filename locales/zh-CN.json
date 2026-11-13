@@ -109,7 +109,8 @@
       "shrank": "可用条目 {listed} 项，通常有 {usual} 项",
       "resized": "{source}：列表长期远小于平时，现在把新的规模当作通常规模（{listed} 项，原来是 {usual} 项）。",
       "llm": "领域标签使用了 LLM 提供方 {provider}。",
-      "llm_none": "领域标签只使用了规则（未使用 LLM）。"
+      "llm_none": "领域标签只使用了规则（未使用 LLM）。",
+      "llm_stored": "没有 LLM 提供方作答；本次运行使用了之前运行存储的 {count} 个答案。"
     },
     "footer": {
       "site": "完整列表和日历订阅：{url}",
@@ -243,6 +244,8 @@
       "summary": "{total} 个启用的数据源中有 {ok} 个运行正常。",
       "llm": "领域标签使用了 LLM 提供方 {provider}。",
       "llm_none": "领域标签只使用了规则。",
+      "llm_stored_one": "没有 LLM 提供方作答；本次运行使用了之前运行存储的 {count} 个答案。",
+      "llm_stored_other": "没有 LLM 提供方作答；本次运行使用了之前运行存储的 {count} 个答案。",
       "partial": "未完整读取",
       "skipped_one": "有 {count} 个页面无法获取",
       "skipped_other": "有 {count} 个页面无法获取",

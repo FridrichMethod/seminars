@@ -570,6 +570,7 @@ EXCLUDED: list[tuple[str, str]] = [
     ("fitness", "Weekly Mindfulness Session"),
     ("fitness", "Intramural Sports Sign-ups"),
     ("course", "Peer Tutoring: Organic Chemistry"),
+    ("course", "Stanford AI in Healthcare Leadership Strategy Course (HAILS)"),  # a paid program
     ("religious", "Catholic Mass"),
     ("religious", "Shabbat Dinner"),
     ("religious", "Interfaith Service of Remembrance"),

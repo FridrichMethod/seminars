@@ -743,8 +743,9 @@ sources:
       skip_summary_patterns: ['will be at booth']
       require: [title, link]
       # Times are only on the detail page; a card whose detail page fails is dropped
-      # for this run, and the run counts the source as not read in full (like a
-      # refused request), so the talk is not counted as missing from the source.
+      # for this run. The source then counts as not read in full in that run: the run
+      # report warns, the stored events the source did not deliver are not counted as
+      # missing, and three such runs in a row open a source-broken issue.
       detail_page:
         times: '.event-meta--date-time-location time[datetime]'  # first = start, second = end
         location: '.event-meta__value--location'  # "Zoom", "San Francisco, CA (...)"

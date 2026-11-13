@@ -767,6 +767,22 @@ class TestListPages:
             "lecture",
         )
 
+    def test_a_title_a_title_pattern_leaves_as_no_title_yet_is_tba_with_its_series(
+        self,
+    ) -> None:
+        source = list_source(
+            list_page={"primary": True},
+            title_patterns=[r"^(?P<series>Physics Colloquium):\s*(?P<title>.+)$"],
+            tba_title_patterns=["^Coming soon$"],
+        )
+        page = listing(
+            card("Physics Colloquium: Coming soon", "2026-11-16T16:30:00-08:00"),
+            card("Physics Colloquium: Spins", "2026-11-17T16:30:00-08:00"),
+        )
+        soon, spins = run(source, serve(**{FEED_URL: rss(), LIST_URL: page}))
+        assert (soon.title, soon.series) == (TBA_TITLE, "Physics Colloquium")
+        assert (spins.title, spins.series) == ("Spins", "Physics Colloquium")
+
     def test_colloquium_fields_apply_to_colloquium_cards_only(self) -> None:
         source = list_source(
             list_page={"primary": True},

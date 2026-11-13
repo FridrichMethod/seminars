@@ -155,6 +155,35 @@ class TestAMergedEventWhileOneSourceIsDown:
         assert (event.start, event.end, event.title) == (before.start, end, "Probability Seminar")
         assert (event.sequence, result.changed) == (3, 1)
 
+    def test_a_listing_that_states_no_end_keeps_the_known_end(self) -> None:
+        before = merged()
+        assert before.end is not None
+        events = [before]
+        down = run(events, [stats_only(end=None)], healthy=frozenset({"sites-stats"}))
+        assert (down.events, down.changed) == ((before,), 0)
+        back = run(list(down.events), [merged()], now=later(1))
+        (event,) = back.events
+        assert (event.end, event.sequence, back.changed) == (before.end, before.sequence, 0)
+
+    def test_a_new_start_without_an_end_goes_through_with_no_end(self) -> None:
+        before = merged()
+        start = before.start + timedelta(days=7)
+        result = run(
+            [before], [stats_only(start=start, end=None)], healthy=frozenset({"sites-stats"})
+        )
+        (event,) = result.events
+        assert (event.start, event.end, event.all_day) == (start, None, False)
+        assert (event.sequence, result.changed) == (3, 1)
+
+    def test_a_different_end_goes_through(self) -> None:
+        before = merged()
+        assert before.end is not None
+        end = before.end + timedelta(minutes=30)
+        result = run([before], [stats_only(end=end)], healthy=frozenset({"sites-stats"}))
+        (event,) = result.events
+        assert (event.start, event.end) == (before.start, end)
+        assert (event.sequence, result.changed) == (3, 1)
+
     def test_a_talk_that_is_on_again_goes_through(self) -> None:
         before = merged(status="cancelled")
         result = run([before], [stats_only()], healthy=frozenset({"sites-stats"}))

@@ -5,6 +5,7 @@
   "last_run_ok": true,
   "event_count": 12,
   "llm_provider": "claude-cli",
+  "llm_stored_answers": null,
   "sources": [
     {
       "id": "bayarea-arc",

@@ -11,10 +11,13 @@ from __future__ import annotations
 
 import dataclasses
 
+import pytest
+
 from factories import make_source
 from seminars.config import AppConfig
 from seminars.models import HealthFile
-from test_digest import NEVER, both, ran, render, rows, section, with_sources, zh
+from seminars.outputs import digest
+from test_digest import NEVER, WEEK, both, ran, render, rows, section, with_sources, zh
 
 HEALTH = "Source health"
 
@@ -93,3 +96,31 @@ class TestSourcesNotReadInFull:
         blocks = section(render(config, health=health), HEALTH)
         assert blocks[0].split("\n")[0] == "All 1 sources are healthy."
         assert len(blocks) == 2
+
+    @pytest.mark.parametrize("rows", [40, 5, 2, 1])
+    def test_a_new_usual_size_stays_named_when_the_tables_shrink(
+        self, app_config: AppConfig, rows: int
+    ) -> None:
+        """The row limit counts the sentences about new sizes, not the sources before them."""
+        names = [f"sites-{letter}" for letter in "abcdefgh"]
+        config = with_sources(app_config, *names)
+        health = HealthFile()
+        for name in names[:-1]:
+            health = ran(health, name, "ok", 12, accepted=12)
+        health = ran(health, names[-1], "ok", 5, accepted=5, resized_from=20)
+        blocks = digest._health(health, config, digest._context(config, WEEK), rows)
+        resized = [block for block in blocks if "sites-h" in block]
+        assert len(resized) == 1
+        assert resized[0].startswith("Source sites-h: the listing has been far smaller")
+
+    def test_the_row_limit_still_bounds_the_sentences_about_new_sizes(
+        self, app_config: AppConfig
+    ) -> None:
+        names = [f"sites-{letter}" for letter in "abcd"]
+        config = with_sources(app_config, *names)
+        health = HealthFile()
+        for name in names:
+            health = ran(health, name, "ok", 5, accepted=5, resized_from=20)
+        blocks = digest._health(health, config, digest._context(config, WEEK), 2)
+        named = [name for name in names if any(f"Source {name}:" in block for block in blocks)]
+        assert named == ["sites-a", "sites-b"]

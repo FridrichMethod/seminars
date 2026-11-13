@@ -332,8 +332,11 @@ class PageExtractor(Protocol):
     registry: ``payload = adapter.fetch(...)``, then ``adapter.parse(payload,
     source)``. When the source has ``wants_llm_fallback`` and ``parse``
     returned no drafts or raised ``ParseError``, the pipeline calls
-    ``extract`` with that same payload. Without an LLM client there is no
-    extractor, and such a source simply yields no events.
+    ``extract`` with that same payload. Without a provider (no credential)
+    there is still an extractor: it answers from the readings stored by
+    earlier runs alone and asks nothing new (``seminars.pipeline.services``).
+    With no LLM at all (``--no-llm``) there is none, and such a source
+    yields no events.
 
     The pipeline never looks at the adapter name. Sources with
     ``adapter: llm_page`` take this path because the ``llm_page`` adapter
@@ -347,8 +350,12 @@ class PageExtractor(Protocol):
         link of the page, made absolute with
         ``seminars.sources.base.absolute_url(document.final_url, link)``;
         ungrounded fields are dropped. Dates and all-day events follow the
-        conventions of ``EventDraft``. Returns an empty list when the LLM is
-        unavailable; never raises ``LLMError``.
+        conventions of ``EventDraft``. The page text is read in pieces, and
+        the result holds the drafts of every piece that has an answer, stored
+        by an earlier run or new. A piece that would need a request that
+        cannot be sent (no provider is left, or the call budget is spent)
+        gives nothing, and the other pieces are still read. Never raises
+        ``LLMError``.
 
         Secrets: data/llm_cache/ stores answers verbatim and is covered by
         the output scan, so a page that shows a token-shaped string would

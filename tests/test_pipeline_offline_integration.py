@@ -286,7 +286,7 @@ COMING_TALKS = [
         "sites-systemx",
         datetime(2026, 11, 12, 16, 30, tzinfo=STANFORD),
         "Computing on encrypted data: from concept to reality",
-        [],
+        ["Ingrid Verbauwhede"],
         {"cs"},
     ),
     (

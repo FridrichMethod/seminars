@@ -130,7 +130,8 @@ class LLMUsage(Model):
     A run without a provider is not ``enabled`` either, but unlike a
     rules-only run it applies the answers that earlier runs stored
     (``stored_answers_only``); ``cache_hits`` then counts the answers it
-    used, and every other count is 0.
+    used, and every other count is 0. The tagger and the page extractor
+    share the one cache, so ``cache_hits`` counts the answers of both.
     """
 
     enabled: bool = False  # False in rules-only mode and without a provider
@@ -145,6 +146,19 @@ class LLMUsage(Model):
     cost_usd: Annotated[float, Field(ge=0)] = 0.0
     providers: list[LLMProviderResult] = []
 
+    @property
+    def stored_answers(self) -> int | None:
+        """The answers stored by earlier runs that a run applied while no provider answered.
+
+        That is a run without a provider (``stored_answers_only``), and one
+        whose providers answered nothing while the cache did (every answer
+        it needed was stored already, or the providers failed). ``None``
+        when a provider answered, and when no stored answer was used either:
+        such a run used rules only. Like ``cache_hits``, the count covers
+        the answers of field tagging and of page reading alike.
+        """
+        return self.cache_hits if self.provider is None and self.cache_hits else None
+
 
 class SecretFinding(Model):
     """One hit of the secret scanner. Never contains the matched text itself."""
@@ -155,7 +169,14 @@ class SecretFinding(Model):
 
 
 class LastRun(Model):
-    """Compact record written to data/last_run.json on every run."""
+    """Compact record written to data/last_run.json on every run.
+
+    ``llm_provider`` is the provider that answered (``LLMUsage.provider``).
+    ``llm_stored_answers`` counts the answers stored by earlier runs that the
+    run applied while no provider answered, a run without a provider among
+    them (``LLMUsage.stored_answers``): those of field tagging and of page
+    reading alike. Neither of them: the run used rules only.
+    """
 
     schema_version: Literal[1] = 1
     started_at: Timestamp
@@ -164,6 +185,7 @@ class LastRun(Model):
     mode: RunMode
     counts: RunCounts = RunCounts()
     llm_provider: str | None = None
+    llm_stored_answers: Count | None = None
     failed_sources: list[SourceId] = []
 
 
@@ -211,5 +233,6 @@ class RunReport(Model):
             mode=self.mode,
             counts=self.counts,
             llm_provider=self.llm.provider,
+            llm_stored_answers=self.llm.stored_answers,
             failed_sources=sorted(s.source_id for s in self.sources if s.status == "failed"),
         )

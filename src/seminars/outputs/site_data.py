@@ -160,6 +160,7 @@ def write_site_data(
         last_run_ok=last_run.ok if last_run is not None else None,
         event_count=len(events_payload.events),
         llm_provider=last_run.llm_provider if last_run is not None else None,
+        llm_stored_answers=last_run.llm_stored_answers if last_run is not None else None,
         sources=[
             _source_status(source, health)
             for source in sorted(config.sources, key=lambda source: source.id)

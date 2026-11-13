@@ -23,7 +23,7 @@ from seminars.http import offline_client
 from seminars.models import EventDraft, FetchedDocument, SourceConfig, SpeakerDraft
 from seminars.pipeline.normalize import MAX_SPEAKERS
 from seminars.sources.base import get_adapter
-from seminars.sources.generic import html_list
+from seminars.sources.generic import common, html_list
 from seminars.sources.generic.common import AdapterConfigError, make_speakers
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -345,7 +345,7 @@ class TestAffiliationsFromTheText:
     def test_each_speaker_of_the_row_takes_the_lines_below_their_own_name(self) -> None:
         lines = ("Jane Doe, PhD", "MIT", "John Roe, PhD", "Harvard", "Monday, November 16")
         speakers = make_speakers("Jane Doe and John Roe", None)
-        completed = html_list.with_affiliations(speakers, lines)
+        completed = common.with_affiliations(speakers, lines)
         assert [(s.name, s.affiliation) for s in completed] == [
             ("Jane Doe", "MIT"),
             ("John Roe", "Harvard"),
@@ -361,7 +361,7 @@ class TestAffiliationsFromTheText:
         speakers = [SpeakerDraft(name=f"Speaker{n} Doe") for n in range(5 * MAX_SPEAKERS)]
         lines = [line for speaker in speakers for line in (f"{speaker.name}, PhD", "MIT")]
         walks: list[str] = []
-        real_affiliation_after = html_list.affiliation_after
+        real_affiliation_after = common.affiliation_after
 
         def counted(
             lines: Sequence[str], name: str, names: Sequence[re.Pattern[str]] = ()
@@ -369,8 +369,8 @@ class TestAffiliationsFromTheText:
             walks.append(name)
             return real_affiliation_after(lines, name, names)
 
-        monkeypatch.setattr(html_list, "affiliation_after", counted)
-        completed = html_list.with_affiliations(speakers, lines)
+        monkeypatch.setattr(common, "affiliation_after", counted)
+        completed = common.with_affiliations(speakers, lines)
         assert walks == [speaker.name for speaker in speakers[:MAX_SPEAKERS]]
         rest = len(speakers) - MAX_SPEAKERS
         assert [s.affiliation for s in completed] == ["MIT"] * MAX_SPEAKERS + [None] * rest
@@ -419,9 +419,9 @@ def test_deeply_nested_text_is_split_in_linear_time(monkeypatch: pytest.MonkeyPa
     depth = 20_000
     article = LexborHTMLParser(f"<article>{'<span>x ' * depth}</article>").css_first("article")
     assert article is not None
-    tags = CountedTags(html_list._BLOCK_TAGS, limit=depth + 1)  # the spans and the article
-    monkeypatch.setattr(html_list, "_BLOCK_TAGS", tags)
-    assert html_list.text_lines(article) == [" ".join(["x"] * depth)]
+    tags = CountedTags(common._BLOCK_TAGS, limit=depth + 1)  # the spans and the article
+    monkeypatch.setattr(common, "_BLOCK_TAGS", tags)
+    assert common.text_lines(article) == [" ".join(["x"] * depth)]
 
 
 @pytest.mark.parametrize(
@@ -437,7 +437,7 @@ def test_deeply_nested_text_is_split_in_linear_time(monkeypatch: pytest.MonkeyPa
     ],
 )
 def test_the_line_of_a_name(line: str, name: str, expected: bool) -> None:
-    assert html_list.names_line(line, name) is expected
+    assert common.names_line(line, name) is expected
 
 
 class TestRowsWithoutTheirPage:
