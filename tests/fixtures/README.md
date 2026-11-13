@@ -290,13 +290,16 @@ from the models and the feed writer and checked by
 `tests/test_public_sample.py`; regenerate them with
 `uv run python tests/site_sample.py`, never edit them by hand.
 
-The feed differs from a deployed one in two ways. Its UIDs end in
-`@seminars.example.org` (`UID_DOMAIN` in `tests/site_sample.py`), as no
-fixture holds address-like text outside example domains; tests take the
-domain from `UID_DOMAIN` instead of spelling it out, and the site never knows
-it. The committed copy has LF line endings like every file of the repository;
-`served_feed()` puts back the CRLF line endings of RFC 5545, and the browser
-tests serve the feed in that form.
+The feed differs from a deployed one in two ways. It is written with the
+example uid domain `seminars.example.org` (`UID_DOMAIN` in
+`tests/site_sample.py`), as no fixture holds address-like text outside
+example domains: its UIDs end in `@seminars.example.org`, and its PRODID is
+`-//seminars.example.org//seminars//EN`, a header line that the download of
+selected talks copies as it is. Tests take the domain from `UID_DOMAIN`
+instead of spelling it out, and the site never knows it. The committed copy
+has LF line endings like every file of the repository; `served_feed()` puts
+back the CRLF line endings of RFC 5545, and the browser tests serve the feed
+in that form.
 
 The sample deliberately contains hostile and awkward content: HTML and script
 injection in titles, abstracts, speaker names, locations and status messages,
