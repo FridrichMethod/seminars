@@ -447,6 +447,14 @@ button.primary[aria-disabled="true"] {
   display: none;
 }
 
+/* Paper has no use for the dock, and Chromium prints a shown one where it stuck on the
+   screen, over a talk of the list. */
+@media print {
+  .selection-dock {
+    display: none;
+  }
+}
+
 /* While the dock is shown, a control of the list column scrolled into view (a checkbox
    reached with Tab) stops above it: app.js sets --dock-space to the height of the dock,
    0 while it is hidden. The controls of the dock itself and of the subscription panel,

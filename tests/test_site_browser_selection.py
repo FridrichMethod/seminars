@@ -1698,6 +1698,17 @@ class TestDock:
         assert after["y"] == pytest.approx(before["y"], abs=1)
         current.assert_clean()
 
+    def test_the_dock_is_not_printed(self, session: Callable[..., Session]) -> None:
+        # Chromium prints a dock that is shown where it stuck on the screen, over a talk
+        # of the list, so the page is printed without it.
+        current = session(viewport=DESKTOP).open("index.html")
+        page = current.page
+        select(current, "sample-arc")
+        dock_shown_at(current, MIDDLE_TALK)
+        page.emulate_media(media="print")
+        assert page.locator(DOCK).evaluate("(dock) => getComputedStyle(dock).display") == "none"
+        current.assert_clean()
+
     @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
     def test_the_keyboard_focus_stays_above_the_dock(
         self, session: Callable[..., Session], viewport: dict[str, int]
