@@ -37,18 +37,29 @@ export async function fetchJson(path) {
 }
 
 /**
- * Show ``params`` in the address bar without adding a history entry. A browser may
+ * Show ``address`` in the address bar without adding a history entry. A browser may
  * refuse (Safari allows only so many updates in a short time); the page then goes on
  * with the old address, and the refusal is logged as a warning.
  */
-export function replaceQuery(params) {
-  const query = params.toString();
-  const { pathname, hash } = window.location;
+function replaceAddress(address) {
   try {
-    window.history.replaceState(null, "", `${pathname}${query ? "?" : ""}${query}${hash}`);
+    window.history.replaceState(null, "", address);
   } catch (error) {
     console.warn(error);
   }
+}
+
+/** Show ``params`` in the address bar (see replaceAddress); the fragment stays. */
+export function replaceQuery(params) {
+  const query = params.toString();
+  const { pathname, hash } = window.location;
+  replaceAddress(`${pathname}${query ? "?" : ""}${query}${hash}`);
+}
+
+/** Take the fragment out of the address bar (see replaceAddress); the query stays. */
+export function dropFragment() {
+  const { pathname, search } = window.location;
+  replaceAddress(`${pathname}${search}`);
 }
 
 /**

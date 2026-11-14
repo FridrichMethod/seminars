@@ -23,6 +23,7 @@ import { children, currentLang, formatSigned, parts, plural, t, withLang } from 
 import {
   byId,
   debounced,
+  dropFragment,
   fact,
   fetchJson,
   notice,
@@ -94,6 +95,9 @@ const SELECT_LABEL_ID = "select-label";
 const DOCK_SHOWN = "is-shown";
 const DOCK_KEPT = "has-selected";
 const DOCK_GAP_PX = 8;
+// From this much on, the lower edge of the dock counts as moved by a note (renderNote):
+// less is the rounding of a dock that stays at the bottom of the screen.
+const DOCK_MOVED_PX = 1;
 // The state of the history entry that the link of the bar to the subscription panel adds.
 const SUBSCRIBE_ENTRY = Object.freeze({ subscribe: true });
 // The bar counts as on screen until it leaves the viewport through the top: the area the
@@ -299,13 +303,27 @@ function followHistory() {
 }
 
 /**
- * Follow the link of the bar to the subscription panel in place: bring the heading of the
- * panel into view and move the focus to it, as the jump to #subscribe would. The panel
- * goes back to its top first: on a wide screen it sticks beside the list and scrolls
- * within itself, and the heading is its first line. The page then scrolls to the panel,
- * unless the heading is on screen already (the panel beside the list). Like the jump, the
- * link adds an entry to the history, so that Back returns to the list where it was, but
- * for the same address, without a fragment; pressed again from that entry, it adds none.
+ * Bring the heading of the subscription panel into view and move the focus to it, as the
+ * jump to #subscribe would. The panel goes back to its top first: on a wide screen it
+ * sticks beside the list and scrolls within itself, and the heading is its first line.
+ * The page then scrolls to the panel, unless the heading is on screen already (the panel
+ * beside the list).
+ */
+function revealSubscribe() {
+  ui.subscribe.scrollTop = 0;
+  const heading = ui.subscribeHeading.getBoundingClientRect();
+  if (heading.top < 0 || heading.bottom > window.innerHeight) {
+    ui.subscribe.scrollIntoView({ block: "start" });
+  }
+  ui.subscribeHeading.focus({ preventScroll: true });
+}
+
+/**
+ * Follow the link of the bar to the subscription panel in place (revealSubscribe). Like
+ * the jump, the link adds an entry to the history, so that Back returns to the list where
+ * it was, but for the same address, without a fragment. Pressed again from that entry (a
+ * double click), it adds none; a change of the filters or of the language writes the
+ * address of the entry anew without its state, and the next press adds an entry again.
  * A click that opens the link elsewhere (with a modifier key) is left to the browser.
  */
 function showSubscribe(event) {
@@ -321,12 +339,27 @@ function showSubscribe(event) {
       console.warn(error);
     }
   }
-  ui.subscribe.scrollTop = 0;
-  const heading = ui.subscribeHeading.getBoundingClientRect();
-  if (heading.top < 0 || heading.bottom > window.innerHeight) {
-    ui.subscribe.scrollIntoView({ block: "start" });
+  revealSubscribe();
+}
+
+/**
+ * Show the subscription panel of a page opened at #subscribe (the link of the bar opened
+ * in another tab, or its address passed on), as the link does. The browser jumps to the
+ * fragment when the page has loaded, before the list is drawn: the list then pushes the
+ * panel, which comes after it on a narrow screen, off the screen. Called once the list is
+ * drawn. A reader who has moved the focus by then (a search typed while the talks load)
+ * is left there. The fragment then leaves the address, which holds the filters only: with
+ * it, a browser would jump to the panel again on Back and Forward instead of putting back
+ * the scroll position.
+ */
+function followFragment() {
+  if (window.location.hash !== `#${ui.subscribe.id}`) {
+    return;
   }
-  ui.subscribeHeading.focus({ preventScroll: true });
+  if (document.activeElement === document.body) {
+    revealSubscribe();
+  }
+  dropFragment();
 }
 
 /** The Download buttons of the bar and of the dock: one state, one handler. */
@@ -554,13 +587,41 @@ function noteContent(note, alert = true) {
  * page is drawn again (a language switch), never for a filter or a tick, so a note that
  * is an alert is not announced again. The dock, shown while the bar is off screen, shows
  * a copy as plain text (the note of the bar is the one announced), except for a saved
- * file, which the browser shows.
+ * file, which the browser shows. The note of a download started in the dock changes the
+ * height of the bar above the screen: a browser with scroll anchoring keeps the list in
+ * place by itself; without it (Safari) the list would be shown that much lower, so the
+ * page is scrolled by the change. The copy of the dock is above its count and its button:
+ * a dock held at the bottom of the screen grows upward with it, over the list, and the
+ * button stays where it was pressed. A dock that rests below the last talk grows downward
+ * instead and its lower edge moves: the page is then scrolled by the change of the height
+ * of the dock, which puts the button back, and by what is still missing where the end of
+ * the page has moved the dock as well.
  */
 function renderNote() {
   const { note } = view.download;
+  const scrolls = view.barPassed && !anchorsScroll();
+  const height = scrolls ? ui.selection.getBoundingClientRect().height : 0;
+  const dock = dockShown() ? ui.dock.getBoundingClientRect() : null;
   replaceChildren(ui.note, note === null ? null : noteContent(note));
   const copied = note !== null && note.kind !== "saved";
   replaceChildren(ui.dockNote, copied ? noteContent(note, false) : null);
+  if (scrolls) {
+    window.scrollBy(0, ui.selection.getBoundingClientRect().height - height);
+  }
+  if (dock !== null) {
+    const moved = () => ui.dock.getBoundingClientRect().bottom - dock.bottom;
+    if (Math.abs(moved()) >= DOCK_MOVED_PX) {
+      window.scrollBy(0, ui.dock.getBoundingClientRect().height - dock.height);
+      if (Math.abs(moved()) >= DOCK_MOVED_PX) {
+        window.scrollBy(0, moved());
+      }
+    }
+  }
+}
+
+/** Whether the browser keeps the screen in place when the page above it changes height. */
+function anchorsScroll() {
+  return window.getComputedStyle(document.documentElement).overflowAnchor === "auto";
 }
 
 /**
@@ -925,6 +986,7 @@ async function main() {
     view = Object.freeze({ ...view, failed: true });
   }
   refresh();
+  followFragment();
 }
 
 main().catch(reportError);
