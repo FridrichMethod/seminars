@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "started_at": "2026-11-13T19:36:49Z",
-  "finished_at": "2026-11-13T19:43:18Z",
+  "started_at": "2026-11-14T02:38:46Z",
+  "finished_at": "2026-11-14T02:44:29Z",
   "mode": "live",
   "dry_run": false,
   "ok": true,
@@ -9,7 +9,7 @@
     {
       "source_id": "bayarea-biohub",
       "status": "ok",
-      "duration_seconds": 2.859,
+      "duration_seconds": 2.219,
       "requests": 2,
       "drafts": 1,
       "events": 1,
@@ -27,7 +27,7 @@
     {
       "source_id": "bayarea-glam",
       "status": "ok",
-      "duration_seconds": 61.408,
+      "duration_seconds": 61.479,
       "requests": 2,
       "drafts": 8,
       "events": 8,
@@ -45,7 +45,7 @@
     {
       "source_id": "bayarea-kipac",
       "status": "ok",
-      "duration_seconds": 125.041,
+      "duration_seconds": 124.383,
       "requests": 4,
       "drafts": 33,
       "events": 25,
@@ -63,7 +63,7 @@
     {
       "source_id": "bayarea-litp",
       "status": "ok",
-      "duration_seconds": 31.106,
+      "duration_seconds": 30.487,
       "requests": 1,
       "drafts": 9,
       "events": 9,
@@ -81,7 +81,7 @@
     {
       "source_id": "bayarea-pulse",
       "status": "ok",
-      "duration_seconds": 61.408,
+      "duration_seconds": 61.036,
       "requests": 2,
       "drafts": 1,
       "events": 1,
@@ -99,7 +99,7 @@
     {
       "source_id": "bayarea-qfarm",
       "status": "ok",
-      "duration_seconds": 61.082,
+      "duration_seconds": 61.244,
       "requests": 2,
       "drafts": 20,
       "events": 14,
@@ -117,7 +117,7 @@
     {
       "source_id": "bayarea-slac-colloquium",
       "status": "ok",
-      "duration_seconds": 5.457,
+      "duration_seconds": 5.482,
       "requests": 5,
       "drafts": 4,
       "events": 4,
@@ -135,7 +135,7 @@
     {
       "source_id": "custom-ai4science",
       "status": "ok",
-      "duration_seconds": 1.429,
+      "duration_seconds": 1.242,
       "requests": 1,
       "drafts": 20,
       "events": 12,
@@ -153,7 +153,7 @@
     {
       "source_id": "custom-csb-events",
       "status": "ok",
-      "duration_seconds": 3.992,
+      "duration_seconds": 3.9,
       "requests": 3,
       "drafts": 4,
       "events": 2,
@@ -170,29 +170,29 @@
     },
     {
       "source_id": "custom-dbds-workshop",
-      "status": "failed",
-      "duration_seconds": 87.244,
+      "status": "ok",
+      "duration_seconds": 4.814,
       "requests": 1,
-      "drafts": 0,
-      "events": 0,
+      "drafts": 10,
+      "events": 4,
       "invalid": 0,
-      "outside_window": 0,
+      "outside_window": 6,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
-      "extraction": null,
+      "extraction": "html",
       "llm_fallback_used": false,
-      "error_kind": "robots",
-      "error": "RobotsUnavailableError: robots.txt is unreachable; host skipped: https://dbds.stanford.edu/robots.txt",
+      "error_kind": null,
+      "error": null,
       "warnings": []
     },
     {
       "source_id": "custom-hai-events",
       "status": "ok",
-      "duration_seconds": 3.675,
+      "duration_seconds": 3.585,
       "requests": 3,
-      "drafts": 9,
-      "events": 8,
+      "drafts": 8,
+      "events": 7,
       "invalid": 0,
       "outside_window": 1,
       "skipped_pages": 0,
@@ -207,7 +207,7 @@
     {
       "source_id": "custom-isl-colloquium",
       "status": "ok",
-      "duration_seconds": 1.573,
+      "duration_seconds": 1.525,
       "requests": 1,
       "drafts": 152,
       "events": 4,
@@ -225,7 +225,7 @@
     {
       "source_id": "custom-mlsys-seminar",
       "status": "empty",
-      "duration_seconds": 1.113,
+      "duration_seconds": 1.109,
       "requests": 1,
       "drafts": 87,
       "events": 0,
@@ -243,7 +243,7 @@
     {
       "source_id": "custom-nlp-seminar",
       "status": "failed",
-      "duration_seconds": 87.286,
+      "duration_seconds": 7.284,
       "requests": 1,
       "drafts": 0,
       "events": 0,
@@ -261,7 +261,7 @@
     {
       "source_id": "custom-rain-seminar",
       "status": "ok",
-      "duration_seconds": 1.107,
+      "duration_seconds": 1.129,
       "requests": 1,
       "drafts": 10,
       "events": 7,
@@ -279,7 +279,7 @@
     {
       "source_id": "custom-synbio-events",
       "status": "ok",
-      "duration_seconds": 1.302,
+      "duration_seconds": 1.274,
       "requests": 1,
       "drafts": 96,
       "events": 2,
@@ -297,7 +297,7 @@
     {
       "source_id": "custom-theory-lunch",
       "status": "ok",
-      "duration_seconds": 1.332,
+      "duration_seconds": 1.29,
       "requests": 1,
       "drafts": 11,
       "events": 5,
@@ -315,10 +315,10 @@
     {
       "source_id": "localist-stanford",
       "status": "ok",
-      "duration_seconds": 53.892,
+      "duration_seconds": 33.115,
       "requests": 7,
-      "drafts": 586,
-      "events": 586,
+      "drafts": 591,
+      "events": 591,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -329,13 +329,13 @@
       "error_kind": null,
       "error": null,
       "warnings": [
-        "73 text(s) or address(es) held a credential or a meeting password and were withheld"
+        "74 text(s) or address(es) held a credential or a meeting password and were withheld"
       ]
     },
     {
       "source_id": "rsorg-topos-colloquium",
       "status": "ok",
-      "duration_seconds": 3.236,
+      "duration_seconds": 2.906,
       "requests": 1,
       "drafts": 233,
       "events": 12,
@@ -353,7 +353,7 @@
     {
       "source_id": "sites-aimi",
       "status": "ok",
-      "duration_seconds": 151.762,
+      "duration_seconds": 151.812,
       "requests": 5,
       "drafts": 6,
       "events": 4,
@@ -371,7 +371,7 @@
     {
       "source_id": "sites-biochemistry",
       "status": "ok",
-      "duration_seconds": 62.494,
+      "duration_seconds": 60.758,
       "requests": 2,
       "drafts": 3,
       "events": 3,
@@ -389,7 +389,7 @@
     {
       "source_id": "sites-biology",
       "status": "ok",
-      "duration_seconds": 30.79,
+      "duration_seconds": 30.413,
       "requests": 1,
       "drafts": 9,
       "events": 9,
@@ -409,7 +409,7 @@
     {
       "source_id": "sites-cheme",
       "status": "ok",
-      "duration_seconds": 91.377,
+      "duration_seconds": 91.824,
       "requests": 3,
       "drafts": 2,
       "events": 2,
@@ -427,7 +427,7 @@
     {
       "source_id": "sites-chemh",
       "status": "ok",
-      "duration_seconds": 61.571,
+      "duration_seconds": 62.937,
       "requests": 2,
       "drafts": 4,
       "events": 4,
@@ -445,7 +445,7 @@
     {
       "source_id": "sites-chemistry",
       "status": "ok",
-      "duration_seconds": 31.057,
+      "duration_seconds": 30.595,
       "requests": 1,
       "drafts": 18,
       "events": 18,
@@ -463,7 +463,7 @@
     {
       "source_id": "sites-icme",
       "status": "ok",
-      "duration_seconds": 91.165,
+      "duration_seconds": 91.379,
       "requests": 3,
       "drafts": 10,
       "events": 3,
@@ -481,10 +481,10 @@
     {
       "source_id": "sites-mathematics",
       "status": "ok",
-      "duration_seconds": 62.621,
+      "duration_seconds": 62.297,
       "requests": 2,
-      "drafts": 54,
-      "events": 54,
+      "drafts": 55,
+      "events": 55,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -499,7 +499,7 @@
     {
       "source_id": "sites-mrc",
       "status": "ok",
-      "duration_seconds": 30.801,
+      "duration_seconds": 30.461,
       "requests": 1,
       "drafts": 2,
       "events": 2,
@@ -517,7 +517,7 @@
     {
       "source_id": "sites-mse",
       "status": "ok",
-      "duration_seconds": 60.989,
+      "duration_seconds": 60.607,
       "requests": 2,
       "drafts": 4,
       "events": 3,
@@ -535,7 +535,7 @@
     {
       "source_id": "sites-physics",
       "status": "ok",
-      "duration_seconds": 30.77,
+      "duration_seconds": 30.565,
       "requests": 1,
       "drafts": 7,
       "events": 7,
@@ -555,7 +555,7 @@
     {
       "source_id": "sites-statistics",
       "status": "ok",
-      "duration_seconds": 30.94,
+      "duration_seconds": 30.883,
       "requests": 1,
       "drafts": 10,
       "events": 10,
@@ -573,7 +573,7 @@
     {
       "source_id": "sites-systemx",
       "status": "ok",
-      "duration_seconds": 124.875,
+      "duration_seconds": 121.695,
       "requests": 4,
       "drafts": 2,
       "events": 2,
@@ -752,6 +752,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54506985479896"
+      ],
+      "title": "Cardinal Quarter Information Session",
+      "start": "2026-11-17T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/cq-info-111726",
+      "reason": "admissions",
+      "detail": "title matches \"information session\""
+    },
+    {
+      "source_ids": [
         "localist-stanford:54420408876947"
       ],
       "title": "Earth Systems Program Coterm Info Session",
@@ -852,6 +862,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54179547167136"
+      ],
+      "title": "Film Screening of the 2026 Lithuanian submission for the Academy Awards – How to Divorce During the War",
+      "start": "2026-10-30T17:30:00-07:00",
+      "url": "https://events.stanford.edu/event/film-screening-how-to-divorce-during-the-war",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:54004331780743"
       ],
       "title": "Upstander Workshop with PEERs: FREE boba!",
@@ -912,6 +932,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54162715569117"
+      ],
+      "title": "Bike Repair Class - Bike Maintenance 101",
+      "start": "2026-11-04T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/bike-maintenance-101",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53986116299901"
       ],
       "title": "Benefits Open Enrollment Session",
@@ -927,6 +957,16 @@
       "title": "Global Risk Resource Review for Faculty, Researchers (Autumn 2026)",
       "start": "2026-11-04T16:00:00-08:00",
       "url": "https://events.stanford.edu/event/global-risk-resource-review-for-faculty-researchers-autumn",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54188899938999"
+      ],
+      "title": "Work, Exile, and Home: Honoring Milorad Drachkovitch & Reopening the Polich Library",
+      "start": "2026-11-04T16:30:00-08:00",
+      "url": "https://events.stanford.edu/event/work-exile-and-home-honoring-milorad-drachkovitch-reopening-the-polich-room",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -1002,6 +1042,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54169501224168"
+      ],
+      "title": "Stanford University, American Legion, City of Palo Alto Veterans Day Celebration",
+      "start": "2026-11-09T15:00:00-08:00",
+      "url": "https://events.stanford.edu/event/stanford-university-palo-alto-veterans-day-celebration",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53698031497469"
       ],
       "title": "Aging Wisely - Grief, Loss, and Legacy Making",
@@ -1027,6 +1077,26 @@
       "title": "Portraiture as a Creative Path for Mindful Well-being",
       "start": "2026-11-11T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/portraiture-as-a-creative-path-for-mindful-well-being",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54045587644325"
+      ],
+      "title": "Navigating Market Volatility (Fidelity Webinar)",
+      "start": "2026-11-12T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/navigating-market-volatility-fidelity-webinar",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54179221112803"
+      ],
+      "title": "Your Values, Your Goals - Academic Advising Workshop",
+      "start": "2026-11-12T15:00:00-08:00",
+      "url": "https://events.stanford.edu/event/copy-of-your-values-your-goals-academic-advising-workshop",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -1092,6 +1162,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54060518853594"
+      ],
+      "title": "Medicare Basics",
+      "start": "2026-11-19T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/medicare-basics",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53871184671743"
       ],
       "title": "Deadline for departments to update course grading basis, unit, and/or component configuration for classes offered in Winter (noon)",
@@ -1152,6 +1232,26 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54038427186413"
+      ],
+      "title": "Ready, Set, Go! Preparing for TK and Kindergarten - December 2026",
+      "start": "2026-12-03T16:00:00-08:00",
+      "url": "https://events.stanford.edu/event/ready-set-go-preparing-for-tk-and-kindergarten-december-2026",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54179718433669"
+      ],
+      "title": "Film Screening of the Latvian submission for the Academy Awards – Ulya",
+      "start": "2026-12-03T18:30:00-08:00",
+      "url": "https://events.stanford.edu/event/film-screening-of-ulya",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53898107753611"
       ],
       "title": "OMAC First Fridays",
@@ -1172,6 +1272,26 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54038445094592"
+      ],
+      "title": "Public or Private School: Choosing the Best Elementary School for Your Child - December 2026",
+      "start": "2026-12-10T16:00:00-08:00",
+      "url": "https://events.stanford.edu/event/public-or-private-school-choosing-the-best-elementary-school-for-your-child-december-2026",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54045616311529"
+      ],
+      "title": "Strategies That Can Help You Manage Your Money (Fidelity Webinar)",
+      "start": "2026-12-11T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/strategies-that-can-help-you-manage-your-money-fidelity-webinar",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:51754336064251"
       ],
       "title": "New Year’s Day",
@@ -1187,6 +1307,16 @@
       "title": "Lunchtime Curator Talk | Solid Pictures",
       "start": "2027-01-07T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/copy-of-lunchtime-curator-talk-solid-pictures-9909",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54119384009958"
+      ],
+      "title": "2027 Summer Sustainability Opportunities Fair",
+      "start": "2027-01-13T15:00:00-08:00",
+      "url": "https://events.stanford.edu/event/2027-summer-sustainability-opportunities-fair",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -1237,6 +1367,16 @@
       "title": "OMAC First Fridays",
       "start": "2027-02-05T17:00:00-08:00",
       "url": "https://events.stanford.edu/event/omac-first-fridays",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54189230414638"
+      ],
+      "title": "Museum as Muse - Poetry at the Anderson Collection",
+      "start": "2027-02-08T16:30:00-08:00",
+      "url": "https://events.stanford.edu/event/museum-as-muse-poetry-at-the-anderson-collection-3242",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -1367,16 +1507,6 @@
       "title": "Green Library Book Display: Witches and Witchcraft",
       "start": "2026-10-30T13:00:00-07:00",
       "url": "https://events.stanford.edu/event/green-library-book-display-witches-and-witchcraft",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54179547167136"
-      ],
-      "title": "Film Screening of the 2026 Lithuanian submission for the Academy Awards – How to Divorce During the War",
-      "start": "2026-10-30T17:30:00-07:00",
-      "url": "https://events.stanford.edu/event/film-screening-how-to-divorce-during-the-war",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -1662,16 +1792,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54162715569117"
-      ],
-      "title": "Bike Repair Class - Bike Maintenance 101",
-      "start": "2026-11-04T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/bike-maintenance-101",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54321714796042"
       ],
       "title": "Lunch Club Series | Navigating Heritage: Chinook Art and Public History Along the Columbia River",
@@ -1687,16 +1807,6 @@
       "title": "Leading by Unwritten Rules: Rural Educators in Myanmar’s Crisis",
       "start": "2026-11-04T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/leading-by-unwritten-rules-rural-educators-in-myanmars-crisis",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54109557318097"
-      ],
-      "title": "Research Roadmap: AI and Development",
-      "start": "2026-11-04T12:30:00-08:00",
-      "url": "https://events.stanford.edu/event/research-roadmap-ai-development",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -1747,16 +1857,6 @@
       "title": "Slavic Colloquium - Naomi Caffee: Arts of Recognition: The Cultural Work of Indigenous Diplomacy from the Cold War to the End of History",
       "start": "2026-11-04T16:30:00-08:00",
       "url": "https://events.stanford.edu/event/slavic-colloquium-naomi-caffee-arts-of-recognition",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54188899938999"
-      ],
-      "title": "Work, Exile, and Home: Honoring Milorad Drachkovitch & Reopening the Polich Library",
-      "start": "2026-11-04T16:30:00-08:00",
-      "url": "https://events.stanford.edu/event/work-exile-and-home-honoring-milorad-drachkovitch-reopening-the-polich-room",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -1932,16 +2032,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54054961140361"
-      ],
-      "title": "What Do We Owe Each Other in the Age of AI?",
-      "start": "2026-11-05T17:00:00-08:00",
-      "url": "https://events.stanford.edu/event/what-do-we-owe-each-other-in-the-age-of-ai",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54303134591081"
       ],
       "title": "Stanford Culture Initiative Talk",
@@ -2052,16 +2142,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54162642751098"
-      ],
-      "title": "eWEAR Health Prize @ Stanford U.",
-      "start": "2026-11-06T13:00:00-08:00",
-      "url": "https://events.stanford.edu/event/ewear-health-prize-stanford-u-2026",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54321173922325"
       ],
       "title": "Green Library Book Display: Witches and Witchcraft",
@@ -2137,16 +2217,6 @@
       "title": "Green Library Book Display: Witches and Witchcraft",
       "start": "2026-11-09T13:00:00-08:00",
       "url": "https://events.stanford.edu/event/green-library-book-display-witches-and-witchcraft",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54169501224168"
-      ],
-      "title": "Stanford University, American Legion, City of Palo Alto Veterans Day Celebration",
-      "start": "2026-11-09T15:00:00-08:00",
-      "url": "https://events.stanford.edu/event/stanford-university-palo-alto-veterans-day-celebration",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -2462,16 +2532,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54110219615265"
-      ],
-      "title": "Unsettling the New AI Status Quo",
-      "start": "2026-11-12T11:30:00-08:00",
-      "url": "https://events.stanford.edu/event/unsettling-the-new-ai-status-quo",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:53879093950768"
       ],
       "title": "How to Fix a Broken Hierarchy",
@@ -2497,16 +2557,6 @@
       "title": "Jeanet Sinding Bentzen — Risky Business? Religiosity and Risk-Taking in Full-Population Danish Data",
       "start": "2026-11-12T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/jeanet-sinding-bentzen-cddrl-research-seminar",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54045587644325"
-      ],
-      "title": "Navigating Market Volatility (Fidelity Webinar)",
-      "start": "2026-11-12T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/navigating-market-volatility-fidelity-webinar",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -2572,16 +2622,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54179221112803"
-      ],
-      "title": "Your Values, Your Goals - Academic Advising Workshop",
-      "start": "2026-11-12T15:00:00-08:00",
-      "url": "https://events.stanford.edu/event/copy-of-your-values-your-goals-academic-advising-workshop",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54161263754671"
       ],
       "title": "Delivering Humanitarian Aid in a Contested World",
@@ -2627,16 +2667,6 @@
       "title": "The Idea that Made U.S.: Dialogues on Freedom: 25 Years After 9/11: The History of Surveillance, Technology, and Democracy",
       "start": "2026-11-12T16:30:00-08:00",
       "url": "https://events.stanford.edu/event/the-idea-that-made-us-dialogues-on-freedom-25-years-after-911-the-history-of-surveillance-technology-and-democracy",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54136301350931"
-      ],
-      "title": "Shop Smart, Eat Well: Budget-Friendly Grocery Tips, Meal Ideas and Label-Reading Strategies",
-      "start": "2026-11-12T17:00:00-08:00",
-      "url": "https://events.stanford.edu/event/shop-smart-eat-well-budget-friendly-grocery-tips-meal-ideas-and-label-reading-strategies",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -3302,16 +3332,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54004178958972"
-      ],
-      "title": "Demi Guo @ Entrepreneurial Thought Leaders Speaker Series (ETL)",
-      "start": "2026-11-18T16:30:00-08:00",
-      "url": "https://events.stanford.edu/event/demi-guo-entrepreneurial-thought-leaders-speaker-series-etl",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54439619609306"
       ],
       "title": "Uncommon Knowledge: The Intellectual Odyssey of James Burnham",
@@ -3397,16 +3417,6 @@
       "title": "Jannis Panagiotidis- Racism against East Europeans in Germany: History and Present",
       "start": "2026-11-19T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/racism-against-east-europeans-in-germany-history-and-present",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54060518853594"
-      ],
-      "title": "Medicare Basics",
-      "start": "2026-11-19T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/medicare-basics",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -3815,7 +3825,7 @@
       "source_ids": [
         "localist-stanford:54435335464306"
       ],
-      "title": "BOOK TALK | A Conversation about the Art of Edmonia Lewis",
+      "title": "BOOK TALK | The Art of Edmonia Lewis",
       "start": "2026-12-03T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/the-art-of-edmonia-lewis",
       "reason": "out_of_scope",
@@ -3863,16 +3873,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54038427186413"
-      ],
-      "title": "Ready, Set, Go! Preparing for TK and Kindergarten - December 2026",
-      "start": "2026-12-03T16:00:00-08:00",
-      "url": "https://events.stanford.edu/event/ready-set-go-preparing-for-tk-and-kindergarten-december-2026",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54505813512938"
       ],
       "title": "Book Talk with Logan Wright | Broken China: How the Economic Miracle Shattered and What it Means for the World",
@@ -3888,16 +3888,6 @@
       "title": "The Genesis Mission AI Project: From Materials Development to Autonomous Labs and Beyond",
       "start": "2026-12-03T16:30:00-08:00",
       "url": "https://events.stanford.edu/event/data-center-expansion-challenges-and-solutions-for-thermal-management-and-materials-access",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54179718433669"
-      ],
-      "title": "Film Screening of the Latvian submission for the Academy Awards – Ulya",
-      "start": "2026-12-03T18:30:00-08:00",
-      "url": "https://events.stanford.edu/event/film-screening-of-ulya",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -3948,6 +3938,16 @@
       "title": "Ruffinelli Film Screening and Lecture",
       "start": "2026-12-04T13:30:00-08:00",
       "url": "https://events.stanford.edu/event/ruffinelli-lecture-and-film-screening",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54497819444474"
+      ],
+      "title": "Earth Systems Program Wellness Event",
+      "start": "2026-12-04T16:00:00-08:00",
+      "url": "https://events.stanford.edu/event/earth-systems-program-wellness-event",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4013,6 +4013,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54509116875711"
+      ],
+      "title": "Chinese Railroad Workers, Leland and Jane Stanford, and the Founding of the University",
+      "start": "2026-12-08T16:30:00-08:00",
+      "url": "https://events.stanford.edu/event/chinese-railroad-workers",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53859567269539"
       ],
       "title": "AI + Health 2026",
@@ -4053,16 +4063,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54172449058724"
-      ],
-      "title": "Converge 2026",
-      "start": "2026-12-10T07:45:00-08:00",
-      "url": "https://events.stanford.edu/event/converge-2026",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54409901753669"
       ],
       "title": "Science of International Migration Seminar",
@@ -4083,31 +4083,11 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54038445094592"
-      ],
-      "title": "Public or Private School: Choosing the Best Elementary School for Your Child - December 2026",
-      "start": "2026-12-10T16:00:00-08:00",
-      "url": "https://events.stanford.edu/event/public-or-private-school-choosing-the-best-elementary-school-for-your-child-december-2026",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54322589080002"
       ],
       "title": "Lower-Carb Makeovers: Carb Counting and Smart Swaps",
       "start": "2026-12-10T17:00:00-08:00",
       "url": "https://events.stanford.edu/event/lower-carb-makeovers-carb-counting-and-smart-swaps",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54045616311529"
-      ],
-      "title": "Strategies That Can Help You Manage Your Money (Fidelity Webinar)",
-      "start": "2026-12-11T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/strategies-that-can-help-you-manage-your-money-fidelity-webinar",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4193,16 +4173,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54119384009958"
-      ],
-      "title": "2027 Summer Sustainability Opportunities Fair",
-      "start": "2027-01-13T15:00:00-08:00",
-      "url": "https://events.stanford.edu/event/2027-summer-sustainability-opportunities-fair",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54342631575835"
       ],
       "title": "State of Global Risk 2027",
@@ -4258,16 +4228,6 @@
       "title": "Understand Energy Staff Learning Series",
       "start": "2027-01-22T12:30:00-08:00",
       "url": "https://events.stanford.edu/event/understand-energy-staff-learning-series",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54181164266640"
-      ],
-      "title": "Arts +AI in the Evolving Research University",
-      "start": "2027-01-22T14:00:00-08:00",
-      "url": "https://events.stanford.edu/event/arts-ai-in-the-evolving-research-university",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4430,16 +4390,6 @@
       "url": "https://events.stanford.edu/event/the-steven-coutre-review-of-the-68th-annual-american-society-of-hematology-meeting",
       "reason": "out_of_scope",
       "detail": "category \"Stanford Center for Continuing Medical Education\" is out of scope"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54189230414638"
-      ],
-      "title": "Museum as Muse - Poetry at the Anderson Collection",
-      "start": "2027-02-08T16:30:00-08:00",
-      "url": "https://events.stanford.edu/event/museum-as-muse-poetry-at-the-anderson-collection-3242",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
     },
     {
       "source_ids": [
@@ -4894,32 +4844,32 @@
   ],
   "counts": {
     "sources": 32,
-    "sources_ok": 29,
+    "sources_ok": 30,
     "sources_empty": 1,
-    "sources_failed": 2,
-    "drafts": 1415,
-    "excluded": 430,
+    "sources_failed": 1,
+    "drafts": 1430,
+    "excluded": 425,
     "merged": 29,
-    "events": 364,
-    "added": 23,
-    "changed": 4,
-    "missing": 2,
+    "events": 379,
+    "added": 15,
+    "changed": 3,
+    "missing": 1,
     "removed": 0,
     "cancelled": 0,
-    "archived": 7,
-    "picks": 29
+    "archived": 0,
+    "picks": 30
   },
   "llm": {
     "enabled": true,
     "stored_answers_only": false,
     "provider": "claude-cli",
     "calls": 60,
-    "cache_hits": 53,
+    "cache_hits": 112,
     "skipped_call_cap": 1,
     "skipped_too_long": 0,
-    "input_tokens": 122134,
-    "output_tokens": 11222,
-    "cost_usd": 0.016887679999999995,
+    "input_tokens": 121341,
+    "output_tokens": 10617,
+    "cost_usd": 0.016426580000000003,
     "providers": [
       {
         "provider": "claude-cli",
