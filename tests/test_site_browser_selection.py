@@ -416,16 +416,19 @@ def note(current: Session) -> str:
 
 
 def assert_one_time_copy_shown(current: Session, lang: str) -> None:
-    """The bar shows, in ``lang``, that a downloaded file is a one-time copy, and links
-    to the subscription panel."""
+    """The bar shows, in ``lang``, that a downloaded file is a one-time copy, in a note
+    that ends in a link to the subscription panel: after a space in English, which a line
+    may break at and a copy of the text keeps, and none after a Chinese full stop."""
     messages = catalog(lang)
     copy = current.page.locator(ONE_TIME_COPY)
     link = current.page.locator(SUBSCRIBE_LINK)
     assert copy.is_visible()
     assert link.is_visible()
-    assert copy.locator("span").text_content() == messages["site.select.one_time"]
     assert link.text_content() == messages["site.select.subscribe_link"]
-    assert copy.text_content() == messages["site.select.one_time"] + link.text_content()
+    text = messages["site.select.one_time"].format(link=messages["site.select.subscribe_link"])
+    assert copy.text_content() == copy.inner_text() == text
+    before = text[: text.index(messages["site.select.subscribe_link"])]
+    assert before.endswith(". " if lang == "en" else "\u3002")
 
 
 def in_viewport(current: Session, selector: str) -> bool:

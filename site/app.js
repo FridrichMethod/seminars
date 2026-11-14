@@ -50,6 +50,7 @@ const ui = {
   selectClear: byId("select-clear"),
   download: byId("select-download"),
   note: byId("selection-note"),
+  oneTimeCopy: byId("selection-copy"),
   events: byId("events"),
   dock: byId("selection-dock"),
   dockCount: byId("selection-dock-count"),
@@ -864,12 +865,23 @@ function renderMeta() {
   replaceChildren(ui.timezone, t("site.meta.timezone", { timezone: zoneName }));
 }
 
+/**
+ * The note of the bar that a downloaded file is a one-time copy, ending in the link to the
+ * subscription panel (the anchor of the markup, put in its place): one message, so that
+ * each language joins the two sentences its own way, with a space in English and none
+ * after a Chinese full stop.
+ */
+function renderOneTimeCopy() {
+  replaceChildren(ui.oneTimeCopy, parts("site.select.one_time", { link: ui.subscribeLink }));
+}
+
 function render() {
   renderMeta();
   buildControls();
   syncControls();
   renderList();
   renderNote();
+  renderOneTimeCopy();
   renderSubscribe(view.model?.feeds ?? [], { steps: ui.steps, list: ui.feeds });
 }
 

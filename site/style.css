@@ -471,16 +471,6 @@ button.primary[aria-disabled="true"] {
   margin: 0;
 }
 
-/* The link to the subscription panel is the last sentence of the note: a space between
-   English sentences, none after a Chinese full stop, which has its own. */
-.selection-copy a {
-  margin-inline-start: 0.3em;
-}
-
-.selection-copy a:lang(zh) {
-  margin-inline-start: 0;
-}
-
 .notice {
   padding: 1rem;
   border: 1px dashed var(--border);
