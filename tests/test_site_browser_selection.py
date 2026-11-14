@@ -1672,6 +1672,32 @@ class TestDock:
         assert dock_note(current) == note(current) == partial_note("zh-CN", 1, 1)
         current.assert_clean()
 
+    @pytest.mark.parametrize("anchoring", [True, False], ids=["anchoring", "no-anchoring"])
+    @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
+    def test_a_download_in_the_dock_keeps_the_list_in_place(
+        self, session: Callable[..., Session], viewport: dict[str, int], anchoring: bool
+    ) -> None:
+        # The note of the bar appears above the screen and makes the bar taller. A browser
+        # with scroll anchoring keeps the list in place; without it (Safari) the page does.
+        current = session(viewport=viewport).open("index.html")
+        page = current.page
+        if not anchoring:
+            page.evaluate(NO_SCROLL_ANCHORING)
+        select(current, "sample-arc")
+        dock_shown_at(current, MIDDLE_TALK)
+        settle(current)
+        before = page.evaluate(PLACE, MIDDLE_TALK)
+        with page.expect_download():
+            click_in_place(current, DOCK_DOWNLOAD)
+        page.locator(f"{NOTE} .note-saved").wait_for()
+        settle(current)
+        after = page.evaluate(PLACE, MIDDLE_TALK)
+        taller = after["bar"] - before["bar"]
+        assert taller > 0
+        assert after["scrolled"] == pytest.approx(before["scrolled"] + taller, abs=1)
+        assert after["y"] == pytest.approx(before["y"], abs=1)
+        current.assert_clean()
+
     @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
     def test_the_keyboard_focus_stays_above_the_dock(
         self, session: Callable[..., Session], viewport: dict[str, int]

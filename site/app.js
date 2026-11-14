@@ -584,13 +584,26 @@ function noteContent(note, alert = true) {
  * page is drawn again (a language switch), never for a filter or a tick, so a note that
  * is an alert is not announced again. The dock, shown while the bar is off screen, shows
  * a copy as plain text (the note of the bar is the one announced), except for a saved
- * file, which the browser shows.
+ * file, which the browser shows. The note of a download started in the dock changes the
+ * height of the bar above the screen: a browser with scroll anchoring keeps the list in
+ * place by itself; without it (Safari) the list would be shown that much lower, so the
+ * page is scrolled by the change.
  */
 function renderNote() {
   const { note } = view.download;
+  const scrolls = view.barPassed && !anchorsScroll();
+  const height = scrolls ? ui.selection.getBoundingClientRect().height : 0;
   replaceChildren(ui.note, note === null ? null : noteContent(note));
   const copied = note !== null && note.kind !== "saved";
   replaceChildren(ui.dockNote, copied ? noteContent(note, false) : null);
+  if (scrolls) {
+    window.scrollBy(0, ui.selection.getBoundingClientRect().height - height);
+  }
+}
+
+/** Whether the browser keeps the screen in place when the page above it changes height. */
+function anchorsScroll() {
+  return window.getComputedStyle(document.documentElement).overflowAnchor === "auto";
 }
 
 /**
