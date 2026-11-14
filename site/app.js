@@ -1,5 +1,7 @@
 // The talk list (index.html): filters, the list grouped by day, the selection of talks
-// to download as one calendar file and the subscription panel.
+// to download as one calendar file (the bar above the list, and the dock that keeps its
+// status and the download in reach while the bar is scrolled away) and the subscription
+// panel.
 
 import { calendarFor, fetchCalendar, parseCalendar, saveFile } from "./calendar.js";
 import { h, link, replaceChildren } from "./dom.js";
@@ -17,7 +19,7 @@ import {
   toggled,
   withinChoices,
 } from "./filters.js";
-import { children, currentLang, formatSigned, parts, plural, t } from "./i18n.js";
+import { children, currentLang, formatSigned, parts, plural, t, withLang } from "./i18n.js";
 import {
   byId,
   debounced,
@@ -42,12 +44,21 @@ const ui = {
   picks: byId("picks"),
   clear: byId("clear"),
   count: byId("count"),
+  selection: byId("selection"),
   selectionStatus: byId("selection-status"),
   selectShown: byId("select-shown"),
   selectClear: byId("select-clear"),
   download: byId("select-download"),
   note: byId("selection-note"),
+  oneTimeCopy: byId("selection-copy"),
   events: byId("events"),
+  dock: byId("selection-dock"),
+  dockCount: byId("selection-dock-count"),
+  dockDownload: byId("selection-dock-download"),
+  dockNote: byId("selection-dock-note"),
+  subscribeLink: byId("subscribe-link"),
+  subscribe: byId("subscribe"),
+  subscribeHeading: byId("subscribe-heading"),
   steps: byId("apple-steps"),
   feeds: byId("feeds"),
 };
@@ -77,6 +88,18 @@ const EVERY_TALK_FEED = "all";
 // The hidden label (index.html) that each checkbox of the list reads before the title of
 // its talk.
 const SELECT_LABEL_ID = "select-label";
+// The class of the dock while it is shown, the class it gets at the first selected talk
+// (from then on it keeps its room below the list), and the room kept between an element
+// scrolled into view and the dock, for its focus ring (style.css).
+const DOCK_SHOWN = "is-shown";
+const DOCK_KEPT = "has-selected";
+const DOCK_GAP_PX = 8;
+// The state of the history entry that the link of the bar to the subscription panel adds.
+const SUBSCRIBE_ENTRY = Object.freeze({ subscribe: true });
+// The bar counts as on screen until it leaves the viewport through the top: the area the
+// bar is watched in reaches this far below the viewport, more than the page above the bar
+// is ever tall. A bar below the screen (the top of the page on a phone) is not passed.
+const BELOW_THE_SCREEN = "0px 0px 100000px 0px";
 
 // The download of the selected talks: whether it is being prepared, and the note on its
 // outcome (null: none).
@@ -90,7 +113,8 @@ const FAILED = Object.freeze({ kind: "failed" });
 // checked against what exists. The selection (uids in the order they were ticked) lives
 // here only: neither the address nor the storage of the browser holds it, so a reload
 // starts empty; a talk that has ended leaves it when the list is drawn again. ``listed``
-// holds the uids of the talks the list shows.
+// holds the uids of the talks the list shows; ``barPassed`` whether the selection bar is
+// scrolled past, wholly above the screen.
 let view = Object.freeze({
   model: null,
   failed: false,
@@ -98,6 +122,7 @@ let view = Object.freeze({
   selected: Object.freeze([]),
   listed: Object.freeze([]),
   download: IDLE,
+  barPassed: false,
 });
 
 /** The payload of events.json prepared for the page. */
@@ -246,15 +271,88 @@ function connectControls() {
   });
   ui.selectShown.addEventListener("click", selectShown);
   ui.selectClear.addEventListener("click", clearSelection);
-  ui.download.addEventListener("click", (event) => {
-    // The second click of a double click is not a press of its own: the file of the
-    // first one may be saved already when a fast feed has arrived in between. A key
-    // press has detail 0, a single click 1.
-    if (event.detail > 1) {
-      return;
+  for (const button of downloadButtons()) {
+    button.addEventListener("keydown", ignoreRepeatedKey);
+    button.addEventListener("click", pressDownload);
+  }
+  ui.subscribeLink.addEventListener("click", showSubscribe);
+  window.addEventListener("popstate", followHistory);
+}
+
+/**
+ * Back and Forward between the entries of the page (the link to the subscription panel
+ * adds one) show the filters of the address of the entry, so the address and the list
+ * agree; the browser puts back the scroll position. The language stays the one shown, and
+ * the address is made to say so. The list is drawn again only when the filters change.
+ */
+function followHistory() {
+  const search = window.location.search;
+  const lang = withLang(search, currentLang());
+  if (lang.toString() !== new URLSearchParams(search).toString()) {
+    replaceQuery(lang);
+  }
+  const address = filtersFromQuery(search, ANY_CHOICES);
+  const filters = view.model === null ? address : withinChoices(address, view.model.choices);
+  if (queryFromFilters(filters, "").toString() !== queryFromFilters(view.filters, "").toString()) {
+    setFilters(filters);
+  }
+}
+
+/**
+ * Follow the link of the bar to the subscription panel in place: bring the heading of the
+ * panel into view and move the focus to it, as the jump to #subscribe would. The panel
+ * goes back to its top first: on a wide screen it sticks beside the list and scrolls
+ * within itself, and the heading is its first line. The page then scrolls to the panel,
+ * unless the heading is on screen already (the panel beside the list). Like the jump, the
+ * link adds an entry to the history, so that Back returns to the list where it was, but
+ * for the same address, without a fragment; pressed again from that entry, it adds none.
+ * A click that opens the link elsewhere (with a modifier key) is left to the browser.
+ */
+function showSubscribe(event) {
+  if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+    return;
+  }
+  event.preventDefault();
+  if (window.history.state?.subscribe !== true) {
+    try {
+      window.history.pushState(SUBSCRIBE_ENTRY, "");
+    } catch (error) {
+      // A browser may refuse (Safari allows only so many entries in a short time).
+      console.warn(error);
     }
-    downloadSelected().catch(reportError);
-  });
+  }
+  ui.subscribe.scrollTop = 0;
+  const heading = ui.subscribeHeading.getBoundingClientRect();
+  if (heading.top < 0 || heading.bottom > window.innerHeight) {
+    ui.subscribe.scrollIntoView({ block: "start" });
+  }
+  ui.subscribeHeading.focus({ preventScroll: true });
+}
+
+/** The Download buttons of the bar and of the dock: one state, one handler. */
+function downloadButtons() {
+  return [ui.download, ui.dockDownload];
+}
+
+/**
+ * A held Enter repeats its keydown, and every repeat clicks the button again: once the
+ * file of the first press is saved, each would save it once more. Only the first keydown
+ * of a held Enter or Space is a press.
+ */
+function ignoreRepeatedKey(event) {
+  if (event.repeat && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+  }
+}
+
+function pressDownload(event) {
+  // The second click of a double click is not a press of its own: the file of the first
+  // one may be saved already when a fast feed has arrived in between. A key press has
+  // detail 0, a single click 1.
+  if (event.detail > 1) {
+    return;
+  }
+  downloadSelected().catch(reportError);
 }
 
 function canSelectShown() {
@@ -270,9 +368,9 @@ function canDownload() {
 }
 
 /**
- * Mark a button of the bar as unavailable. aria-disabled instead of disabled keeps the
- * focus on a button that its own press makes unavailable (Clear selection, a download
- * being prepared); its handler checks the state and does nothing then.
+ * Mark a button of the bar or the dock as unavailable. aria-disabled instead of disabled
+ * keeps the focus on a button that its own press makes unavailable (Clear selection, a
+ * download being prepared); its handler checks the state and does nothing then.
  */
 function setUnavailable(button, unavailable) {
   button.setAttribute("aria-disabled", String(unavailable));
@@ -294,29 +392,140 @@ function selectionStatus({ selected, listed }) {
   });
 }
 
+/** Replace the text of ``node`` when it differs; unchanged text is left alone. */
+function writeText(node, text) {
+  if (node.textContent !== text) {
+    replaceChildren(node, text);
+  }
+}
+
 /**
- * The checkboxes of the list, the status and the buttons of the bar, updated in place:
- * nothing is rebuilt and the bar keeps its height (style.css reserves the status two
- * lines on a phone), so the focus, the scroll position and the list stay where they are.
+ * The checkboxes of the list, the status and the buttons of the bar and the dock, updated
+ * in place: nothing is rebuilt and the bar keeps its height (style.css reserves the
+ * status two lines on a phone), so the focus, the scroll position and the list stay where
+ * they are.
  */
 function syncSelection() {
   const { selected, download } = view;
   for (const box of ui.events.querySelectorAll("input.select-talk")) {
     box.checked = selected.includes(box.dataset.uid);
   }
-  const status = selectionStatus(view);
-  // Unchanged text is left alone, so the live region does not say it again.
-  if (ui.selectionStatus.textContent !== status) {
-    replaceChildren(ui.selectionStatus, status);
-  }
+  // The status is a live region: unchanged text is left alone, so it is not said again.
+  writeText(ui.selectionStatus, selectionStatus(view));
+  // The dock says the same while the bar is off screen, the talks the filters hide
+  // included, as plain text: the status of the bar is the one announcer.
+  writeText(ui.dockCount, selected.length ? selectionStatus(view) : "");
   setUnavailable(ui.selectShown, !canSelectShown());
   setUnavailable(ui.selectClear, !canClear());
-  setUnavailable(ui.download, !canDownload());
-  ui.download.setAttribute("aria-busy", String(download.busy));
+  for (const button of downloadButtons()) {
+    setUnavailable(button, !canDownload());
+    button.setAttribute("aria-busy", String(download.busy));
+  }
+  if (selected.length > 0) {
+    ui.dock.classList.add(DOCK_KEPT);
+  }
+  syncDock();
 }
 
-/** The note on the last download, in the active language. */
-function noteContent(note) {
+/**
+ * Whether the dock is shown. Otherwise style.css hides it, keeping its place once a talk
+ * has been selected.
+ */
+function dockShown() {
+  return ui.dock.classList.contains(DOCK_SHOWN);
+}
+
+/**
+ * Show the dock while talks are selected and the bar is scrolled past, above the screen,
+ * so the two are never on screen together and the dock never covers the filters above the
+ * bar. A dock that hides while it holds the focus hands it to the Download button of the
+ * bar first, so the focus is not lost. The page stays where it is (the bar is only coming
+ * onto the screen, its Download may still be above it), except that a focus ring (the
+ * keyboard) is scrolled onto the screen the least way.
+ */
+function syncDock() {
+  const shown = view.selected.length > 0 && view.barPassed;
+  if (shown === dockShown()) {
+    return;
+  }
+  const handOver = !shown && ui.dock.contains(document.activeElement);
+  const ring = handOver && document.activeElement.matches(":focus-visible");
+  if (handOver) {
+    ui.download.focus({ preventScroll: true });
+  }
+  ui.dock.classList.toggle(DOCK_SHOWN, shown);
+  fitDockSpace();
+  if (ring) {
+    ui.download.scrollIntoView({ block: "nearest" });
+  }
+  keepFocusClear();
+}
+
+/**
+ * Make the room a control of the list column keeps below it when it is scrolled into view
+ * (--dock-space, its scroll margin in style.css) the height of the dock while it is shown,
+ * 0 while it is hidden: the control stops above the dock.
+ */
+function fitDockSpace() {
+  const space = dockShown() ? ui.dock.offsetHeight + DOCK_GAP_PX : 0;
+  document.documentElement.style.setProperty("--dock-space", `${space}px`);
+}
+
+/**
+ * Keep the keyboard focus out from under the dock. The scroll margin of the controls of
+ * the list column makes the browser stop one reached with Tab above the dock, but the dock
+ * may appear only after that (when the same move scrolls the bar away), and a browser may
+ * scroll only elements that are off screen: a focused element under the dock is then
+ * scrolled into view above it. An element beside the dock (the subscription panel on a
+ * wide screen) is left where it is, and a tap or a click (no focus ring) never scrolls the
+ * page.
+ */
+function keepFocusClear() {
+  const focused = document.activeElement;
+  if (!dockShown() || focused === null || ui.dock.contains(focused)) {
+    return;
+  }
+  if (!focused.matches(":focus-visible")) {
+    return;
+  }
+  const box = focused.getBoundingClientRect();
+  const dock = ui.dock.getBoundingClientRect();
+  const under = box.bottom > dock.top && box.top < dock.bottom;
+  if (under && box.right > dock.left && box.left < dock.right) {
+    focused.scrollIntoView({ block: "nearest" });
+  }
+}
+
+/**
+ * Follow whether the bar is scrolled past: the dock stands in for it then. Any scroll from
+ * below the bar to above it crosses the top of the viewport, so a jump past the whole bar
+ * in one step is seen as well.
+ */
+function watchBar() {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      view = Object.freeze({ ...view, barPassed: !entries[entries.length - 1].isIntersecting });
+      syncDock();
+    },
+    { rootMargin: BELOW_THE_SCREEN },
+  );
+  observer.observe(ui.selection);
+}
+
+/** Keep the focus clear of the dock as the focus moves and as the dock changes size. */
+function watchDock() {
+  new ResizeObserver(() => {
+    fitDockSpace();
+    keepFocusClear();
+  }).observe(ui.dock);
+  document.addEventListener("focusin", keepFocusClear);
+}
+
+/**
+ * The note on the last download, in the active language. A failure is an alert in the
+ * bar; ``alert`` false gives the same note as plain text (the copy in the dock).
+ */
+function noteContent(note, alert = true) {
   switch (note.kind) {
     case "preparing":
       return h("p", { class: "note" }, t("site.select.preparing"));
@@ -332,18 +541,26 @@ function noteContent(note) {
         }),
       );
     default: // "failed"
-      return h("p", { class: "note note-failed", role: "alert" }, t("site.select.failed"));
+      return h(
+        "p",
+        { class: "note note-failed", role: alert ? "alert" : null },
+        t("site.select.failed"),
+      );
   }
 }
 
 /**
  * Show the note of ``view.download``. Called when the note changes and when the whole
  * page is drawn again (a language switch), never for a filter or a tick, so a note that
- * is an alert is not announced again.
+ * is an alert is not announced again. The dock, shown while the bar is off screen, shows
+ * a copy as plain text (the note of the bar is the one announced), except for a saved
+ * file, which the browser shows.
  */
 function renderNote() {
   const { note } = view.download;
   replaceChildren(ui.note, note === null ? null : noteContent(note));
+  const copied = note !== null && note.kind !== "saved";
+  replaceChildren(ui.dockNote, copied ? noteContent(note, false) : null);
 }
 
 /**
@@ -656,12 +873,23 @@ function renderMeta() {
   replaceChildren(ui.timezone, t("site.meta.timezone", { timezone: zoneName }));
 }
 
+/**
+ * The note of the bar that a downloaded file is a one-time copy, ending in the link to the
+ * subscription panel (the anchor of the markup, put in its place): one message, so that
+ * each language joins the two sentences its own way, with a space in English and none
+ * after a Chinese full stop.
+ */
+function renderOneTimeCopy() {
+  replaceChildren(ui.oneTimeCopy, parts("site.select.one_time", { link: ui.subscribeLink }));
+}
+
 function render() {
   renderMeta();
   buildControls();
   syncControls();
   renderList();
   renderNote();
+  renderOneTimeCopy();
   renderSubscribe(view.model?.feeds ?? [], { steps: ui.steps, list: ui.feeds });
 }
 
@@ -675,6 +903,8 @@ async function main() {
   // nothing typed or ticked meanwhile is lost.
   connectControls();
   syncControls();
+  watchBar();
+  watchDock();
   const refresh = await startPage(render);
   try {
     const { payload, error } = await loading;

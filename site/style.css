@@ -298,8 +298,7 @@ button {
   cursor: pointer;
 }
 
-button:disabled,
-button[aria-disabled="true"] {
+button:disabled {
   cursor: default;
   opacity: 0.55;
 }
@@ -309,6 +308,29 @@ button.primary {
   border-color: var(--accent);
   color: var(--accent-fg);
   font-weight: 600;
+}
+
+/* A button that is unavailable but keeps the focus (the buttons of the selection bar):
+   muted text and a dashed border instead of opacity, which would dim the focus ring. */
+button[aria-disabled="true"] {
+  cursor: default;
+  border-style: dashed;
+  color: var(--muted);
+}
+
+button.primary[aria-disabled="true"] {
+  background: var(--panel);
+  border-color: var(--border);
+}
+
+/* Forced colours (Windows High Contrast) replace the muted colours; the system colour of
+   unavailable controls marks these buttons, as it marks disabled ones. */
+@media (forced-colors: active) {
+  button[aria-disabled="true"],
+  button.primary[aria-disabled="true"] {
+    color: GrayText;
+    border-color: GrayText;
+  }
 }
 
 .chips {
@@ -392,6 +414,67 @@ button.primary {
 .selection-copy {
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+/* The status and the Download button of the selection, at the bottom of the screen
+   within the list while talks are selected and the bar is scrolled away (app.js adds
+   is-shown). At the end of the list it rests below the last talk. It takes no room until
+   the first talk is selected (app.js adds has-selected, which stays); hidden after that,
+   it keeps its place, so the page keeps its height and an untick at the end of the list
+   moves nothing. */
+.selection-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-top: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: 0 -0.25rem 0.75rem rgb(0 0 0 / 15%);
+}
+
+.selection-dock:not(.is-shown) {
+  visibility: hidden;
+}
+
+.selection-dock:not(.has-selected) {
+  display: none;
+}
+
+/* While the dock is shown, a control of the list column scrolled into view (a checkbox
+   reached with Tab) stops above it: app.js sets --dock-space to the height of the dock,
+   0 while it is hidden. The controls of the dock itself and of the subscription panel,
+   which the dock never covers, scroll into view as usual. */
+.talks :is(a[href], button, input, select, summary):not(.selection-dock *) {
+  scroll-margin-bottom: var(--dock-space, 0px);
+}
+
+/* One line, also while it is empty: the dock keeps its height. */
+.selection-dock-count {
+  min-height: 1.5em;
+  min-height: 1lh;
+  margin: 0;
+  font-weight: 600;
+}
+
+/* The note on a download that is being prepared, left talks out or failed, on a line of
+   its own below the count and the button: the note of the bar is off screen. */
+.selection-dock-note {
+  width: 100%;
+}
+
+.selection-dock-note:empty {
+  display: none;
+}
+
+.selection-dock-note .note {
+  margin: 0;
 }
 
 .notice {
@@ -801,6 +884,12 @@ button.primary {
   .selection-status {
     min-height: 3em;
     min-height: 2lh;
+  }
+
+  /* The count above the button, whatever its length, so the dock keeps its height. */
+  .selection-dock {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .event-when,

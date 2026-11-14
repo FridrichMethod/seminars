@@ -224,7 +224,13 @@ key 由 prompt 版本、任务和输入文字组成，模型和 provider 都不�
   `events.json` 和 `status.json`；中英文文案来自 `locales/`。所有从网上抓来的文字都会转义。
   `seminars build-site` 只根据已经提交的数据组装 `public/`。
 - **选中报告的下载**（`site/calendar.js`）：读者在列表里勾选的报告是页面状态，只保存在内存里，
-  从不写进地址栏或浏览器存储。下载时，页面从自己的网站取回 `feeds/all.ics`（`events.json` 里 feed
+  从不写进地址栏或浏览器存储。列表上方的选择栏是一个 region landmark；选中了报告而选择栏向上滚出屏幕时
+  （由 IntersectionObserver 判断，它观察的范围一直延伸到屏幕下方很远处，所以还在屏幕下方的选择栏算作在屏幕上），
+  列表底部的一条横栏显示第二个下载按钮，并以纯文本重复选择栏的状态（选中的数量，以及其中有几个被筛选条件隐藏）；
+  文件正在准备、没能生成或者少了报告时，横栏里还以纯文本显示同一条提示（读屏软件只播报选择栏里的状态和提示）。
+  选择栏里关于一次性副本的说明链接到订阅面板；点这个链接会把焦点移到订阅面板的标题，并在浏览历史里添加一条地址不变的记录，
+  所以按"返回"会回到列表；"返回"和"前进"会显示各条记录地址里的筛选条件。
+  下载时，页面从自己的网站取回 `feeds/all.ics`（`events.json` 里 feed
   `all` 的路径），把选中报告的 VEVENT 块按 feed 里的顺序原样复制进一个日历，连同 feed 的全部 VTIMEZONE
   块和基本的头部（`VERSION`、`PRODID`，以及存在时的 `CALSCALE`、`METHOD` 和 `X-WR-TIMEZONE`），
   但不带只有订阅才需要的头部属性（`X-WR-CALNAME`、`X-WR-CALDESC`、`REFRESH-INTERVAL`、

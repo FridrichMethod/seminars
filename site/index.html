@@ -59,7 +59,7 @@
       </div>
     </div>
     <p class="count" id="count" role="status" aria-live="polite"></p>
-    <div class="selection" id="selection" role="group" data-i18n-attr="aria-label:site.select.label">
+    <div class="selection" id="selection" role="region" data-i18n-attr="aria-label:site.select.label">
       <p class="selection-status" id="selection-status" role="status" aria-live="polite"></p>
       <div class="selection-actions">
         <button id="select-shown" type="button" aria-disabled="true" data-i18n="site.select.select_shown"></button>
@@ -67,13 +67,18 @@
         <button id="select-download" class="primary" type="button" aria-disabled="true" data-i18n="site.select.download"></button>
       </div>
       <div class="selection-note" id="selection-note" aria-live="polite"></div>
-      <p class="selection-copy" data-i18n="site.select.one_time"></p>
+      <p class="selection-copy" id="selection-copy"><a href="#subscribe" id="subscribe-link" data-i18n="site.select.subscribe_link"></a></p>
       <span id="select-label" hidden data-i18n="site.select.talk"></span>
     </div>
     <div class="events" id="events"></div>
+    <div class="selection-dock" id="selection-dock">
+      <p class="selection-dock-count" id="selection-dock-count"></p>
+      <button id="selection-dock-download" class="primary" type="button" aria-disabled="true" data-i18n="site.select.download"></button>
+      <div class="selection-dock-note" id="selection-dock-note"></div>
+    </div>
   </section>
-  <aside class="subscribe" aria-labelledby="subscribe-heading">
-    <h2 id="subscribe-heading" data-i18n="site.subscribe.title"></h2>
+  <aside class="subscribe" id="subscribe" aria-labelledby="subscribe-heading">
+    <h2 id="subscribe-heading" tabindex="-1" data-i18n="site.subscribe.title"></h2>
     <p data-i18n="site.subscribe.intro"></p>
     <h3 data-i18n="site.subscribe.apple.title"></h3>
     <ol class="steps" id="apple-steps"></ol>
