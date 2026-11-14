@@ -95,6 +95,9 @@ const SELECT_LABEL_ID = "select-label";
 const DOCK_SHOWN = "is-shown";
 const DOCK_KEPT = "has-selected";
 const DOCK_GAP_PX = 8;
+// From this much on, the lower edge of the dock counts as moved by a note (renderNote):
+// less is the rounding of a dock that stays at the bottom of the screen.
+const DOCK_MOVED_PX = 1;
 // The state of the history entry that the link of the bar to the subscription panel adds.
 const SUBSCRIBE_ENTRY = Object.freeze({ subscribe: true });
 // The bar counts as on screen until it leaves the viewport through the top: the area the
@@ -587,17 +590,32 @@ function noteContent(note, alert = true) {
  * file, which the browser shows. The note of a download started in the dock changes the
  * height of the bar above the screen: a browser with scroll anchoring keeps the list in
  * place by itself; without it (Safari) the list would be shown that much lower, so the
- * page is scrolled by the change.
+ * page is scrolled by the change. The copy of the dock is above its count and its button:
+ * a dock held at the bottom of the screen grows upward with it, over the list, and the
+ * button stays where it was pressed. A dock that rests below the last talk grows downward
+ * instead and its lower edge moves: the page is then scrolled by the change of the height
+ * of the dock, which puts the button back, and by what is still missing where the end of
+ * the page has moved the dock as well.
  */
 function renderNote() {
   const { note } = view.download;
   const scrolls = view.barPassed && !anchorsScroll();
   const height = scrolls ? ui.selection.getBoundingClientRect().height : 0;
+  const dock = dockShown() ? ui.dock.getBoundingClientRect() : null;
   replaceChildren(ui.note, note === null ? null : noteContent(note));
   const copied = note !== null && note.kind !== "saved";
   replaceChildren(ui.dockNote, copied ? noteContent(note, false) : null);
   if (scrolls) {
     window.scrollBy(0, ui.selection.getBoundingClientRect().height - height);
+  }
+  if (dock !== null) {
+    const moved = () => ui.dock.getBoundingClientRect().bottom - dock.bottom;
+    if (Math.abs(moved()) >= DOCK_MOVED_PX) {
+      window.scrollBy(0, ui.dock.getBoundingClientRect().height - dock.height);
+      if (Math.abs(moved()) >= DOCK_MOVED_PX) {
+        window.scrollBy(0, moved());
+      }
+    }
   }
 }
 

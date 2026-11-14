@@ -321,6 +321,27 @@ DOCK_ROOM = """() => {
   return { panel: kept[0] - without[0], page: kept[1] - without[1] };
 }"""
 TO_THE_END = "() => window.scrollTo(0, document.documentElement.scrollHeight)"
+# Scrolls to where the dock rests below the last talk, ``room`` px above the bottom of the
+# viewport, or as near to that as the end of the page allows.
+DOCK_AT_REST = """(room) => {
+  window.scrollTo(0, document.documentElement.scrollHeight);
+  const dock = document.getElementById("selection-dock").getBoundingClientRect();
+  window.scrollBy(0, dock.bottom - (window.innerHeight - room));
+}"""
+# Where the parts of the dock and the last talk of the list are in the viewport, and the
+# height of the dock.
+DOCK_PARTS = """() => {
+  const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
+  const talks = document.querySelectorAll("#events article");
+  return {
+    top: rect("#selection-dock").top,
+    height: rect("#selection-dock").height,
+    note: rect("#selection-dock-note").bottom,
+    count: rect("#selection-dock-count").top,
+    button: rect("#selection-dock-download").top,
+    last: talks[talks.length - 1].getBoundingClientRect().bottom,
+  };
+}"""
 # Counts the clicks that reach a button (a key press clicks it too).
 COUNT_PRESSES = """(selector) => {
   window.__presses = 0;
@@ -495,8 +516,38 @@ def click_in_place(current: Session, selector: str) -> None:
     current.page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
 
 
+def middle_of(current: Session, selector: str) -> tuple[float, float]:
+    """The point in the middle of an element, where a click on it lands."""
+    box = current.page.locator(selector).bounding_box()
+    assert box is not None
+    return box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+
+
 def dock_note(current: Session) -> str:
     return current.page.locator(DOCK_NOTE).text_content() or ""
+
+
+def fail_then_save_at(current: Session, point: tuple[float, float]) -> list[dict[str, float]]:
+    """Press ``point``, where the Download button of the dock is, three times: the feed is
+    missing twice, then there. Returns the parts of the dock (DOCK_PARTS) after the first
+    failure and after the saved file. Every press has to reach the button."""
+    page = current.page
+    page.route(f"**/{FEED_PATH}", lambda route: route.fulfill(status=404, body=""))
+    seen = []
+    for _ in range(2):
+        with page.expect_request(f"**/{FEED_PATH}", timeout=5000):
+            page.mouse.click(*point)
+        page.locator(f"{DOCK_NOTE} .note-failed").wait_for()
+        settle(current)
+        seen.append(page.evaluate(DOCK_PARTS))
+    assert seen[1] == pytest.approx(seen[0], abs=1)
+    drop_expected_errors(current, FAILED_REQUEST, FEED_ERROR)
+    page.unroute(f"**/{FEED_PATH}")
+    with page.expect_download():
+        page.mouse.click(*point)
+    page.locator(f"{NOTE} .note-saved").wait_for()
+    settle(current)
+    return [seen[0], page.evaluate(DOCK_PARTS)]
 
 
 def partial_note(lang: str, saved: int, missing: int) -> str:
@@ -1670,6 +1721,63 @@ class TestDock:
         assert page.locator("[role=alert]").count() == 0
         page.locator('.lang-switch button[lang="zh-CN"]').click()
         assert dock_note(current) == note(current) == partial_note("zh-CN", 1, 1)
+        current.assert_clean()
+
+    @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
+    def test_a_note_leaves_the_button_of_the_dock_where_it_was_pressed(
+        self, session: Callable[..., Session], viewport: dict[str, int]
+    ) -> None:
+        # The note opens above the count and the button. Held at the bottom of the screen,
+        # the dock grows upward with it, over the list: the button and the list stay, and
+        # the next press at the same place reaches the button again.
+        current = session(viewport=viewport).open("index.html")
+        page = current.page
+        select(current, "sample-arc")
+        dock_shown_at(current, MIDDLE_TALK)
+        settle(current)
+        before = page.evaluate(DOCK_PARTS)
+        failed, saved = fail_then_save_at(current, middle_of(current, DOCK_DOWNLOAD))
+        assert failed["height"] > before["height"]
+        assert failed["note"] <= failed["count"]
+        assert failed["button"] == pytest.approx(before["button"], abs=1)
+        assert failed["last"] == pytest.approx(before["last"], abs=1)
+        assert saved == pytest.approx(before, abs=1)
+        current.assert_clean()
+
+    @pytest.mark.parametrize("anchoring", [True, False], ids=["anchoring", "no-anchoring"])
+    @pytest.mark.parametrize(
+        ("viewport", "room"),
+        [(PHONE, 200), (PHONE, 20), (DESKTOP, 20), (DESKTOP, 900)],
+        ids=["phone", "phone-little-room", "desktop-little-room", "desktop-end-of-page"],
+    )
+    def test_a_note_in_the_dock_at_rest_moves_the_list_not_the_button(
+        self,
+        session: Callable[..., Session],
+        viewport: dict[str, int],
+        room: int,
+        anchoring: bool,
+    ) -> None:
+        # Below the last talk the dock grows downward. The page is scrolled by as much, so
+        # the list moves up and the button stays: with room below the dock, with less room
+        # than the note takes (the dock comes to the bottom of the screen), and at the end
+        # of the page, which becomes shorter again when the note goes.
+        current = session(viewport=viewport).open("index.html")
+        page = current.page
+        if not anchoring:
+            page.evaluate(NO_SCROLL_ANCHORING)
+        select(current, "sample-arc")
+        page.evaluate(DOCK_AT_REST, room)
+        page.locator(DOCK).wait_for(state="visible")
+        settle(current)
+        before = page.evaluate(DOCK_PARTS)
+        assert before["top"] >= before["last"]  # at rest: the dock covers no talk
+        failed, saved = fail_then_save_at(current, middle_of(current, DOCK_DOWNLOAD))
+        taller = failed["height"] - before["height"]
+        assert taller > 0
+        assert failed["note"] <= failed["count"]
+        assert failed["button"] == pytest.approx(before["button"], abs=1)
+        assert failed["last"] == pytest.approx(before["last"] - taller, abs=1)
+        assert saved == pytest.approx(before, abs=1)
         current.assert_clean()
 
     @pytest.mark.parametrize("anchoring", [True, False], ids=["anchoring", "no-anchoring"])

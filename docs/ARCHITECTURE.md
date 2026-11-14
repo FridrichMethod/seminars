@@ -283,7 +283,10 @@ replaced by an empty placeholder.
   the list keeps a second download button in reach and shows a plain-text copy of the
   status of the bar (the count, and how many selected talks the filters hide) and of the
   note on a download that is being prepared, failed or left talks out (the status and the
-  note of the bar stay the ones that are announced). The note of the bar on the one-time
+  note of the bar stay the ones that are announced). The note of the strip opens above its
+  count and its button, so the button stays where it was pressed: at the bottom of the
+  screen the strip grows upward over the list, and below the last talk the page scrolls by
+  the height of the note. The note of the bar on the one-time
   copy links to the subscription panel; the link moves the focus to the heading of the
   panel and adds a history entry for the same address, so Back returns to the list, and
   Back and Forward show the filters of the address of each entry. A page opened at
