@@ -960,7 +960,9 @@ class TestBarButtons:
         select(current, "sample-pick")
         for button in (DOWNLOAD, DOCK_DOWNLOAD):
             assert_primary_look(current, button, unavailable=False)
-        page.locator(SELECT_SHOWN).focus()
+        # Reached with the keyboard, as a script focus() shows no ring in every browser.
+        page.locator(CLEAR).focus()
+        page.keyboard.press("Shift+Tab")
         page.keyboard.press("Enter")  # every shown talk is selected now
         assert_focus_ring(current, "select-shown")
         page.keyboard.press("Tab")
