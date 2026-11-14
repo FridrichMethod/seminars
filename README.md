@@ -110,12 +110,11 @@ talks you want in the list, or click Select all shown to tick every talk that th
 shows with the current filters and search. The bar above the list says how many talks
 are selected and how many of them the filters hide. While talks are selected and the bar
 is scrolled up out of view, a strip at the bottom of the list keeps the download button
-in reach and repeats what the bar says: how many talks are selected and how many of them
-the filters hide, and the note while a file is prepared and when it could not be made or
-leaves talks out. The selection stays while you filter,
-search or switch the language; Clear selection empties it, and so does reloading the
-page. A selected talk that has ended leaves the selection the next time the list is
-updated. Download selected (.ics) saves the file `seminars-selected.ics` with every
+in reach and repeats what the bar says: the count, the hidden talks, and the note while
+a file is prepared and when it could not be made or leaves talks out. The selection
+stays while you filter, search or switch the language; Clear selection empties it, and
+so does reloading the page. A selected talk that has ended leaves the selection the next
+time the list is updated. Download selected (.ics) saves the file `seminars-selected.ics` with every
 selected talk, those that the filters hide included. Its events are those of the feed
 `all`, copied unchanged, with the same UIDs. When the page cannot read the feed, or the
 feed holds none of the selected talks, it saves no file and says so; when some selected
