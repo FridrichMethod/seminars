@@ -409,8 +409,9 @@ function syncSelection() {
   }
   // The status is a live region: unchanged text is left alone, so it is not said again.
   writeText(ui.selectionStatus, selectionStatus(view));
-  // The count of the dock is plain text; the status of the bar is the one announcer.
-  writeText(ui.dockCount, selected.length ? plural("site.select.count", selected.length) : "");
+  // The dock says the same while the bar is off screen, the talks the filters hide
+  // included, as plain text: the status of the bar is the one announcer.
+  writeText(ui.dockCount, selected.length ? selectionStatus(view) : "");
   setUnavailable(ui.selectShown, !canSelectShown());
   setUnavailable(ui.selectClear, !canClear());
   for (const button of downloadButtons()) {

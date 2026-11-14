@@ -11,9 +11,10 @@ All notable changes of this project are recorded in this file. The format follow
 - **Download of selected talks** on the web site: every listed talk has a checkbox, and a
   bar above the list offers Select all shown, Clear selection and Download selected
   (.ics). While talks are selected and the bar is scrolled up out of view, a strip at the
-  bottom of the list keeps their count and the download button in reach and repeats the
-  note on a download that is being prepared, failed or left talks out; the note of the
-  bar on the one-time copy links to the subscription panel. The download saves
+  bottom of the list keeps the download button in reach and repeats what the bar says
+  about the selection, the talks the filters hide included, and the note on a download
+  that is being prepared, failed or left talks out; the note of the bar on the one-time
+  copy links to the subscription panel. The download saves
   `seminars-selected.ics`, a calendar for a one-time import with the selected talks, also
   those that the filters hide; `site/calendar.js` copies their events unchanged, with the
   same UIDs, from `feeds/all.ics`. The selection is held in memory only. The README says

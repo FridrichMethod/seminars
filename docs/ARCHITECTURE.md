@@ -280,9 +280,10 @@ replaced by an empty placeholder.
   bar above the list is a region landmark; while talks are selected and the bar is
   scrolled up out of view (an IntersectionObserver whose area reaches far below the
   viewport, so a bar still below the screen counts as on screen), a strip at the bottom of
-  the list keeps the count and a second download button in reach and shows a plain-text
-  copy of the note on a download that is being prepared, failed or left talks out (the
-  note of the bar stays the one that is announced). The note of the bar on the one-time
+  the list keeps a second download button in reach and shows a plain-text copy of the
+  status of the bar (the count, and how many selected talks the filters hide) and of the
+  note on a download that is being prepared, failed or left talks out (the status and the
+  note of the bar stay the ones that are announced). The note of the bar on the one-time
   copy links to the subscription panel; the link moves the focus to the heading of the
   panel and adds a history entry for the same address, so Back returns to the list, and
   Back and Forward show the filters of the address of each entry. On download the page

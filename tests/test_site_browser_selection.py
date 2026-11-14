@@ -1476,6 +1476,35 @@ class TestDock:
         assert page.evaluate(DOCK_PLACE)["bar"] is False
         current.assert_clean()
 
+    @pytest.mark.parametrize(
+        "viewport", [PHONE, {"width": DESKTOP["width"], "height": 500}], ids=["phone", "desktop"]
+    )
+    def test_the_dock_says_how_many_selected_talks_the_filters_hide(
+        self, session: Callable[..., Session], viewport: dict[str, int]
+    ) -> None:
+        # The bar that says so is off screen while the dock is shown, and the Download of
+        # the dock saves talks that no box on screen shows ticked.
+        current = session(viewport=viewport).open("index.html")
+        page = current.page
+        select(current, "sample-arc", "sample-pick")
+        page.locator('#field-chips button[data-value="cs"]').click()
+        assert current.shown() == CS_TALKS
+        assert checked(current) == []
+        page.evaluate(CENTER_TALK, CS_TALKS[-1])
+        page.locator(DOCK).wait_for(state="visible")
+        assert page.evaluate(DOCK_PLACE)["bar"] is False
+        assert page.locator(DOCK_COUNT).text_content() == status(current)
+        assert status(current) == status_text("en", 2, hidden=2)
+        settle(current)
+        assert_dock_space(current)
+        result = page.evaluate(OVERFLOW)
+        assert result["scroll"] <= result["width"]
+        assert result["wide"] == []
+        page.locator('.lang-switch button[lang="zh-CN"]').click()
+        assert page.locator(DOCK_COUNT).text_content() == status_text("zh-CN", 2, hidden=2)
+        assert status(current) == status_text("zh-CN", 2, hidden=2)
+        current.assert_clean()
+
     def test_the_dock_stays_hidden_while_the_bar_is_below_the_screen(
         self, session: Callable[..., Session]
     ) -> None:
