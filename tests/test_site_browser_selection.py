@@ -23,6 +23,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs
 
 import pytest
 
@@ -139,6 +140,13 @@ LINK_TARGET = """(selector) => {
     labelled_by: target?.getAttribute("aria-labelledby") ?? null,
   };
 }"""
+# A browser that refuses to add history entries (Safari allows only so many in a short
+# time).
+REFUSE_ENTRIES = """
+history.pushState = () => {
+  throw new DOMException("too many history entries", "SecurityError");
+};
+"""
 # Whether the heading of the subscription panel is drawn on screen: within the panel,
 # which clips what it is scrolled past, within the viewport and not covered.
 HEADING_SHOWN = """() => {
@@ -724,18 +732,82 @@ class TestSelecting:
             page.locator(SUBSCRIBE_LINK).focus()
             page.keyboard.press("Enter")
         # The panel in view and the focus on its heading, as after a jump to #subscribe,
-        # but the address and the history stay as they are: the page does not follow Back.
+        # and one more entry in the history, for the same address without a fragment.
         assert page.evaluate(FOCUSED) == "subscribe-heading"
         assert heading.evaluate("(h) => h.matches(':focus-visible')") is (device == "keyboard")
         assert in_viewport(current, "#subscribe-heading")
-        assert page.evaluate(HISTORY) == history
+        assert page.evaluate(HISTORY) == [history[0] + 1, ""]
         assert current.query() == query
+        assert_page_in(current, lang)
+        current.assert_clean()
+
+    def test_back_after_the_link_to_the_panel_returns_to_the_list(
+        self, session: Callable[..., Session]
+    ) -> None:
+        # On a phone the panel comes after the whole list: Back is the way back to it.
+        current = session(viewport=PHONE).open("index.html?field=cs")
+        page = current.page
+        select(current, "sample-xss", "sample-online")
+        link = page.locator(SUBSCRIBE_LINK)
+        link.scroll_into_view_if_needed()
+        scrolled = page.evaluate(SCROLLED)
+        address = page.url
+        history = page.evaluate(HISTORY)
+        link.click()
+        assert page.evaluate(SCROLLED) > scrolled
+        link.dispatch_event("click")  # pressed again (a double click): no second entry
+        assert page.evaluate(HISTORY) == [history[0] + 1, ""]
+        page.evaluate(MARK_LIST)
+        page.go_back()
+        settle(current)
+        assert page.url == address
+        assert page.evaluate(LIST_KEPT) is True  # the same filters: the list is not redrawn
+        assert page.evaluate(SCROLLED) == pytest.approx(scrolled, abs=1)
+        assert checked(current) == ["sample-xss", "sample-online"]
+        assert status(current) == "2 talks selected"
+        assert page.eval_on_selector_all('#field-chips [aria-pressed="true"]', VALUES) == ["cs"]
+        # Filters changed after the link stay with its entry: Back and Forward show the
+        # filters of the address, and the selection stays.
+        link.click()
         page.locator('#field-chips button[data-value="cs"]').click()
         page.locator('#field-chips button[data-value="math"]').click()
-        assert page.evaluate(HISTORY) == history
+        assert current.query()["field"] == ["math"]
+        page.go_back()
+        assert page.url == address
+        assert page.eval_on_selector_all('#field-chips [aria-pressed="true"]', VALUES) == ["cs"]
+        assert current.shown() == CS_TALKS
+        assert checked(current) == ["sample-xss", "sample-online"]
+        page.go_forward()
         assert current.query()["field"] == ["math"]
         assert page.eval_on_selector_all('#field-chips [aria-pressed="true"]', VALUES) == ["math"]
-        assert_page_in(current, lang)
+        assert status(current) == status_text("en", 2, hidden=2)
+        # The language shown stays after Back, and the address says so.
+        page.locator('.lang-switch button[lang="zh-CN"]').click()
+        page.go_back()
+        assert parse_qs(page.evaluate("location.search")[1:]) == {"field": ["cs"], "lang": ["zh"]}
+        assert status(current) == status_text("zh-CN", 2)
+        assert_page_in(current, "zh-CN")
+        current.assert_clean()
+
+    def test_the_link_shows_the_panel_when_the_browser_refuses_an_entry(
+        self, session: Callable[..., Session]
+    ) -> None:
+        current = session(viewport=PHONE)
+        current.page.add_init_script(REFUSE_ENTRIES)
+        warnings: list[str] = []
+        current.page.on(
+            "console",
+            lambda message: warnings.append(message.text) if message.type == "warning" else None,
+        )
+        current.open("index.html")
+        page = current.page
+        history = page.evaluate(HISTORY)
+        page.locator(SUBSCRIBE_LINK).click()
+        assert page.evaluate(FOCUSED) == "subscribe-heading"
+        assert in_viewport(current, "#subscribe-heading")
+        assert page.evaluate(HISTORY) == history
+        assert len(warnings) == 1
+        assert "too many history entries" in warnings[0]
         current.assert_clean()
 
     @pytest.mark.parametrize("modifier", [NEW_TAB, "Shift"], ids=["new-tab", "new-window"])

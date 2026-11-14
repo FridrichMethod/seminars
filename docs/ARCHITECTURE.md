@@ -283,9 +283,10 @@ replaced by an empty placeholder.
   the list keeps the count and a second download button in reach and shows a plain-text
   copy of the note on a download that is being prepared, failed or left talks out (the
   note of the bar stays the one that is announced). The note of the bar on the one-time
-  copy links to the subscription panel; the link moves the focus to the panel without an
-  entry in the history. On download
-  the page fetches `feeds/all.ics` from its own site (the path of the feed `all` in
+  copy links to the subscription panel; the link moves the focus to the heading of the
+  panel and adds a history entry for the same address, so Back returns to the list, and
+  Back and Forward show the filters of the address of each entry. On download the page
+  fetches `feeds/all.ics` from its own site (the path of the feed `all` in
   `events.json`) and copies the VEVENT blocks of the selected talks verbatim, in the order
   of the feed, into one calendar, together with every VTIMEZONE block and the basic header
   of the feed (`VERSION`, `PRODID` and, when present, `CALSCALE`, `METHOD` and

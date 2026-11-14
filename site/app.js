@@ -19,7 +19,7 @@ import {
   toggled,
   withinChoices,
 } from "./filters.js";
-import { children, currentLang, formatSigned, parts, plural, t } from "./i18n.js";
+import { children, currentLang, formatSigned, parts, plural, t, withLang } from "./i18n.js";
 import {
   byId,
   debounced,
@@ -91,6 +91,8 @@ const SELECT_LABEL_ID = "select-label";
 // into view and the dock, for its focus ring (style.css).
 const DOCK_SHOWN = "is-shown";
 const DOCK_GAP_PX = 8;
+// The state of the history entry that the link of the bar to the subscription panel adds.
+const SUBSCRIBE_ENTRY = Object.freeze({ subscribe: true });
 // The bar counts as on screen until it leaves the viewport through the top: the area the
 // bar is watched in reaches this far below the viewport, more than the page above the bar
 // is ever tall. A bar below the screen (the top of the page on a phone) is not passed.
@@ -271,6 +273,26 @@ function connectControls() {
     button.addEventListener("click", pressDownload);
   }
   ui.subscribeLink.addEventListener("click", showSubscribe);
+  window.addEventListener("popstate", followHistory);
+}
+
+/**
+ * Back and Forward between the entries of the page (the link to the subscription panel
+ * adds one) show the filters of the address of the entry, so the address and the list
+ * agree; the browser puts back the scroll position. The language stays the one shown, and
+ * the address is made to say so. The list is drawn again only when the filters change.
+ */
+function followHistory() {
+  const search = window.location.search;
+  const lang = withLang(search, currentLang());
+  if (lang.toString() !== new URLSearchParams(search).toString()) {
+    replaceQuery(lang);
+  }
+  const address = filtersFromQuery(search, ANY_CHOICES);
+  const filters = view.model === null ? address : withinChoices(address, view.model.choices);
+  if (queryFromFilters(filters, "").toString() !== queryFromFilters(view.filters, "").toString()) {
+    setFilters(filters);
+  }
 }
 
 /**
@@ -278,16 +300,24 @@ function connectControls() {
  * panel into view and move the focus to it, as the jump to #subscribe would. The panel
  * goes back to its top first: on a wide screen it sticks beside the list and scrolls
  * within itself, and the heading is its first line. The page then scrolls to the panel,
- * unless the heading is on screen already (the panel beside the list). No fragment goes
- * into the address and no entry into the history, which the page does not follow: Back
- * would leave the address on other filters than the list shows. A click that opens the
- * link elsewhere (with a modifier key) is left to the browser.
+ * unless the heading is on screen already (the panel beside the list). Like the jump, the
+ * link adds an entry to the history, so that Back returns to the list where it was, but
+ * for the same address, without a fragment; pressed again from that entry, it adds none.
+ * A click that opens the link elsewhere (with a modifier key) is left to the browser.
  */
 function showSubscribe(event) {
   if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
     return;
   }
   event.preventDefault();
+  if (window.history.state?.subscribe !== true) {
+    try {
+      window.history.pushState(SUBSCRIBE_ENTRY, "");
+    } catch (error) {
+      // A browser may refuse (Safari allows only so many entries in a short time).
+      console.warn(error);
+    }
+  }
   ui.subscribe.scrollTop = 0;
   const heading = ui.subscribeHeading.getBoundingClientRect();
   if (heading.top < 0 || heading.bottom > window.innerHeight) {
