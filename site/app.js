@@ -54,6 +54,7 @@ const ui = {
   dock: byId("selection-dock"),
   dockCount: byId("selection-dock-count"),
   dockDownload: byId("selection-dock-download"),
+  dockNote: byId("selection-dock-note"),
   steps: byId("apple-steps"),
   feeds: byId("feeds"),
 };
@@ -443,12 +444,18 @@ function watchBar() {
 
 /** Keep the focus clear of the dock as the focus moves and as the dock changes size. */
 function watchDock() {
-  new ResizeObserver(fitDockSpace).observe(ui.dock);
+  new ResizeObserver(() => {
+    fitDockSpace();
+    keepFocusClear();
+  }).observe(ui.dock);
   document.addEventListener("focusin", keepFocusClear);
 }
 
-/** The note on the last download, in the active language. */
-function noteContent(note) {
+/**
+ * The note on the last download, in the active language. A failure is an alert in the
+ * bar; ``alert`` false gives the same note as plain text (the copy in the dock).
+ */
+function noteContent(note, alert = true) {
   switch (note.kind) {
     case "preparing":
       return h("p", { class: "note" }, t("site.select.preparing"));
@@ -464,18 +471,26 @@ function noteContent(note) {
         }),
       );
     default: // "failed"
-      return h("p", { class: "note note-failed", role: "alert" }, t("site.select.failed"));
+      return h(
+        "p",
+        { class: "note note-failed", role: alert ? "alert" : null },
+        t("site.select.failed"),
+      );
   }
 }
 
 /**
  * Show the note of ``view.download``. Called when the note changes and when the whole
  * page is drawn again (a language switch), never for a filter or a tick, so a note that
- * is an alert is not announced again.
+ * is an alert is not announced again. The dock, shown while the bar is off screen, shows
+ * a copy as plain text (the note of the bar is the one announced), except for a saved
+ * file, which the browser shows.
  */
 function renderNote() {
   const { note } = view.download;
   replaceChildren(ui.note, note === null ? null : noteContent(note));
+  const copied = note !== null && note.kind !== "saved";
+  replaceChildren(ui.dockNote, copied ? noteContent(note, false) : null);
 }
 
 /**

@@ -443,6 +443,20 @@ button.primary[aria-disabled="true"] {
   font-weight: 600;
 }
 
+/* The note on a download that is being prepared, left talks out or failed, on a line of
+   its own below the count and the button: the note of the bar is off screen. */
+.selection-dock-note {
+  width: 100%;
+}
+
+.selection-dock-note:empty {
+  display: none;
+}
+
+.selection-dock-note .note {
+  margin: 0;
+}
+
 /* The link to the subscription panel is the last sentence of the note: a space between
    English sentences, none after a Chinese full stop, which has its own. */
 .selection-copy a {

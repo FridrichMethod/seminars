@@ -71,6 +71,8 @@ BUTTONS = (SELECT_SHOWN, CLEAR, DOWNLOAD)
 DOCK = "#selection-dock"
 DOCK_COUNT = "#selection-dock-count"
 DOCK_DOWNLOAD = "#selection-dock-download"
+DOCK_NOTE = "#selection-dock-note"
+DOCK_GAP_PX = 8  # the room app.js keeps between the dock and an element scrolled into view
 MIDDLE_TALK = "sample-all-day"  # in the middle of the list
 ONE_TIME_COPY = "#selection .selection-copy"  # a downloaded file is a one-time copy
 SUBSCRIBE_LINK = f'{ONE_TIME_COPY} a[href="#subscribe"]'  # its last sentence
@@ -176,6 +178,21 @@ DOCK_PLACE = """() => {
     bar: bar.bottom > 0 && bar.top < window.innerHeight,
   };
 }"""
+# Whether the element ``selector`` is drawn wholly within the dock, on screen.
+IN_DOCK = """(selector) => {
+  const rect = document.querySelector(selector).getBoundingClientRect();
+  const dock = document.getElementById("selection-dock").getBoundingClientRect();
+  const inside = (outer, inner) =>
+    inner.top >= outer.top && inner.bottom <= outer.bottom
+    && inner.left >= outer.left && inner.right <= outer.right;
+  const screen = { top: 0, bottom: innerHeight, left: 0, right: innerWidth };
+  return rect.height > 0 && inside(dock, rect) && inside(screen, dock);
+}"""
+# The scroll padding at the bottom of the page and what the height of the dock asks for.
+DOCK_SPACE = """(gap) => ({
+  padding: getComputedStyle(document.documentElement).scrollPaddingBottom,
+  wanted: `${document.getElementById("selection-dock").offsetHeight + gap}px`,
+})"""
 # Whether the bar is wholly below the viewport.
 BAR_BELOW = "() => document.getElementById('selection').getBoundingClientRect().top >= innerHeight"
 # Whether a click at the middle of an element reaches it: nothing covers it there.
@@ -209,6 +226,13 @@ BAR_EDGE_ON_SCREEN = """(pixels) => {
   window.scrollTo(0, window.scrollY + bottom - pixels);
   const top = document.getElementById("select-download").getBoundingClientRect().top;
   return { scrolled: window.scrollY, top };
+}"""
+# Scrolls the page so that the bottom of the element ``selector`` is ``gap`` pixels above
+# the top of the dock.
+ABOVE_THE_DOCK = """([selector, gap]) => {
+  const bottom = document.querySelector(selector).getBoundingClientRect().bottom;
+  const top = document.getElementById("selection-dock").getBoundingClientRect().top;
+  window.scrollBy(0, bottom - (top - gap));
 }"""
 # Counts the clicks that reach a button (a key press clicks it too).
 COUNT_PRESSES = """(selector) => {
@@ -352,6 +376,25 @@ def dock_shown_at(current: Session, uid: str) -> None:
     place = current.page.evaluate(DOCK_PLACE)
     assert place["bar"] is False
     assert place["bottom"] == pytest.approx(place["viewport"], abs=1)
+
+
+def click_in_place(current: Session, selector: str) -> None:
+    """Click the middle of an element where it is, as a mouse does: nothing is scrolled."""
+    box = current.page.locator(selector).bounding_box()
+    assert box is not None
+    current.page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+
+
+def dock_note(current: Session) -> str:
+    return current.page.locator(DOCK_NOTE).text_content() or ""
+
+
+def partial_note(lang: str, saved: int, missing: int) -> str:
+    """The note on a file that leaves ``missing`` selected talks out, in ``lang``."""
+    return catalog(lang)["site.select.partial"].format(
+        saved=counted(lang, "site.select.saved", saved),
+        missing=counted(lang, "site.select.missing", missing),
+    )
 
 
 def download(current: Session, button: str = DOWNLOAD) -> str:
@@ -819,6 +862,7 @@ class TestDownload:
         assert page.locator(DOCK_DOWNLOAD).is_disabled()
         assert page.evaluate(FOCUSED) == "select-download"
         assert note(current) == catalog("en")["site.select.preparing"]
+        assert dock_note(current) == catalog("en")["site.select.preparing"]
         page.keyboard.press("Enter")  # a second press while the file is prepared does nothing
         with page.expect_download() as info:
             held[0].continue_()
@@ -830,6 +874,7 @@ class TestDownload:
         assert page.locator(DOCK_DOWNLOAD).get_attribute("aria-busy") == "false"
         assert page.locator(DOCK_DOWNLOAD).is_enabled()
         assert page.evaluate(FOCUSED) == "select-download"
+        assert dock_note(current) == ""  # the browser shows the saved file
         current.assert_clean()
 
     @pytest.mark.parametrize("change", ["clear", "swap"])
@@ -1064,10 +1109,7 @@ class TestDownload:
         )
         select(current, "sample-pick", "sample-arc", "sample-online")
         assert_file_of(download(current), feed, ["sample-arc", "sample-online"])
-        english = catalog("en")["site.select.partial"].format(
-            saved=counted("en", "site.select.saved", 2),
-            missing=counted("en", "site.select.missing", 1),
-        )
+        english = partial_note("en", 2, 1)
         assert english == (
             "A calendar file with 2 talks was passed to your browser to save. "
             "1 selected talk is not in the calendar feed and was left out."
@@ -1075,10 +1117,7 @@ class TestDownload:
         assert note(current) == english
         assert page.locator(f"{NOTE} [role=alert]").count() == 0
         page.locator('.lang-switch button[lang="zh-CN"]').click()
-        assert note(current) == catalog("zh-CN")["site.select.partial"].format(
-            saved=counted("zh-CN", "site.select.saved", 2),
-            missing=counted("zh-CN", "site.select.missing", 1),
-        )
+        assert note(current) == partial_note("zh-CN", 2, 1)
         current.assert_clean()
 
     @pytest.mark.parametrize(
@@ -1190,6 +1229,48 @@ class TestDock:
         current.assert_clean()
 
     @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
+    def test_the_dock_shows_the_outcome_of_its_download(
+        self, session: Callable[..., Session], feed: str, viewport: dict[str, int]
+    ) -> None:
+        # The note of the bar is off screen while the dock is shown. The dock shows it as
+        # plain text; the note of the bar stays the one that is announced.
+        current = session(viewport=viewport).open("index.html")
+        page = current.page
+        page.route(f"**/{FEED_PATH}", lambda route: route.fulfill(status=404, body=""))
+        select(current, "sample-arc", "sample-defense")
+        dock_shown_at(current, MIDDLE_TALK)
+        click_in_place(current, DOCK_DOWNLOAD)
+        page.locator(f"{DOCK_NOTE} .note-failed").wait_for()
+        assert dock_note(current) == note(current) == catalog("en")["site.select.failed"]
+        assert page.evaluate(IN_DOCK, DOCK_NOTE) is True
+        assert not in_viewport(current, NOTE)
+        assert page.locator("[role=alert]").count() == 1
+        assert page.locator(f"{NOTE} [role=alert]").count() == 1
+        assert page.locator(f"{DOCK} [role], {DOCK} [aria-live]").count() == 0
+        settle(current)  # the dock grew: the scroll padding follows
+        space = page.evaluate(DOCK_SPACE, DOCK_GAP_PX)
+        assert space["padding"] == space["wanted"]
+        drop_expected_errors(current, FAILED_REQUEST, FEED_ERROR)
+
+        shorter = feed.replace(block_of(feed, "sample-defense"), "")
+        page.unroute(f"**/{FEED_PATH}")
+        page.route(
+            f"**/{FEED_PATH}",
+            lambda route: route.fulfill(status=200, content_type="text/calendar", body=shorter),
+        )
+        dock_shown_at(current, MIDDLE_TALK)
+        with page.expect_download() as info:
+            click_in_place(current, DOCK_DOWNLOAD)
+        assert_file_of(Path(info.value.path()).read_bytes().decode("utf-8"), feed, ["sample-arc"])
+        page.locator(f"{DOCK_NOTE} .note-partial").wait_for()
+        assert dock_note(current) == note(current) == partial_note("en", 1, 1)
+        assert page.evaluate(IN_DOCK, DOCK_NOTE) is True
+        assert page.locator("[role=alert]").count() == 0
+        page.locator('.lang-switch button[lang="zh-CN"]').click()
+        assert dock_note(current) == note(current) == partial_note("zh-CN", 1, 1)
+        current.assert_clean()
+
+    @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
     def test_the_keyboard_focus_stays_above_the_dock(
         self, session: Callable[..., Session], viewport: dict[str, int]
     ) -> None:
@@ -1283,6 +1364,37 @@ class TestDock:
         settle(current)
         assert page.evaluate(FOCUSED) == "sample-pick"
         assert page.evaluate(FOCUS_CLEAR) is True
+        current.assert_clean()
+
+    def test_a_dock_that_grows_over_the_focus_moves_the_focus_above_it(
+        self, session: Callable[..., Session], feed: str
+    ) -> None:
+        current = session().open("index.html")
+        page = current.page
+        held: list[Any] = []
+        page.route(f"**/{FEED_PATH}", lambda route: held.append(route))
+        select(current, "sample-arc")
+        dock_shown_at(current, MIDDLE_TALK)
+        # The checkbox of sample-biohub reached with Tab just above the dock, clear of it.
+        page.evaluate(ABOVE_THE_DOCK, [box_of("sample-biohub"), 14])
+        settle(current)
+        page.evaluate(FOCUS_BEFORE, box_of("sample-biohub"))
+        page.keyboard.press("Tab")
+        settle(current)
+        assert page.evaluate(FOCUSED) == "sample-biohub"
+        assert page.evaluate(FOCUS_CLEAR) is True
+        scrolled = page.evaluate(SCROLLED)
+        # A download that the focus does not follow: the dock grows by its note.
+        with page.expect_request(f"**/{FEED_PATH}"):
+            page.locator(DOCK_DOWNLOAD).dispatch_event("click")
+        page.locator(f"{DOCK_NOTE} .note").wait_for()
+        settle(current)
+        assert page.evaluate(FOCUSED) == "sample-biohub"
+        assert page.evaluate(FOCUS_CLEAR) is True
+        assert page.evaluate(SCROLLED) > scrolled
+        with page.expect_download() as info:
+            held[0].continue_()
+        assert_file_of(Path(info.value.path()).read_bytes().decode("utf-8"), feed, ["sample-arc"])
         current.assert_clean()
 
 
