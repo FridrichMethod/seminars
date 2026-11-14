@@ -1397,6 +1397,36 @@ class TestDock:
         assert_file_of(Path(info.value.path()).read_bytes().decode("utf-8"), feed, ["sample-arc"])
         current.assert_clean()
 
+    def test_the_scroll_padding_follows_a_dock_that_changes_size(
+        self, session: Callable[..., Session]
+    ) -> None:
+        # Across 40rem the dock puts its button below the count and grows while it stays
+        # shown: a phone turned, a window narrowed or zoomed.
+        current = session(viewport={"width": 700, "height": PHONE["height"]}).open("index.html")
+        page = current.page
+        select(current, "sample-xss")
+        dock_shown_at(current, MIDDLE_TALK)
+        wide = page.evaluate(DOCK_SPACE, DOCK_GAP_PX)
+        assert wide["padding"] == wide["wanted"]
+        page.set_viewport_size(PHONE)
+        settle(current)
+        assert page.evaluate(DOCK_PLACE)["bar"] is False
+        assert page.locator(DOCK).is_visible()
+        narrow = page.evaluate(DOCK_SPACE, DOCK_GAP_PX)
+        assert narrow["padding"] == narrow["wanted"] != wide["padding"]
+        # A checkbox reached with Tab in the band the dock grew into goes above the dock.
+        box = page.locator(box_of("sample-biohub")).bounding_box()
+        assert box is not None
+        page.evaluate(ABOVE_THE_DOCK, [box_of("sample-biohub"), -(box["height"] + 3)])
+        settle(current)
+        assert page.evaluate(DOCK_PLACE)["bar"] is False
+        page.evaluate(FOCUS_BEFORE, box_of("sample-biohub"))
+        page.keyboard.press("Tab")
+        settle(current)
+        assert page.evaluate(FOCUSED) == "sample-biohub"
+        assert page.evaluate(FOCUS_CLEAR) is True
+        current.assert_clean()
+
 
 class TestStates:
     def test_the_bar_waits_for_the_talks(self, session: Callable[..., Session]) -> None:
