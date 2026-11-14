@@ -419,8 +419,9 @@ function syncDock() {
 }
 
 /**
- * Make the scroll padding of the page (--dock-space in style.css) the height of the dock
- * while it is shown, 0 while it is hidden: an element scrolled into view stops above it.
+ * Make the room a control of the list column keeps below it when it is scrolled into view
+ * (--dock-space, its scroll margin in style.css) the height of the dock while it is shown,
+ * 0 while it is hidden: the control stops above the dock.
  */
 function fitDockSpace() {
   const space = dockShown() ? ui.dock.offsetHeight + DOCK_GAP_PX : 0;
@@ -428,11 +429,13 @@ function fitDockSpace() {
 }
 
 /**
- * Keep the keyboard focus out from under the dock. The scroll padding makes the browser
- * stop an element reached with Tab above the dock, but the dock may appear only after
- * that (when the same move scrolls the bar away), and a browser may scroll only elements
- * that are off screen: a focused element under the dock is then scrolled into view above
- * it. A tap or a click (no focus ring) never scrolls the page.
+ * Keep the keyboard focus out from under the dock. The scroll margin of the controls of
+ * the list column makes the browser stop one reached with Tab above the dock, but the dock
+ * may appear only after that (when the same move scrolls the bar away), and a browser may
+ * scroll only elements that are off screen: a focused element under the dock is then
+ * scrolled into view above it. An element beside the dock (the subscription panel on a
+ * wide screen) is left where it is, and a tap or a click (no focus ring) never scrolls the
+ * page.
  */
 function keepFocusClear() {
   const focused = document.activeElement;

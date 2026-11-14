@@ -191,11 +191,23 @@ IN_DOCK = """(selector) => {
   const screen = { top: 0, bottom: innerHeight, left: 0, right: innerWidth };
   return rect.height > 0 && inside(dock, rect) && inside(screen, dock);
 }"""
-# The scroll padding at the bottom of the page and what the height of the dock asks for.
-DOCK_SPACE = """(gap) => ({
-  padding: getComputedStyle(document.documentElement).scrollPaddingBottom,
-  wanted: `${document.getElementById("selection-dock").offsetHeight + gap}px`,
-})"""
+# The room a checkbox of the list keeps below it when it is scrolled into view (its
+# scroll margin) and what the height of the dock asks for; the controls of the dock and
+# of the subscription panel and the page itself keep none.
+DOCK_SPACE = """(gap) => {
+  const margin = (selector) =>
+    getComputedStyle(document.querySelector(selector)).scrollMarginBottom;
+  return {
+    margin: margin("#events input.select-talk"),
+    wanted: `${document.getElementById("selection-dock").offsetHeight + gap}px`,
+    others: [
+      margin("#selection-dock-download"),
+      margin("#subscribe a[href]"),
+      margin("#subscribe button"),
+      getComputedStyle(document.documentElement).scrollPaddingBottom,
+    ],
+  };
+}"""
 # Whether the bar is wholly below the viewport.
 BAR_BELOW = "() => document.getElementById('selection').getBoundingClientRect().top >= innerHeight"
 # Whether a click at the middle of an element reaches it: nothing covers it there.
@@ -242,6 +254,32 @@ ABOVE_THE_DOCK = """([selector, gap]) => {
 NEAR_THE_BOTTOM = """([selector, gap]) => {
   const rect = document.querySelector(selector).getBoundingClientRect();
   window.scrollBy(0, rect.top + rect.height / 2 - (innerHeight - gap));
+}"""
+# Whether the focus is in the subscription panel.
+IN_PANEL = "() => document.getElementById('subscribe').contains(document.activeElement)"
+# Whether the element ``selector`` has the focus.
+HAS_FOCUS = "(selector) => document.activeElement === document.querySelector(selector)"
+# The last Copy button of the subscription panel.
+LAST_COPY = "#feeds li:last-child .feed-row:last-child button.copy"
+# Scrolls the subscription panel within itself so that the middle of the element
+# ``selector`` is on its lower edge, where the panel clips it.
+ON_THE_PANEL_EDGE = """(selector) => {
+  const panel = document.getElementById("subscribe");
+  const rect = document.querySelector(selector).getBoundingClientRect();
+  panel.scrollTop -= panel.getBoundingClientRect().bottom - (rect.top + rect.height / 2);
+}"""
+# Where the list is on screen (the top of the talk in its middle), the scroll of the
+# subscription panel, and whether the element ``selector`` is beside the dock at its
+# height.
+BESIDE_THE_DOCK = """(selector) => {
+  const rect = document.querySelector(selector).getBoundingClientRect();
+  const dock = document.getElementById("selection-dock").getBoundingClientRect();
+  const talk = document.querySelector('#events article[data-uid="sample-all-day"]');
+  return {
+    list: talk.getBoundingClientRect().top,
+    panel: document.getElementById("subscribe").scrollTop,
+    beside: rect.left >= dock.right && rect.bottom > dock.top && rect.top < dock.bottom,
+  };
 }"""
 # Counts the clicks that reach a button (a key press clicks it too).
 COUNT_PRESSES = """(selector) => {
@@ -488,6 +526,15 @@ def assert_primary_look(current: Session, selector: str, unavailable: bool) -> N
     else:
         wanted = [tokens["--accent"], tokens["--accent-fg"], tokens["--accent"]]
     assert look == dict(zip(["background", "text", "border"], wanted, strict=True))
+
+
+def assert_dock_space(current: Session) -> str:
+    """The checkboxes of the list keep the room of the dock below them when they are
+    scrolled into view, and nothing else does; returns that room."""
+    space = current.page.evaluate(DOCK_SPACE, DOCK_GAP_PX)
+    assert space["margin"] == space["wanted"]
+    assert space["others"] == ["0px", "0px", "0px", "auto"]
+    return space["margin"]
 
 
 def drop_expected_errors(current: Session, *patterns: str) -> None:
@@ -1329,9 +1376,8 @@ class TestDock:
         assert page.locator("[role=alert]").count() == 1
         assert page.locator(f"{NOTE} [role=alert]").count() == 1
         assert page.locator(f"{DOCK} [role], {DOCK} [aria-live]").count() == 0
-        settle(current)  # the dock grew: the scroll padding follows
-        space = page.evaluate(DOCK_SPACE, DOCK_GAP_PX)
-        assert space["padding"] == space["wanted"]
+        settle(current)  # the dock grew: the room kept above it follows
+        assert_dock_space(current)
         drop_expected_errors(current, FAILED_REQUEST, FEED_ERROR)
 
         shorter = feed.replace(block_of(feed, "sample-defense"), "")
@@ -1496,7 +1542,69 @@ class TestDock:
         assert_file_of(Path(info.value.path()).read_bytes().decode("utf-8"), feed, ["sample-arc"])
         current.assert_clean()
 
-    def test_the_scroll_padding_follows_a_dock_that_changes_size(
+    def test_tab_through_the_panel_beside_the_dock_moves_no_list(
+        self, session: Callable[..., Session]
+    ) -> None:
+        # On a wide screen the subscription panel sticks beside the list, clear of the
+        # dock: the keyboard goes from the dock through the panel and the list stays put.
+        current = session().open("index.html")
+        page = current.page
+        select(current, "sample-arc")
+        dock_shown_at(current, MIDDLE_TALK)
+        scrolled = page.evaluate(SCROLLED)
+        page.evaluate(FOCUS_BEFORE, DOCK_DOWNLOAD)
+        page.keyboard.press("Tab")
+        settle(current)
+        assert page.evaluate(FOCUSED) == "selection-dock-download"
+        assert page.evaluate(SCROLLED) == scrolled
+        stops = 0
+        for _ in range(100):
+            page.keyboard.press("Tab")
+            settle(current)
+            if not page.evaluate(IN_PANEL):
+                break
+            stops += 1
+            assert page.evaluate(SCROLLED) == scrolled, stops
+        assert stops > 8  # two links and two Copy buttons for each feed
+        assert page.locator("#subscribe").evaluate("(panel) => panel.scrollTop") > 0
+        assert page.locator(DOCK).is_visible()
+        current.assert_clean()
+
+    def test_a_dock_that_grows_beside_the_focus_leaves_it_in_place(
+        self, session: Callable[..., Session], feed: str
+    ) -> None:
+        # A control of the panel beside the dock, at its height and half clipped by the
+        # panel: the dock grows, and neither the panel nor the list moves (the note of
+        # the bar above the screen grows too, and the page keeps the list in place).
+        current = session().open("index.html")
+        page = current.page
+        held: list[Any] = []
+        page.route(f"**/{FEED_PATH}", lambda route: held.append(route))
+        select(current, "sample-arc")
+        dock_shown_at(current, MIDDLE_TALK)
+        page.evaluate(FOCUS_BEFORE, LAST_COPY)
+        page.keyboard.press("Tab")
+        settle(current)
+        assert page.evaluate(HAS_FOCUS, LAST_COPY) is True
+        page.evaluate(ON_THE_PANEL_EDGE, LAST_COPY)
+        settle(current)
+        before = page.evaluate(BESIDE_THE_DOCK, LAST_COPY)
+        assert before["beside"] is True
+        with page.expect_request(f"**/{FEED_PATH}"):
+            page.locator(DOCK_DOWNLOAD).dispatch_event("click")
+        page.locator(f"{DOCK_NOTE} .note").wait_for()
+        settle(current)
+        assert page.evaluate(HAS_FOCUS, LAST_COPY) is True
+        after = page.evaluate(BESIDE_THE_DOCK, LAST_COPY)
+        assert after["panel"] == before["panel"]
+        assert after["beside"] is True
+        assert after["list"] == pytest.approx(before["list"], abs=1)
+        with page.expect_download() as info:
+            held[0].continue_()
+        assert_file_of(Path(info.value.path()).read_bytes().decode("utf-8"), feed, ["sample-arc"])
+        current.assert_clean()
+
+    def test_the_room_above_the_dock_follows_a_dock_that_changes_size(
         self, session: Callable[..., Session]
     ) -> None:
         # Across 40rem the dock puts its button below the count and grows while it stays
@@ -1505,14 +1613,12 @@ class TestDock:
         page = current.page
         select(current, "sample-xss")
         dock_shown_at(current, MIDDLE_TALK)
-        wide = page.evaluate(DOCK_SPACE, DOCK_GAP_PX)
-        assert wide["padding"] == wide["wanted"]
+        wide = assert_dock_space(current)
         page.set_viewport_size(PHONE)
         settle(current)
         assert page.evaluate(DOCK_PLACE)["bar"] is False
         assert page.locator(DOCK).is_visible()
-        narrow = page.evaluate(DOCK_SPACE, DOCK_GAP_PX)
-        assert narrow["padding"] == narrow["wanted"] != wide["padding"]
+        assert assert_dock_space(current) != wide
         # A checkbox reached with Tab in the band the dock grew into goes above the dock.
         box = page.locator(box_of("sample-biohub")).bounding_box()
         assert box is not None

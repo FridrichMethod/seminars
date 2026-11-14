@@ -61,10 +61,6 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  /* While the selection dock is shown at the bottom of the screen, an element scrolled
-     into view (a checkbox reached with Tab) stops above it: app.js sets --dock-space to
-     the height of the dock, 0 while it is hidden. */
-  scroll-padding-bottom: var(--dock-space, 0px);
 }
 
 body {
@@ -443,6 +439,14 @@ button.primary[aria-disabled="true"] {
 
 .selection-dock:not(.is-shown) {
   visibility: hidden;
+}
+
+/* While the dock is shown, a control of the list column scrolled into view (a checkbox
+   reached with Tab) stops above it: app.js sets --dock-space to the height of the dock,
+   0 while it is hidden. The controls of the dock itself and of the subscription panel,
+   which the dock never covers, scroll into view as usual. */
+.talks :is(a[href], button, input, select, summary):not(.selection-dock *) {
+  scroll-margin-bottom: var(--dock-space, 0px);
 }
 
 /* One line, also while it is empty: the dock keeps its height. */
