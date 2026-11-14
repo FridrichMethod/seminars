@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import math
 import re
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -78,6 +79,8 @@ ONE_TIME_COPY = "#selection .selection-copy"  # a downloaded file is a one-time 
 SUBSCRIBE_LINK = f'{ONE_TIME_COPY} a[href="#subscribe"]'  # its last sentence
 CS_TALKS = ["sample-xss", "sample-online", "sample-defense"]  # shown with field=cs
 NO_TALK = "qqqzzz"  # a search that no talk matches
+# The key that opens a link in a new tab with a click.
+NEW_TAB = "Meta" if sys.platform == "darwin" else "Control"
 UID_VALUE = re.compile(r"^UID:([^\r\n]*)", re.MULTILINE)
 UNFOLD = re.compile(r"\r\n[ \t]")
 INJECTED = "script, img, svg, iframe, object, embed, b, i, u, [onerror], [onload]"
@@ -733,6 +736,31 @@ class TestSelecting:
         assert current.query()["field"] == ["math"]
         assert page.eval_on_selector_all('#field-chips [aria-pressed="true"]', VALUES) == ["math"]
         assert_page_in(current, lang)
+        current.assert_clean()
+
+    @pytest.mark.parametrize("modifier", [NEW_TAB, "Shift"], ids=["new-tab", "new-window"])
+    def test_the_link_opened_elsewhere_leaves_this_page_alone(
+        self, session: Callable[..., Session], modifier: str
+    ) -> None:
+        # A click with a modifier key is left to the browser, which opens the panel in
+        # another tab or window: this page keeps its scroll, its focus and its history.
+        current = session(viewport=PHONE).open("index.html?field=cs")
+        page = current.page
+        link = page.locator(SUBSCRIBE_LINK)
+        link.scroll_into_view_if_needed()
+        scrolled = page.evaluate(SCROLLED)
+        history = page.evaluate(HISTORY)
+        address = page.url
+        with current.context.expect_page() as opened:
+            link.click(modifiers=[modifier])
+        other = opened.value
+        other.wait_for_load_state()
+        assert other.url == f"{address}#subscribe"
+        other.close()
+        assert page.evaluate(SCROLLED) == scrolled
+        assert page.evaluate(HISTORY) == history
+        assert page.url == address
+        assert page.evaluate(FOCUSED) != "subscribe-heading"
         current.assert_clean()
 
     @pytest.mark.parametrize("device", ["mouse", "keyboard"])
