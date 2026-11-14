@@ -195,12 +195,20 @@ FOCUS_CLEAR = """() => {
   }
   return focused.getBoundingClientRect().bottom + 4 <= dock.getBoundingClientRect().top;
 }"""
-# Focuses, without scrolling, the element that Tab leaves for the checkbox of a talk.
-FOCUS_BEFORE = """(uid) => {
-  const box = document.querySelector(`input.select-talk[data-uid="${CSS.escape(uid)}"]`);
+# Focuses, without scrolling, the element that Tab leaves for the element ``selector``.
+FOCUS_BEFORE = """(selector) => {
+  const target = document.querySelector(selector);
   const stops = [...document.querySelectorAll("a[href], input, button, select, summary")]
     .filter((element) => element.getClientRects().length > 0);
-  stops[stops.indexOf(box) - 1].focus({ preventScroll: true });
+  stops[stops.indexOf(target) - 1].focus({ preventScroll: true });
+}"""
+# Scrolls the page so that the last ``pixels`` of the bar are on screen, and returns the
+# scroll position and the top of the Download button of the bar (above the viewport).
+BAR_EDGE_ON_SCREEN = """(pixels) => {
+  const bottom = document.getElementById("selection").getBoundingClientRect().bottom;
+  window.scrollTo(0, window.scrollY + bottom - pixels);
+  const top = document.getElementById("select-download").getBoundingClientRect().top;
+  return { scrolled: window.scrollY, top };
 }"""
 # Counts the clicks that reach a button (a key press clicks it too).
 COUNT_PRESSES = """(selector) => {
@@ -247,6 +255,11 @@ def title_shown(uid: str, lang: str) -> str:
 def talk_name(current: Session, uid: str) -> str:
     """The accessible name the checkbox of a listed talk has: what NAME_PARTS reads."""
     return " ".join(current.page.evaluate(NAME_PARTS, uid))
+
+
+def box_of(uid: str) -> str:
+    """The selector of the checkbox of a sample talk (its uid needs no escaping)."""
+    return f'input.select-talk[data-uid="{uid}"]'
 
 
 def checkbox(current: Session, uid: str, lang: str = "en") -> Any:
@@ -1206,6 +1219,43 @@ class TestDock:
         assert page.evaluate(FOCUSED) == "select-download"
         current.assert_clean()
 
+    @pytest.mark.parametrize("device", ["mouse", "keyboard"])
+    @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
+    def test_a_dock_that_hides_hands_its_focus_to_the_bar_in_place(
+        self, session: Callable[..., Session], viewport: dict[str, int], device: str
+    ) -> None:
+        # The Download of the bar is still above the screen when the last pixels of the
+        # bar come in: focused, it would be scrolled to the middle of the screen.
+        current = session(viewport=viewport).open("index.html")
+        page = current.page
+        select(current, "sample-arc")
+        dock_shown_at(current, MIDDLE_TALK)
+        if device == "mouse":
+            box = page.locator(DOCK_DOWNLOAD).bounding_box()
+            assert box is not None
+            with page.expect_download():
+                page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+            page.locator(f"{NOTE} .note-saved").wait_for()
+        else:
+            page.evaluate(FOCUS_BEFORE, DOCK_DOWNLOAD)
+            page.keyboard.press("Tab")
+        assert page.evaluate(FOCUSED) == "selection-dock-download"
+        ring = device == "keyboard"
+        assert page.locator(DOCK_DOWNLOAD).evaluate("(b) => b.matches(':focus-visible')") is ring
+        settle(current)
+        edge = page.evaluate(BAR_EDGE_ON_SCREEN, 3)
+        assert edge["top"] < 0
+        page.locator(DOCK).wait_for(state="hidden")
+        settle(current)
+        assert page.evaluate(FOCUSED) == "select-download"
+        if ring:
+            # The focus ring is scrolled onto the screen, the least way.
+            assert page.evaluate(SCROLLED) == pytest.approx(edge["scrolled"] + edge["top"], abs=1)
+            assert in_viewport(current, DOWNLOAD)
+        else:
+            assert page.evaluate(SCROLLED) == edge["scrolled"]  # a click never scrolls
+        current.assert_clean()
+
     def test_a_dock_that_appears_over_the_focus_moves_the_focus_above_it(
         self, session: Callable[..., Session]
     ) -> None:
@@ -1222,7 +1272,7 @@ class TestDock:
         page.set_viewport_size({"width": DESKTOP["width"], "height": height})
         page.evaluate(f"window.scrollTo(0, {top})")
         settle(current)
-        page.evaluate(FOCUS_BEFORE, "sample-pick")
+        page.evaluate(FOCUS_BEFORE, box_of("sample-pick"))
         page.keyboard.press("Tab")  # the checkbox is on screen: Tab does not scroll
         settle(current)
         assert page.evaluate(FOCUSED) == "sample-pick"

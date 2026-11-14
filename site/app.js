@@ -371,18 +371,25 @@ function dockShown() {
  * Show the dock while talks are selected and the bar is scrolled past, above the screen,
  * so the two are never on screen together and the dock never covers the filters above the
  * bar. A dock that hides while it holds the focus hands it to the Download button of the
- * bar first, so the focus is not lost.
+ * bar first, so the focus is not lost. The page stays where it is (the bar is only coming
+ * onto the screen, its Download may still be above it), except that a focus ring (the
+ * keyboard) is scrolled onto the screen the least way.
  */
 function syncDock() {
   const shown = view.selected.length > 0 && view.barPassed;
   if (shown === dockShown()) {
     return;
   }
-  if (!shown && ui.dock.contains(document.activeElement)) {
-    ui.download.focus();
+  const handOver = !shown && ui.dock.contains(document.activeElement);
+  const ring = handOver && document.activeElement.matches(":focus-visible");
+  if (handOver) {
+    ui.download.focus({ preventScroll: true });
   }
   ui.dock.classList.toggle(DOCK_SHOWN, shown);
   fitDockSpace();
+  if (ring) {
+    ui.download.scrollIntoView({ block: "nearest" });
+  }
   keepFocusClear();
 }
 
