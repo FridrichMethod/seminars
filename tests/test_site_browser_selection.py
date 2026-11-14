@@ -136,6 +136,19 @@ LINK_TARGET = """(selector) => {
     labelled_by: target?.getAttribute("aria-labelledby") ?? null,
   };
 }"""
+# Whether the heading of the subscription panel is drawn on screen: within the panel,
+# which clips what it is scrolled past, within the viewport and not covered.
+HEADING_SHOWN = """() => {
+  const element = document.getElementById("subscribe-heading");
+  const heading = element.getBoundingClientRect();
+  const panel = document.getElementById("subscribe").getBoundingClientRect();
+  const x = heading.left + heading.width / 2;
+  const y = heading.top + heading.height / 2;
+  return heading.top >= panel.top && heading.bottom <= panel.bottom
+    && heading.top >= 0 && heading.bottom <= innerHeight
+    && element.contains(document.elementFromPoint(x, y));
+}"""
+PANEL_SCROLL = "(panel) => panel.scrollTop"
 IN_VIEWPORT = """(selector) => {
   const rect = document.querySelector(selector).getBoundingClientRect();
   return rect.top >= 0 && rect.bottom <= window.innerHeight;
@@ -720,6 +733,32 @@ class TestSelecting:
         assert current.query()["field"] == ["math"]
         assert page.eval_on_selector_all('#field-chips [aria-pressed="true"]', VALUES) == ["math"]
         assert_page_in(current, lang)
+        current.assert_clean()
+
+    @pytest.mark.parametrize("device", ["mouse", "keyboard"])
+    @pytest.mark.parametrize("panel", [0, 400], ids=["panel-at-top", "panel-scrolled"])
+    def test_the_link_shows_the_heading_of_the_panel_beside_the_list(
+        self, session: Callable[..., Session], panel: int, device: str
+    ) -> None:
+        # On a wide screen the panel sticks beside the list and scrolls within itself; the
+        # link brings it back to its heading and leaves the list where it is.
+        current = session().open("index.html")
+        page = current.page
+        page.locator("#subscribe").evaluate("(element, top) => { element.scrollTop = top; }", panel)
+        assert page.evaluate(HEADING_SHOWN) is (panel == 0)
+        link = page.locator(SUBSCRIBE_LINK)
+        if device == "mouse":
+            link.scroll_into_view_if_needed()
+            scrolled = page.evaluate(SCROLLED)
+            link.click()
+        else:
+            link.focus()
+            scrolled = page.evaluate(SCROLLED)
+            page.keyboard.press("Enter")
+        assert page.evaluate(FOCUSED) == "subscribe-heading"
+        assert page.evaluate(HEADING_SHOWN) is True
+        assert page.locator("#subscribe").evaluate(PANEL_SCROLL) == 0
+        assert page.evaluate(SCROLLED) == scrolled
         current.assert_clean()
 
     @pytest.mark.parametrize("lang", ["en", "zh-CN"])

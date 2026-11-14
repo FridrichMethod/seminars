@@ -274,18 +274,21 @@ function connectControls() {
 }
 
 /**
- * Follow the link of the bar to the subscription panel in place: scroll the panel into
- * view, unless its heading is on screen already (the panel beside the list on a wide
- * screen), and move the focus to the heading, as the jump to #subscribe would, but
- * without a fragment in the address or an entry in the history, which the page does not
- * follow: Back would leave the address on other filters than the list shows. A click that
- * opens the link elsewhere (with a modifier key) is left to the browser.
+ * Follow the link of the bar to the subscription panel in place: bring the heading of the
+ * panel into view and move the focus to it, as the jump to #subscribe would. The panel
+ * goes back to its top first: on a wide screen it sticks beside the list and scrolls
+ * within itself, and the heading is its first line. The page then scrolls to the panel,
+ * unless the heading is on screen already (the panel beside the list). No fragment goes
+ * into the address and no entry into the history, which the page does not follow: Back
+ * would leave the address on other filters than the list shows. A click that opens the
+ * link elsewhere (with a modifier key) is left to the browser.
  */
 function showSubscribe(event) {
   if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
     return;
   }
   event.preventDefault();
+  ui.subscribe.scrollTop = 0;
   const heading = ui.subscribeHeading.getBoundingClientRect();
   if (heading.top < 0 || heading.bottom > window.innerHeight) {
     ui.subscribe.scrollIntoView({ block: "start" });
