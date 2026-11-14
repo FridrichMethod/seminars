@@ -274,6 +274,14 @@ COLOURS = """(selector) => {
     tokens: Object.fromEntries(tokens.map((name) => [name, root.getPropertyValue(name).trim()])),
   };
 }"""
+# What a system colour (GrayText, ButtonText) is in the colours in force.
+SYSTEM_COLOUR = """(name) => {
+  const probe = document.body.appendChild(document.createElement("span"));
+  probe.style.color = name;
+  const color = getComputedStyle(probe).color;
+  probe.remove();
+  return color;
+}"""
 # Where the checkbox of a talk is in the viewport, the scroll position and the height of
 # the bar.
 PLACE = """(uid) => {
@@ -736,6 +744,27 @@ class TestBarButtons:
         assert_focus_ring(current, "select-clear")
         page.keyboard.press("Tab")
         assert_focus_ring(current, "select-download")
+        current.assert_clean()
+
+    @pytest.mark.parametrize("scheme", ["light", "dark"])
+    def test_an_unavailable_button_is_grey_in_forced_colours(
+        self, session: Callable[..., Session], scheme: str
+    ) -> None:
+        # Forced colours (Windows High Contrast) drop the muted colours of the page; the
+        # system colour of unavailable controls marks the buttons instead.
+        current = session(color_scheme=scheme).open("index.html")
+        page = current.page
+        page.emulate_media(forced_colors="active")
+        grey = page.evaluate(SYSTEM_COLOUR, "GrayText")
+        assert grey != page.evaluate(SYSTEM_COLOUR, "ButtonText")
+        available = page.evaluate(COLOURS, SELECT_SHOWN)
+        assert grey not in (available["text"], available["border"])
+        for button in (CLEAR, DOWNLOAD, DOCK_DOWNLOAD):  # nothing is selected
+            look = page.evaluate(COLOURS, button)
+            assert (look["text"], look["border"]) == (grey, grey), button
+        select(current, "sample-pick")
+        look = page.evaluate(COLOURS, DOWNLOAD)
+        assert grey not in (look["text"], look["border"])
         current.assert_clean()
 
     @pytest.mark.parametrize("talks_shown", [True, False], ids=["field", "no-talk"])

@@ -327,6 +327,16 @@ button.primary[aria-disabled="true"] {
   border-color: var(--border);
 }
 
+/* Forced colours (Windows High Contrast) replace the muted colours; the system colour of
+   unavailable controls marks these buttons, as it marks disabled ones. */
+@media (forced-colors: active) {
+  button[aria-disabled="true"],
+  button.primary[aria-disabled="true"] {
+    color: GrayText;
+    border-color: GrayText;
+  }
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
