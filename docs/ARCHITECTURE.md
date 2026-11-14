@@ -286,7 +286,9 @@ replaced by an empty placeholder.
   note of the bar stay the ones that are announced). The note of the bar on the one-time
   copy links to the subscription panel; the link moves the focus to the heading of the
   panel and adds a history entry for the same address, so Back returns to the list, and
-  Back and Forward show the filters of the address of each entry. On download the page
+  Back and Forward show the filters of the address of each entry. A page opened at
+  `#subscribe` (the link opened in another tab) shows the panel the same way once the list
+  is drawn, and the fragment then leaves the address. On download the page
   fetches `feeds/all.ics` from its own site (the path of the feed `all` in
   `events.json`) and copies the VEVENT blocks of the selected talks verbatim, in the order
   of the feed, into one calendar, together with every VTIMEZONE block and the basic header

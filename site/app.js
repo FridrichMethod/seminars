@@ -23,6 +23,7 @@ import { children, currentLang, formatSigned, parts, plural, t, withLang } from 
 import {
   byId,
   debounced,
+  dropFragment,
   fact,
   fetchJson,
   notice,
@@ -299,13 +300,27 @@ function followHistory() {
 }
 
 /**
- * Follow the link of the bar to the subscription panel in place: bring the heading of the
- * panel into view and move the focus to it, as the jump to #subscribe would. The panel
- * goes back to its top first: on a wide screen it sticks beside the list and scrolls
- * within itself, and the heading is its first line. The page then scrolls to the panel,
- * unless the heading is on screen already (the panel beside the list). Like the jump, the
- * link adds an entry to the history, so that Back returns to the list where it was, but
- * for the same address, without a fragment; pressed again from that entry, it adds none.
+ * Bring the heading of the subscription panel into view and move the focus to it, as the
+ * jump to #subscribe would. The panel goes back to its top first: on a wide screen it
+ * sticks beside the list and scrolls within itself, and the heading is its first line.
+ * The page then scrolls to the panel, unless the heading is on screen already (the panel
+ * beside the list).
+ */
+function revealSubscribe() {
+  ui.subscribe.scrollTop = 0;
+  const heading = ui.subscribeHeading.getBoundingClientRect();
+  if (heading.top < 0 || heading.bottom > window.innerHeight) {
+    ui.subscribe.scrollIntoView({ block: "start" });
+  }
+  ui.subscribeHeading.focus({ preventScroll: true });
+}
+
+/**
+ * Follow the link of the bar to the subscription panel in place (revealSubscribe). Like
+ * the jump, the link adds an entry to the history, so that Back returns to the list where
+ * it was, but for the same address, without a fragment. Pressed again from that entry (a
+ * double click), it adds none; a change of the filters or of the language writes the
+ * address of the entry anew without its state, and the next press adds an entry again.
  * A click that opens the link elsewhere (with a modifier key) is left to the browser.
  */
 function showSubscribe(event) {
@@ -321,12 +336,27 @@ function showSubscribe(event) {
       console.warn(error);
     }
   }
-  ui.subscribe.scrollTop = 0;
-  const heading = ui.subscribeHeading.getBoundingClientRect();
-  if (heading.top < 0 || heading.bottom > window.innerHeight) {
-    ui.subscribe.scrollIntoView({ block: "start" });
+  revealSubscribe();
+}
+
+/**
+ * Show the subscription panel of a page opened at #subscribe (the link of the bar opened
+ * in another tab, or its address passed on), as the link does. The browser jumps to the
+ * fragment when the page has loaded, before the list is drawn: the list then pushes the
+ * panel, which comes after it on a narrow screen, off the screen. Called once the list is
+ * drawn. A reader who has moved the focus by then (a search typed while the talks load)
+ * is left there. The fragment then leaves the address, which holds the filters only: with
+ * it, a browser would jump to the panel again on Back and Forward instead of putting back
+ * the scroll position.
+ */
+function followFragment() {
+  if (window.location.hash !== `#${ui.subscribe.id}`) {
+    return;
   }
-  ui.subscribeHeading.focus({ preventScroll: true });
+  if (document.activeElement === document.body) {
+    revealSubscribe();
+  }
+  dropFragment();
 }
 
 /** The Download buttons of the bar and of the dock: one state, one handler. */
@@ -925,6 +955,7 @@ async function main() {
     view = Object.freeze({ ...view, failed: true });
   }
   refresh();
+  followFragment();
 }
 
 main().catch(reportError);

@@ -7,7 +7,8 @@ Clear selection and Download selected (.ics). A tick or a press of a bar button 
 the checkboxes and the bar in place, so the focus, the scroll position and the list
 stay as they are. While talks are selected and the bar is scrolled away, a dock at the
 bottom of the list repeats the status of the bar and has a second Download button. The
-note of the bar on a one-time copy links to the subscription panel. The saved file is
+note of the bar on a one-time copy links to the subscription panel, and a page opened at
+the address of that link shows the panel. The saved file is
 checked in Python: with the feed validator of the pipeline
 (``seminars.outputs.ics.validate_ics``) and against a cut of the served feed made line by
 line (``expected_calendar`` of test_site_browser_calendar.py). The server, the browser
@@ -844,14 +845,65 @@ class TestSelecting:
         with current.context.expect_page() as opened:
             link.click(modifiers=[modifier])
         other = opened.value
-        other.wait_for_load_state()
-        assert other.url == f"{address}#subscribe"
+        # The other tab is opened at the fragment of the link: it shows the panel, which
+        # comes after the whole list there too, and takes the fragment out of its address.
+        other.wait_for_function(HAS_FOCUS, arg="#subscribe-heading")
+        assert other.evaluate(IN_VIEWPORT, "#subscribe-heading") is True
+        assert other.url == address
         other.close()
         assert page.evaluate(SCROLLED) == scrolled
         assert page.evaluate(HISTORY) == history
         assert page.url == address
         assert page.evaluate(FOCUSED) != "subscribe-heading"
         current.assert_clean()
+
+    @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
+    def test_a_page_opened_at_the_panel_shows_it(
+        self, session: Callable[..., Session], viewport: dict[str, int]
+    ) -> None:
+        # The address of the link, opened in another tab or passed on. The browser looks
+        # for the panel before the list is drawn; on a phone the list then pushes the
+        # panel off the screen, so the page goes to the panel itself, as the link does.
+        current = session(viewport=viewport).open("index.html?field=cs#subscribe")
+        page = current.page
+        page.wait_for_function(HAS_FOCUS, arg="#subscribe-heading")
+        assert in_viewport(current, "#subscribe-heading")
+        assert current.shown() == CS_TALKS
+        # The fragment leaves the address, which holds the filters only.
+        assert page.evaluate(HISTORY)[1] == ""
+        assert current.query() == {"field": ["cs"]}
+        # Back after the link returns to the list here as well: with the fragment in the
+        # address, a browser would jump to the panel again.
+        link = page.locator(SUBSCRIBE_LINK)
+        link.scroll_into_view_if_needed()
+        scrolled = page.evaluate(SCROLLED)
+        history = page.evaluate(HISTORY)
+        link.click()
+        assert page.evaluate(HISTORY) == [history[0] + 1, ""]
+        page.go_back()
+        settle(current)
+        assert page.evaluate(SCROLLED) == pytest.approx(scrolled, abs=1)
+        # A reload does not go to the panel by itself.
+        page.reload()
+        page.wait_for_function(READY)
+        settle(current)
+        assert page.evaluate(HAS_FOCUS, "#subscribe-heading") is False
+        assert current.query() == {"field": ["cs"]}
+        current.assert_clean()
+
+    def test_a_reader_typing_while_the_talks_load_is_not_taken_to_the_panel(
+        self, session: Callable[..., Session]
+    ) -> None:
+        state = loading(session, "index.html#subscribe")
+        page = state.page
+        page.locator("#search").press_sequentially("zoe muller")
+        state.arrive()
+        assert page.evaluate(FOCUSED) == "search"
+        assert page.locator("#search").input_value() == "zoe muller"
+        assert state.current.shown() == ["sample-tba"]
+        assert state.current.query() == {"q": ["zoe muller"]}
+        assert page.evaluate(HISTORY)[1] == ""
+        state.current.assert_clean()
 
     @pytest.mark.parametrize("device", ["mouse", "keyboard"])
     @pytest.mark.parametrize("panel", [0, 400], ids=["panel-at-top", "panel-scrolled"])
