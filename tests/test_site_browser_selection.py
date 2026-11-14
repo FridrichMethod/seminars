@@ -262,6 +262,18 @@ FOCUS_RING = """() => {
     token: getComputedStyle(document.documentElement).getPropertyValue("--focus").trim(),
   };
 }"""
+# The colours a button is drawn in, and the colour tokens of the page.
+COLOURS = """(selector) => {
+  const style = getComputedStyle(document.querySelector(selector));
+  const root = getComputedStyle(document.documentElement);
+  const tokens = ["--panel", "--muted", "--border", "--accent", "--accent-fg"];
+  return {
+    background: style.backgroundColor,
+    text: style.color,
+    border: style.borderTopColor,
+    tokens: Object.fromEntries(tokens.map((name) => [name, root.getPropertyValue(name).trim()])),
+  };
+}"""
 # Where the checkbox of a talk is in the viewport, the scroll position and the height of
 # the bar.
 PLACE = """(uid) => {
@@ -453,6 +465,18 @@ def assert_focus_ring(current: Session, button_id: str) -> None:
         "outline": ["solid", "2px", focus],
         "border": "dashed",
     }
+
+
+def assert_primary_look(current: Session, selector: str, unavailable: bool) -> None:
+    """A primary button is drawn in the accent colour; unavailable, in muted text and
+    border on the background of the panel, which keep the label readable."""
+    look = current.page.evaluate(COLOURS, selector)
+    tokens = {name: rgb(value) for name, value in look.pop("tokens").items()}
+    if unavailable:
+        wanted = [tokens["--panel"], tokens["--muted"], tokens["--border"]]
+    else:
+        wanted = [tokens["--accent"], tokens["--accent-fg"], tokens["--accent"]]
+    assert look == dict(zip(["background", "text", "border"], wanted, strict=True))
 
 
 def drop_expected_errors(current: Session, *patterns: str) -> None:
@@ -699,7 +723,11 @@ class TestBarButtons:
         # muted text and a dashed border instead.
         current = session(color_scheme=scheme).open("index.html")
         page = current.page
+        for button in (DOWNLOAD, DOCK_DOWNLOAD):  # nothing is selected yet
+            assert_primary_look(current, button, unavailable=True)
         select(current, "sample-pick")
+        for button in (DOWNLOAD, DOCK_DOWNLOAD):
+            assert_primary_look(current, button, unavailable=False)
         page.locator(SELECT_SHOWN).focus()
         page.keyboard.press("Enter")  # every shown talk is selected now
         assert_focus_ring(current, "select-shown")
