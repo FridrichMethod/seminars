@@ -1,0 +1,10 @@
+{
+  "used": "2026-11-14",
+  "value": {
+    "fields": [
+      "chem",
+      "physics"
+    ],
+    "is_talk": true
+  }
+}
