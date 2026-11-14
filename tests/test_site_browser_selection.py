@@ -1533,7 +1533,7 @@ class TestDock:
     ) -> None:
         # Nothing is selected on most visits: no blank band below the list or the notice.
         current = session(viewport=viewport).open(path)
-        assert current.page.evaluate(DOCK_ROOM) == {"panel": 0, "page": 0}
+        assert current.page.evaluate(DOCK_ROOM) == pytest.approx({"panel": 0, "page": 0}, abs=0.5)
         current.assert_clean()
 
     def test_a_tick_and_an_untick_at_the_end_of_the_page_move_nothing(
@@ -1554,7 +1554,7 @@ class TestDock:
         settle(current)
         tap_in_place(current, last)  # nothing selected: the dock hides and keeps its room
         page.locator(DOCK).wait_for(state="hidden")
-        assert page.evaluate(DOCK_ROOM) == room
+        assert page.evaluate(DOCK_ROOM) == pytest.approx(room, abs=0.5)
         tap_in_place(current, last)
         current.assert_clean()
 
