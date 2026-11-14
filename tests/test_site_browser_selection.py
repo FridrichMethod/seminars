@@ -305,6 +305,21 @@ BESIDE_THE_DOCK = """(selector) => {
     beside: rect.left >= dock.right && rect.bottom > dock.top && rect.top < dock.bottom,
   };
 }"""
+# The room the dock takes in the page: how much lower the subscription panel begins and
+# how much taller the page is than without the dock.
+DOCK_ROOM = """() => {
+  const dock = document.getElementById("selection-dock");
+  const measure = () => [
+    document.getElementById("subscribe").getBoundingClientRect().top + window.scrollY,
+    document.documentElement.scrollHeight,
+  ];
+  const kept = measure();
+  dock.style.setProperty("display", "none", "important");
+  const without = measure();
+  dock.style.removeProperty("display");
+  return { panel: kept[0] - without[0], page: kept[1] - without[1] };
+}"""
+TO_THE_END = "() => window.scrollTo(0, document.documentElement.scrollHeight)"
 # Counts the clicks that reach a button (a key press clicks it too).
 COUNT_PRESSES = """(selector) => {
   window.__presses = 0;
@@ -1506,6 +1521,40 @@ class TestDock:
         page.locator('.lang-switch button[lang="zh-CN"]').click()
         assert page.locator(DOCK_COUNT).text_content() == status_text("zh-CN", 2, hidden=2)
         assert status(current) == status_text("zh-CN", 2, hidden=2)
+        current.assert_clean()
+
+    @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
+    @pytest.mark.parametrize(
+        "path", ["index.html", f"index.html?q={NO_TALK}"], ids=["list", "none"]
+    )
+    def test_the_dock_takes_no_room_before_a_talk_is_selected(
+        self, session: Callable[..., Session], viewport: dict[str, int], path: str
+    ) -> None:
+        # Nothing is selected on most visits: no blank band below the list or the notice.
+        current = session(viewport=viewport).open(path)
+        assert current.page.evaluate(DOCK_ROOM) == {"panel": 0, "page": 0}
+        current.assert_clean()
+
+    def test_a_tick_and_an_untick_at_the_end_of_the_page_move_nothing(
+        self, session: Callable[..., Session]
+    ) -> None:
+        # The first tick gives the dock its room below the list, and the room stays once
+        # nothing is selected: at the end of the page the list stays where it is.
+        current = session().open("index.html")
+        page = current.page
+        last = UPCOMING[-1]
+        page.evaluate(TO_THE_END)
+        settle(current)
+        tap_in_place(current, last)
+        page.locator(DOCK).wait_for(state="visible")
+        room = page.evaluate(DOCK_ROOM)
+        assert room["page"] > 0
+        page.evaluate(TO_THE_END)  # the room of the dock included
+        settle(current)
+        tap_in_place(current, last)  # nothing selected: the dock hides and keeps its room
+        page.locator(DOCK).wait_for(state="hidden")
+        assert page.evaluate(DOCK_ROOM) == room
+        tap_in_place(current, last)
         current.assert_clean()
 
     def test_the_dock_stays_hidden_while_the_bar_is_below_the_screen(

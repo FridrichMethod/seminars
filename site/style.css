@@ -416,10 +416,12 @@ button.primary[aria-disabled="true"] {
   font-size: 0.85rem;
 }
 
-/* The count and the Download button of the selection, at the bottom of the screen within
-   the list while talks are selected and the bar is scrolled away (app.js adds is-shown).
-   At the end of the list it rests below the last talk. Hidden, it keeps its place, so
-   the page keeps its height and a tick at the end of the list moves nothing. */
+/* The status and the Download button of the selection, at the bottom of the screen
+   within the list while talks are selected and the bar is scrolled away (app.js adds
+   is-shown). At the end of the list it rests below the last talk. It takes no room until
+   the first talk is selected (app.js adds has-selected, which stays); hidden after that,
+   it keeps its place, so the page keeps its height and an untick at the end of the list
+   moves nothing. */
 .selection-dock {
   position: sticky;
   bottom: 0;
@@ -439,6 +441,10 @@ button.primary[aria-disabled="true"] {
 
 .selection-dock:not(.is-shown) {
   visibility: hidden;
+}
+
+.selection-dock:not(.has-selected) {
+  display: none;
 }
 
 /* While the dock is shown, a control of the list column scrolled into view (a checkbox

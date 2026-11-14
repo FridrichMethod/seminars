@@ -88,9 +88,11 @@ const EVERY_TALK_FEED = "all";
 // The hidden label (index.html) that each checkbox of the list reads before the title of
 // its talk.
 const SELECT_LABEL_ID = "select-label";
-// The class of the dock while it is shown, and the room kept between an element scrolled
-// into view and the dock, for its focus ring (style.css).
+// The class of the dock while it is shown, the class it gets at the first selected talk
+// (from then on it keeps its room below the list), and the room kept between an element
+// scrolled into view and the dock, for its focus ring (style.css).
 const DOCK_SHOWN = "is-shown";
+const DOCK_KEPT = "has-selected";
 const DOCK_GAP_PX = 8;
 // The state of the history entry that the link of the bar to the subscription panel adds.
 const SUBSCRIBE_ENTRY = Object.freeze({ subscribe: true });
@@ -419,10 +421,16 @@ function syncSelection() {
     setUnavailable(button, !canDownload());
     button.setAttribute("aria-busy", String(download.busy));
   }
+  if (selected.length > 0) {
+    ui.dock.classList.add(DOCK_KEPT);
+  }
   syncDock();
 }
 
-/** Whether the dock is shown (style.css hides it, keeping its place, otherwise). */
+/**
+ * Whether the dock is shown. Otherwise style.css hides it, keeping its place once a talk
+ * has been selected.
+ */
 function dockShown() {
   return ui.dock.classList.contains(DOCK_SHOWN);
 }
