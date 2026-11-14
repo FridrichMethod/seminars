@@ -1,6 +1,6 @@
 // The talk list (index.html): filters, the list grouped by day, the selection of talks
-// to download as one calendar file (the bar above the list, and the dock that keeps the
-// count and the download in reach while the bar is scrolled away) and the subscription
+// to download as one calendar file (the bar above the list, and the dock that keeps its
+// status and the download in reach while the bar is scrolled away) and the subscription
 // panel.
 
 import { calendarFor, fetchCalendar, parseCalendar, saveFile } from "./calendar.js";

@@ -6,7 +6,8 @@ selection, says how many selected talks the filters hide, and offers Select all 
 Clear selection and Download selected (.ics). A tick or a press of a bar button updates
 the checkboxes and the bar in place, so the focus, the scroll position and the list
 stay as they are. While talks are selected and the bar is scrolled away, a dock at the
-bottom of the list shows their count and a second Download button. The saved file is
+bottom of the list repeats the status of the bar and has a second Download button. The
+note of the bar on a one-time copy links to the subscription panel. The saved file is
 checked in Python: with the feed validator of the pipeline
 (``seminars.outputs.ics.validate_ics``) and against a cut of the served feed made line by
 line (``expected_calendar`` of test_site_browser_calendar.py). The server, the browser
