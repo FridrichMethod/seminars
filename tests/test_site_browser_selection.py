@@ -234,6 +234,12 @@ ABOVE_THE_DOCK = """([selector, gap]) => {
   const top = document.getElementById("selection-dock").getBoundingClientRect().top;
   window.scrollBy(0, bottom - (top - gap));
 }"""
+# Scrolls the page so that the middle of the element ``selector`` is ``gap`` pixels above
+# the bottom of the viewport.
+NEAR_THE_BOTTOM = """([selector, gap]) => {
+  const rect = document.querySelector(selector).getBoundingClientRect();
+  window.scrollBy(0, rect.top + rect.height / 2 - (innerHeight - gap));
+}"""
 # Counts the clicks that reach a button (a key press clicks it too).
 COUNT_PRESSES = """(selector) => {
   window.__presses = 0;
@@ -1364,6 +1370,23 @@ class TestDock:
         settle(current)
         assert page.evaluate(FOCUSED) == "sample-pick"
         assert page.evaluate(FOCUS_CLEAR) is True
+        current.assert_clean()
+
+    @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])
+    def test_a_tap_where_the_dock_appears_scrolls_nothing(
+        self, session: Callable[..., Session], viewport: dict[str, int]
+    ) -> None:
+        # The dock appears over the tapped checkbox; only a focus ring is moved above it.
+        current = session(viewport=viewport).open("index.html")
+        page = current.page
+        page.evaluate(NEAR_THE_BOTTOM, [box_of("sample-arc"), 15])
+        settle(current)
+        assert page.evaluate(DOCK_PLACE)["bar"] is False
+        tap_in_place(current, "sample-arc")
+        page.locator(DOCK).wait_for(state="visible")
+        settle(current)
+        assert page.evaluate(PLACE, "sample-arc")["y"] > page.evaluate(DOCK_PLACE)["top"]
+        assert page.evaluate(FOCUSED) == "sample-arc"
         current.assert_clean()
 
     def test_a_dock_that_grows_over_the_focus_moves_the_focus_above_it(
