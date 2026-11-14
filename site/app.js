@@ -55,6 +55,9 @@ const ui = {
   dockCount: byId("selection-dock-count"),
   dockDownload: byId("selection-dock-download"),
   dockNote: byId("selection-dock-note"),
+  subscribeLink: byId("subscribe-link"),
+  subscribe: byId("subscribe"),
+  subscribeHeading: byId("subscribe-heading"),
   steps: byId("apple-steps"),
   feeds: byId("feeds"),
 };
@@ -267,6 +270,27 @@ function connectControls() {
     button.addEventListener("keydown", ignoreRepeatedKey);
     button.addEventListener("click", pressDownload);
   }
+  ui.subscribeLink.addEventListener("click", showSubscribe);
+}
+
+/**
+ * Follow the link of the bar to the subscription panel in place: scroll the panel into
+ * view, unless its heading is on screen already (the panel beside the list on a wide
+ * screen), and move the focus to the heading, as the jump to #subscribe would, but
+ * without a fragment in the address or an entry in the history, which the page does not
+ * follow: Back would leave the address on other filters than the list shows. A click that
+ * opens the link elsewhere (with a modifier key) is left to the browser.
+ */
+function showSubscribe(event) {
+  if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+    return;
+  }
+  event.preventDefault();
+  const heading = ui.subscribeHeading.getBoundingClientRect();
+  if (heading.top < 0 || heading.bottom > window.innerHeight) {
+    ui.subscribe.scrollIntoView({ block: "start" });
+  }
+  ui.subscribeHeading.focus({ preventScroll: true });
 }
 
 /** The Download buttons of the bar and of the dock: one state, one handler. */

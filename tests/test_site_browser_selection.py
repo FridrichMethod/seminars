@@ -123,6 +123,9 @@ NAME_PARTS = """(uid) => {
   ].map((element) => element.textContent.trim());
 }"""
 LISTED = "es => es.map((e) => e.dataset.uid)"
+VALUES = "es => es.map((e) => e.dataset.value)"
+# The length of the history of the tab and the fragment of the address.
+HISTORY = "() => [history.length, location.hash]"
 # Where a same-page link leads: the id of its target and what labels that target.
 LINK_TARGET = """(selector) => {
   const link = document.querySelector(selector);
@@ -633,13 +636,14 @@ class TestSelecting:
         assert_page_in(current, "en")
         current.assert_clean()
 
+    @pytest.mark.parametrize("device", ["mouse", "keyboard"])
     @pytest.mark.parametrize("lang", ["en", "zh-CN"])
     def test_the_note_on_a_one_time_copy_links_to_the_subscription_panel(
-        self, session: Callable[..., Session], lang: str
+        self, session: Callable[..., Session], lang: str, device: str
     ) -> None:
         # On a phone the panel comes after the whole list.
         current = session(viewport=PHONE).open(
-            "index.html" if lang == "en" else "index.html?lang=zh"
+            "index.html?field=cs" if lang == "en" else "index.html?lang=zh&field=cs"
         )
         page = current.page
         assert_one_time_copy_shown(current, lang)
@@ -649,10 +653,25 @@ class TestSelecting:
         assert heading.text_content() == catalog(lang)["site.subscribe.title"]
         assert not in_viewport(current, "#subscribe-heading")
         query = current.query()
-        page.locator(SUBSCRIBE_LINK).click()
-        assert page.evaluate("document.querySelector(':target')?.id") == "subscribe"
+        assert query["field"] == ["cs"]
+        history = page.evaluate(HISTORY)
+        if device == "mouse":
+            page.locator(SUBSCRIBE_LINK).click()
+        else:
+            page.locator(SUBSCRIBE_LINK).focus()
+            page.keyboard.press("Enter")
+        # The panel in view and the focus on its heading, as after a jump to #subscribe,
+        # but the address and the history stay as they are: the page does not follow Back.
+        assert page.evaluate(FOCUSED) == "subscribe-heading"
+        assert heading.evaluate("(h) => h.matches(':focus-visible')") is (device == "keyboard")
         assert in_viewport(current, "#subscribe-heading")
+        assert page.evaluate(HISTORY) == history
         assert current.query() == query
+        page.locator('#field-chips button[data-value="cs"]').click()
+        page.locator('#field-chips button[data-value="math"]').click()
+        assert page.evaluate(HISTORY) == history
+        assert current.query()["field"] == ["math"]
+        assert page.eval_on_selector_all('#field-chips [aria-pressed="true"]', VALUES) == ["math"]
         assert_page_in(current, lang)
         current.assert_clean()
 
