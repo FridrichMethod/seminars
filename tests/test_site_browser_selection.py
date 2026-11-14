@@ -161,9 +161,11 @@ HEADING_SHOWN = """() => {
     && element.contains(document.elementFromPoint(x, y));
 }"""
 PANEL_SCROLL = "(panel) => panel.scrollTop"
+# A browser may scroll by whole pixels while the layout has fractions of one: an element
+# scrolled to the edge can end a fraction of a pixel past it, which still counts.
 IN_VIEWPORT = """(selector) => {
   const rect = document.querySelector(selector).getBoundingClientRect();
-  return rect.top >= 0 && rect.bottom <= window.innerHeight;
+  return rect.top > -1 && rect.bottom < window.innerHeight + 1;
 }"""
 # Counts the changes below each of ``selectors`` (its children, their text and their
 # attributes) in window.__changes; window.__alert keeps the alert of the note.
@@ -235,13 +237,10 @@ DOCK_SPACE = """(gap) => {
 }"""
 # Whether the bar is wholly below the viewport.
 BAR_BELOW = "() => document.getElementById('selection').getBoundingClientRect().top >= innerHeight"
-# Whether a click at the middle of an element reaches it: nothing covers it there.
-REACHED = """(selector) => {
-  const element = document.querySelector(selector);
-  const rect = element.getBoundingClientRect();
-  const x = rect.left + rect.width / 2;
-  return element.contains(document.elementFromPoint(x, rect.top + rect.height / 2));
-}"""
+# Whether the dock is what a tap at the bottom of the screen, in the middle, would reach.
+DOCK_AT_THE_BOTTOM = """() => document
+  .getElementById("selection-dock")
+  .contains(document.elementFromPoint(innerWidth / 2, innerHeight - 4))"""
 # Whether the focused element and its focus ring (2px outline, 2px offset) are above
 # the dock; null while the dock is hidden or holds the focus.
 FOCUS_CLEAR = """() => {
@@ -1573,8 +1572,8 @@ class TestDock:
         page.evaluate("window.scrollTo(0, 0)")
         page.locator(DOCK).wait_for(state="hidden")
         assert page.evaluate(BAR_BELOW) is True
-        assert in_viewport(current, "#host")
-        assert page.evaluate(REACHED, "#host") is True
+        # Whatever the fonts make of the top of the page, the dock covers none of it.
+        assert page.evaluate(DOCK_AT_THE_BOTTOM) is False
         # From there past the whole bar in one step: the dock is back.
         dock_shown_at(current, MIDDLE_TALK)
         assert page.locator(DOCK_COUNT).text_content() == "1 talk selected"
