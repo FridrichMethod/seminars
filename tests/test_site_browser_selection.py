@@ -176,6 +176,15 @@ DOCK_PLACE = """() => {
     bar: bar.bottom > 0 && bar.top < window.innerHeight,
   };
 }"""
+# Whether the bar is wholly below the viewport.
+BAR_BELOW = "() => document.getElementById('selection').getBoundingClientRect().top >= innerHeight"
+# Whether a click at the middle of an element reaches it: nothing covers it there.
+REACHED = """(selector) => {
+  const element = document.querySelector(selector);
+  const rect = element.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  return element.contains(document.elementFromPoint(x, rect.top + rect.height / 2));
+}"""
 # Whether the focused element and its focus ring (2px outline, 2px offset) are above
 # the dock; null while the dock is hidden or holds the focus.
 FOCUS_CLEAR = """() => {
@@ -1145,6 +1154,26 @@ class TestDock:
         tap_in_place(current, "sample-arc")  # nothing selected: the dock goes
         page.locator(DOCK).wait_for(state="hidden")
         assert page.evaluate(DOCK_PLACE)["bar"] is False
+        current.assert_clean()
+
+    def test_the_dock_stays_hidden_while_the_bar_is_below_the_screen(
+        self, session: Callable[..., Session]
+    ) -> None:
+        # At the top of the page on a phone the bar is still below the viewport, and the
+        # dock would cover the filters the reader scrolled back up to.
+        current = session(viewport=PHONE).open("index.html")
+        page = current.page
+        page.evaluate(CENTER_TALK, "sample-arc")
+        tap_in_place(current, "sample-arc")
+        page.locator(DOCK).wait_for(state="visible")
+        page.evaluate("window.scrollTo(0, 0)")
+        page.locator(DOCK).wait_for(state="hidden")
+        assert page.evaluate(BAR_BELOW) is True
+        assert in_viewport(current, "#host")
+        assert page.evaluate(REACHED, "#host") is True
+        # From there past the whole bar in one step: the dock is back.
+        dock_shown_at(current, MIDDLE_TALK)
+        assert page.locator(DOCK_COUNT).text_content() == "1 talk selected"
         current.assert_clean()
 
     @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["phone", "desktop"])

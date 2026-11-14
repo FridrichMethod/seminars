@@ -87,6 +87,10 @@ const SELECT_LABEL_ID = "select-label";
 // into view and the dock, for its focus ring (style.css).
 const DOCK_SHOWN = "is-shown";
 const DOCK_GAP_PX = 8;
+// The bar counts as on screen until it leaves the viewport through the top: the area the
+// bar is watched in reaches this far below the viewport, more than the page above the bar
+// is ever tall. A bar below the screen (the top of the page on a phone) is not passed.
+const BELOW_THE_SCREEN = "0px 0px 100000px 0px";
 
 // The download of the selected talks: whether it is being prepared, and the note on its
 // outcome (null: none).
@@ -100,8 +104,8 @@ const FAILED = Object.freeze({ kind: "failed" });
 // checked against what exists. The selection (uids in the order they were ticked) lives
 // here only: neither the address nor the storage of the browser holds it, so a reload
 // starts empty; a talk that has ended leaves it when the list is drawn again. ``listed``
-// holds the uids of the talks the list shows; ``barShown`` whether any of the selection
-// bar is on screen.
+// holds the uids of the talks the list shows; ``barPassed`` whether the selection bar is
+// scrolled past, wholly above the screen.
 let view = Object.freeze({
   model: null,
   failed: false,
@@ -109,7 +113,7 @@ let view = Object.freeze({
   selected: Object.freeze([]),
   listed: Object.freeze([]),
   download: IDLE,
-  barShown: true,
+  barPassed: false,
 });
 
 /** The payload of events.json prepared for the page. */
@@ -364,12 +368,13 @@ function dockShown() {
 }
 
 /**
- * Show the dock while talks are selected and the bar is off screen, so the two are never
- * on screen together. A dock that hides while it holds the focus hands it to the Download
- * button of the bar first, so the focus is not lost.
+ * Show the dock while talks are selected and the bar is scrolled past, above the screen,
+ * so the two are never on screen together and the dock never covers the filters above the
+ * bar. A dock that hides while it holds the focus hands it to the Download button of the
+ * bar first, so the focus is not lost.
  */
 function syncDock() {
-  const shown = view.selected.length > 0 && !view.barShown;
+  const shown = view.selected.length > 0 && view.barPassed;
   if (shown === dockShown()) {
     return;
   }
@@ -413,12 +418,19 @@ function keepFocusClear() {
   }
 }
 
-/** Follow whether the bar is on screen: the dock stands in for it while it is not. */
+/**
+ * Follow whether the bar is scrolled past: the dock stands in for it then. Any scroll from
+ * below the bar to above it crosses the top of the viewport, so a jump past the whole bar
+ * in one step is seen as well.
+ */
 function watchBar() {
-  const observer = new IntersectionObserver((entries) => {
-    view = Object.freeze({ ...view, barShown: entries[entries.length - 1].isIntersecting });
-    syncDock();
-  });
+  const observer = new IntersectionObserver(
+    (entries) => {
+      view = Object.freeze({ ...view, barPassed: !entries[entries.length - 1].isIntersecting });
+      syncDock();
+    },
+    { rootMargin: BELOW_THE_SCREEN },
+  );
   observer.observe(ui.selection);
 }
 
