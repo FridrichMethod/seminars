@@ -42,9 +42,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 1,
+          "accepted": 1,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "bayarea-glam": {
       "history": [
@@ -87,9 +97,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 8,
+          "accepted": 8,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "bayarea-kipac": {
       "history": [
@@ -132,9 +152,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 25,
+          "accepted": 33,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "bayarea-litp": {
       "history": [
@@ -177,9 +207,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 7,
+          "accepted": 7,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "bayarea-pulse": {
       "history": [
@@ -222,9 +262,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 1,
+          "accepted": 1,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "bayarea-qfarm": {
       "history": [
@@ -267,9 +317,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 14,
+          "accepted": 20,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "bayarea-slac-colloquium": {
       "history": [
@@ -312,9 +372,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 4,
+          "accepted": 4,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "custom-ai4science": {
       "history": [
@@ -357,9 +427,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 12,
+          "accepted": 20,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "custom-csb-events": {
       "history": [
@@ -402,9 +482,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 2,
+          "accepted": 4,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "custom-dbds-workshop": {
       "history": [
@@ -447,9 +537,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": "RobotsUnavailableError: robots.txt is unreachable; host skipped: https://dbds.stanford.edu/robots.txt"
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 4,
+          "accepted": 10,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T02:38:46Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "custom-hai-events": {
       "history": [
@@ -492,9 +592,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 7,
+          "accepted": 8,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "custom-isl-colloquium": {
       "history": [
@@ -537,9 +647,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 4,
+          "accepted": 152,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "custom-mlsys-seminar": {
       "history": [
@@ -582,9 +702,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 0,
+          "accepted": 87,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "custom-nlp-seminar": {
       "history": [
@@ -620,6 +750,16 @@
         },
         {
           "at": "2026-11-14T08:57:57Z",
+          "status": "failed",
+          "events": 0,
+          "accepted": null,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": "RobotsUnavailableError: robots.txt is unreachable; host skipped: https://nlp.stanford.edu/robots.txt"
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
           "status": "failed",
           "events": 0,
           "accepted": null,
@@ -672,9 +812,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 7,
+          "accepted": 10,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "custom-synbio-events": {
       "history": [
@@ -717,9 +867,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 2,
+          "accepted": 96,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "custom-theory-lunch": {
       "history": [
@@ -762,9 +922,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 5,
+          "accepted": 11,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "localist-stanford": {
       "history": [
@@ -807,9 +977,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 611,
+          "accepted": 611,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "rsorg-topos-colloquium": {
       "history": [
@@ -852,9 +1032,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 12,
+          "accepted": 233,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-aimi": {
       "history": [
@@ -897,9 +1087,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 4,
+          "accepted": 6,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-biochemistry": {
       "history": [
@@ -942,9 +1142,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 3,
+          "accepted": 3,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-biology": {
       "history": [
@@ -987,9 +1197,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 9,
+          "accepted": 9,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-cheme": {
       "history": [
@@ -1032,9 +1252,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 2,
+          "accepted": 2,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-chemh": {
       "history": [
@@ -1077,9 +1307,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 4,
+          "accepted": 4,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-chemistry": {
       "history": [
@@ -1122,9 +1362,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 17,
+          "accepted": 17,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-icme": {
       "history": [
@@ -1167,9 +1417,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 3,
+          "accepted": 10,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-mathematics": {
       "history": [
@@ -1212,9 +1472,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 51,
+          "accepted": 51,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-mrc": {
       "history": [
@@ -1257,9 +1527,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 2,
+          "accepted": 2,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-mse": {
       "history": [
@@ -1302,9 +1582,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 3,
+          "accepted": 4,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-physics": {
       "history": [
@@ -1347,9 +1637,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 7,
+          "accepted": 7,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-statistics": {
       "history": [
@@ -1392,9 +1692,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 10,
+          "accepted": 10,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     },
     "sites-systemx": {
       "history": [
@@ -1437,9 +1747,19 @@
           "shrank_from": null,
           "resized_from": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "events": 2,
+          "accepted": 2,
+          "skipped_pages": 0,
+          "shrank_from": null,
+          "resized_from": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     }
   },
   "llm": {
@@ -1472,13 +1792,20 @@
           "calls": 60,
           "failure_kind": null,
           "error": null
+        },
+        {
+          "at": "2026-11-15T18:58:14Z",
+          "status": "ok",
+          "calls": 60,
+          "failure_kind": null,
+          "error": null
         }
       ],
-      "last_success_at": "2026-11-14T08:57:57Z"
+      "last_success_at": "2026-11-15T18:58:14Z"
     }
   },
   "llm_last_run": {
-    "at": "2026-11-14T08:57:57Z",
+    "at": "2026-11-15T18:58:14Z",
     "provider": "claude-cli",
     "stored_answers": null
   }
