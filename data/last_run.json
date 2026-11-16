@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "started_at": "2026-11-15T18:58:14Z",
-  "finished_at": "2026-11-15T19:04:16Z",
+  "started_at": "2026-11-16T22:20:24Z",
+  "finished_at": "2026-11-16T22:26:46Z",
   "ok": true,
   "mode": "live",
   "counts": {
     "sources": 32,
-    "sources_ok": 30,
+    "sources_ok": 29,
     "sources_empty": 1,
-    "sources_failed": 1,
-    "drafts": 1443,
-    "excluded": 427,
-    "merged": 29,
-    "events": 388,
-    "added": 10,
-    "changed": 1,
-    "missing": 0,
+    "sources_failed": 2,
+    "drafts": 1439,
+    "excluded": 414,
+    "merged": 28,
+    "events": 408,
+    "added": 20,
+    "changed": 5,
+    "missing": 2,
     "removed": 0,
     "cancelled": 0,
     "archived": 0,
@@ -24,6 +24,7 @@
   "llm_provider": "claude-cli",
   "llm_stored_answers": null,
   "failed_sources": [
+    "custom-dbds-workshop",
     "custom-nlp-seminar"
   ]
 }
