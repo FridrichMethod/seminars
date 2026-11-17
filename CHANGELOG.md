@@ -13,6 +13,12 @@ All notable changes of this project are recorded in this file. The format follow
   the request budgets still apply, and other sources on the same host still follow
   robots.txt. `seminars sources check` and `python -m seminars.fixtures record` follow
   it as a run does.
+- **SLAC seminars from Indico**: the SLAC Theory Group seminars (`bayarea-slac-theory`)
+  are collected again and the SLAC Experimental Seminar Series
+  (`bayarea-slac-experimental`) is new, both from the iCalendar feed of their Indico
+  category, with speaker, affiliation, room and abstract (the Zoom address with its
+  meeting password left out); robots.txt of indico.slac.stanford.edu is set aside for
+  these two sources.
 
 ## v0.2.0 - 2026-11-14
 

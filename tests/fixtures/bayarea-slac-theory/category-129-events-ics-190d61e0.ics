@@ -1,0 +1,190 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//CERN//INDICO//EN
+BEGIN:VEVENT
+SUMMARY:Decays of beautiful hadrons
+DTSTART:20261021T193000Z
+DTEND:20261021T213000Z
+DTSTAMP:20261117T012600Z
+UID:indico-event-10800@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Federico Cima (Caltech)\n\nIn this talk\, I will pre
+ sent some recent progress on some classes of heavy hadron decays. I will p
+ resent a comprehensive study of radiative semileptonic b-hadron decays\, s
+ emileptonic decays accompanied by an additional photon in the final state.
+  Modeling these decays is important for current and future B-factories\, a
+ s they constitute an unavoidable background for ordinary semileptonic deca
+ ys when the photon goes undetected. Time permitting\, I will also discuss 
+ charmless B decays to light pseudo-scalar mesons and how these can be used
+  to test the size of U-spin breaking.\n\nhttps://indico.slac.stanford.edu/
+ event/10800/
+LOCATION:48/2-224 - Madrone (SLAC)
+URL:https://indico.slac.stanford.edu/event/10800/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:New Strategies for Sub-GeV Dark Matter Searches with Neutrino Obse
+ rvatories and Xenon Experiments
+DTSTART:20261023T193000Z
+DTEND:20261023T213000Z
+DTSTAMP:20261117T012600Z
+UID:indico-event-10808@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Lillian Santos-Olmsted (SLAC)\n\nIt was recently sho
+ wn that standard sub-GeV dark matter (DM) candidates can be effectively pr
+ obed by large neutrino observatories via annual modulation of the total ph
+ otomultiplier hit rate. That work focused on the production of light by th
+ e excitation of scintillator molecules and considered the JUNO detector\, 
+ surpassing limits from dedicated dark-matter detectors and reaching theore
+ tical targets. Here\, we significantly generalize that work\, now also tak
+ ing into account ionization channels and extending the analysis to other l
+ iquid-scintillator detectors\, including SNO+\, Daya Bay\, Borexino\, and 
+ KamLAND. We also extend this idea to dual-phase xenon experiments\, using 
+ an analogous “dark-electron rate”\, a term we use to refer to the tota
+ l rate of raw electron hits. While single-electron searches at low DM mass
+ es in XENON1T and XENONnT have strong cuts that keep only 0.01% of the exp
+ osure\, we advocate for an approach where instead xenon detectors should u
+ se the bulk of the dark-electron rate and perform an annual-modulation sea
+ rch. This technique can also be used to probe DM-nucleon interactions via 
+ the Migdal effect.\n\nhttps://indico.slac.stanford.edu/event/10808/
+LOCATION:48/2-224 - Madrone (SLAC)
+URL:https://indico.slac.stanford.edu/event/10808/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:A Witten effect for global monopoles
+DTSTART:20261028T193000Z
+DTEND:20261028T213000Z
+DTSTAMP:20261117T012600Z
+UID:indico-event-10809@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Pablo Quilez (CERN)\n\nGlobal monopoles can carry el
+ ectric charge even when the scalar fields that form them are neutral. I wi
+ ll show how an interaction usually discarded as a total derivative produce
+ s a Witten effect for these global defects\, giving them an electric charg
+ e proportional to their winding number. I will explain its origin and illu
+ strate the mechanism in a simple UV completion.\nBased on arXiv:2610.14168
+  [hep-ph]\n\nhttps://indico.slac.stanford.edu/event/10809/
+LOCATION:48/2-224 - Madrone (SLAC)
+URL:https://indico.slac.stanford.edu/event/10809/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Debopam Goswami: Producing the GeV Galactic Center Excess via  Cos
+ mic Ray-Dark Matter Scattering
+DTSTART:20261030T193000Z
+DTEND:20261030T213000Z
+DTSTAMP:20261117T012600Z
+UID:indico-event-10820@indico.slac.stanford.edu
+DESCRIPTION:https://indico.slac.stanford.edu/event/10820/
+URL:https://indico.slac.stanford.edu/event/10820/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Diffraction from first principles
+DTSTART:20261104T203000Z
+DTEND:20261104T223000Z
+DTSTAMP:20261117T012600Z
+UID:indico-event-10825@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Stella Schindler (LANL)\n\nDiffractive processes com
+ prise nearly half the cross section at the LHC\, and are a key probe of ph
+ enomena ranging from Regge (forward) physics\, to the behavior of cosmic r
+ ay showers\, to the saturation of nuclear matter. Diffractive processes ex
+ hibit unique properties like forward scattering and large “rapidity gaps
+ ” of the detector devoid of particles that have so far defied a systemat
+ ic field theory description. We use effective field theory techniques to d
+ escribe diffraction from first principles\, opening up new frontiers for e
+ xploration at the dawn of the EIC\, HL-LHC\, and FAIR accelerators.\n\nhtt
+ ps://indico.slac.stanford.edu/event/10825/
+LOCATION:48/2-224 - Madrone (SLAC)
+URL:https://indico.slac.stanford.edu/event/10825/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:The Magnus expansion and its classical limit
+DTSTART:20261106T203000Z
+DTEND:20261106T223000Z
+DTSTAMP:20261117T012600Z
+UID:indico-event-10826@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Graham Brown (U Edinburgh)\n\nThe Magnus expansion h
+ as recently emerged as an alternative to the conventional Dyson expansion 
+ in QFT. In the Magnus expansion\, we perturbatively expand the logarithm o
+ f the S-matrix. The matrix elements of this logarithm are Magnus amplitude
+ s\, which have many pleasing properties\, including a well-behaved classic
+ al limit. In this talk we will introduce the Magnus expansion and explain 
+ its diagrammatic formulation.  Then\, we will study the classical limit o
+ f certain Magnus amplitudes and show explicitly that they are free of clas
+ sically singular terms. Our analysis will rely on an algebra of permutatio
+ ns\, which we will also use to derive new closed-form expressions for Muru
+ a coefficients at any loop order. Based on: 2512.05017 and 2609.40291.\n\n
+ https://indico.slac.stanford.edu/event/10826/
+LOCATION:48/2-224 - Madrone (SLAC)
+URL:https://indico.slac.stanford.edu/event/10826/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Axion Interactions with Topological Defects
+DTSTART:20261111T203000Z
+DTEND:20261111T223000Z
+DTSTAMP:20261117T012600Z
+UID:indico-event-10827@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Katie Fraser (UC Berkeley)\n\n \nIn this talk\, we 
+ explore how the compact field space of axions shapes their interactions wi
+ th topological defects. We first show how virtual monopole loops generate 
+ an axion potential through the Witten effect\, including discussing the th
+ eories with fermions\, and give an example in which this potential dominat
+ es the axion mass. We then turn to superconducting axion strings\, discuss
+ ing the impact of an explicit PQ breaking mass term on the superconducting
+  zero modes which live on the string.\n\nhttps://indico.slac.stanford.edu/
+ event/10827/
+LOCATION:48/2-224 - Madrone (SLAC)
+URL:https://indico.slac.stanford.edu/event/10827/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:The Dark Dimension\, Revisited
+DTSTART:20261113T203000Z
+DTEND:20261113T223000Z
+DTSTAMP:20261117T012600Z
+UID:indico-event-10838@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Vincent Lee (UC Berkeley)\n\nMotivated by the swampl
+ and program\, it has been proposed that a tower of massive Kaluza-Klein (K
+ K) gravitons from a compactified flat extra dimension can be dark matter\,
+  with the heavier modes constantly cascading to lighter ones. The phenomen
+ ology crucially depends on the rate at which a massive KK mode decays to l
+ ighter modes. We show that\, up to mild assumptions on the UV theory\, the
+  decay rate is suppressed by a factor of (q/m)^4 compared to the one commo
+ nly used in the literature\, where q is the momentum of the decay produc
+ ts and m is the mass of the decaying KK mode. This suggests that the prop
+ osed scenario is ruled out by CMB observations by many orders of magnitude
+ . Remarkably\, the same suppression opens up a vastly different parameter 
+ space in which KK gravitons from a strongly warped extra dimension (e.g. a
+  Randall-Sundrum setup) are a viable dark matter candidate\, either as the
+  cascading gravitons themselves or as a stable component of the tower.\n\n
+ https://indico.slac.stanford.edu/event/10838/
+URL:https://indico.slac.stanford.edu/event/10838/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:TBA
+DTSTART:20261118T203000Z
+DTEND:20261118T223000Z
+DTSTAMP:20261117T012600Z
+UID:indico-event-10828@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Alessandro Lenoci (Hebrew U)\n\nhttps://indico.slac.
+ stanford.edu/event/10828/
+LOCATION:48/2-224 - Madrone (SLAC)
+URL:https://indico.slac.stanford.edu/event/10828/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:TBA
+DTSTART:20261120T203000Z
+DTEND:20261120T223000Z
+DTSTAMP:20261117T012600Z
+UID:indico-event-10829@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Max Knobbe (Fermilab)\n\nhttps://indico.slac.stanfor
+ d.edu/event/10829/
+LOCATION:48/2-224 - Madrone (SLAC)
+URL:https://indico.slac.stanford.edu/event/10829/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:TBA
+DTSTART:20261125T203000Z
+DTEND:20261125T223000Z
+DTSTAMP:20261117T012600Z
+UID:indico-event-10830@indico.slac.stanford.edu
+DESCRIPTION:Speakers: David Shlivko (Stanford U)\n\nhttps://indico.slac.st
+ anford.edu/event/10830/
+LOCATION:48/2-224 - Madrone (SLAC)
+URL:https://indico.slac.stanford.edu/event/10830/
+END:VEVENT
+END:VCALENDAR

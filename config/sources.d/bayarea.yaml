@@ -81,15 +81,9 @@ x-su-event-params: &su-event-params
 x-not-collected:
   - series: SLAC Accelerator Seminar
     url: https://indico.slac.stanford.edu/category/121/
-    reason: indico.slac.stanford.edu robots.txt is "User-agent * / Disallow /".
-  - series: SLAC Experimental Seminar Series
-    url: https://indico.slac.stanford.edu/category/14/
-    reason: same Indico host, disallowed for every robot.
-  - series: SLAC EPP Theory Seminars
-    url: https://indico.slac.stanford.edu/category/129/
     reason: >-
-      theory.slac.stanford.edu/events is empty and points to this Indico category,
-      which robots.txt disallows (source bayarea-slac-theory is kept disabled).
+      the Indico category lists no talk. robots.txt of the host disallows every
+      path; a source for it would set ignore_robots as bayarea-slac-theory does.
   - series: AI at SLAC Seminar
     url: https://confluence.slac.stanford.edu/display/AI/AI+Seminar
     reason: >-
@@ -272,40 +266,80 @@ sources:
   - <<: *bayarea
     id: bayarea-slac-theory
     name: SLAC Theory Group seminars (EPP Theory)
-    adapter: slac_drupal
-    enabled: false
-    url: https://theory.slac.stanford.edu/events
+    adapter: ics
+    # The category export of Indico. theory.slac.stanford.edu/events is empty and
+    # sends readers here.
+    url: https://indico.slac.stanford.edu/category/129/events.ics
+    homepage: https://indico.slac.stanford.edu/category/129/
+    # robots.txt of indico.slac.stanford.edu is "User-agent: * / Disallow: /". The
+    # owner chose to fetch this public feed anyway: one request per run.
+    ignore_robots: [indico.slac.stanford.edu]
     institution: slac
     host_org: SLAC Theory Group
     default_fields: [physics]
     series: SLAC Theory Seminar
     params:
-      # The list alone gives title, link and date (as text); no detail page is fetched.
-      list:
-        card: div.c-view__row div.c-card
-        title: h3.c-card__title a
-        link: h3.c-card__title a
-        date_text: .c-card__date
-        empty: div.c-view__empty  # "No items to display." (the recorded page)
-      # A card title is the speaker with the affiliation, "Jane Doe (MIT)": the talk
-      # has no title on the list, and this names its speaker.
-      tba_title_patterns: ['^(?P<speaker>[^()]+?)\s*\((?P<affiliation>[^()]+)\)$']
+      # DESCRIPTION: "Speakers: Federico Cima (Caltech)", a blank line, the abstract, a
+      # blank line and the address of the Indico event. A talk without an abstract
+      # yet has the speaker line and the address only; a talk without a speaker line
+      # names the speaker in its title ("Debopam Goswami: Producing the ...").
+      property_fields: {DESCRIPTION: null}
+      patterns:
+        DESCRIPTION:
+          - '\ASpeakers: (?P<speaker>[^()\n]+?) \((?P<affiliation>[^()\n]+)\)\n'
+          - '\ASpeakers: [^\n]*\n\n(?P<abstract>[\s\S]+?)\n\nhttps://indico\.slac\.stanford\.edu/event/\d+/\s*\Z'
     research:
-      verified: 2026-11-11
-      sample_events: 0
+      verified: 2026-11-16
+      sample_events: 11
       has_rss: false
-      has_ics: false
+      has_ics: true
       has_jsonld: false
       has_jsonapi: false
-      extraction: html
+      extraction: feed
       crawl_delay: 0
-      proposed_adapter: custom:slac_drupal
+      robots: "indico.slac.stanford.edu: User-agent * / Disallow / (every path); ignored, see ignore_robots"
       notes:
-        - Disabled. "Upcoming Theory Events" shows "No items to display." and sends
-          readers to Indico category 129, which robots.txt disallows.
-        - The last past event on this site is 2024-12-04 (8 pages of past events);
-          the card layout is the same as on the SLAC Colloquium site.
-        - Enable only if the list carries events again.
+        - The feed lists the talks from about four weeks back on (2026-10-21 to 2026-11-25 in the recording), Wednesdays and Fridays at 12:30 PT, most in 48/2-224 Madrone.
+        - Talks that have no title yet are called "TBA".
+        - The recordings of theory.slac.stanford.edu (empty upcoming list, past events) stay in the fixture directory as test material for the slac_drupal adapter.
+
+  - <<: *bayarea
+    id: bayarea-slac-experimental
+    name: SLAC Experimental Seminar Series
+    adapter: ics
+    url: https://indico.slac.stanford.edu/category/14/events.ics
+    homepage: https://indico.slac.stanford.edu/category/14/
+    # robots.txt of indico.slac.stanford.edu disallows every path, as for
+    # bayarea-slac-theory; the owner chose to fetch this public feed: one request per run.
+    ignore_robots: [indico.slac.stanford.edu]
+    institution: slac
+    host_org: SLAC
+    default_fields: [physics]
+    series: SLAC Experimental Seminar
+    params:
+      # DESCRIPTION: "Speakers: Jiayi Chen (Simon Fraser University)", a blank line, the
+      # abstract, then the Zoom address and the address of the Indico event, each after
+      # a blank line (the first one holds a no-break space). A talk without a speaker
+      # yet has "TBA" in place of the speaker line and the abstract. The abstract stops
+      # before the Zoom address, which holds the meeting password.
+      property_fields: {DESCRIPTION: null}
+      patterns:
+        DESCRIPTION:
+          - '\ASpeakers: (?P<speaker>[^()\n]+?) \((?P<affiliation>[^()\n]+)\)\n'
+          - '\ASpeakers: [^\n]*\n\n(?P<abstract>[\s\S]+?)\n[^\S\n]*\n(?:https?://\S+\n[^\S\n]*\n)*https://indico\.slac\.stanford\.edu/event/\d+/\s*\Z'
+    research:
+      verified: 2026-11-16
+      sample_events: 5
+      has_rss: false
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 0
+      robots: "indico.slac.stanford.edu: User-agent * / Disallow / (every path); ignored, see ignore_robots"
+      notes:
+        - The feed lists the talks from about four weeks back on (2026-10-20 to 2026-11-24 in the recording), Tuesdays at 12:30 PT, some in Varian 355 at Stanford, all with the same Zoom meeting.
+        - Talks that have no speaker yet are called "TBA" and have "TBA" as description.
 
   - <<: *bayarea
     id: bayarea-slac-ais

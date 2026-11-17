@@ -8,6 +8,8 @@ recording or in a note is one of:
 * a placeholder: the local part is ``redacted`` (``redacted@stanford.edu``);
 * an address on an example domain (``someone@example.edu``);
 * the id of a public Google Calendar (``...@group.calendar.google.com``);
+* the UID of an Indico event (``indico-event-10800@indico.slac.stanford.edu``): the
+  local part ``indico-event-<number>`` on a host in ``INDICO_HOSTS``;
 * a shared or role address of a department, center or series, listed in
   ``SHARED_ADDRESSES``. A new one is added there by name, never by pattern.
 
@@ -76,6 +78,9 @@ SHARED_ADDRESSES: Final = frozenset(
 
 PLACEHOLDER_LOCAL_PART: Final = "redacted"
 SHARED_CALENDAR_DOMAIN: Final = "group.calendar.google.com"
+INDICO_HOSTS: Final = frozenset({"indico.slac.stanford.edu"})
+"""Indico servers whose event UIDs (``indico-event-<number>@<host>``) are in recordings."""
+INDICO_EVENT_UID: Final = re.compile(r"indico-event-[0-9]{1,12}")
 EXAMPLE_DOMAIN: Final = re.compile(
     r"(?:[a-z0-9-]+\.)*example\.(?:com|edu|net|org)|(?:[a-z0-9-]+\.)*(?:example|invalid|test)"
 )
@@ -116,6 +121,7 @@ def may_stay(address: str) -> bool:
         local == PLACEHOLDER_LOCAL_PART
         or EXAMPLE_DOMAIN.fullmatch(domain) is not None
         or domain == SHARED_CALENDAR_DOMAIN
+        or (domain in INDICO_HOSTS and INDICO_EVENT_UID.fullmatch(local) is not None)
         or address in SHARED_ADDRESSES
     )
 
@@ -195,6 +201,7 @@ class TestTheScan:
             "someone@example.edu",
             "someone@events.example.org",
             "abc123@group.calendar.google.com",
+            "indico-event-10800@indico.slac.stanford.edu",
             "syntheticbiology@stanford.edu",
         ],
     )
@@ -210,6 +217,9 @@ class TestTheScan:
             "redacted.jane@mit.edu",
             "jane@example.edu.attacker.org",
             "jane@calendar.google.com",
+            "indico-event-jane@indico.slac.stanford.edu",
+            "indico-event-10800@indico.example-lab.org",
+            "jane.indico-event-10800@indico.slac.stanford.edu",
             "syntheticbiology@stanford.edu.example.net.attacker.org",
         ],
     )

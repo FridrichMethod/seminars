@@ -170,6 +170,121 @@ def test_the_params_of_the_configured_ics_sources_are_accepted(source_id: str) -
     assert params.property_fields == {}
 
 
+# --- the recorded Indico feeds of SLAC ---------------------------------------------------
+
+SLAC_THEORY = "bayarea-slac-theory"
+INDICO_FEED = "https://indico.slac.stanford.edu/category/129/events.ics"
+SLAC_EXPERIMENTAL = "bayarea-slac-experimental"
+EXPERIMENTAL_FEED = "https://indico.slac.stanford.edu/category/14/events.ics"
+
+
+@functools.cache
+def indico_source(source_id: str) -> tuple[tuple[str, ...], tuple[EventDraft, ...]]:
+    """A configured Indico source over its recording (both recorded 2026-11-17 UTC)."""
+    sources = {source.id: source for source in load_sources(REPO_ROOT / "config" / "sources.d")}
+    source = sources[source_id]
+    http = offline_client(source_id)
+    window = make_window(datetime(2026, 11, 17, 1, 27, tzinfo=UTC))
+    adapter = IcsAdapter()
+    drafts = adapter.parse(adapter.fetch(http, source, window=window), source)
+    return tuple(http.requests), tuple(drafts)
+
+
+def slac_theory() -> tuple[tuple[str, ...], tuple[EventDraft, ...]]:
+    return indico_source(SLAC_THEORY)
+
+
+def slac_experimental() -> tuple[tuple[str, ...], tuple[EventDraft, ...]]:
+    return indico_source(SLAC_EXPERIMENTAL)
+
+
+class TestRecordedIndicoFeed:
+    def test_the_source_reads_the_category_feed_and_ignores_robots_on_its_host(self) -> None:
+        sources = {source.id: source for source in load_sources(REPO_ROOT / "config" / "sources.d")}
+        source = sources[SLAC_THEORY]
+        assert source.enabled
+        assert source.ignore_robots == ["indico.slac.stanford.edu"]
+        requests, drafts = slac_theory()
+        assert requests == (INDICO_FEED,)
+        assert len(drafts) == 11
+
+    def test_the_speaker_line_gives_the_speaker_and_the_abstract_comes_without_it(self) -> None:
+        _, drafts = slac_theory()
+        draft = by_id(drafts, "indico-event-10800@indico.slac.stanford.edu")
+        assert draft.title == "Decays of beautiful hadrons"
+        assert [(person.name, person.affiliation) for person in draft.speakers] == [
+            ("Federico Cima", "Caltech")
+        ]
+        assert draft.speaker_text is None
+        assert draft.abstract is not None
+        assert draft.abstract.startswith("In this talk, I will present some recent progress")
+        assert draft.abstract.endswith("to test the size of U-spin breaking.")
+        assert draft.location == "48/2-224 - Madrone (SLAC)"
+        assert draft.url == "https://indico.slac.stanford.edu/event/10800/"
+        assert draft.start == datetime(2026, 10, 21, 12, 30, tzinfo=PACIFIC)
+
+    def test_a_talk_without_an_abstract_keeps_its_speaker_and_no_abstract(self) -> None:
+        _, drafts = slac_theory()
+        draft = by_id(drafts, "indico-event-10828@indico.slac.stanford.edu")
+        assert draft.title == "TBA"
+        assert [(person.name, person.affiliation) for person in draft.speakers] == [
+            ("Alessandro Lenoci", "Hebrew U")
+        ]
+        assert draft.abstract is None
+
+    def test_a_talk_without_a_speaker_line_has_no_speaker_and_no_abstract(self) -> None:
+        _, drafts = slac_theory()
+        draft = by_id(drafts, "indico-event-10820@indico.slac.stanford.edu")
+        assert draft.title is not None
+        assert draft.title.startswith("Debopam Goswami: Producing the GeV Galactic Center")
+        assert draft.speakers == []
+        assert draft.abstract is None
+
+
+class TestRecordedExperimentalFeed:
+    def test_the_source_reads_the_category_feed_and_ignores_robots_on_its_host(self) -> None:
+        sources = {source.id: source for source in load_sources(REPO_ROOT / "config" / "sources.d")}
+        source = sources[SLAC_EXPERIMENTAL]
+        assert source.enabled
+        assert source.ignore_robots == ["indico.slac.stanford.edu"]
+        requests, drafts = slac_experimental()
+        assert requests == (EXPERIMENTAL_FEED,)
+        assert len(drafts) == 5
+
+    def test_the_abstract_stops_before_the_zoom_address(self) -> None:
+        _, drafts = slac_experimental()
+        draft = by_id(drafts, "indico-event-10676@indico.slac.stanford.edu")
+        assert draft.title == (
+            "Probing New Physics through Higgs\u2013Vector-Boson Couplings with the ATLAS Detector"
+        )
+        assert [(person.name, person.affiliation) for person in draft.speakers] == [
+            ("Jiayi Chen", "Simon Fraser University")
+        ]
+        assert draft.abstract is not None
+        assert draft.abstract.startswith("Thirteen years after the discovery of the Higgs boson")
+        assert draft.abstract.endswith("at a center-of-mass energy of 13 TeV.")
+        assert "zoom" not in draft.abstract
+        assert draft.location == "Stanford"
+        assert draft.start == datetime(2026, 10, 20, 12, 30, tzinfo=PACIFIC)
+
+    def test_every_talk_with_a_speaker_line_has_an_abstract_without_the_meeting(self) -> None:
+        _, drafts = slac_experimental()
+        with_speaker = [draft for draft in drafts if draft.speakers]
+        assert len(with_speaker) == 3
+        for draft in with_speaker:
+            assert draft.abstract is not None
+            assert "pwd=" not in draft.abstract
+            assert "indico.slac.stanford.edu" not in draft.abstract
+
+    def test_a_tba_talk_has_no_speaker_and_no_abstract(self) -> None:
+        _, drafts = slac_experimental()
+        draft = by_id(drafts, "indico-event-10805@indico.slac.stanford.edu")
+        assert draft.title == "TBA"
+        assert draft.speakers == []
+        assert draft.abstract is None
+        assert draft.start == datetime(2026, 11, 24, 12, 30, tzinfo=PACIFIC)
+
+
 # --- the recorded researchseminars.org feeds -----------------------------------------------
 
 

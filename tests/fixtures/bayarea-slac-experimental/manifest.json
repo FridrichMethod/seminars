@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source_id": "bayarea-slac-experimental",
+  "entries": {
+    "https://indico.slac.stanford.edu/category/14/events.ics": {
+      "file": "category-14-events-ics-c3962f88.ics",
+      "status": 200,
+      "content_type": "text/calendar",
+      "fetched_at": "2026-11-17T03:29:45Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}
