@@ -287,7 +287,7 @@ sources:
       has_embedded_json: true
       structured_data:
         - "Next.js flight payload in the inline scripts of the list page: the events as JSON objects (used)"
-        - "content API below /cms/api/ (the payload names collections/events/entries, so it probably holds the events): disallowed by robots.txt, not requested"
+        - "content API below /cms/api/ (Statamic; collections/events/entries): disallowed by robots.txt, not used (see the notes)"
         - "no JSON-LD, no feed link and no iCalendar link on the list page or the detail pages"
       extraction: html
       crawl_delay: 0
@@ -297,7 +297,7 @@ sources:
         - Next.js site. No JSON-LD, no feed, no __NEXT_DATA__. The events are JSON objects inside the inline scripts that call self.__next_f.push (10 upcoming, 10 previous); see the README of the fixture for how to read them.
         - The payload must be cut into rows by length, not by lines. A text row ("<id>:T<hex length>,") ends after exactly that many UTF-8 bytes and is followed directly by the next row; this page has two (c and 22), and a line split loses the rows after them (0 and e). The row with the events is not one of those here only by chance.
         - The embedded times look like UTC and are not. "2026-11-11T16:30:00.000000Z" is shown as 4:30 PM on the same page. Read them as Pacific time.
-        - The content API of the site (paths below /cms/api/) is named in the payload but robots.txt disallows /cms/ and /api/. It must not be used and was not requested.
+        - 'The content API of the site (paths below /cms/api/) is named in the payload; robots.txt disallows /cms/ and /api/. Looked at once with robots.txt set aside (2026-11-16, /cms/api/collections/events/entries?filter[event_start:gte]=...): it answers publicly with the whole entries, but it adds nothing that the source lacks. An event with a promo_url has no address, no sections and no speakers there either; an event without one holds what its detail page shows. Its answers also name the personal addresses of event contacts. So the source has no ignore_robots and keeps reading the list and the detail pages; what the events with a promo_url lack is on the organisers'' pages.'
         - CSS class names carry a build hash (ContentItem_root__bsx20). Match the part before the hash.
         - The list has no location and no speaker list; both are on the detail page (label and value rows, person cards). Moderators are listed as people too, under their own heading.
         - Only events without a promo_url have a detail page of their own (3 of the 10 upcoming ones). For the other 7, /events/<slug> answers 200 with a page that only forwards to the promo_url (meta refresh with id __next-page-redirect, robots noindex, NEXT_REDIRECT in the payload). The promo_url hosts (marlowe-research.stanford.edu, digitaleconomy.stanford.edu, events.stanford.edu, stanford.zoom.us) are not listed for this source and were not requested, so these events come from the list alone, without location and speakers.

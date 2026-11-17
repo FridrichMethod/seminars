@@ -24,7 +24,7 @@ from seminars.config import PROVIDER_CREDENTIAL_ENV, load_settings
 from seminars.fixtures import reference_time
 from seminars.models import FIELD_IDS, Event, read_events
 
-RUN_TIME = datetime(2026, 11, 17, 3, 29, 45, tzinfo=UTC)
+RUN_TIME = datetime(2026, 11, 17, 4, 0, 41, tzinfo=UTC)
 """The latest recording time of the fixtures: the "now" of an offline run."""
 
 PAST_AFTERNOON = {
@@ -147,7 +147,8 @@ def test_a_talk_the_campus_calendar_wraps_keeps_the_title_of_the_department(
 def test_a_talk_two_hosts_announce_keeps_the_title_of_the_talk(
     offline_run: tuple[str, Path],
 ) -> None:
-    # Chemical and Systems Biology announces it by its speaker, ChEM-H by its title.
+    # Chemical and Systems Biology announces it by its speaker (on its page and in its
+    # calendar), ChEM-H by its title.
     _, root = offline_run
     (event,) = [
         event
@@ -157,6 +158,7 @@ def test_a_talk_two_hosts_announce_keeps_the_title_of_the_talk(
     assert event.title.startswith("Science with Claude: ")
     assert "ai-ml" in event.fields
     assert {key.split(":")[0] for key in event.source_ids} == {
+        "custom-csb-calendar",
         "custom-csb-events",
         "sites-chemh",
     }
@@ -309,6 +311,13 @@ COMING_TALKS = [
         "TBA",  # neither title nor speaker yet
         [],
         {"physics"},
+    ),
+    (
+        "custom-csb-calendar",
+        datetime(2027, 2, 8, 12, 30, tzinfo=STANFORD),
+        "CSB Special Seminar: Jeanne Hardy, PhD",
+        ["Jeanne Hardy"],
+        {"bio", "chem"},
     ),
 ]
 """A talk after the run time of each series that only its own source lists."""

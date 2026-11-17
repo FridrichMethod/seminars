@@ -22,6 +22,13 @@ All notable changes of this project are recorded in this file. The format follow
   category, with speaker, affiliation, room and abstract (the Zoom address with its
   meeting password left out); robots.txt of indico.slac.stanford.edu is set aside for
   these two sources.
+- **Calendar of Chemical and Systems Biology** (`custom-csb-calendar`): the department's
+  public Google Calendar, with the Science Circle talks (speaker and lab), the special
+  seminars before the department posts them, and the speakers named in the titles;
+  robots.txt of calendar.google.com is set aside for this source. Talks that the
+  department's page and ChEM-H also list merge with them. Birthday, promotion and
+  thesis celebrations, decoration parties, department-wide receptions and
+  Friendsgiving are left out as social events.
 
 ### Changed
 

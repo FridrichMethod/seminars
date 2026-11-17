@@ -236,7 +236,7 @@ sources:
       structured_data:
         - "/category/events/feed/ (linked): RSS of the same 10 posts; pubDate is the publication time, the event time is only in the title and the text"
         - "/wp-json/wp/v2/posts?categories=30: the same posts as JSON (title, link, publication date, content); no event fields, acf is empty"
-        - "Google Calendar csbdept@gmail.com embedded on /department/special-programs-events/: its iCalendar feed is on calendar.google.com, disallowed by robots.txt there, not requested (so what it holds was not seen)"
+        - "Google Calendar csbdept@gmail.com embedded on /department/special-programs-events/: its iCalendar feed is on calendar.google.com, disallowed by robots.txt there; collected by custom-csb-calendar, which sets that robots.txt aside"
         - "no JSON-LD on the list page or the detail page"
       extraction: html
       crawl_delay: 0
@@ -249,11 +249,66 @@ sources:
         - The feed and wp-json were tried first. They hold the same posts with the publication time only, so the rss adapter (which needs an element with the start) cannot use them, and wp-json has no event fields. Reading the titles of the list page needs no further request.
         - 'The post text has the speaker''s affiliation, the talk title, the abstract and the speaker''s bio (for example "Talk Title:" and "Abstract:" in the Garfield post). html_list reads the affiliation from it (detail_page.body); the title and the abstract are not read. The posts of both seminars are recorded (Garfield on 2026-11-11, Sieber on 2026-11-12), with the affiliations "AI for Life Sciences, Partnerships, Anthropic" and "Department of Chemistry, Technical University Munich (TUM)".'
         - A title without a year ("Tuesday, September 15, 12 pm") gets the year closest to the fetch, which is right as long as the list keeps moving (the 10 posts spanned four months).
-        - The department's own calendar is a Google Calendar (csbdept@gmail.com) on /department/special-programs-events/. Like the other Google Calendar sources it is not used, because robots.txt of calendar.google.com disallows the feed. The same page announced "Science Circle Faculty Talk, November 17, 12:00pm, Alway M112" in its sidebar, a talk that has no post in the category; such talks are missed.
+        - The department's own calendar is a Google Calendar (csbdept@gmail.com) on /department/special-programs-events/. It lists the talks that have no post in the category (the Science Circle talks, special seminars before their post) and is read by custom-csb-calendar; the talks both list merge.
         - Detail links are /events/<slug>/ or /uncategorized/<slug>/ (WordPress uses the first category of a post); both are pages of a post.
         - The Stanford Events calendar has no event of this department between 2026-10-28 and 2027-03-12.
         - 'Overlap with sites-chemh: 2 of the 2 upcoming talks are already there. The ChEM-H list re-lists both special seminars (2026-11-16 David Garfield, 2026-12-03 Stephan Sieber) with the same chemsysbio.stanford.edu post addresses and with the real talk titles ("Science with Claude: Agentic Biology, Data Analysis, and Human Interactions in a World of LLMs", "Breaking Bacterial Resistance via Chemical Dysregulation"), but without speaker or room. Dedup merges each pair through the shared detail page (checked offline on the recordings: the 6 candidates of the two sources in the window become 4). What this source adds: the speaker and the room of those talks, and the posts that only the department lists (the PhD defenses, none upcoming in the sample).'
         - 'Merging: the merged event keeps the talk title of the ChEM-H listing, not the announcement title that names the speaker ("CSB Special Seminar & Open Discussion, David Garfield, PhD"), so the classifier sees the words of the talk title (pinned by tests/test_pipeline_offline_integration.py for the Garfield seminar).'
+
+  - <<: *stanford-extra
+    id: custom-csb-calendar
+    name: Stanford Chemical and Systems Biology Calendar
+    adapter: ics
+    url: https://calendar.google.com/calendar/ical/csbdept%40gmail.com/public/basic.ics
+    homepage: https://chemsysbio.stanford.edu/department/special-programs-events/
+    # robots.txt of calendar.google.com disallows every path; the owner chose to fetch
+    # this public feed: one request per run.
+    ignore_robots: [calendar.google.com]
+    host_org: Stanford Department of Chemical and Systems Biology
+    default_fields: [bio, chem]
+    default_event_type: seminar
+    params:
+      calendar_ids: [csbdept@gmail.com]
+      # Where the calendar id was found: the src of the embedded calendar on the homepage.
+      embed_selector: "iframe"
+      # The DESCRIPTION of a Science Circle talk is "Speaker: Olivia Crocker - Wysocka
+      # Lab", a line with the moderator, nothing else: no abstract. Only the
+      # announcements of special seminars have one ("Abstract: ..." in the HTML).
+      property_fields: {DESCRIPTION: null}
+      patterns:
+        SUMMARY:
+          - '\A(?P<series>Science Circle)\s*[:;]'
+          # "CSB Cutting Lecture Series: Karen Adelman - Harvard"
+          - '\A[^:\n]*(?:Seminar|Lecture|Series|Defense|Discussion)\s*:\s+(?:Dr\.\s+)?(?!(?:TBA|TBD)\b)(?P<speaker>[A-Z][^,():\n]*?)\s+-\s+(?P<affiliation>[^\n]+?)\s*\Z'
+          # "CSB Cutting Lecture Series: Ronald T Raines (MIT)"
+          - '\A[^:\n]*(?:Seminar|Lecture|Series|Defense|Discussion)\s*:\s+(?:Dr\.\s+)?(?!(?:TBA|TBD)\b)(?P<speaker>[A-Z][^,():\n]*?)\s+\((?P<affiliation>[^()\n]+)\)\s*\Z'
+          # "CSB Special Seminar: Jeanne Hardy, PhD", "CSB Thesis Defense: Rebecca Chan, Li
+          # Lab", "CSB Cutting Lecture Series: Dr. Wallace Marshall, UCSF"
+          - '\A[^:\n]*(?:Seminar|Lecture|Series|Defense|Discussion)\s*:\s+(?:Dr\.\s+)?(?!(?:TBA|TBD)\b)(?P<speaker>[A-Z][^,():\n]*?)(?:,\s*(?:Ph\.?\s?D\.?|M\.?D\.?)|,\s*(?P<affiliation>[^,\n]+?))?\s*\Z'
+        DESCRIPTION:
+          # "Speaker: Olivia Crocker - Wysocka Lab", also without "Speaker:"; "Speaker: TBA"
+          # names nobody (as "TBA" or "TBD" in a title does not).
+          - '\A\s*(?:Speaker:\s*)?(?!(?:TBA|TBD)\b)(?P<speaker>[A-Z][^\n:]*?)\s+-\s+(?P<affiliation>[^\n]+?)\s*(?:\n|\Z)'
+          - '\A\s*Speaker:(?!\s*(?:TBA|TBD)\b)\s*(?P<speaker>[^\n]+?)\s*(?:\n|\Z)'
+          - '(?m)^Talk Title:\s*[\u201c"](?P<title>[^\u201d"\n]+)[\u201d"]'
+          - '(?m)^Abstract:[^\S\n]*(?P<abstract>\S[^\n]*(?:\n[^\S\n]*\S[^\n]*)*)'
+    research:
+      verified: 2026-11-16
+      sample_events: 31
+      upcoming_events: 27
+      has_rss: false
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 0
+      robots: "calendar.google.com: Allow: /$ and Disallow: / (every other path); ignored, see ignore_robots. chemsysbio.stanford.edu: nothing disallowed"
+      requests_per_run: 1
+      notes:
+        - 'The public Google Calendar of the department ("Department of Chemical and Systems Biology Calendar", described as "Internal Calendar for the Dept of Chemical and Systems Biology"), embedded on the page "Special Programs & Events". The feed holds every event since 2009 (1213 VEVENTs, about 580 kB); the recording keeps those from 2026-10-01 on.'
+        - 'Talks: the Science Circle (the student seminar of the department, a "Pizza Talk" by a student most Tuesdays at 12:00 in Alway M112 and a "Faculty Talk" now and then; the speaker and the lab are only in the description), the CSB Special Seminars, the Cutting Lecture Series, faculty candidate seminars and thesis defenses. The title of a talk names its speaker ("CSB Special Seminar: Jeanne Hardy, PhD").'
+        - 'Social events are in the same calendar (lab happy hours, birthday celebrations, the holiday party, Friendsgiving, the BBQ); the exclusion phrases of config/taxonomy.yaml (social) leave them out.'
+        - 'Overlap with custom-csb-events and sites-chemh: the special seminars are announced there too. The same speaker at the same start merges them (dedup); this source adds the Science Circle talks and the seminars that have no post yet (Jeanne Hardy on 2027-02-08).'
 
   # --- ISL Colloquium ----------------------------------------------------------------------
   - <<: *stanford-extra

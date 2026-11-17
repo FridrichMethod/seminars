@@ -1,0 +1,510 @@
+BEGIN:VCALENDAR
+PRODID:-//Google Inc//Google Calendar 70.9054//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Department of Chemical and Systems Biology Calendar
+X-WR-TIMEZONE:America/Los_Angeles
+X-WR-CALDESC:Internal Calendar for the Dept of Chemical and Systems Biology
+BEGIN:VTIMEZONE
+TZID:America/Los_Angeles
+X-LIC-LOCATION:America/Los_Angeles
+BEGIN:DAYLIGHT
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0700
+TZNAME:PDT
+DTSTART:19700308T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:-0700
+TZOFFSETTO:-0800
+TZNAME:PST
+DTSTART:19701101T020000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+DTSTART:20270209T200000Z
+DTEND:20270209T210000Z
+DTSTAMP:20261117T040040Z
+UID:02iitf98ilabfoqqapfgbafdbc@google.com
+CREATED:20260929T164142Z
+DESCRIPTION:Speaker: Marko Dunjic - Wysocka Lab \nModerator: Tianhong Wang
+LAST-MODIFIED:20261110T221547Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261110T200000Z
+DTEND:20261110T210000Z
+DTSTAMP:20261117T040040Z
+UID:3r5t01ums4o99tp3v21jhlplm7@google.com
+CREATED:20260929T162417Z
+DESCRIPTION:Speaker: Olivia Crocker - Wysocka Lab \nModerator: Thi Tran
+LAST-MODIFIED:20260929T162417Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270105T200000Z
+DTEND:20270105T210000Z
+DTSTAMP:20261117T040040Z
+UID:0mrieriqhupfhov74hhcchp3bl@google.com
+CREATED:20260929T163525Z
+DESCRIPTION:Speaker: Ahit Kaan Tarhan - Chen Lab \nModerator: Olga Merino-C
+ havez
+LAST-MODIFIED:20261110T220942Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270420T190000Z
+DTEND:20270420T200000Z
+DTSTAMP:20261117T040040Z
+UID:5k0mjn9d6m0ihg9cnfrfh7m9bs@google.com
+CREATED:20260929T165242Z
+DESCRIPTION:Speaker: Riley Togashi - Chen Lab \nModerator: Leyna Duong
+LAST-MODIFIED:20260929T165243Z
+LOCATION:TBA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270525T190000Z
+DTEND:20270525T200000Z
+DTSTAMP:20261117T040040Z
+UID:0lk7iv72hmq1klufhql6vja20t@google.com
+CREATED:20260929T165722Z
+DESCRIPTION:Speaker: Nick Hoeffner - Petrov Lab \nModerator: Hanxi Tang
+LAST-MODIFIED:20260929T165722Z
+LOCATION:TBA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261027T190000Z
+DTEND:20261027T200000Z
+DTSTAMP:20261117T040040Z
+UID:3npjj251pu6icnee29gtp0rknq@google.com
+CREATED:20260929T161628Z
+DESCRIPTION:Speaker: Thi Tran - Chen Lab\nModerator: Laney Flanagan
+LAST-MODIFIED:20261007T161205Z
+LOCATION:Alway M112
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270511T190000Z
+DTEND:20270511T200000Z
+DTSTAMP:20261117T040040Z
+UID:07tb6kbes7e3s08j4e737spefj@google.com
+CREATED:20260929T165523Z
+DESCRIPTION:Speaker: Siavash Moghadami - Bertozzi Lab \nModerator: Kate Mac
+ Donald
+LAST-MODIFIED:20260929T165523Z
+LOCATION:TBA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270126T200000Z
+DTEND:20270126T210000Z
+DTSTAMP:20261117T040040Z
+UID:4oamss6murrri6otq34udfgat5@google.com
+CREATED:20260929T163905Z
+DESCRIPTION:Speaker: Emma Magee - Wysocka Lab \nModerator: Isaac Paddy
+LAST-MODIFIED:20261110T221514Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261015T230000Z
+DTEND:20261016T000000Z
+DTSTAMP:20261117T040040Z
+UID:3tog9vbulefj6ocqkg25k6m2uv@google.com
+CREATED:20261001T165521Z
+DESCRIPTION:Presenter: Ahit Kaan Tarhan - Chen Lab
+LAST-MODIFIED:20261015T220417Z
+LOCATION:CCSR 4105/4107
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Think Tank 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270406T190000Z
+DTEND:20270406T200000Z
+DTSTAMP:20261117T040040Z
+UID:1siv53gj2unfflqjlqrd0dgjkq@google.com
+CREATED:20260929T164818Z
+DESCRIPTION:Speaker: Zoya Gauhar - Martinez/Goins Labs \nModerator: Trae Du
+ nn
+LAST-MODIFIED:20260929T164818Z
+LOCATION:TBA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270223T200000Z
+DTEND:20270223T210000Z
+DTSTAMP:20261117T040040Z
+UID:74l87hulgi9gbc4a5q9etpbphe@google.com
+CREATED:20260929T164320Z
+DESCRIPTION:Speaker: Janie Kim - Martinez/Fire Lab\nModerator: Marko Dunjic
+LAST-MODIFIED:20261110T221618Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270112T200000Z
+DTEND:20270112T210000Z
+DTSTAMP:20261117T040040Z
+UID:1m4j7g4mlfoa6ncdcp3nuss5rf@google.com
+CREATED:20260929T163702Z
+DESCRIPTION:Speaker: Gerardo Vargas\nModerator: Ahit Kaan Tarhan
+LAST-MODIFIED:20261110T221006Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270119T200000Z
+DTEND:20270119T210000Z
+DTSTAMP:20261117T040040Z
+UID:1cvruc5f5liiem36nv2t5ol22h@google.com
+CREATED:20260929T163813Z
+DESCRIPTION:Isaac Paddy - Dassama Lab \nModerator: Gerardo Vargas
+LAST-MODIFIED:20261110T221020Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270518T190000Z
+DTEND:20270518T200000Z
+DTSTAMP:20261117T040040Z
+UID:589j2pgcq3cf0m90fh59fap3s1@google.com
+CREATED:20260929T165626Z
+DESCRIPTION:Speaker: Hanxi Tang - Gray Lab \nModerator: Siavash Moghadami
+LAST-MODIFIED:20260929T165626Z
+LOCATION:TBA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270330T190000Z
+DTEND:20270330T200000Z
+DTSTAMP:20261117T040040Z
+UID:0d2t918t39qvhu229edp45r730@google.com
+CREATED:20260929T164650Z
+DESCRIPTION:Speaker: Trae Dunn - Gray Lab \nModerator: Adrianne Kinsey
+LAST-MODIFIED:20260929T164650Z
+LOCATION:TBA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261117T200000Z
+DTEND:20261117T210000Z
+DTSTAMP:20261117T040040Z
+UID:10kvqhoov0jireujk2eeoj6vqd@google.com
+CREATED:20260929T162503Z
+DESCRIPTION:Speaker: Serena Sanulli
+LAST-MODIFIED:20261014T210438Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Faculty Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270208T203000Z
+DTEND:20270208T213000Z
+DTSTAMP:20261117T040040Z
+UID:692vt26ge5ii8fkclia9fihdeu@google.com
+CREATED:20261105T200709Z
+DESCRIPTION:Faculty Host: Matt Bogyo
+LAST-MODIFIED:20261105T200710Z
+LOCATION:TBA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:CSB Special Seminar: Jeanne Hardy\, PhD
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261203T203000Z
+DTEND:20261203T213000Z
+DTSTAMP:20261117T040040Z
+UID:05d6hoikukh75ified22ddunvp@google.com
+CREATED:20260929T223023Z
+LAST-MODIFIED:20260929T223023Z
+LOCATION:Clark Center Auditorium\, 318 Discovery Walk\, Palo Alto\, CA 9430
+ 4\, USA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:CSB Special Seminar: Stephan Sieber\, PhD
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261111T213000Z
+DTEND:20261111T223000Z
+DTSTAMP:20261117T040040Z
+UID:7trha856lfdodflga4g6u3qfr4@google.com
+CREATED:20261014T003618Z
+DESCRIPTION:<p><b>YOU ARE INVITED!<br><br>Chemical and Systems Biology</b><
+ /p><p><b>FRIENDSGIVING LUNCH</b></p><p><i>Eat\, Drink\, and be Thankful</i>
+ </p><p><b>Wednesday\, November 11\, 2026</b></p><p><b>1:30 pm – 2:30 pm</b>
+ </p><p><b>LKSC\, Room LK102</b></p><p><br>We hope you can join us for a Fri
+ endsgiving lunch hosted by the CSB Department!</p><p>Please RSVP <a href="h
+ ttps://stanfordmedicine.qualtrics.com/jfe/form/SV_7aCwMiURTwnomXk">HERE</a>
+ ! <br><br>We look forward to seeing you there!</p>
+LAST-MODIFIED:20261014T003618Z
+LOCATION:LKSC - LK102
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:CSB Friendsgiving Lunch
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270309T200000Z
+DTEND:20270309T210000Z
+DTSTAMP:20261117T040040Z
+UID:0g9m2oprfmvd4vuvrli9nflfkm@google.com
+CREATED:20260929T164552Z
+DESCRIPTION:Speaker: Adrianne Kinsey - Chen Lab\nModerator: Gabriel Lopez
+LAST-MODIFIED:20261110T221645Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261116T190000Z
+DTEND:20261116T204500Z
+DTSTAMP:20261117T040040Z
+UID:6ljrmos4ts93jabs41nh2evmr1@google.com
+CREATED:20261104T164758Z
+DESCRIPTION:<b>The Department of Chemical and Systems Biology Presents a Sp
+ ecial Seminar &amp\; Open Discussion<br></b><br><b>David Garfield\, PhD</b>
+ <br><i>AI for Life Sciences\, Partnerships\, Anthropic</i><br><br><b>Monday
+ \, November 16\, 2026</b><br>11:00 AM – 12:45 PM<br>Munzer Auditorium<br><b
+ r><b>Discussion Moderators:</b> Joanna Wysocka &amp\; Jordan Valgardson  <b
+ r><b><br></b><br><b>Talk Title: </b>“Science with Claude: agentic biology\,
+  data analysis\, and human interactions in a world of LLMs”<br><br><b>An op
+ en discussion with the speaker will immediately follow the seminar presenta
+ tion.</b> Attendees are encouraged to bring their questions\, perspectives\
+ , and ideas for an engaging conversation.<br><br><b>Abstract:</b> Large lan
+ guage models are now good enough at reading\, coding and reasoning to take 
+ on real pieces of a research project\, and that changes what a day at the b
+ ench or the keyboard looks like. In this talk I'll show how scientists are 
+ using Claude and Claude Science as agentic collaborators. The worked exampl
+ es come from my own field of regulatory genomics: interpreting non-coding g
+ enetic variants with sequence-to-function models\, and designing enhancers 
+ and promoters with defined activity. I'll cover what works\, where agents s
+ till mislead\, and which habits keep the science rigorous. I'll close with 
+ how Anthropic is working with academic labs. An open discussion follows\, s
+ o please bring questions\, skeptical ones included.<br><br><b>Speaker Bio:<
+ /b> David Garfield works on AI for Life Sciences partnerships at Anthropic\
+ , where he builds research collaborations with universities and research in
+ stitutes. He trained as an evolutionary developmental biologist and quantit
+ ative geneticist\, did his postdoc with Eileen Furlong at EMBL\, and then l
+ ed an ERC-funded research group at Humboldt University in Berlin. He moved 
+ to industry at Bayer and then Genentech\, where he was a Principal Scientis
+ t in computational biology working on human genetics\, regulatory genomics 
+ and machine-learning models of sequence function. He joined Anthropic in 20
+ 26.
+LAST-MODIFIED:20261110T180644Z
+LOCATION:Munzer Auditorium 
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:CSB Special Seminar & Open Discussion: David Garfield\, PhD
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261201T200000Z
+DTEND:20261201T210000Z
+DTSTAMP:20261117T040040Z
+UID:3f0e16el4c0n79f3200u7203vp@google.com
+CREATED:20260929T162604Z
+DESCRIPTION:Speaker: Olga Merino-Chavez - Dassama Lab \nModerator: Olivia C
+ rocker
+LAST-MODIFIED:20260929T162605Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261013T190000Z
+DTEND:20261013T200000Z
+DTSTAMP:20261117T040040Z
+UID:5ngpf7cvf7oni7cqsr4v4mam4f@google.com
+CREATED:20260929T161504Z
+DESCRIPTION:Speaker: Laney Flanagan - Bogyo Lab\nModerator: Qixiang Geng
+LAST-MODIFIED:20261001T171845Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270413T190000Z
+DTEND:20270413T200000Z
+DTSTAMP:20261117T040040Z
+UID:68253al2pa84m2psftfvf7lsnr@google.com
+CREATED:20260929T164918Z
+DESCRIPTION:Speaker: Leyna Duong - Gray Lab \nModerator: Zoya Gauhar
+LAST-MODIFIED:20260929T164918Z
+LOCATION:TBA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261212T010000Z
+DTEND:20261212T060000Z
+DTSTAMP:20261117T040040Z
+UID:481ovs58t4hucp7jf2s0e9a0v2@google.com
+CREATED:20260929T165858Z
+DESCRIPTION:<br><div dir="auto">Chemical and Systems Biology Department Inv
+ ites You and Your Family to our Annual Holiday Party!<br><br><div dir="auto
+ ">Celebrate the holiday season with an evening of music\, delicious food\, 
+ sweet treats\, and festive family fun!<div dir="auto"><br><div dir="auto">E
+ njoy a fun-filled evening featuring:<br><div dir="auto">Photo booth\, Face 
+ painter\, Balloon twister\, and a special holiday gift for each child!<div 
+ dir="auto"><br><div dir="auto">Friday\, December 11\, 2026<div dir="auto">5
+ :00 PM – 9:00 PM<div dir="auto"><br><div dir="auto">MacArthur Park Restaura
+ nt<div dir="auto">27 University Ave\, Palo Alto\, CA<div dir="auto"><br><di
+ v dir="auto">We hope to see you there!
+LAST-MODIFIED:20261110T234312Z
+LOCATION:MacArthur Park Restaurant and Bar\, 27 University Ave\, Palo Alto\
+ , CA 94301\, USA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:CSB Holiday Party 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270202T200000Z
+DTEND:20270202T210000Z
+DTSTAMP:20261117T040040Z
+UID:0inudsis18r0k7avfji65hr0q6@google.com
+CREATED:20260929T164024Z
+DESCRIPTION:Speaker: Tianhong Wang - Boettiger Lab\nModerator: Emma Magee
+LAST-MODIFIED:20261110T221534Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270504T190000Z
+DTEND:20270504T200000Z
+DTSTAMP:20261117T040040Z
+UID:0rpsmhlk8a72f2ni01d3lvhhbs@google.com
+CREATED:20260929T165417Z
+DESCRIPTION:Speaker: TBA
+LAST-MODIFIED:20260929T165417Z
+LOCATION:TBA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Faculty Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270216T200000Z
+DTEND:20270216T210000Z
+DTSTAMP:20261117T040040Z
+UID:0aggoukvj0ati1untrq7elm9t5@google.com
+CREATED:20260929T164210Z
+DESCRIPTION:Speaker: TBA
+LAST-MODIFIED:20261110T221600Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Faculty Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270601T190000Z
+DTEND:20270601T200000Z
+DTSTAMP:20261117T040040Z
+UID:6c1ach3vpmt7saviqeps94dehh@google.com
+CREATED:20260929T165809Z
+DESCRIPTION:Speaker: Kailey Worner - Martinez Lab\nModerator: Nick Hoeffner
+LAST-MODIFIED:20260929T165810Z
+LOCATION:TBA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270427T190000Z
+DTEND:20270427T200000Z
+DTSTAMP:20261117T040040Z
+UID:0kj2ea2gvk2676gv88e2umqq16@google.com
+CREATED:20260929T165350Z
+DESCRIPTION:Speaker: Kate MacDonald - Cimprich Lab \nModerator: Riley Togas
+ hi
+LAST-MODIFIED:20261001T202704Z
+LOCATION:TBA
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20270302T200000Z
+DTEND:20270302T210000Z
+DTSTAMP:20261117T040040Z
+UID:73hsi8rje348hro6b6ui9t7kcc@google.com
+CREATED:20260929T164421Z
+DESCRIPTION:Speaker: Gabriel Lopez - Wysocka Lab \nModerator: Janie Kim
+LAST-MODIFIED:20261110T221635Z
+LOCATION:Alway M112
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Science Circle: Pizza Talk 
+TRANSP:OPAQUE
+END:VEVENT
+END:VCALENDAR

@@ -115,8 +115,8 @@ Google 按自己的节奏刷新订阅的日历，可能要几个小时。
 
 ### 数据源及其状态
 
-配置的 43 个数据源里启用了 34 个。表里列的是第一次公开运行抓取的 32 个：其中 29 个给出了报告，
-1 个为空，2 个失败，共存储了 348 个报告。SLAC Theory Group seminar（`bayarea-slac-theory`）和 SLAC Experimental Seminar Series（`bayarea-slac-experimental`）不在表里。一个报告被几个数据源列出，在这张表里就为每个数据源各算一次。"抽取方式"是这次
+配置的 44 个数据源里启用了 35 个。表里列的是第一次公开运行抓取的 32 个：其中 29 个给出了报告，
+1 个为空，2 个失败，共存储了 348 个报告。SLAC Theory Group seminar（`bayarea-slac-theory`）、SLAC Experimental Seminar Series（`bayarea-slac-experimental`）和 Chemical and Systems Biology 的日历（`custom-csb-calendar`）不在表里。一个报告被几个数据源列出，在这张表里就为每个数据源各算一次。"抽取方式"是这次
 运行读取一个数据源的方法：api 取自网站的 JSON 接口，feed 取自它的 RSS 或 iCalendar feed，html 按规则从页面本身
 读取；失败或为空的数据源写的是它的 adapter 所用的方法。
 
@@ -200,7 +200,7 @@ workflow `.github/workflows/update.yml` 每天太平洋时间 04:23 运行，10:
 
 1. 礼貌地抓取每个数据源：遵守 robots.txt（包括 `Crawl-delay`），对每个 host 一次只发一个请求，
    每个 host 的请求数有上限。数据源可以在 `ignore_robots` 里列出 host，不遵守这些 host 的 `Disallow`
-   规则（indico.slac.stanford.edu 上的两个 SLAC 系列）；其他规则照旧。
+   规则（indico.slac.stanford.edu 上的两个 SLAC 系列和 calendar.google.com 上 Chemical and Systems Biology 的日历）；其他规则照旧。
 2. 把每个数据源的内容转成事件，去掉重复（同一个报告被两个来源列出），去掉不是学术报告的条目。
 3. 给每个事件标注领域，靠规则；配置了凭证时再借助 LLM；然后计算精选分数。
 4. 写出 `data/`、9 个 feed 和网站数据，然后检查输出：secret 扫描和 `data/` 的字符集规则。
