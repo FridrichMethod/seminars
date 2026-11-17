@@ -281,7 +281,8 @@
         "failures": "连续失败次数",
         "error": "错误",
         "missed": "上次运行缺失",
-        "resized": "通常规模"
+        "resized": "通常规模",
+        "disabled_reason": "停用原因"
       },
       "groups": {
         "localist": "斯坦福活动日历",
@@ -296,6 +297,17 @@
         "failed": "失败",
         "disabled": "已停用",
         "unknown": "尚未运行"
+      },
+      "disabled_reasons": {
+        "bayarea-slac-ais": "已停办：页面上的“下一场报告”仍是 2019-09-10。",
+        "bayarea-suncat": "没有公开报告：Seminars 列表为空，即将举行的条目都是内部组会。",
+        "custom-biox-seminars": "网站对所有自动请求都返回 HTTP 403（Cloudflare 浏览器验证）。",
+        "custom-it-forum": "几乎停办（2026 年只有一场，没有新的预告），而且列表不写年份，目前没有适配器能读取。",
+        "custom-sail-events": "已停办：实验室公开的 Google 日历在 2023-04-11 之后没有报告，只有每周的茶话会；活动页面本身不列日期。",
+        "custom-theory-seminar": "该系列目前不定期举办。页面上的四个日历中，它自己的日历 2012 年之后没有报告，另一个也已停用；其余两个是 RAIN/OR seminar 和 Theory Lunch，已从各自的页面收录。",
+        "rsorg-stanford-ag": "在 researchseminars.org 上已停更：最后一场报告在 2025-03-14。",
+        "sites-bioengineering": "重复：这里的活动全部导入自斯坦福活动日历（Stanford Events），而该日历本来就已收录。",
+        "sites-cs": "重复：其活动来自斯坦福活动日历（Stanford Events，已收录）的导入和选课咨询，没有它自己的报告。"
       },
       "never": "从未",
       "empty": "没有配置任何数据源。",

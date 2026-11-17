@@ -90,6 +90,10 @@ sources:
 - `enabled: false` 停用一个数据源，但保留它的条目。停用数据源或删除它的条目之后，下一次运行时
   它的未来报告会从 feed 和网站上一并去掉：它的 key 从存储的事件里删掉，只由它列出的报告立即去掉，
   其中已经开始的报告移进存档。其他数据源也列出的报告保留那些数据源的 key，只按它们来判断。
+- 停用的数据源要在状态页上写明原因：在 `enabled: false` 上方写注释 `# Off: <原因>`，并在
+  `locales/en.json` 和 `locales/zh-CN.json` 的 `site.status.disabled_reasons.<id>` 下写给读者看的原因。
+  测试（`tests/test_locales.py`）要求每个停用的数据源都有原因、其他数据源都没有，所以数据源重新启用时
+  要删掉这条消息。
 
 ## 3. 选择 adapter
 

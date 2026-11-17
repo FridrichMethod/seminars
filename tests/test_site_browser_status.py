@@ -152,6 +152,45 @@ class TestStatusPage:
             assert shown == messages[f"site.status.groups.{source['group']}"], source["id"]
         current.assert_clean()
 
+    @pytest.mark.parametrize(
+        ("path", "lang"), [("status.html", "en"), ("status.html?lang=zh", "zh-CN")]
+    )
+    def test_a_disabled_source_says_why_it_is_off(
+        self, session: Callable[..., Session], path: str, lang: str
+    ) -> None:
+        messages = catalog(lang)
+        prefix = "site.status.disabled_reasons."
+        first, second = [key.removeprefix(prefix) for key in messages if key.startswith(prefix)][:2]
+        payload = {
+            "generated_at": "2026-11-16T12:30:00Z",
+            "sources": [
+                {
+                    "id": first,
+                    "name": "Off, with a reason",
+                    "group": "bayarea",
+                    "state": "disabled",
+                },
+                {
+                    "id": "custom-off",
+                    "name": "Off, no reason",
+                    "group": "bayarea",
+                    "state": "disabled",
+                },
+                {"id": second, "name": "Back on", "group": "bayarea", "state": "ok", "events": 3},
+            ],
+        }
+        current = session()
+        serve_json(current, "status.json", payload)
+        current.open(path)
+        facts = current.page.evaluate(FACTS)
+        term = messages["site.status.columns.disabled_reason"]
+        assert facts[first][term] == messages[prefix + first]
+        assert term not in facts["custom-off"]
+        assert term not in facts[second]  # a reason is only shown while the source is off
+        terms = current.page.locator(f'article[data-source="{first}"] dt').all_text_contents()
+        assert terms[:2] == [messages["site.status.columns.group"], term]
+        current.assert_clean()
+
     def test_the_error_of_a_source_is_marked_as_english_diagnostic_text(
         self, session: Callable[..., Session]
     ) -> None:

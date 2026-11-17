@@ -366,6 +366,7 @@ class TestMessageKeys:
             "site.institutions.",
             "site.event_types.",
             "site.filters.range_options.",
+            "site.status.disabled_reasons.",
             "site.status.groups.",
             "site.status.states.",
             "site.subscribe.apple.steps.",

@@ -8,10 +8,14 @@ from typing import Any
 
 import pytest
 
+from seminars.config import load_sources
 from seminars.i18n import LOCALES, Locale, bilingual, flatten, load_locales, placeholders
 from seminars.models import FEED_IDS, FIELD_IDS
 
-LOCALES_DIR = Path(__file__).resolve().parents[1] / "locales"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+LOCALES_DIR = REPO_ROOT / "locales"
+DISABLED_REASONS = "site.status.disabled_reasons."
+"""Prefix of the messages that say why a source is disabled, one per source id."""
 
 DIGEST_KEYS = {
     "digest.issue_title",
@@ -178,3 +182,24 @@ class TestLocale:
         assert chinese == locales["zh-CN"].t("digest.sections.picks")
         same = Locale("en", {"k": "OK"})
         assert bilingual("k", same, same) == "OK"
+
+
+class TestDisabledReasons:
+    """The status page says why each disabled source is off, in both languages."""
+
+    @pytest.mark.parametrize("lang", LOCALES)
+    def test_every_disabled_source_and_no_other_has_a_reason(self, lang: str) -> None:
+        sources = load_sources(REPO_ROOT / "config" / "sources.d")
+        disabled = sorted(source.id for source in sources if not source.enabled)
+        reasons = [
+            key.removeprefix(DISABLED_REASONS)
+            for key in flatten(raw(lang))
+            if key.startswith(DISABLED_REASONS)
+        ]
+        assert disabled
+        assert reasons == disabled
+
+    def test_chinese_reasons_are_translated(self) -> None:
+        chinese = flatten(raw("zh-CN"))
+        reasons = [key for key in chinese if key.startswith(DISABLED_REASONS)]
+        assert [key for key in reasons if chinese[key].isascii()] == []

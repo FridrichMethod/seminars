@@ -295,9 +295,10 @@ LLM 凭证只交给运行 pipeline 的那一步和探活的那一步。项目在
 ## 已知限制
 
 - **没有收集的数据源。** Bio-X 对所有自动化请求都返回 HTTP 403（浏览器验证），所以它的数据源停用了。
-  Information Theory Forum 停用了：它几乎不再活动，列表里也没有年份。SAIL 的活动和 Theory Seminar
-  只发布在 Google Calendar 上，而它的 robots.txt 禁止抓取这些 feed。Arc Institute 没有公开的 seminar
-  日历。Bioengineering 和 Computer Science 的院系网站停用了，因为上面的活动都是从学校总日历导入的
+  Information Theory Forum 停用了：它几乎不再活动，列表里也没有年份。SAIL 的活动日历自 2023 年起
+  没有报告，Theory Seminar 目前不定期举办（它页面上的其他日历属于已从各自页面收录的系列）。
+  SLAC Advanced Instrumentation Seminars 和斯坦福代数几何 seminar 已停办，SUNCAT 只列内部组会。
+  状态页会写明每个数据源停用的原因。Arc Institute 没有公开的 seminar 日历。Bioengineering 和 Computer Science 的院系网站停用了，因为上面的活动都是从学校总日历导入的
   （Computer Science 还有 advising session），而总日历本来就在收集。七个领域以外的报告（比如地球与行星科学、人文）按设计不在范围内。
 - **GitHub 的 runner 可能连不上的 host。** DBDS workshop 和 NLP seminar 的 robots.txt 从 GitHub 的
   runner 访问可能超时，从 Stanford 的网络访问则正常。robots.txt 连不上时，这个数据源在那次运行里算失败；

@@ -8,6 +8,9 @@ All notable changes of this project are recorded in this file. The format follow
 
 ### Added
 
+- **Why a source is off.** The status page shows the reason of every disabled source
+  ("Why it is off"), in English and Chinese, from `site.status.disabled_reasons.<id>` in
+  the locale files; a test requires a reason for every disabled source and for no other.
 - **`ignore_robots`** in a source entry: hosts of that source whose robots.txt
   `Disallow` rules it does not follow. The `Crawl-delay`, the pause between requests and
   the request budgets still apply, and other sources on the same host still follow
@@ -19,6 +22,13 @@ All notable changes of this project are recorded in this file. The format follow
   category, with speaker, affiliation, room and abstract (the Zoom address with its
   meeting password left out); robots.txt of indico.slac.stanford.edu is set aside for
   these two sources.
+
+### Changed
+
+- The SAIL events and the Theory Seminar stay off for what their calendars hold, not
+  for robots.txt: the SAIL calendar has had no talk since 2023, and of the four
+  calendars of the Theory Seminar two are dormant and two belong to series that are
+  collected from their own pages.
 
 ## v0.2.0 - 2026-11-14
 

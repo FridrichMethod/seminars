@@ -106,6 +106,11 @@ sources:
   listed leaves at once, and one of those that has already started goes to the
   archive. A talk that other sources list as well keeps their keys and is judged by
   them alone.
+- A disabled source says why on the status page. Put a comment `# Off: <reason>`
+  above `enabled: false`, and the reason for readers under
+  `site.status.disabled_reasons.<id>` in `locales/en.json` and `locales/zh-CN.json`.
+  A test (`tests/test_locales.py`) wants a reason for every disabled source and for
+  no other, so the message goes when the source is turned on again.
 
 ## 3. Choose the adapter
 

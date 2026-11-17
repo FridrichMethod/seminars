@@ -345,6 +345,7 @@ sources:
     id: bayarea-slac-ais
     name: SLAC Advanced Instrumentation Seminars (AIS)
     adapter: llm_page
+    # Off: dormant, the "next seminar" on the page is from 2019-09-10.
     enabled: false
     url: https://www-group.slac.stanford.edu/ais/default.asp
     institution: slac
@@ -474,6 +475,7 @@ sources:
     id: bayarea-suncat
     name: SUNCAT Center for Interface Science and Catalysis seminars
     adapter: html_list
+    # Off: no public seminar; the coming entries are internal group meetings.
     enabled: false
     url: https://suncat.stanford.edu/events
     homepage: https://suncat.stanford.edu/events

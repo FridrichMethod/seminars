@@ -174,9 +174,9 @@ Google 按自己的节奏刷新订阅的日历，可能要几个小时。
 ### 已知缺口
 
 - 没有收集的：Bio-X 对自动化请求返回 HTTP 403；Information Theory Forum 已停用（几乎不再活动，
-  列表里也没有年份）。SAIL 的活动和 Theory Seminar 只发布在 Google Calendar 上，而它的 robots.txt
-  禁止抓取这些 feed。Arc Institute 没有公开的 seminar 日历。七个领域以外的报告（比如地球与行星科学）
-  不在范围内。
+  列表里也没有年份）。SAIL 的活动日历自 2023 年起没有报告，Theory Seminar 目前不定期举办。
+  Arc Institute 没有公开的 seminar 日历。状态页会写明每个停用的数据源为什么停用。七个领域以外的报告
+  （比如地球与行星科学）不在范围内。
 - DBDS workshop 和 NLP seminar 从 GitHub 的 runner 上可能失败，因为那里不一定连得上它们的 robots.txt；
   从 Stanford 的网络访问两者都正常。状态页会显示这样的失败，连续三次会开一个 `source-broken` issue。
 - MLSys seminar 的页面没有公布新的报告时，它返回空。

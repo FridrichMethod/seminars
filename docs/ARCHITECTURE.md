@@ -369,9 +369,12 @@ it reads the committed data, fetches nothing and uses no LLM.
 
 - **Sources that are not collected.** Bio-X answers every automated request with HTTP 403
   (a browser challenge), so its source is turned off. The Information Theory Forum is
-  turned off: it is nearly dormant, and its list gives no year. The SAIL events and the
-  Theory Seminar are published only on Google Calendar, whose robots.txt forbids fetching
-  the feeds. Arc Institute has no public seminar calendar. The department sites of
+  turned off: it is nearly dormant, and its list gives no year. The SAIL events calendar
+  has had no talk since 2023, and the Theory Seminar does not meet regularly (the other
+  calendars on its page are those of series that are collected from their own pages).
+  The SLAC Advanced Instrumentation Seminars and the Stanford algebraic geometry seminar
+  are dormant, and SUNCAT lists only internal group meetings. The status page says why
+  each source is off. Arc Institute has no public seminar calendar. The department sites of
   Bioengineering and Computer Science are off because their events are imports from the
   campus calendar, which is collected anyway (and, for Computer Science, advising
   sessions). Talks outside the seven fields (for example

@@ -208,9 +208,10 @@ days and of the next 120.
 
 - Not collected: Bio-X answers automated requests with HTTP 403, and the Information
   Theory Forum is turned off (nearly dormant; its list gives no year). The SAIL events
-  and the Theory Seminar are published only on Google Calendar, whose robots.txt forbids
-  fetching the feeds. Arc Institute has no public seminar calendar. Talks outside the
-  seven fields (for example earth and planetary sciences) are out of scope.
+  calendar has had no talk since 2023, and the Theory Seminar does not meet regularly.
+  Arc Institute has no public seminar calendar. The status page says why each disabled
+  source is off. Talks outside the seven fields (for example earth and planetary
+  sciences) are out of scope.
 - The DBDS workshop and the NLP seminar may fail from GitHub's runners, which cannot
   always reach their robots.txt; both work from Stanford's network. The status page
   shows such a failure, and three in a row open a `source-broken` issue.
