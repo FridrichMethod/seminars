@@ -354,6 +354,88 @@ class TestRobots:
         assert page.call_count == 0
 
 
+class TestIgnoringRobots:
+    """``ignoring_robots_on``: the client of a source with ``ignore_robots``."""
+
+    def test_a_listed_host_is_fetched_although_robots_disallows_it(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nDisallow: /\n")
+        page = respx_router.get(PAGE).respond(200, text="ok")
+        assert client.ignoring_robots_on(["dept.example.edu"]).get(PAGE).text == "ok\n"
+        # The client itself, as every other source gets it, still follows robots.txt.
+        with pytest.raises(RobotsDisallowedError):
+            client.get(PAGE)
+        assert page.call_count == 1
+
+    def test_the_host_is_named_in_any_spelling(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nDisallow: /\n")
+        respx_router.get(PAGE).respond(200, text="ok")
+        assert client.ignoring_robots_on(["Dept.Example.EDU."]).get(PAGE).text == "ok\n"
+
+    def test_another_host_still_follows_robots(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nDisallow: /\n")
+        respx_router.get(PAGE).respond(200, text="ok")
+        with pytest.raises(RobotsDisallowedError):
+            client.ignoring_robots_on(["other.example.org"]).get(PAGE)
+
+    def test_a_redirect_to_a_host_that_is_not_listed_follows_robots(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        other = "https://other.example.org"
+        respx_router.get(ROBOTS).respond(200, text="User-agent: *\nDisallow: /\n")
+        respx_router.get(PAGE).respond(302, headers={"Location": f"{other}/events"})
+        respx_router.get(f"{other}/robots.txt").respond(200, text="User-agent: *\nDisallow: /\n")
+        target = respx_router.get(f"{other}/events").respond(200, text="ok")
+        with pytest.raises(RobotsDisallowedError):
+            client.ignoring_robots_on(["dept.example.edu"]).get(PAGE)
+        assert target.call_count == 0
+
+    def test_the_crawl_delay_still_applies(
+        self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock
+    ) -> None:
+        robots = respx_router.get(ROBOTS).respond(
+            200, text="User-agent: *\nCrawl-delay: 30\nDisallow: /\n"
+        )
+        respx_router.get(url__startswith=PAGE).respond(200, text="ok")
+        view = client.ignoring_robots_on(["dept.example.edu"])
+        view.get(f"{PAGE}?page=1")
+        view.get(f"{PAGE}?page=2")
+        assert robots.call_count == 1
+        assert fake_clock.sleeps == [30.0, 30.0]
+
+    def test_an_unreachable_robots_still_blocks_the_host(
+        self, client: PoliteClient, respx_router: respx.MockRouter
+    ) -> None:
+        respx_router.get(ROBOTS).respond(503)
+        page = respx_router.get(PAGE).respond(200, text="ok")
+        with pytest.raises(RobotsUnavailableError):
+            client.ignoring_robots_on(["dept.example.edu"]).get(PAGE)
+        assert page.call_count == 0
+
+    def test_the_view_shares_the_budget_of_the_client(
+        self, http_settings: HttpSettings, fake_clock: FakeClock, resolver: StubResolver
+    ) -> None:
+        settings = http_settings.model_copy(update={"max_requests_per_host": 2})
+        client = PoliteClient(settings, clock=fake_clock, sleep=fake_clock.sleep, resolver=resolver)
+        with respx.mock(assert_all_called=False) as router:
+            router.get(ROBOTS).respond(200, text="User-agent: *\nDisallow: /\n")
+            router.get(url__startswith=PAGE).respond(200, text="ok")
+            view = client.ignoring_robots_on(["dept.example.edu"])
+            view.get(f"{PAGE}?page=1")
+            client.ignoring_robots_on(["dept.example.edu"]).get(f"{PAGE}?page=2")
+            with pytest.raises(HostBudgetExceededError):
+                view.get(f"{PAGE}?page=3")
+        assert client.request_counts() == {"dept.example.edu": 2}
+
+    def test_without_hosts_it_is_the_client_itself(self, client: PoliteClient) -> None:
+        assert client.ignoring_robots_on([]) is client
+
+
 class TestRateLimit:
     def test_crawl_delay_is_honoured(
         self, client: PoliteClient, respx_router: respx.MockRouter, fake_clock: FakeClock

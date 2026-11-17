@@ -23,7 +23,9 @@ around: it shows status, final URL, content type and size of every answer
 and writes no fixture and no manifest; with ``--save-dir`` it also puts each
 body into a scratch directory (``.scratch/<topic>`` is ignored by git, and
 it is the only place inside the project that ``fetch`` writes to).
-``--source-id`` takes a source id, never a path.
+``--source-id`` takes a source id, never a path. When that id names a
+configured source with ``ignore_robots``, ``record`` does not follow the
+robots.txt ``Disallow`` rules on those hosts either, as a run would not.
 Both are the only way this project talks to a source site by hand: never
 use curl or another direct network tool, which would skip robots.txt, the
 crawl delay and the fixed User-Agent.
@@ -53,7 +55,14 @@ from urllib.parse import parse_qsl, unquote, urlencode, urlsplit
 
 from pydantic import AfterValidator, ValidationError
 
-from seminars.config import ENV_HTTP_CACHE_DIR, ProjectPaths, find_project_root, load_settings
+from seminars.config import (
+    ENV_HTTP_CACHE_DIR,
+    ConfigError,
+    ProjectPaths,
+    find_project_root,
+    load_settings,
+    load_sources,
+)
 from seminars.httpbase import (
     HttpClient,
     HttpError,
@@ -613,6 +622,23 @@ def _live_client(paths: ProjectPaths, resolver: Resolver | None) -> PoliteClient
     return PoliteClient(settings.http, cache_dir=cache_dir, resolver=resolver)
 
 
+def _ignored_robots(paths: ProjectPaths, source_id: str) -> list[str]:
+    """The ``ignore_robots`` hosts of the configured source ``source_id`` (none if unknown).
+
+    Says on stderr which hosts they are. A configuration that cannot be
+    read is a ``FixtureError``, before anything is fetched.
+    """
+    try:
+        sources = load_sources(paths.sources_dir)
+    except ConfigError as error:
+        raise FixtureError(f"the source configuration cannot be read: {error}") from error
+    hosts = next((source.ignore_robots for source in sources if source.id == source_id), [])
+    if hosts:
+        names = ", ".join(hosts)
+        print(f"robots.txt Disallow not followed on: {names} (ignore_robots)", file=sys.stderr)
+    return list(hosts)
+
+
 def _record_command(
     args: argparse.Namespace,
     paths: ProjectPaths,
@@ -624,7 +650,9 @@ def _record_command(
     try:
         store = FixtureStore.of(paths.fixtures_dir, args.source_id)
         if http is None:
-            http = live = _live_client(paths, resolver)
+            exempt = _ignored_robots(paths, args.source_id)
+            live = _live_client(paths, resolver)
+            http = live.ignoring_robots_on(exempt)
         outcomes = [_record_one(args, http, store, url) for url in args.url]
     except FixtureError as error:
         _say(f"error: {error}", file=sys.stderr)

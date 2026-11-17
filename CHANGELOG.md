@@ -4,6 +4,16 @@ All notable changes of this project are recorded in this file. The format follow
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version numbers follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **`ignore_robots`** in a source entry: hosts of that source whose robots.txt
+  `Disallow` rules it does not follow. The `Crawl-delay`, the pause between requests and
+  the request budgets still apply, and other sources on the same host still follow
+  robots.txt. `seminars sources check` and `python -m seminars.fixtures record` follow
+  it as a run does.
+
 ## v0.2.0 - 2026-11-14
 
 ### Added

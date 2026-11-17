@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Annotated, Any, Final, Literal, Self
+from urllib.parse import urlsplit
 
 from pydantic import BeforeValidator, ConfigDict, Field, StringConstraints, model_validator
 
@@ -39,6 +40,13 @@ DEFAULT_TIMEZONE: Final = "America/Los_Angeles"
 
 GroupName = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")]
 AdapterName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$")]
+HostName = Annotated[
+    str,
+    StringConstraints(
+        pattern=r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$"
+    ),
+]
+"""A host name in lower case, such as ``indico.slac.stanford.edu``."""
 
 
 def _as_list(value: Any) -> Any:
@@ -106,11 +114,21 @@ class SourceConfig(Model):
     * ``llm_fallback``: allow the LLM page extractor when rule-based parsing
       yields nothing or fails. Always on for ``adapter: llm_page``, whose
       adapter never yields anything itself.
+    * ``ignore_robots``: hosts of this source whose robots.txt ``Disallow``
+      rules are not followed when this source is fetched (see
+      ``PoliteClient.ignoring_robots_on``). Each one is a host of ``url`` /
+      ``urls`` / ``homepage`` or a name of ``params.extra_hosts``. The
+      Crawl-delay, the pause between requests and the request budgets still
+      apply, and other sources on the same host still follow robots.txt.
+      A comment next to the entry says why.
     * ``params``: free-form mapping read only by the adapter, with one key
       that the shared helpers read too: ``extra_hosts``, a list of host
       names the adapter may fetch besides the hosts of ``url`` / ``urls`` /
       ``homepage`` (see ``seminars.sources.base.source_hosts``).
     * ``research``: see ResearchInfo.
+
+    A disabled source (``enabled: false``) states why on the status page:
+    ``site.status.disabled_reasons.<id>`` in both locale files.
     """
 
     id: SourceId
@@ -129,6 +147,7 @@ class SourceConfig(Model):
     timezone: TimezoneName = DEFAULT_TIMEZONE
     aggregator: bool = False
     llm_fallback: bool = False
+    ignore_robots: list[HostName] = []
     params: dict[str, Any] = {}
     research: ResearchInfo | None = None
 
@@ -139,7 +158,21 @@ class SourceConfig(Model):
         prefix = SOURCE_GROUP_PREFIXES.get(self.group)
         if prefix is not None and not self.id.startswith(prefix):
             raise ValueError(f"ids in group {self.group!r} must start with {prefix!r}")
+        stray = sorted(set(self.ignore_robots) - self._own_hosts())
+        if stray:
+            names = ", ".join(stray)
+            raise ValueError(f"ignore_robots names hosts this source is not fetched from: {names}")
         return self
+
+    def _own_hosts(self) -> set[str]:
+        """The hosts of the URLs and of ``params.extra_hosts``, as written (lower case)."""
+        urls = [*self.all_urls, *([self.homepage] if self.homepage else [])]
+        hosts = {urlsplit(url).hostname or "" for url in urls}
+        extra = self.params.get("extra_hosts", [])
+        for name in extra if isinstance(extra, list) else []:
+            if isinstance(name, str):
+                hosts.add(name.lower())
+        return hosts
 
     @property
     def all_urls(self) -> list[str]:

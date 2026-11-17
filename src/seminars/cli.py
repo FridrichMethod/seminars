@@ -437,7 +437,11 @@ def sources_check(
         )
         with wiring.live_client(config, project.env) as client:
             outcomes = collect_sources(
-                chosen, lambda _: client, context=context, extractor=None, timer=time.monotonic
+                chosen,
+                lambda source: client.ignoring_robots_on(source.ignore_robots),
+                context=context,
+                extractor=None,
+                timer=time.monotonic,
             )
     results = [outcome.result for outcome in outcomes]
     for result in results:

@@ -135,7 +135,9 @@ host（`url`、`urls`、`homepage` 和 `params.extra_hosts`）抓取，所以页
 礼貌客户端（`http.py`）遵守 robots.txt，包括 `Crawl-delay`，对同一个 host 的两次请求之间至少间隔一秒，
 从上一次请求结束时算起。对同一个 host 的请求严格串行，共用 HTTP 缓存目录的不同进程之间也是如此。
 每个 host 每次运行最多 20 个请求，robots.txt 另有同样多的预算。robots.txt 取不到的 origin，
-在这次运行剩下的时间里都会被跳过。客户端只访问公开地址：先解析域名，连接只连到检查过的那个地址。
+在这次运行剩下的时间里都会被跳过。在 `ignore_robots` 里列出某个 host 的数据源，拿到的是共享客户端的
+一个视图（`PoliteClient.ignoring_robots_on`），它不遵守这个 host 的 `Disallow` 规则；其他规则照旧，
+别的数据源也照旧遵守。客户端只访问公开地址：先解析域名，连接只连到检查过的那个地址。
 
 离线时，同样的 adapter 按 URL 读取录制的 fixture（`tests/fixtures/<source id>/`）。测试和
 `seminars run --offline` 用的就是它们，从不访问网络。

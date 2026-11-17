@@ -13,6 +13,7 @@ from factories import REFERENCE_NOW, make_document, make_source
 from fakes import (
     FakeEventFilter,
     FakeFieldTagger,
+    FakeHttpClient,
     FakeIssueClient,
     FakePicksScorer,
     FakeSecretScanner,
@@ -114,6 +115,13 @@ class TestParts:
         assert wiring.build_scanner({"GITHUB_TOKEN": TOKEN_VALUE}) is fake
 
 
+class ClosingFakeHttpClient(FakeHttpClient):
+    """A fake client that can be closed at the end of a run, like ``PoliteClient``."""
+
+    def close(self) -> None:
+        return None
+
+
 class TestHttp:
     def test_offline_each_source_sees_only_its_own_recordings(
         self, app_config: AppConfig, recorder: Recorder
@@ -138,6 +146,17 @@ class TestHttp:
         second = bundle.http_for(make_source(id="sites-b"))
         assert isinstance(first, PoliteClient)
         assert first is second
+        bundle.close()
+
+    def test_live_a_source_with_ignore_robots_gets_its_view_of_that_client(
+        self, app_config: AppConfig, recorder: Recorder, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        shared = ClosingFakeHttpClient()
+        monkeypatch.setattr(wiring, "live_client", lambda config, env: shared)
+        bundle = build(app_config)
+        bundle.http_for(make_source(id="sites-a"))
+        bundle.http_for(make_source(id="sites-b", ignore_robots=["bioengineering.stanford.edu"]))
+        assert shared.robots_exemptions == [[], ["bioengineering.stanford.edu"]]
         bundle.close()
 
 

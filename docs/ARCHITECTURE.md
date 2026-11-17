@@ -160,7 +160,10 @@ The polite client (`http.py`) honours robots.txt including `Crawl-delay` and wai
 one second between two requests to a host, measured from the end of the previous one.
 Requests to one host are strictly serial, also between processes that share the HTTP cache
 directory. A host gets at most 20 requests per run, plus as many for robots.txt. An origin
-whose robots.txt cannot be fetched is skipped for the rest of the run. The client only
+whose robots.txt cannot be fetched is skipped for the rest of the run. A source that lists
+a host under `ignore_robots` gets a view of the shared client
+(`PoliteClient.ignoring_robots_on`) that does not follow the `Disallow` rules of that host;
+everything else holds there too, and every other source still follows them. The client only
 talks to public addresses: a host name is resolved first, and the connection goes only to
 the address that was checked.
 

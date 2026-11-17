@@ -13,6 +13,9 @@ YAML；网站结构特殊时，再加一个小的 adapter 模块。无论哪种�
 - 所有请求都走项目自己的礼貌 HTTP 客户端。它遵守 robots.txt（包括 `Crawl-delay`），
   对同一个 host 的两次请求之间至少间隔一秒，对每个 host 一次只发一个请求，并限制每个 host
   每次运行的请求数。不要用 curl、wget 或浏览器脚本访问数据源网站。
+- 如果项目所有者决定收录一个 robots.txt 禁止抓取的公开页面，就在该数据源的 `ignore_robots`
+  里列出这个 host，并用注释写明原因。只有这个 host 的 `Disallow` 规则被搁置，而且只对这个
+  数据源有效：`Crawl-delay`、请求间隔和请求数上限照旧。
 - 按下面的顺序选择抽取方式：结构化 API（Localist、Drupal JSON:API）、feed（ICS、RSS）、
   页面里嵌的 JSON-LD、HTML 列表，其他办法都不行时才用 LLM 页面抽取。
 
@@ -79,8 +82,11 @@ sources:
 - `research` 记录调研结果：检查的日期、样本里有多少事件、网站提供哪些格式、它的
   `Crawl-delay`、备注。
 - 其他 key：`homepage`、`series`、`default_event_type`、`timezone`、`aggregator`、
-  `llm_fallback`、`enabled`。完整的 schema 和每个 key 的说明在
+  `llm_fallback`、`ignore_robots`、`enabled`。完整的 schema 和每个 key 的说明在
   `src/seminars/models/source.py` 的 `SourceConfig` 里；未知的 key 会报错。
+- `ignore_robots` 列出这个数据源自己的 host（来自 `url`、`urls`、`homepage` 或
+  `params.extra_hosts`），这个数据源不遵守这些 host 的 robots.txt `Disallow` 规则；见“开始之前”。
+  列出别的网站的 host 会报错。
 - `enabled: false` 停用一个数据源，但保留它的条目。停用数据源或删除它的条目之后，下一次运行时
   它的未来报告会从 feed 和网站上一并去掉：它的 key 从存储的事件里删掉，只由它列出的报告立即去掉，
   其中已经开始的报告移进存档。其他数据源也列出的报告保留那些数据源的 key，只按它们来判断。
@@ -191,6 +197,9 @@ uv run python -m seminars.fixtures check --source-id custom-example-lab
   `README.md` 里写明删了什么。
 - 不要手动改 manifest，也不要把 `.scratch/` 里的文件复制进 fixture 目录：要用 record 录制。
 - fixture 是原样的快照，保留网站发来的所有字符。
+- `record` 和运行时一样，遵循 `--source-id` 对应数据源配置里的 `ignore_robots`。
+- 离线运行的时间是所有 fixture 里最晚的录制时间。新的录制会把它往后移，所以要同时更新
+  `tests/test_pipeline_offline_integration.py` 里的 `RUN_TIME` 和该测试选用的报告。
 
 所有选项，以及客户端如何等待同时访问同一个 host 的其他进程，见
 [tests/fixtures/README.md](../tests/fixtures/README.md)。
