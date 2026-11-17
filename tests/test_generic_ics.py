@@ -288,6 +288,111 @@ class TestRecordedExperimentalFeed:
 # --- the recorded researchseminars.org feeds -----------------------------------------------
 
 
+# --- the recorded Google Calendar of Chemical and Systems Biology --------------------------
+
+CSB_CALENDAR = "custom-csb-calendar"
+CSB_FEED = "https://calendar.google.com/calendar/ical/csbdept%40gmail.com/public/basic.ics"
+
+
+def csb_source() -> SourceConfig:
+    sources = {source.id: source for source in load_sources(REPO_ROOT / "config" / "sources.d")}
+    return sources[CSB_CALENDAR]
+
+
+@functools.cache
+def csb_calendar() -> tuple[tuple[str, ...], tuple[EventDraft, ...]]:
+    """The configured CSB calendar over its recording (2026-11-17, trimmed to October on)."""
+    source = csb_source()
+    http = offline_client(CSB_CALENDAR)
+    window = make_window(datetime(2026, 11, 17, 4, 1, tzinfo=UTC))
+    adapter = IcsAdapter()
+    drafts = adapter.parse(adapter.fetch(http, source, window=window), source)
+    return tuple(http.requests), tuple(drafts)
+
+
+def csb_talk(drafts: tuple[EventDraft, ...], start: datetime) -> EventDraft:
+    (draft,) = [draft for draft in drafts if draft.start == start]
+    return draft
+
+
+class TestRecordedCsbCalendar:
+    def test_the_source_reads_the_calendar_and_ignores_robots_on_its_host(self) -> None:
+        source = csb_source()
+        assert source.enabled
+        assert source.ignore_robots == ["calendar.google.com"]
+        requests, drafts = csb_calendar()
+        assert requests == (CSB_FEED,)
+        assert len(drafts) == 31
+
+    def test_a_science_circle_talk_names_the_student_and_the_lab(self) -> None:
+        _, drafts = csb_calendar()
+        draft = csb_talk(drafts, datetime(2026, 11, 10, 12, 0, tzinfo=PACIFIC))
+        assert draft.title == "Science Circle: Pizza Talk"
+        assert draft.series == "Science Circle"
+        assert [(person.name, person.affiliation) for person in draft.speakers] == [
+            ("Olivia Crocker", "Wysocka Lab")
+        ]
+        assert draft.speaker_text is None
+        assert draft.abstract is None  # the moderator line is no abstract
+        assert draft.location == "Alway M112"
+
+    def test_speaker_tba_names_nobody(self) -> None:
+        _, drafts = csb_calendar()
+        draft = csb_talk(drafts, datetime(2027, 2, 16, 12, 0, tzinfo=PACIFIC))
+        assert draft.title == "Science Circle: Faculty Talk"
+        assert draft.speakers == []
+
+    def test_a_special_seminar_takes_the_speaker_from_its_title(self) -> None:
+        _, drafts = csb_calendar()
+        draft = csb_talk(drafts, datetime(2027, 2, 8, 12, 30, tzinfo=PACIFIC))
+        assert draft.title == "CSB Special Seminar: Jeanne Hardy, PhD"
+        assert [(person.name, person.affiliation) for person in draft.speakers] == [
+            ("Jeanne Hardy", None)
+        ]
+        assert draft.abstract is None  # "Faculty Host: Matt Bogyo"
+
+    def test_an_announcement_gives_the_talk_title_and_the_abstract(self) -> None:
+        _, drafts = csb_calendar()
+        draft = csb_talk(drafts, datetime(2026, 11, 16, 11, 0, tzinfo=PACIFIC))
+        assert draft.title is not None
+        assert draft.title.startswith("Science with Claude: agentic biology")
+        assert [person.name for person in draft.speakers] == ["David Garfield"]
+        assert draft.abstract is not None
+        assert draft.abstract.startswith("Large language models are now good enough")
+        assert "Speaker Bio" not in draft.abstract
+
+    @pytest.mark.parametrize(
+        ("summary", "speaker"),
+        [
+            ("CSB Cutting Lecture Series: Karen Adelman - Harvard", ("Karen Adelman", "Harvard")),
+            (
+                "CSB Cutting Lecture:  Ibrahim Cisse - Max Planck Institute",
+                ("Ibrahim Cisse", "Max Planck Institute"),
+            ),
+            ("CSB Cutting Lecture Series: Ronald T Raines (MIT)", ("Ronald T Raines", "MIT")),
+            (
+                "CSB Cutting Lecture Series: Dr. Wallace Marshall, UCSF",
+                ("Wallace Marshall", "UCSF"),
+            ),
+            ("CSB Faculty Candidate Seminar: Matthew King, Ph.D.", ("Matthew King", None)),
+            ("CSB Thesis Defense: Rebecca Chan, Li Lab", ("Rebecca Chan", "Li Lab")),
+            ("CSB Thesis Defense: Jo-Hsi Huang", ("Jo-Hsi Huang", None)),
+            (
+                "CSB and Biochemistry Joint Special Seminar: Xiang (David) Li, PhD",
+                None,
+            ),
+            ("CSB Special Seminar: TBA", None),
+            ("CSB Holiday Party", None),
+        ],
+    )
+    def test_the_titles_of_the_talks_name_their_speakers(
+        self, summary: str, speaker: tuple[str, str | None] | None
+    ) -> None:
+        (draft,) = parse(calendar(vevent(f"SUMMARY:{summary}")), **csb_source().params)
+        expected = [] if speaker is None else [speaker]
+        assert [(person.name, person.affiliation) for person in draft.speakers] == expected
+
+
 class TestRecordedFeeds:
     def test_fetch_requests_the_feed_and_nothing_else(self) -> None:
         requests, drafts = recorded("rsorg-topos-colloquium", TOPOS, False)

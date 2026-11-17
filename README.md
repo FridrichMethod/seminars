@@ -143,14 +143,14 @@ state of every source.
 
 ### Sources and their state
 
-34 of the 43 configured sources are enabled. The table lists the 32 that the first public
+35 of the 44 configured sources are enabled. The table lists the 32 that the first public
 run fetched: 29 of them delivered talks, 1 was empty and 2 failed, and 348 talks were
-stored. The SLAC Theory Group seminars (`bayarea-slac-theory`) and the SLAC Experimental
-Seminar Series (`bayarea-slac-experimental`) are not in it. A talk that several sources
-list counts once for each of them in this table. "Extraction" is how the run read a
-source: api from a JSON interface of the site, feed from its RSS or iCalendar feed, html
-from the page itself by rules; for a source that failed or was empty, it is the method of
-its adapter.
+stored. The SLAC Theory Group seminars (`bayarea-slac-theory`), the SLAC Experimental
+Seminar Series (`bayarea-slac-experimental`) and the calendar of Chemical and Systems
+Biology (`custom-csb-calendar`) are not in it. A talk that several sources list counts
+once for each of them in this table. "Extraction" is how the run read a source: api from a
+JSON interface of the site, feed from its RSS or iCalendar feed, html from the page itself
+by rules; for a source that failed or was empty, it is the method of its adapter.
 
 | Source | Group | State | Next four weeks | Extraction |
 |---|---|---|---:|---|
@@ -242,8 +242,8 @@ day. The schedule follows daylight saving time.
 1. Fetch every source politely: robots.txt is honoured, including `Crawl-delay`, each
    host is asked one request at a time, and the number of requests per host is
    capped. A source may list hosts under `ignore_robots`, whose `Disallow` rules it
-   does not follow (the two SLAC series on indico.slac.stanford.edu);
-   everything else holds there too.
+   does not follow (the two SLAC series on indico.slac.stanford.edu and the calendar of
+   Chemical and Systems Biology on calendar.google.com); everything else holds there too.
 2. Turn what each source says into events, remove duplicates (the same talk listed by
    two sources) and drop what is not an academic talk.
 3. Tag each event with its fields, by rules and, when a credential is configured, with

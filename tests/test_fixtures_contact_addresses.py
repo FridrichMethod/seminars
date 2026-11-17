@@ -10,6 +10,8 @@ recording or in a note is one of:
 * the id of a public Google Calendar (``...@group.calendar.google.com``);
 * the UID of an Indico event (``indico-event-10800@indico.slac.stanford.edu``): the
   local part ``indico-event-<number>`` on a host in ``INDICO_HOSTS``;
+* the UID of an event of a Google Calendar (``02iitf98ilabfoqqapfgbafdbc@google.com``):
+  26 characters of ``0-9`` and ``a-v`` on ``google.com``;
 * a shared or role address of a department, center or series, listed in
   ``SHARED_ADDRESSES``. A new one is added there by name, never by pattern.
 
@@ -61,6 +63,7 @@ NOTES: Final = [path for path in FILES if is_note(path)]
 SHARED_ADDRESSES: Final = frozenset(
     {
         "aimicenter@stanford.edu",
+        "csbdept@gmail.com",
         "datascience@stanford.edu",
         "dbds-admissions@stanford.edu",
         "dbds-operations@stanford.edu",
@@ -81,6 +84,9 @@ SHARED_CALENDAR_DOMAIN: Final = "group.calendar.google.com"
 INDICO_HOSTS: Final = frozenset({"indico.slac.stanford.edu"})
 """Indico servers whose event UIDs (``indico-event-<number>@<host>``) are in recordings."""
 INDICO_EVENT_UID: Final = re.compile(r"indico-event-[0-9]{1,12}")
+GOOGLE_EVENT_UID_DOMAIN: Final = "google.com"
+GOOGLE_EVENT_UID: Final = re.compile(r"[0-9a-v]{26}")
+"""The local part of the UID of an event that Google Calendar created (base32hex)."""
 EXAMPLE_DOMAIN: Final = re.compile(
     r"(?:[a-z0-9-]+\.)*example\.(?:com|edu|net|org)|(?:[a-z0-9-]+\.)*(?:example|invalid|test)"
 )
@@ -122,6 +128,7 @@ def may_stay(address: str) -> bool:
         or EXAMPLE_DOMAIN.fullmatch(domain) is not None
         or domain == SHARED_CALENDAR_DOMAIN
         or (domain in INDICO_HOSTS and INDICO_EVENT_UID.fullmatch(local) is not None)
+        or (domain == GOOGLE_EVENT_UID_DOMAIN and GOOGLE_EVENT_UID.fullmatch(local) is not None)
         or address in SHARED_ADDRESSES
     )
 
@@ -202,6 +209,7 @@ class TestTheScan:
             "someone@events.example.org",
             "abc123@group.calendar.google.com",
             "indico-event-10800@indico.slac.stanford.edu",
+            "02iitf98ilabfoqqapfgbafdbc@google.com",
             "syntheticbiology@stanford.edu",
         ],
     )
@@ -220,6 +228,10 @@ class TestTheScan:
             "indico-event-jane@indico.slac.stanford.edu",
             "indico-event-10800@indico.example-lab.org",
             "jane.indico-event-10800@indico.slac.stanford.edu",
+            "jane@google.com",
+            "02iitf98ilabfoqqapfgbafdbcx@google.com",
+            "02iitf98ilabfoqqapfgbafdwz@google.com",
+            "02iitf98ilabfoqqapfgbafdbc@google.com.attacker.org",
             "syntheticbiology@stanford.edu.example.net.attacker.org",
         ],
     )

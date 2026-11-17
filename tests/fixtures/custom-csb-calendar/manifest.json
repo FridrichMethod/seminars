@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_id": "custom-csb-calendar",
+  "entries": {
+    "https://calendar.google.com/calendar/ical/csbdept%40gmail.com/public/basic.ics": {
+      "file": "calendar-ical-csbdept-gmail-com-public-b-e1f1cb98.ics",
+      "status": 200,
+      "content_type": "text/calendar",
+      "fetched_at": "2026-11-17T04:00:40Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://chemsysbio.stanford.edu/department/special-programs-events/": {
+      "file": "department-special-programs-events-2db7a9b8.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-17T04:00:41Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}
