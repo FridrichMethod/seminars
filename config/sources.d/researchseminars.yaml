@@ -152,6 +152,7 @@ sources:
   - <<: *researchseminars
     id: rsorg-stanford-ag
     name: Stanford algebraic geometry seminar
+    # Off: dormant, the last talk on researchseminars.org was on 2025-03-14.
     enabled: false
     url: https://researchseminars.org/seminar/agstanford/ics
     homepage: https://researchseminars.org/seminar/agstanford

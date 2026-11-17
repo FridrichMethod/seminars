@@ -2,6 +2,14 @@
   "schema_version": 1,
   "source_id": "bayarea-slac-theory",
   "entries": {
+    "https://indico.slac.stanford.edu/category/129/events.ics": {
+      "file": "category-129-events-ics-190d61e0.ics",
+      "status": 200,
+      "content_type": "text/calendar",
+      "fetched_at": "2026-11-17T01:26:52Z",
+      "final_url": null,
+      "volatile_params": []
+    },
     "https://theory.slac.stanford.edu/events": {
       "file": "events-f2c294be.html",
       "status": 200,

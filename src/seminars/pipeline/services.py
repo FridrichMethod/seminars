@@ -16,7 +16,9 @@ How the parts are chosen:
   recorded fixtures of that source. A live run shares one polite client,
   built as ``PoliteClient(settings.http, cache_dir=paths.http_cache_dir())``,
   so that the pause per host and the request budgets hold for the whole
-  run and for every other process that uses the same cache directory.
+  run and for every other process that uses the same cache directory. A
+  source with ``ignore_robots`` gets the view of that client for its hosts
+  (``PoliteClient.ignoring_robots_on``).
 * LLM: only when it is wanted (not ``--no-llm``). The cache is opened
   with the time of the run. When ``build_llm_client`` finds a provider
   with a credential, the tagger and the page extractor share the chain
@@ -157,7 +159,7 @@ def _http(
     client = live_client(config, env)
 
     def shared(source: SourceConfig) -> HttpClient:
-        return client
+        return client.ignoring_robots_on(source.ignore_robots)
 
     return shared, client.close
 

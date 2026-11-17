@@ -1,7 +1,9 @@
 """The slac_drupal adapter: card lists and detail pages of the SLAC Drupal theme.
 
-The recorded pages of the two configured sources come first, then hand-written
-pages for the edge cases (times, identity, abstracts, fetching, parameters).
+The recorded pages come first: those of the configured SLAC Colloquium, and those of
+theory.slac.stanford.edu (same theme), read through the entry ``theory_group`` below.
+Hand-written pages for the edge cases (times, identity, abstracts, fetching,
+parameters) follow.
 """
 
 from __future__ import annotations
@@ -39,6 +41,11 @@ PACIFIC = ZoneInfo("America/Los_Angeles")
 RECORDED = datetime(2026, 11, 11, 17, 28, tzinfo=UTC)
 COLLOQUIUM = "bayarea-slac-colloquium"
 THEORY = "bayarea-slac-theory"
+"""The fixture directory that holds the recordings of theory.slac.stanford.edu.
+
+The source of that id reads the Indico feed of the group (adapter ics); the pages of
+the group's own site stay in its directory as input for this adapter.
+"""
 SITE = "https://colloquium.slac.stanford.edu"
 
 
@@ -46,6 +53,35 @@ SITE = "https://colloquium.slac.stanford.edu"
 def configured() -> dict[str, SourceConfig]:
     sources = load_sources(REPO_ROOT / "config" / "sources.d")
     return {source.id: source for source in sources if source.adapter == "slac_drupal"}
+
+
+@functools.cache
+def theory_group() -> SourceConfig:
+    """theory.slac.stanford.edu as a slac_drupal source: the list alone, no detail page."""
+    return SourceConfig.model_validate(
+        {
+            "id": THEORY,
+            "name": "SLAC Theory Group seminars (EPP Theory)",
+            "group": "bayarea",
+            "adapter": "slac_drupal",
+            "url": "https://theory.slac.stanford.edu/events",
+            "institution": "slac",
+            "host_org": "SLAC Theory Group",
+            "default_fields": ["physics"],
+            "series": "SLAC Theory Seminar",
+            "params": {
+                "list": {
+                    "card": "div.c-view__row div.c-card",
+                    "title": "h3.c-card__title a",
+                    "link": "h3.c-card__title a",
+                    "date_text": ".c-card__date",
+                    "empty": "div.c-view__empty",
+                },
+                # A card title is the speaker with the affiliation, "Jane Doe (MIT)".
+                "tba_title_patterns": [r"^(?P<speaker>[^()]+?)\s*\((?P<affiliation>[^()]+)\)$"],
+            },
+        }
+    )
 
 
 def run(
@@ -77,17 +113,19 @@ def test_the_module_registers_the_adapter() -> None:
     assert isinstance(base.get_adapter("slac_drupal"), SlacDrupalAdapter)
 
 
-def test_the_configured_sources_keep_their_state_and_their_params_load() -> None:
+def test_the_configured_source_keeps_its_state_and_its_params_load() -> None:
     sources = configured()
-    assert set(sources) == {COLLOQUIUM, THEORY}
+    assert set(sources) == {COLLOQUIUM}
     assert sources[COLLOQUIUM].enabled
-    assert not sources[THEORY].enabled
     assert sources[COLLOQUIUM].default_fields == ["physics"]
     colloquium = load_params(SlacDrupalParams, sources[COLLOQUIUM])
     assert colloquium.native_id == "vevent_uid"
     assert colloquium.detail is not None
     assert colloquium.max_detail_pages == 12
-    theory = load_params(SlacDrupalParams, sources[THEORY])
+
+
+def test_the_params_of_the_theory_group_load() -> None:
+    theory = load_params(SlacDrupalParams, theory_group())
     assert theory.detail is None
     assert theory.native_id is None
 
@@ -155,14 +193,12 @@ class TestRecordedColloquium:
 
 class TestRecordedTheoryGroup:
     def test_the_empty_list_gives_no_drafts(self) -> None:
-        requests, drafts = run(configured()[THEORY], offline_client(THEORY))
+        requests, drafts = run(theory_group(), offline_client(THEORY))
         assert requests == ["https://theory.slac.stanford.edu/events"]
         assert drafts == []
 
     def test_past_cards_are_read_from_the_list_alone(self) -> None:
-        source = configured()[THEORY].evolve(
-            url="https://theory.slac.stanford.edu/events/past-events"
-        )
+        source = theory_group().evolve(url="https://theory.slac.stanford.edu/events/past-events")
         window = TimeWindow(
             start=datetime(2024, 1, 1, tzinfo=UTC), end=datetime(2025, 1, 1, tzinfo=UTC)
         )

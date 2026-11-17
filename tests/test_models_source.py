@@ -35,6 +35,7 @@ def test_schema_has_all_common_keys() -> None:
         "homepage",
         "aggregator",
         "llm_fallback",
+        "ignore_robots",
     }
 
 
@@ -103,6 +104,38 @@ def test_a_url_is_required() -> None:
     assert make_source(url=None, urls=["https://example.edu/a"]).all_urls == [
         "https://example.edu/a"
     ]
+
+
+def test_ignore_robots_is_empty_by_default() -> None:
+    assert make_source().ignore_robots == []
+
+
+@pytest.mark.parametrize(
+    ("overrides", "hosts"),
+    [
+        ({}, ["bioengineering.stanford.edu"]),
+        ({"homepage": "https://www.example.edu/talks"}, ["www.example.edu"]),
+        ({"urls": ["https://feeds.example.edu/a.ics"]}, ["feeds.example.edu"]),
+        ({"params": {"extra_hosts": ["Calendar.Example.EDU"]}}, ["calendar.example.edu"]),
+    ],
+)
+def test_ignore_robots_takes_hosts_the_source_is_fetched_from(
+    overrides: dict[str, object], hosts: list[str]
+) -> None:
+    assert make_source(ignore_robots=hosts, **overrides).ignore_robots == hosts
+
+
+def test_ignore_robots_refuses_a_host_of_another_site() -> None:
+    with pytest.raises(ValidationError, match=r"not fetched from: calendar\.google\.com"):
+        make_source(ignore_robots=["calendar.google.com"])
+
+
+@pytest.mark.parametrize(
+    "host", ["Bioengineering.stanford.edu", "https://bioengineering.stanford.edu", "localhost", ""]
+)
+def test_ignore_robots_takes_host_names_in_lower_case_only(host: str) -> None:
+    with pytest.raises(ValidationError):
+        make_source(ignore_robots=[host])
 
 
 def test_all_urls_keeps_order_and_drops_duplicates() -> None:

@@ -1,0 +1,101 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//CERN//INDICO//EN
+BEGIN:VEVENT
+SUMMARY:Probing New Physics through Higgs–Vector-Boson Couplings with th
+ e ATLAS Detector
+DTSTART:20261020T193000Z
+DTEND:20261020T203000Z
+DTSTAMP:20261117T032900Z
+UID:indico-event-10676@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Jiayi Chen (Simon Fraser University)\n\nThirteen yea
+ rs after the discovery of the Higgs boson\, the LHC program has entered a 
+ precision era in exploring this remarkable particle and its interactions. 
+ Among them\, the Higgs–vector-boson coupling offers one of the cleanest 
+ and most powerful windows onto physics beyond the Standard Model. Tiny dev
+ iations in this interaction could reveal new phenomena\, including charge
+ –parity (CP) violation in the Higgs sector. Such CP violation is not onl
+ y a compelling target for collider measurements\, but also an essential in
+ gredient in our broader quest to understand the matter–antimatter asymme
+ try of the Universe.\nIn this seminar\, I will introduce how Effective Fie
+ ld Theory provides a systematic framework for searching for CP-violating H
+ iggs interactions. I will then discuss recent experimental and theoretical
+  developments that have sharpened the precision of Higgs measurements\, wi
+ th a focus on analyses using the full Run-2 proton-proton collision datase
+ t collected by the ATLAS detector at a center-of-mass energy of 13 TeV.\n
+  \nhttps://stanford.zoom.us/j/98973156241?pwd=cEU5RFdlVXoyc0JTeTlDMkozKzQ
+ 5UT09\n\nhttps://indico.slac.stanford.edu/event/10676/
+LOCATION:Stanford
+URL:https://indico.slac.stanford.edu/event/10676/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Telling events apart in CRESST: singles\, surface events and machi
+ ne learning
+DTSTART:20261022T193000Z
+DTEND:20261022T203000Z
+DTSTAMP:20261117T032900Z
+UID:indico-event-10806@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Praveen Murali (Heidelberg University)\n\nCRESST sea
+ rches for sub-GeV dark matter with cryogeniccalorimeters read out by trans
+ ition edge sensors\, reaching thresholdsbelow 10 eV. Its sensitivity is li
+ mited by a low-energy excess and byanomalous events seen by only one of tw
+ o sensors. I will present mywork on double-TES detectors: optimum-filter r
+ econstruction\, taggingof anomalous singles and surface/bulk classificatio
+ n of ⁵⁵Fe events. Iwill also show machine-learning methods for artifac
+ t tagging\, whichwill matter for the planned upgrade to 200+ modules.\n \
+ nhttps://stanford.zoom.us/j/98973156241?pwd=cEU5RFdlVXoyc0JTeTlDMkozKzQ5UT
+ 09\n\nhttps://indico.slac.stanford.edu/event/10806/
+LOCATION:Varian 355 (Stanford)
+URL:https://indico.slac.stanford.edu/event/10806/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:TBA
+DTSTART:20261027T193000Z
+DTEND:20261027T203000Z
+DTSTAMP:20261117T032900Z
+UID:indico-event-10803@indico.slac.stanford.edu
+DESCRIPTION:TBA\n \nhttps://stanford.zoom.us/j/98973156241?pwd=cEU5RFdlVX
+ oyc0JTeTlDMkozKzQ5UT09\n\nhttps://indico.slac.stanford.edu/event/10803/
+URL:https://indico.slac.stanford.edu/event/10803/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Progress toward a sterile neutrino search with optically levitated
+  nanospheres
+DTSTART:20261110T203000Z
+DTEND:20261110T213000Z
+DTSTAMP:20261117T032900Z
+UID:indico-event-10804@indico.slac.stanford.edu
+DESCRIPTION:Speakers: Clarke Hardy (Yale University)\n\nThe origin and nat
+ ure of neutrino masses remain key open questions in particle physics. With
+  a simple extension to the Standard Model\, light neutrino masses can aris
+ e via the seesaw mechanism\, in which each mass state has a heavy right-ha
+ nded counterpart. In some models\, these right-handed “sterile” states
+  fall in the keV to MeV mass range. The Quantum Invisible Particle Sensor 
+ (QuIPS) collaboration is developing a search for sterile neutrinos utilizi
+ ng silica nanospheres trapped at the focus of a laser in high vacuum. Due 
+ to their extreme isolation from the environment\, such levitated optomecha
+ nical systems have opened up new pathways for testing fundamental physics 
+ with quantum-limited sensitivity. If the nanospheres are doped with beta o
+ r electron capture isotopes\, detection of the recoil impulse accompanying
+  the emission of decay products enables an event-by-event measurement of t
+ he total momentum carried away\, including by otherwise invisible particle
+ s. The Yale QuIPS team has already demonstrated impulse sensitivity of bet
+ ter than 50 keV/c\, sufficient to resolve collisions of individual gas ato
+ ms with a nanosphere and well below the momentum carried by neutrinos in t
+ ypical decays. In this talk I will present an overview of the experiment\,
+  showcase recent progress\, and discuss prospects for a first sterile neut
+ rino search.\n \nhttps://stanford.zoom.us/j/98973156241?pwd=cEU5RFdlVXoyc
+ 0JTeTlDMkozKzQ5UT09\n\nhttps://indico.slac.stanford.edu/event/10804/
+URL:https://indico.slac.stanford.edu/event/10804/
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:TBA
+DTSTART:20261124T203000Z
+DTEND:20261124T213000Z
+DTSTAMP:20261117T032900Z
+UID:indico-event-10805@indico.slac.stanford.edu
+DESCRIPTION:TBA\n \nhttps://stanford.zoom.us/j/98973156241?pwd=cEU5RFdlVX
+ oyc0JTeTlDMkozKzQ5UT09\n\nhttps://indico.slac.stanford.edu/event/10805/
+URL:https://indico.slac.stanford.edu/event/10805/
+END:VEVENT
+END:VCALENDAR

@@ -281,7 +281,8 @@
         "failures": "Failures in a row",
         "error": "Error",
         "missed": "Missed in the last run",
-        "resized": "Usual size"
+        "resized": "Usual size",
+        "disabled_reason": "Why it is off"
       },
       "groups": {
         "localist": "Stanford Events calendar",
@@ -296,6 +297,17 @@
         "failed": "Failed",
         "disabled": "Disabled",
         "unknown": "Not run yet"
+      },
+      "disabled_reasons": {
+        "bayarea-slac-ais": "Dormant: the page still announces a \"next seminar\" of 2019-09-10.",
+        "bayarea-suncat": "No public seminar: the Seminars list is empty, and the coming entries are internal group meetings.",
+        "custom-biox-seminars": "The site answers every automated request with HTTP 403 (a Cloudflare browser challenge).",
+        "custom-it-forum": "Nearly dormant (one talk in 2026, none announced), and its list gives no year, which no adapter can read yet.",
+        "custom-sail-events": "Dormant: the public Google Calendar of the lab has no talk after 2023-04-11, only a weekly social tea; its events page lists no dates.",
+        "custom-theory-seminar": "The seminar does not meet regularly. Of the four calendars on its page, its own has no talk after 2012 and another one is dormant; the other two are the RAIN/OR seminar and the Theory Lunch, collected from their own pages.",
+        "rsorg-stanford-ag": "Dormant on researchseminars.org: the last talk was on 2025-03-14.",
+        "sites-bioengineering": "A duplicate: every event here is an import from the Stanford Events calendar, which is collected anyway.",
+        "sites-cs": "A duplicate: its events are imports from the Stanford Events calendar, which is collected anyway, and advising sessions; none is a talk of its own."
       },
       "never": "Never",
       "empty": "No sources are configured.",

@@ -143,8 +143,10 @@ state of every source.
 
 ### Sources and their state
 
-32 of the 42 configured sources are enabled. In the first public run 29 of them delivered
-talks, 1 was empty and 2 failed, and 348 talks were stored. A talk that several sources
+34 of the 43 configured sources are enabled. The table lists the 32 that the first public
+run fetched: 29 of them delivered talks, 1 was empty and 2 failed, and 348 talks were
+stored. The SLAC Theory Group seminars (`bayarea-slac-theory`) and the SLAC Experimental
+Seminar Series (`bayarea-slac-experimental`) are not in it. A talk that several sources
 list counts once for each of them in this table. "Extraction" is how the run read a
 source: api from a JSON interface of the site, feed from its RSS or iCalendar feed, html
 from the page itself by rules; for a source that failed or was empty, it is the method of
@@ -206,9 +208,10 @@ days and of the next 120.
 
 - Not collected: Bio-X answers automated requests with HTTP 403, and the Information
   Theory Forum is turned off (nearly dormant; its list gives no year). The SAIL events
-  and the Theory Seminar are published only on Google Calendar, whose robots.txt forbids
-  fetching the feeds. Arc Institute has no public seminar calendar. Talks outside the
-  seven fields (for example earth and planetary sciences) are out of scope.
+  calendar has had no talk since 2023, and the Theory Seminar does not meet regularly.
+  Arc Institute has no public seminar calendar. The status page says why each disabled
+  source is off. Talks outside the seven fields (for example earth and planetary
+  sciences) are out of scope.
 - The DBDS workshop and the NLP seminar may fail from GitHub's runners, which cannot
   always reach their robots.txt; both work from Stanford's network. The status page
   shows such a failure, and three in a row open a `source-broken` issue.
@@ -238,7 +241,9 @@ day. The schedule follows daylight saving time.
 
 1. Fetch every source politely: robots.txt is honoured, including `Crawl-delay`, each
    host is asked one request at a time, and the number of requests per host is
-   capped.
+   capped. A source may list hosts under `ignore_robots`, whose `Disallow` rules it
+   does not follow (the two SLAC series on indico.slac.stanford.edu);
+   everything else holds there too.
 2. Turn what each source says into events, remove duplicates (the same talk listed by
    two sources) and drop what is not an academic talk.
 3. Tag each event with its fields, by rules and, when a credential is configured, with

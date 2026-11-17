@@ -17,6 +17,10 @@ its adapter is described in [ARCHITECTURE.md](ARCHITECTURE.md).
   robots.txt including `Crawl-delay`, waits at least one second between two
   requests to a host, asks one host one request at a time and caps the requests per
   host and run. Never use curl, wget or a browser script on a source site.
+- When the owner of the project decides to collect a public page whose robots.txt
+  disallows it, the source lists that host under `ignore_robots`, with a comment that
+  says why. Only the `Disallow` rules of that host are set aside, and only for that
+  source: the `Crawl-delay`, the pause and the request budgets still hold.
 - Choose the extraction method in this order: a structured API (Localist, Drupal
   JSON:API), a feed (ICS, RSS), JSON-LD embedded in the pages, an HTML list, and
   only when nothing else works, the LLM page extractor.
@@ -91,14 +95,22 @@ sources:
 - `research` records what you found out: the day you checked, how many events the
   sample had, which formats the site offers, its `Crawl-delay`, notes.
 - Other keys: `homepage`, `series`, `default_event_type`, `timezone`, `aggregator`,
-  `llm_fallback`, `enabled`. The schema, with every key explained, is `SourceConfig`
-  in `src/seminars/models/source.py`; unknown keys are an error.
+  `llm_fallback`, `ignore_robots`, `enabled`. The schema, with every key explained, is
+  `SourceConfig` in `src/seminars/models/source.py`; unknown keys are an error.
+- `ignore_robots` lists hosts of the source (of `url`, `urls`, `homepage` or
+  `params.extra_hosts`) whose robots.txt `Disallow` rules this source does not follow;
+  see "Before you start". A host of another site is an error.
 - `enabled: false` turns a source off and keeps its entry. Turning a source off, or
   removing its entry, removes its future talks at the next run, from the feeds and
   the site alike: its keys are dropped from the stored events, a talk that only it
   listed leaves at once, and one of those that has already started goes to the
   archive. A talk that other sources list as well keeps their keys and is judged by
   them alone.
+- A disabled source says why on the status page. Put a comment `# Off: <reason>`
+  above `enabled: false`, and the reason for readers under
+  `site.status.disabled_reasons.<id>` in `locales/en.json` and `locales/zh-CN.json`.
+  A test (`tests/test_locales.py`) wants a reason for every disabled source and for
+  no other, so the message goes when the source is turned on again.
 
 ## 3. Choose the adapter
 
@@ -215,6 +227,11 @@ This writes `tests/fixtures/<id>/manifest.json` and one body file per address.
 - Never edit the manifest by hand, and never copy files from `.scratch/` into a
   fixture directory: record them.
 - Fixtures are verbatim snapshots and keep whatever characters the site sent.
+- `record` follows the `ignore_robots` of the configured source of `--source-id`, as a
+  run does.
+- An offline run happens at the latest recording time of all fixtures. A new
+  recording moves it, so update `RUN_TIME` in
+  `tests/test_pipeline_offline_integration.py` and the talks that test picks.
 
 Every option, and how the client waits for other processes that use the same host,
 is described in [tests/fixtures/README.md](../tests/fixtures/README.md).

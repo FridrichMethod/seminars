@@ -128,8 +128,14 @@ class FakeHttpClient:
         self._clock = clock or FakeClock()
         self._documents: dict[str, FetchedDocument] = {}
         self.requests: list[str] = []
+        self.robots_exemptions: list[list[str]] = []
         for url, text in (pages or {}).items():
             self.add(url, text)
+
+    def ignoring_robots_on(self, hosts: Collection[str]) -> FakeHttpClient:
+        """Like ``PoliteClient.ignoring_robots_on``: notes ``hosts`` and serves the same pages."""
+        self.robots_exemptions.append(list(hosts))
+        return self
 
     def add(
         self,

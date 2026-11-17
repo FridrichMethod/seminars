@@ -621,6 +621,47 @@ class TestRecorder:
         assert (shared / "hosts" / "events.example.edu.json").is_file()
         assert not (tmp_path / ".cache").exists()
 
+    def test_command_line_record_follows_ignore_robots_of_the_configured_source(
+        self,
+        tmp_path: Path,
+        respx_router: respx.MockRouter,
+        monkeypatch: pytest.MonkeyPatch,
+        resolver: StubResolver,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        settings = (REPO_ROOT / "config" / "settings.yaml").read_text(encoding="utf-8")
+        settings = settings.replace("min_interval_seconds: 1.0", "min_interval_seconds: 0")
+        (tmp_path / "config" / "sources.d").mkdir(parents=True)
+        (tmp_path / "config" / "settings.yaml").write_text(settings, encoding="utf-8")
+        entry = (
+            "sources:\n"
+            "  - id: localist-example\n"
+            "    name: Example calendar\n"
+            "    group: localist\n"
+            "    adapter: localist\n"
+            f"    url: {API}\n"
+            "    ignore_robots: [events.example.edu]\n"
+            "    institution: stanford\n"
+            "    host_org: Example\n"
+        )
+        (tmp_path / "config" / "sources.d" / "example.yaml").write_text(entry, encoding="utf-8")
+        monkeypatch.setenv(ENV_HTTP_CACHE_DIR, str(tmp_path / "shared-http-cache"))
+        respx_router.get("https://events.example.edu/robots.txt").respond(
+            200, text="User-agent: *\nDisallow: /\n"
+        )
+        respx_router.get(url__startswith=API).respond(200, text="{}")
+        arguments = ["--root", str(tmp_path), "record"]
+        assert main([*arguments, "--source-id", "localist-example", PAGE_1], resolver=resolver) == 0
+        err = capsys.readouterr().err
+        assert "robots.txt Disallow not followed on: events.example.edu (ignore_robots)" in err
+        assert (
+            PAGE_1
+            in FixtureStore(tmp_path / "tests" / "fixtures" / "localist-example").manifest.entries
+        )
+        # Another source id gets the client as it is, which follows robots.txt.
+        assert main([*arguments, "--source-id", "localist-other", PAGE_1], resolver=resolver) == 1
+        assert "disallowed by robots.txt" in capsys.readouterr().err
+
     def test_command_line_check_reports_problems(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:

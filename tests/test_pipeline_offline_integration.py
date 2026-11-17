@@ -3,7 +3,7 @@
 Nothing is faked here: the configured sources, the real adapters, normalization,
 classification and the output writers run over tests/fixtures, as
 ``seminars run --offline --no-llm`` does. The run happens at the latest recording
-time of all fixtures, 2026-11-12T23:18:07Z (15:18 on 12 November in Stanford), so
+time of all fixtures, 2026-11-17T01:26:52Z (17:26 on 16 November in Stanford), so
 the talks of the afternoon of 11 November have already taken place.
 """
 
@@ -24,7 +24,7 @@ from seminars.config import PROVIDER_CREDENTIAL_ENV, load_settings
 from seminars.fixtures import reference_time
 from seminars.models import FIELD_IDS, Event, read_events
 
-RUN_TIME = datetime(2026, 11, 12, 23, 18, 7, tzinfo=UTC)
+RUN_TIME = datetime(2026, 11, 17, 3, 29, 45, tzinfo=UTC)
 """The latest recording time of the fixtures: the "now" of an offline run."""
 
 PAST_AFTERNOON = {
@@ -284,9 +284,9 @@ COMING_TALKS = [
     ),
     (
         "sites-systemx",
-        datetime(2026, 11, 12, 16, 30, tzinfo=STANFORD),
-        "Computing on encrypted data: from concept to reality",
-        ["Ingrid Verbauwhede"],
+        datetime(2026, 12, 3, 9, 0, tzinfo=STANFORD),
+        "SystemX Physical Intelligence Summit",
+        [],
         {"cs"},
     ),
     (
@@ -295,6 +295,20 @@ COMING_TALKS = [
         "TBA",  # "Coming soon" on the page
         ["Marinka Zitnik"],
         {"ai-ml", "math", "med"},
+    ),
+    (
+        "bayarea-slac-theory",
+        datetime(2026, 11, 18, 12, 30, tzinfo=STANFORD),
+        "TBA",  # the Indico feed names the speaker only
+        ["Alessandro Lenoci"],
+        {"physics"},
+    ),
+    (
+        "bayarea-slac-experimental",
+        datetime(2026, 11, 24, 12, 30, tzinfo=STANFORD),
+        "TBA",  # neither title nor speaker yet
+        [],
+        {"physics"},
     ),
 ]
 """A talk after the run time of each series that only its own source lists."""

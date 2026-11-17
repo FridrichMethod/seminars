@@ -134,6 +134,18 @@ function missedFacts(source) {
   ];
 }
 
+/**
+ * Why a disabled source is off: the message of its id under site.status.disabled_reasons
+ * in the locale files (a test keeps one for every disabled source of the configuration).
+ */
+function disabledReason(source) {
+  if (stateOf(source) !== "disabled" || typeof source.id !== "string") {
+    return null;
+  }
+  const key = "site.status.disabled_reasons." + source.id;
+  return children("site.status.disabled_reasons.").includes(source.id) ? t(key) : null;
+}
+
 /** The note of a source whose last run took its smaller listing as the usual size. */
 function resizedNote(source) {
   const before = size(source.resized_from);
@@ -164,6 +176,7 @@ function sourceCard(source, lang) {
       "dl",
       { class: "facts" },
       fact("site.status.columns.group", groupName(source.group)),
+      fact("site.status.columns.disabled_reason", disabledReason(source)),
       fact("site.status.columns.events", formatNumber(count(source.events))),
       fact("site.status.columns.last_run", moment(source.last_run_at, lang) ?? never),
       fact("site.status.columns.last_success", moment(source.last_success_at, lang) ?? never),

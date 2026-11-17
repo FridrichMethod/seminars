@@ -32,7 +32,14 @@ Rules of the live client:
   file, packed in a way that is not undone, too large, or a redirect that
   cannot be followed) blocks the origin for the rest of the run: the
   failure is remembered, so every later request to that origin raises
-  ``RobotsUnavailableError`` at once, without contacting the host again;
+  ``RobotsUnavailableError`` at once, without contacting the host again.
+  ``ignoring_robots_on(hosts)`` gives a view of the client for one source
+  whose configuration lists hosts under ``ignore_robots``: on those hosts
+  the ``Disallow`` rules are not followed. Everything else holds there as
+  well: robots.txt is still read for its ``Crawl-delay`` (an unreachable one
+  still blocks the origin), and the pauses, the serial order and the
+  budgets are those of every other request. A redirect to a host that is
+  not listed follows robots.txt again;
 * a redirect of robots.txt is followed like any other, one hop at a time
   and at most ``max_redirects`` times: every hop must point at a public
   http(s) address and waits for its turn on the host it goes to;
@@ -367,6 +374,23 @@ class _Hop:
     location: str | None = None  # absolute redirect target
 
 
+class _RobotsExemptView:
+    """The view ``PoliteClient.ignoring_robots_on`` returns: ``Disallow`` ignored on some hosts."""
+
+    def __init__(self, client: PoliteClient, exempt: frozenset[str]) -> None:
+        self._client = client
+        self._exempt = exempt
+
+    def get(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str] | None = None,
+        allow_statuses: Collection[int] = (),
+    ) -> FetchedDocument:
+        return self._client._guarded_get(url, headers, allow_statuses, self._exempt)
+
+
 class PoliteClient:
     """Live ``HttpClient``; see the module docstring for the rules it follows.
 
@@ -431,8 +455,27 @@ class PoliteClient:
         headers: Mapping[str, str] | None = None,
         allow_statuses: Collection[int] = (),
     ) -> FetchedDocument:
+        return self._guarded_get(url, headers, allow_statuses, frozenset())
+
+    def ignoring_robots_on(self, hosts: Collection[str]) -> HttpClient:
+        """This client for one source that does not follow robots.txt ``Disallow`` on ``hosts``.
+
+        ``hosts`` is the ``ignore_robots`` list of the source. Without hosts
+        it is this client itself. The view shares everything with this
+        client (pauses, budgets, cache); see the module docstring.
+        """
+        exempt = frozenset(canonical_host(host) for host in hosts)
+        return _RobotsExemptView(self, exempt) if exempt else self
+
+    def _guarded_get(
+        self,
+        url: str,
+        headers: Mapping[str, str] | None,
+        allow_statuses: Collection[int],
+        exempt: frozenset[str],
+    ) -> FetchedDocument:
         try:
-            return self._get(url, headers, allow_statuses)
+            return self._get(url, headers, allow_statuses, exempt)
         except HttpError:
             raise
         except _UNFORESEEN as error:
@@ -443,7 +486,11 @@ class PoliteClient:
             ) from error
 
     def _get(
-        self, url: str, headers: Mapping[str, str] | None, allow_statuses: Collection[int]
+        self,
+        url: str,
+        headers: Mapping[str, str] | None,
+        allow_statuses: Collection[int],
+        exempt: frozenset[str],
     ) -> FetchedDocument:
         current = url
         home = parse_url(url).origin
@@ -451,7 +498,7 @@ class PoliteClient:
         deadline = Deadline(url, self._clock() + limit, limit, self._clock)
         for _ in range(self._settings.max_redirects + 1):
             deadline.check()
-            hop = self._fetch_hop(current, headers, home, deadline)
+            hop = self._fetch_hop(current, headers, home, deadline, exempt)
             if hop.location is None:
                 break
             current = hop.location
@@ -472,12 +519,18 @@ class PoliteClient:
     # --- one hop ---------------------------------------------------------------------------
 
     def _fetch_hop(
-        self, url: str, extra_headers: Mapping[str, str] | None, home: str, deadline: Deadline
+        self,
+        url: str,
+        extra_headers: Mapping[str, str] | None,
+        home: str,
+        deadline: Deadline,
+        exempt: frozenset[str],
     ) -> _Hop:
         """One request of a ``get``: ``url`` as written, sent and cached in its canonical form.
 
         ``home`` is the origin the caller asked for. A redirect that leaves
-        it takes only the harmless headers of the caller along.
+        it takes only the harmless headers of the caller along. On a host
+        in ``exempt`` the ``Disallow`` rules of robots.txt are not followed.
         """
         target = parse_url(url)
         if extra_headers and target.origin != home:
@@ -488,7 +541,7 @@ class PoliteClient:
             }
         state = self._pacer.state(target.host)
         policy = self._policy(state, target.host, target.origin, deadline)
-        if not policy.allows(target.path):
+        if target.host not in exempt and not policy.allows(target.path):
             raise RobotsDisallowedError(url, "disallowed by robots.txt")
         own_interval = self._interval(url, policy)
         with self._pacer.turn(state, target.host, deadline):

@@ -560,6 +560,7 @@ class TestSources:
         assert result.exit_code == 0, result.output
         assert result.output.startswith("  ok     sites-a: 2 events, 1 requests, ")
         assert client.requests == [A_URL]
+        assert client.robots_exemptions == [[]]  # the ignore_robots list of sites-a
         assert not (project / "data").exists()
 
     def test_check_fails_when_a_source_fails(

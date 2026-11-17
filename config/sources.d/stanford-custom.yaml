@@ -313,6 +313,7 @@ sources:
     id: custom-sail-events
     name: Stanford AI Lab (SAIL) Events
     adapter: ics
+    # Off: dormant, the calendar has no talk after 2023-04-11 (see the notes).
     enabled: false
     url: https://calendar.google.com/calendar/ical/c_cb959eb83a3ad950b61570c0e87cec29188ff388b53880be72d19d5bc9fff976%40group.calendar.google.com/public/basic.ics
     homepage: https://ai.stanford.edu/events/
@@ -343,18 +344,20 @@ sources:
       crawl_delay: 0
       robots: "ai.stanford.edu: no Crawl-delay, /wp-admin/ disallowed. calendar.google.com: Allow: /$ and Disallow: / (everything is disallowed)"
       notes:
-        - Disabled. The events page of the lab is a WordPress page with prose and an embedded public Google Calendar; the HTML holds no dated event.
-        - The iCalendar feed of that calendar (the url above) is on calendar.google.com, whose robots.txt disallows every path. The polite client refused it, so the feed was never fetched and there is no recording of it. The url is the standard public address of the calendar id, not a verified one.
+        - Disabled as dormant. The events page of the lab is a WordPress page with prose and an embedded public Google Calendar; the HTML holds no dated event.
+        - The iCalendar feed of that calendar (the url above) is on calendar.google.com, whose robots.txt disallows every path. Checked by hand on 2026-11-16 with robots.txt set aside, it answers (SAIL Events Calendar) with 4 events, the newest talk on 2023-04-11, and a weekly "SAIL Social Tea" since 2023-01-11 without an end. There is no recording of it.
+        - Should the lab use the calendar again, the source needs ignore_robots [calendar.google.com] and a recording before it is enabled, and the social tea has to be left out.
         - What WordPress offers has no events. The JSON-LD block describes the organisation, the site feed /feed/ holds news posts only (the newest from 2025-02-05), /events/feed/ is an empty comment feed, and /wp-json/ has no event type or route. The site feed is recorded with the page.
         - The page says the calendar lists talks and reading groups of the lab and marks the audience of each entry in brackets (public, Stanford only, one group only). Entries that are not public would have to be left out.
         - The Distinguished Speaker Series page lists talks up to 2020-01-24 only.
-        - Enabling this source needs a decision first, on whether public Google Calendar feeds may be fetched although the robots.txt of calendar.google.com disallows them.
 
   # --- Theory ----------------------------------------------------------------------------
   - <<: *stanford-custom
     id: custom-theory-seminar
     name: Stanford Theory Seminar
     adapter: ics
+    # Off: the seminar does not meet regularly, and its calendars hold nothing that
+    # other sources do not collect already (see the notes).
     enabled: false
     urls:
       - https://calendar.google.com/calendar/ical/cc0uor8q3hronjtesdsobhg18c%40group.calendar.google.com/public/basic.ics
@@ -390,8 +393,7 @@ sources:
       notes:
         - Disabled. The real page of the seminar is https://theory.stanford.edu/seminar/ (theory.stanford.edu itself forwards to main/index.shtml, which links it).
         - The page says the seminar is not happening regularly at the moment. It has no list of talks, only an embedded view of four public Google Calendars ("Upcoming Theory Events").
-        - The iCalendar feeds of those calendars (the urls above) are on calendar.google.com, whose robots.txt disallows every path. The polite client refused them, so nothing was fetched and there is no recording of a feed. The urls are the standard public addresses of the calendar ids, not verified ones.
-        - Which calendar belongs to which series is not labelled on the page. One of them is the calendar of the RAIN/OR seminar.
+        - The iCalendar feeds of those calendars (the urls above) are on calendar.google.com, whose robots.txt disallows every path. Checked by hand on 2026-11-16 with robots.txt set aside, they are, in the order above, "Stanford Theory Seminar" (no talk after 2012), "RAIN @ Stanford" (the RAIN/OR seminar, which custom-rain-seminar collects), "Stanford CS&GT Seminar Aggregator" (no talk after 2010 but test entries) and "Stanford CS Theory Lunch" (no talk after 2026-05-15, while custom-theory-lunch reads the current schedule). There is no recording of them.
         - The talk series of the theory group with a schedule in HTML are custom-theory-lunch and custom-rain-seminar.
 
   - <<: *stanford-custom
