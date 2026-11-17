@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "started_at": "2026-11-16T22:20:24Z",
-  "finished_at": "2026-11-16T22:26:46Z",
+  "started_at": "2026-11-17T06:23:42Z",
+  "finished_at": "2026-11-17T06:28:29Z",
   "mode": "live",
   "dry_run": false,
   "ok": true,
@@ -9,10 +9,10 @@
     {
       "source_id": "bayarea-biohub",
       "status": "ok",
-      "duration_seconds": 3.078,
-      "requests": 2,
-      "drafts": 1,
-      "events": 1,
+      "duration_seconds": 4.053,
+      "requests": 3,
+      "drafts": 2,
+      "events": 2,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -27,10 +27,10 @@
     {
       "source_id": "bayarea-glam",
       "status": "ok",
-      "duration_seconds": 61.064,
+      "duration_seconds": 61.296,
       "requests": 2,
-      "drafts": 8,
-      "events": 8,
+      "drafts": 7,
+      "events": 7,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -45,12 +45,12 @@
     {
       "source_id": "bayarea-kipac",
       "status": "ok",
-      "duration_seconds": 121.22,
+      "duration_seconds": 121.26,
       "requests": 4,
       "drafts": 33,
-      "events": 25,
+      "events": 24,
       "invalid": 0,
-      "outside_window": 8,
+      "outside_window": 9,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -63,7 +63,7 @@
     {
       "source_id": "bayarea-litp",
       "status": "ok",
-      "duration_seconds": 31.24,
+      "duration_seconds": 30.605,
       "requests": 1,
       "drafts": 7,
       "events": 7,
@@ -81,7 +81,7 @@
     {
       "source_id": "bayarea-pulse",
       "status": "ok",
-      "duration_seconds": 61.041,
+      "duration_seconds": 60.796,
       "requests": 2,
       "drafts": 1,
       "events": 1,
@@ -99,7 +99,7 @@
     {
       "source_id": "bayarea-qfarm",
       "status": "ok",
-      "duration_seconds": 61.11,
+      "duration_seconds": 61.937,
       "requests": 2,
       "drafts": 20,
       "events": 14,
@@ -117,10 +117,10 @@
     {
       "source_id": "bayarea-slac-colloquium",
       "status": "ok",
-      "duration_seconds": 5.429,
-      "requests": 5,
-      "drafts": 4,
-      "events": 4,
+      "duration_seconds": 4.38,
+      "requests": 4,
+      "drafts": 3,
+      "events": 3,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -133,9 +133,45 @@
       "warnings": []
     },
     {
+      "source_id": "bayarea-slac-experimental",
+      "status": "ok",
+      "duration_seconds": 1.635,
+      "requests": 1,
+      "drafts": 5,
+      "events": 2,
+      "invalid": 0,
+      "outside_window": 3,
+      "skipped_pages": 0,
+      "shrank_from": null,
+      "resized_from": null,
+      "extraction": "feed",
+      "llm_fallback_used": false,
+      "error_kind": null,
+      "error": null,
+      "warnings": []
+    },
+    {
+      "source_id": "bayarea-slac-theory",
+      "status": "ok",
+      "duration_seconds": 1.136,
+      "requests": 1,
+      "drafts": 11,
+      "events": 7,
+      "invalid": 0,
+      "outside_window": 4,
+      "skipped_pages": 0,
+      "shrank_from": null,
+      "resized_from": null,
+      "extraction": "feed",
+      "llm_fallback_used": false,
+      "error_kind": null,
+      "error": null,
+      "warnings": []
+    },
+    {
       "source_id": "custom-ai4science",
       "status": "ok",
-      "duration_seconds": 1.469,
+      "duration_seconds": 1.094,
       "requests": 1,
       "drafts": 20,
       "events": 12,
@@ -151,9 +187,27 @@
       "warnings": []
     },
     {
+      "source_id": "custom-csb-calendar",
+      "status": "ok",
+      "duration_seconds": 1.812,
+      "requests": 1,
+      "drafts": 1150,
+      "events": 18,
+      "invalid": 0,
+      "outside_window": 1132,
+      "skipped_pages": 0,
+      "shrank_from": null,
+      "resized_from": null,
+      "extraction": "feed",
+      "llm_fallback_used": false,
+      "error_kind": null,
+      "error": null,
+      "warnings": []
+    },
+    {
       "source_id": "custom-csb-events",
       "status": "ok",
-      "duration_seconds": 3.963,
+      "duration_seconds": 3.93,
       "requests": 3,
       "drafts": 4,
       "events": 2,
@@ -189,7 +243,7 @@
     {
       "source_id": "custom-hai-events",
       "status": "ok",
-      "duration_seconds": 3.916,
+      "duration_seconds": 3.635,
       "requests": 3,
       "drafts": 8,
       "events": 7,
@@ -207,7 +261,7 @@
     {
       "source_id": "custom-isl-colloquium",
       "status": "ok",
-      "duration_seconds": 1.416,
+      "duration_seconds": 1.599,
       "requests": 1,
       "drafts": 152,
       "events": 4,
@@ -225,7 +279,7 @@
     {
       "source_id": "custom-mlsys-seminar",
       "status": "empty",
-      "duration_seconds": 1.242,
+      "duration_seconds": 1.133,
       "requests": 1,
       "drafts": 87,
       "events": 0,
@@ -243,7 +297,7 @@
     {
       "source_id": "custom-nlp-seminar",
       "status": "failed",
-      "duration_seconds": 87.141,
+      "duration_seconds": 7.289,
       "requests": 1,
       "drafts": 0,
       "events": 0,
@@ -261,7 +315,7 @@
     {
       "source_id": "custom-rain-seminar",
       "status": "ok",
-      "duration_seconds": 1.156,
+      "duration_seconds": 1.069,
       "requests": 1,
       "drafts": 10,
       "events": 7,
@@ -279,7 +333,7 @@
     {
       "source_id": "custom-synbio-events",
       "status": "ok",
-      "duration_seconds": 1.382,
+      "duration_seconds": 1.292,
       "requests": 1,
       "drafts": 96,
       "events": 2,
@@ -297,7 +351,7 @@
     {
       "source_id": "custom-theory-lunch",
       "status": "ok",
-      "duration_seconds": 1.233,
+      "duration_seconds": 1.296,
       "requests": 1,
       "drafts": 11,
       "events": 5,
@@ -315,10 +369,10 @@
     {
       "source_id": "localist-stanford",
       "status": "ok",
-      "duration_seconds": 35.837,
+      "duration_seconds": 46.301,
       "requests": 7,
-      "drafts": 616,
-      "events": 616,
+      "drafts": 619,
+      "events": 619,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -335,7 +389,7 @@
     {
       "source_id": "rsorg-topos-colloquium",
       "status": "ok",
-      "duration_seconds": 3.833,
+      "duration_seconds": 3.523,
       "requests": 1,
       "drafts": 233,
       "events": 12,
@@ -353,7 +407,7 @@
     {
       "source_id": "sites-aimi",
       "status": "ok",
-      "duration_seconds": 152.734,
+      "duration_seconds": 151.421,
       "requests": 5,
       "drafts": 7,
       "events": 5,
@@ -371,7 +425,7 @@
     {
       "source_id": "sites-biochemistry",
       "status": "ok",
-      "duration_seconds": 60.607,
+      "duration_seconds": 61.765,
       "requests": 2,
       "drafts": 3,
       "events": 3,
@@ -389,7 +443,7 @@
     {
       "source_id": "sites-biology",
       "status": "ok",
-      "duration_seconds": 30.898,
+      "duration_seconds": 30.895,
       "requests": 1,
       "drafts": 9,
       "events": 9,
@@ -409,10 +463,10 @@
     {
       "source_id": "sites-cheme",
       "status": "ok",
-      "duration_seconds": 91.369,
-      "requests": 3,
-      "drafts": 2,
-      "events": 2,
+      "duration_seconds": 60.954,
+      "requests": 2,
+      "drafts": 1,
+      "events": 1,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -427,7 +481,7 @@
     {
       "source_id": "sites-chemh",
       "status": "ok",
-      "duration_seconds": 61.319,
+      "duration_seconds": 61.24,
       "requests": 2,
       "drafts": 3,
       "events": 3,
@@ -445,7 +499,7 @@
     {
       "source_id": "sites-chemistry",
       "status": "ok",
-      "duration_seconds": 30.981,
+      "duration_seconds": 30.693,
       "requests": 1,
       "drafts": 17,
       "events": 17,
@@ -463,7 +517,7 @@
     {
       "source_id": "sites-icme",
       "status": "ok",
-      "duration_seconds": 91.052,
+      "duration_seconds": 90.956,
       "requests": 3,
       "drafts": 10,
       "events": 3,
@@ -481,7 +535,7 @@
     {
       "source_id": "sites-mathematics",
       "status": "ok",
-      "duration_seconds": 62.14,
+      "duration_seconds": 60.898,
       "requests": 2,
       "drafts": 51,
       "events": 51,
@@ -499,7 +553,7 @@
     {
       "source_id": "sites-mrc",
       "status": "ok",
-      "duration_seconds": 30.781,
+      "duration_seconds": 30.331,
       "requests": 1,
       "drafts": 2,
       "events": 2,
@@ -517,7 +571,7 @@
     {
       "source_id": "sites-mse",
       "status": "ok",
-      "duration_seconds": 61.391,
+      "duration_seconds": 60.596,
       "requests": 2,
       "drafts": 4,
       "events": 3,
@@ -535,7 +589,7 @@
     {
       "source_id": "sites-physics",
       "status": "ok",
-      "duration_seconds": 30.852,
+      "duration_seconds": 30.451,
       "requests": 1,
       "drafts": 8,
       "events": 8,
@@ -555,7 +609,7 @@
     {
       "source_id": "sites-statistics",
       "status": "ok",
-      "duration_seconds": 30.819,
+      "duration_seconds": 30.457,
       "requests": 1,
       "drafts": 10,
       "events": 10,
@@ -573,7 +627,7 @@
     {
       "source_id": "sites-systemx",
       "status": "ok",
-      "duration_seconds": 121.497,
+      "duration_seconds": 121.599,
       "requests": 4,
       "drafts": 2,
       "events": 2,
@@ -1682,6 +1736,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54535312713476"
+      ],
+      "title": "Join us! OMAC & ROTC Stanford Dish Hike – Friday, Nov 20 (Free Acai Bowls!)",
+      "start": "2026-11-20T07:00:00-08:00",
+      "url": "https://events.stanford.edu/event/join-us-omac-rotc-stanford-dish-hike-friday-nov-20-free-acai-bowls",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:54438180058341"
       ],
       "title": "Immigration Pathways Beyond F-1",
@@ -2282,6 +2346,26 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54511632671489"
+      ],
+      "title": "Aging Wisely - How Legal Documents Secure Quality of Life Goals",
+      "start": "2027-02-10T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/aging-wisely-how-legal-documents-secure-quality-of-life-goals-1300",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54511632767757"
+      ],
+      "title": "The Art and Science of Breathing (February 12 - 26)",
+      "start": "2027-02-12T16:00:00-08:00",
+      "url": "https://events.stanford.edu/event/the-art-and-science-of-breathing-february-12-26",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:51754571482578"
       ],
       "title": "Presidents’ Day",
@@ -2292,11 +2376,31 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54511632817939"
+      ],
+      "title": "Eat Strategically (February 16 - March 2)",
+      "start": "2027-02-16T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/eat-strategically-february-16-march-2",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:54356770018561"
       ],
       "title": "Walk the Labyrinth at MemChu",
       "start": "2027-02-17T09:00:00-08:00",
       "url": "https://events.stanford.edu/event/walk-the-labyrinth-at-memchu",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54511632864025"
+      ],
+      "title": "Heart Healthy Mediterranean",
+      "start": "2027-02-17T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/heart-healthy-mediterranean-1647",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -2342,11 +2446,41 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54511633015590"
+      ],
+      "title": "Five Keys to a Happier Life (February 19 - March 5)",
+      "start": "2027-02-19T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/five-keys-to-a-happier-life-february-19-march-5",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54511633064748"
+      ],
+      "title": "The Future Self Lab (February 22 - March 8)",
+      "start": "2027-02-22T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/the-future-self-lab-february-22-march-8",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:54356770022658"
       ],
       "title": "Walk the Labyrinth at MemChu",
       "start": "2027-02-24T09:00:00-08:00",
       "url": "https://events.stanford.edu/event/walk-the-labyrinth-at-memchu",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54511633214270"
+      ],
+      "title": "Relaxing Into Sleep (March 1 - 15)",
+      "start": "2027-03-01T15:00:00-08:00",
+      "url": "https://events.stanford.edu/event/relaxing-into-sleep-march-1-15",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -2382,6 +2516,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54511633366864"
+      ],
+      "title": "Journaling to Build a Better Relationship with Your Body (March 5 - 19)",
+      "start": "2027-03-05T15:00:00-08:00",
+      "url": "https://events.stanford.edu/event/journaling-to-build-a-better-relationship-with-your-body-march-5-19",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:53898107755661"
       ],
       "title": "OMAC First Fridays",
@@ -2397,6 +2541,16 @@
       "title": "Walk the Labyrinth at MemChu",
       "start": "2027-03-10T09:00:00-08:00",
       "url": "https://events.stanford.edu/event/walk-the-labyrinth-at-memchu",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54511633531746"
+      ],
+      "title": "Relax, Focus, and Create with Zentangle",
+      "start": "2027-03-15T12:00:00-07:00",
+      "url": "https://events.stanford.edu/event/relax-focus-and-create-with-zentangle",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
     },
@@ -4213,16 +4367,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54511632671489"
-      ],
-      "title": "Aging Wisely - How Legal Documents Secure Quality of Life Goals",
-      "start": "2027-02-10T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/aging-wisely-how-legal-documents-secure-quality-of-life-goals-1300",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54295042521446"
       ],
       "title": "Slavic Colloquium - Vadim Shneyder: Marko Vovchok's Stories of Ukrainian Peasant Life and the Impasses of Realism",
@@ -4253,16 +4397,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54511632718599"
-      ],
-      "title": "The Anxiety Reset",
-      "start": "2027-02-11T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/the-anxiety-reset",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:53701740865833"
       ],
       "title": "Environmental Behavioral Sciences Seminar with Aradhna Tripati",
@@ -4288,36 +4422,6 @@
       "title": "Understand Energy Staff Learning Series",
       "start": "2027-02-12T12:30:00-08:00",
       "url": "https://events.stanford.edu/event/understand-energy-staff-learning-series",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54511632767757"
-      ],
-      "title": "The Art and Science of Breathing (February 12 - 26)",
-      "start": "2027-02-12T16:00:00-08:00",
-      "url": "https://events.stanford.edu/event/the-art-and-science-of-breathing-february-12-26",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54511632817939"
-      ],
-      "title": "Eat Strategically (February 16 - March 2)",
-      "start": "2027-02-16T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/eat-strategically-february-16-march-2",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54511632864025"
-      ],
-      "title": "Heart Healthy Mediterranean",
-      "start": "2027-02-17T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/heart-healthy-mediterranean-1647",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4373,16 +4477,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54511633015590"
-      ],
-      "title": "Five Keys to a Happier Life (February 19 - March 5)",
-      "start": "2027-02-19T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/five-keys-to-a-happier-life-february-19-march-5",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:53619872698647"
       ],
       "title": "Pediatric Otolaryngology Updates",
@@ -4390,16 +4484,6 @@
       "url": "https://events.stanford.edu/event/pediatric-otolaryngology-updates",
       "reason": "out_of_scope",
       "detail": "category \"Stanford Center for Continuing Medical Education\" is out of scope"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54511633064748"
-      ],
-      "title": "The Future Self Lab (February 22 - March 8)",
-      "start": "2027-02-22T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/the-future-self-lab-february-22-march-8",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
     },
     {
       "source_ids": [
@@ -4438,16 +4522,6 @@
       "title": "Slavic Colloquium - Chloe Papodopolous: History in medias res: Mark Antokol’skii’s Ivan the Terrible",
       "start": "2027-02-24T16:30:00-08:00",
       "url": "https://events.stanford.edu/event/slavic-colloquium-chloe-papodopolous-history-in-medias-res-mark-antokolskiis-ivan-the-terrible",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54511633161016"
-      ],
-      "title": "Food Sense",
-      "start": "2027-02-25T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/food-sense",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4493,41 +4567,11 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54511633214270"
-      ],
-      "title": "Relaxing Into Sleep (March 1 - 15)",
-      "start": "2027-03-01T15:00:00-08:00",
-      "url": "https://events.stanford.edu/event/relaxing-into-sleep-march-1-15",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54511633262404"
-      ],
-      "title": "Live Smart for Your Heart",
-      "start": "2027-03-03T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/live-smart-for-your-heart-6876",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54294878918166"
       ],
       "title": "Slavic Colloquium: Julia Verkholantsev: Etymology as Historical Knowledge in Medieval and Early Modern Historiography: Why Libuše Married a Ploughman and Wanda Refused a Foreign King",
       "start": "2027-03-03T16:30:00-08:00",
       "url": "https://events.stanford.edu/event/slavic-colloquium-julia-verkholantsev-etymology-as-historical-knowledge-in-medieval-and-early-modern-historiography-why-libuse-married-a-ploughman-and-wanda-refused-a-foreign-king",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54511633314634"
-      ],
-      "title": "Understanding the Latest Supplement Trends",
-      "start": "2027-03-04T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/understanding-the-latest-supplement-trends",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4558,16 +4602,6 @@
       "title": "Understand Energy Staff Learning Series",
       "start": "2027-03-05T12:30:00-08:00",
       "url": "https://events.stanford.edu/event/understand-energy-staff-learning-series",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54511633366864"
-      ],
-      "title": "Journaling to Build a Better Relationship with Your Body (March 5 - 19)",
-      "start": "2027-03-05T15:00:00-08:00",
-      "url": "https://events.stanford.edu/event/journaling-to-build-a-better-relationship-with-your-body-march-5-19",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4673,16 +4707,6 @@
     },
     {
       "source_ids": [
-        "localist-stanford:54511633531746"
-      ],
-      "title": "Relax, Focus, and Create with Zentangle",
-      "start": "2027-03-15T12:00:00-07:00",
-      "url": "https://events.stanford.edu/event/relax-focus-and-create-with-zentangle",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
         "localist-stanford:54069403651062"
       ],
       "title": "Coffee Hour",
@@ -4700,6 +4724,26 @@
       "url": "https://events.stanford.edu/event/daaas-movie-night-the-eyes-of-ghana",
       "reason": "social",
       "detail": "title matches \"movie night\""
+    },
+    {
+      "source_ids": [
+        "custom-csb-calendar:7trha856lfdodflga4g6u3qfr4@google.com"
+      ],
+      "title": "CSB Friendsgiving Lunch",
+      "start": "2026-11-11T13:30:00-08:00",
+      "url": "https://chemsysbio.stanford.edu/department/special-programs-events/",
+      "reason": "social",
+      "detail": "title matches \"friendsgiving\""
+    },
+    {
+      "source_ids": [
+        "custom-csb-calendar:481ovs58t4hucp7jf2s0e9a0v2@google.com"
+      ],
+      "title": "CSB Holiday Party",
+      "start": "2026-12-11T17:00:00-08:00",
+      "url": "https://chemsysbio.stanford.edu/department/special-programs-events/",
+      "reason": "social",
+      "detail": "title matches \"holiday party\""
     },
     {
       "source_ids": [
@@ -4733,15 +4777,15 @@
     }
   ],
   "counts": {
-    "sources": 32,
-    "sources_ok": 29,
+    "sources": 35,
+    "sources_ok": 32,
     "sources_empty": 1,
     "sources_failed": 2,
-    "drafts": 1439,
-    "excluded": 414,
-    "merged": 28,
-    "events": 408,
-    "added": 20,
+    "drafts": 2606,
+    "excluded": 413,
+    "merged": 30,
+    "events": 438,
+    "added": 30,
     "changed": 5,
     "missing": 2,
     "removed": 0,
@@ -4753,19 +4797,19 @@
     "enabled": true,
     "stored_answers_only": false,
     "provider": "claude-cli",
-    "calls": 60,
-    "cache_hits": 281,
-    "skipped_call_cap": 1,
+    "calls": 20,
+    "cache_hits": 340,
+    "skipped_call_cap": 0,
     "skipped_too_long": 0,
-    "input_tokens": 119235,
-    "output_tokens": 12887,
-    "cost_usd": 0.017140380000000004,
+    "input_tokens": 39695,
+    "output_tokens": 4523,
+    "cost_usd": 0.00596558,
     "providers": [
       {
         "provider": "claude-cli",
         "model": "haiku",
         "status": "ok",
-        "calls": 60,
+        "calls": 20,
         "failures": 0,
         "failure_kind": null,
         "error": null,
