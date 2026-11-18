@@ -19,8 +19,10 @@ Keys of ``params`` (an unknown key is an error that names it):
 
   - ``id``: ``<series slug>-<year>``, lower-case words joined by hyphens
     that end in the year the edition starts in, at most 63 characters. It
-    is the native id of the event, whose uid is ``<source id>.<id>`` for
-    good: an id is never renamed or used for another edition;
+    is the native id of the event, whose uid is ``<source id>.<id>`` unless
+    a listing of another source joins the edition (``seminars.pipeline.dedup``
+    keeps the uid that was seen first): an id is never renamed or used for
+    another edition;
   - ``title``, ``series``, ``host_org`` and ``location`` (venue and city),
     one line each;
   - ``short_title`` (optional): the name of the edition in the feed of the

@@ -13,10 +13,13 @@
 # - Register a meeting only when no enabled source delivers it: search data/events.json
 #   and the site for its title first. "url" is the organizer's page of the edition, or
 #   the page of the series or program that announces it (say so in the notes). A
-#   listing of the meeting by a source joins the entry only when it points at the same
-#   page, starts on the first day, ends on the last and lasts at least 3 hours. A
-#   calendar that links its own page of the event (Localist) never joins, nor does any
-#   listing when "url" is the front page of a site: the meeting then shows twice.
+#   listing of the meeting by another source joins the entry when it points at the same
+#   page, starts on one of its days and lasts at least 3 hours, or when it starts within
+#   15 minutes of the entry (an all-day listing of its first day) on the same page or
+#   under the same title. Any other listing shows the meeting twice: one on a page of
+#   its own (a Localist calendar links its own) under another title or start, one
+#   shorter than 3 hours, an all-day listing of a later day. When "url" is the front
+#   page of a site, only an all-day listing of the first day with the same title joins.
 # - Facts only, each from the organizer's page of the edition: title, dates, venue and
 #   city, the dates of its deadlines. No description, no contact, no address of a
 #   person, no date projected from an earlier edition. Labels of milestones are a few
@@ -30,7 +33,8 @@
 # - Delete at most half of the listed editions, or fewer than five, in one change, and
 #   let six runs pass before the next. A listing that shrinks more at once is taken as
 #   incomplete for 28 runs: the deleted events stay, and a source-broken issue opens.
-# - An id is "<series slug>-<year>" and is never renamed: it is the uid of the event.
+# - An id is "<series slug>-<year>" and is never renamed: it is the key of the event,
+#   whose uid is conf-registry.<id> unless a listing of another source joins the entry.
 # - Only "region: bay-area" entries become events. "world" entries carry milestones only.
 
 sources:
@@ -104,7 +108,8 @@ sources:
           notes:
             - The page names no venue.
             - No milestones - the deadlines of the main conference are left to ccfddl (README).
-            - The url is the front page of the edition's site, so no listing joins the entry.
+            - The url is the front page of the edition's site, so only an all-day listing
+              of its first day with the same title joins the entry.
 
         - id: kdd-2027
           title: ACM KDD 2027 (SIGKDD Conference on Knowledge Discovery and Data Mining)
@@ -121,7 +126,8 @@ sources:
           verified: {date: 2026-11-18, url: "https://kdd2027.kdd.org/"}
           notes:
             - The research track lists only the dates of its first cycle, all past.
-            - The url is the front page of the edition's site, so no listing joins the entry.
+            - The url is the front page of the edition's site, so only an all-day listing
+              of its first day with the same title joins the entry.
 
         # --- Biology, chemistry and medicine -------------------------------------------
 
@@ -252,7 +258,8 @@ sources:
               url: https://www.isscr2027.org/abstracts
           notes:
             - The page of the abstracts gives the deadlines without a time of day.
-            - The url is the front page of the edition's site, so no listing joins the entry.
+            - The url is the front page of the edition's site, so only an all-day listing
+              of its first day with the same title joins the entry.
 
         - id: protein-society-annual-symposium-2027
           title: The Protein Society 41st Annual Symposium (PS41)

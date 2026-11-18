@@ -444,6 +444,14 @@ def with_sources(config: AppConfig, *sources: SourceConfig) -> AppConfig:
     return dataclasses.replace(config, sources=sources)
 
 
+TITLE = "Computational Biology, Drug Discovery and AI"
+"""The title of the entry of ``meeting()``."""
+OWN_PAGE = "https://events.example.edu/event/777"
+"""The page of a calendar's own listing of the event, as a Localist calendar links."""
+FIRST_DAY: dict[str, Any] = {"start": date(2027, 1, 7), "end": None, "all_day": True}
+"""An all-day listing of the first day of the entry of ``meeting()``."""
+
+
 def calendar_listing(**overrides: Any) -> EventDraft:
     """The symposium as another source lists it: with its hours, under a title of its own.
 
@@ -531,11 +539,54 @@ class TestWithAListingOfTheSameMeeting:
         ]
         assert (event.all_day, event.start, event.end) == (all_day, start, end)
 
-    def test_a_listing_of_another_page_stays_an_event_of_its_own(
-        self, app_config: AppConfig, calendar: FakeAdapter
+    @pytest.mark.parametrize(
+        "listing",
+        [
+            pytest.param(
+                {
+                    "start": datetime(2027, 1, 8, 9, 0, tzinfo=PACIFIC),
+                    "end": datetime(2027, 1, 8, 12, 0, tzinfo=PACIFIC),
+                },
+                id="three-hours-of-its-last-day",
+            ),
+            pytest.param(FIRST_DAY, id="all-day-on-its-first-day"),
+            pytest.param(
+                {**FIRST_DAY, "url": OWN_PAGE, "title": TITLE},
+                id="all-day-on-its-first-day-under-its-title-on-another-page",
+            ),
+        ],
+    )
+    def test_a_listing_of_one_of_its_days_joins_the_entry(
+        self, app_config: AppConfig, calendar: FakeAdapter, listing: dict[str, Any]
     ) -> None:
         config = with_sources(app_config, registry(meeting()), calendar_source())
-        calendar.drafts = [calendar_listing(url="https://events.example.edu/event/777")]
+        run(config, 0)
+        calendar.drafts = [calendar_listing(**listing)]
+        run(config, 1)
+        (event,) = read_events_file(config.paths.events_file)
+        assert event.uid == "conf-registry.qbi-symposium-2027"
+        assert sorted(event.source_ids) == ["bayarea-qbi:777", "conf-registry:qbi-symposium-2027"]
+
+    @pytest.mark.parametrize(
+        "listing",
+        [
+            pytest.param({"url": OWN_PAGE}, id="its-hours-on-another-page"),
+            pytest.param({**FIRST_DAY, "url": OWN_PAGE}, id="all-day-under-another-title"),
+            pytest.param(
+                {
+                    "start": datetime(2027, 1, 7, 9, 0, tzinfo=PACIFIC),
+                    "end": datetime(2027, 1, 7, 11, 0, tzinfo=PACIFIC),
+                },
+                id="two-hours-of-its-first-day",
+            ),
+            pytest.param({**FIRST_DAY, "start": date(2027, 1, 8)}, id="all-day-on-a-later-day"),
+        ],
+    )
+    def test_any_other_listing_stays_an_event_of_its_own(
+        self, app_config: AppConfig, calendar: FakeAdapter, listing: dict[str, Any]
+    ) -> None:
+        config = with_sources(app_config, registry(meeting()), calendar_source())
+        calendar.drafts = [calendar_listing(**listing)]
         run(config, 0)
         events = read_events_file(config.paths.events_file)
         assert sorted(event.uid for event in events) == [
@@ -543,7 +594,7 @@ class TestWithAListingOfTheSameMeeting:
             "conf-registry.qbi-symposium-2027",
         ]
 
-    def test_an_entry_whose_url_is_a_front_page_joins_no_listing(
+    def test_an_entry_whose_url_is_a_front_page_joins_no_listing_by_that_page(
         self, app_config: AppConfig, calendar: FakeAdapter
     ) -> None:
         # A front page is no detail page: the edition sites of NAACL and KDD are such.
@@ -556,6 +607,33 @@ class TestWithAListingOfTheSameMeeting:
             "bayarea-qbi.777",
             "conf-registry.qbi-symposium-2027",
         ]
+
+    def test_an_entry_whose_url_is_a_front_page_joins_its_first_day_under_its_title(
+        self, app_config: AppConfig, calendar: FakeAdapter
+    ) -> None:
+        site = "https://2027.symposium.example.org/"
+        config = with_sources(app_config, registry(meeting(url=site)), calendar_source())
+        run(config, 0)
+        calendar.drafts = [calendar_listing(**FIRST_DAY, url=site, title=TITLE.upper())]
+        run(config, 1)
+        (event,) = read_events_file(config.paths.events_file)
+        assert event.uid == "conf-registry.qbi-symposium-2027"
+
+    def test_a_listing_that_arrives_with_the_entry_may_give_the_uid(
+        self, app_config: AppConfig, calendar: FakeAdapter
+    ) -> None:
+        # Both are new in the run, so the event keeps the uid that sorts first, and the
+        # next runs keep it as the uid seen first.
+        config = with_sources(app_config, registry(meeting()), calendar_source())
+        calendar.drafts = [calendar_listing()]
+        for day in (0, 1):
+            run(config, day)
+            (event,) = read_events_file(config.paths.events_file)
+            assert event.uid == "bayarea-qbi.777"
+            assert sorted(event.source_ids) == [
+                "bayarea-qbi:777",
+                "conf-registry:qbi-symposium-2027",
+            ]
 
 
 class TestRemovalAndHealth:

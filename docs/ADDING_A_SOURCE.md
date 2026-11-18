@@ -387,8 +387,11 @@ contact, no address of a person, and never a date projected from an earlier edit
 ```
 
 - `id` is `<series slug>-<year>`, ending in the year the edition starts in. It is the
-  uid of the event (`conf-registry.<id>`), so it is never renamed: a renamed entry is a
-  new event, and the old one stays until the third run without it.
+  key of the event (`conf-registry:<id>`), so it is never renamed: a renamed entry is a
+  new event, and the old one stays until the third run without it. The uid of the event
+  is `conf-registry.<id>`, unless a listing of another source joins the entry (see `url`):
+  the event keeps the uid that was seen first, the listing's when the listing was stored
+  before the entry, and of two uids that arrive in one run the one that sorts first.
 - `short_title` (optional) is the name of the edition in `deadlines.ics` and in the digest,
   one line of at most 40 characters, such as `GEM at ICLR 2027` for a workshop whose title
   is long. Without it the name is the `series` and the year the edition starts in
@@ -401,12 +404,17 @@ contact, no address of a person, and never a date projected from an earlier edit
   become events; `world` entries carry their milestones and nothing else.
 - `url` is the organizer's page of the edition: the site of the edition, or the page of
   the series or program that announces it (the notes of the entry say so). A listing of
-  the same meeting by a source becomes one event with the entry only when it points at
-  the same page, starts on the first day, ends on the last and lasts at least 3 hours
-  (`pipeline/dedup.py`). Otherwise the meeting shows twice: a listing of one day of a
-  longer meeting, a listing of a calendar that links its own page of the event (Localist
-  does), and any listing of an entry whose `url` is the front page of a site
-  (`https://2027.naacl.org/`), which is no detail page.
+  the same meeting by another source becomes one event with the entry
+  (`pipeline/dedup.py`) when it points at the same page, starts on one of the days of the
+  entry and lasts at least 3 hours; it need not span the meeting. A listing that starts
+  within 15 minutes of the entry (`dedup.max_start_difference_minutes`), which starts at
+  midnight of its first day, joins it as well, as an all-day listing of that day does: on
+  the same page, or on any page when its title is the entry's (case, accents and
+  punctuation aside). Otherwise the meeting shows twice: a listing of another page (a
+  Localist calendar links its own page of the event) under another title or at another
+  start, a listing shorter than 3 hours, an all-day listing of a later day. When `url` is
+  the front page of a site (`https://2027.naacl.org/`), which is no detail page, only an
+  all-day listing of the first day under the entry's title joins it.
 - `fields` are the fields the meeting certainly belongs to. The field tagger keeps them
   and may add fields that the title names.
 - `location` is the venue and the city the page names. While it names none, write
