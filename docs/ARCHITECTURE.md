@@ -333,7 +333,8 @@ replaced by an empty placeholder.
   `DESCRIPTION` names the edition, its days and its place, the advice to check the
   organizer's page that states the date (the page of the last check) and the day of that
   check, and its `URL` is the organizer's page of the edition. The name of an edition is its
-  `short_title`, or the series and the year. The bytes depend only on the
+  `short_title`, or the series and the year, or its title when another edition of the
+  registry would get the same name (`display_names`). The bytes depend only on the
   deadlines. `seminars validate` checks the feed with the rules of every feed and its own:
   only VTIMEZONE and VEVENT components, a calendar name, and per VEVENT the uid of a
   deadline, a DATE value as `DTSTART` and the day after as `DTEND`, free time and no alarm.

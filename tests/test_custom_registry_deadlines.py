@@ -1,14 +1,16 @@
 """What the registry of meetings gives the feed of the deadlines.
 
-The key ``short_title`` and the name of an edition in a feed (``Meeting.display_name``),
-the public loader of the editions of a registry source (``registry_editions``), and a rule
-of curation that the committed registry has to follow for its milestones: no milestone is
-a deadline of the main track of a machine learning conference, which the README leaves to
-the calendar of ccfddl.
+The key ``short_title`` and the name of an edition in a feed (``Meeting.display_name``
+and ``display_names``), the public loader of the editions of a registry source
+(``registry_editions``), and two rules of curation that the committed registry has to
+follow for its milestones: no milestone is a deadline of the main track of a machine
+learning conference, which the README leaves to the calendar of ccfddl, and no two
+editions with milestones share a name in the feed.
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +28,7 @@ from seminars.sources.custom.registry import (
     MAX_SHORT_TITLE,
     Meeting,
     RegistryAdapter,
+    display_names,
     registry_editions,
 )
 from seminars.sources.generic.common import AdapterConfigError
@@ -89,6 +92,42 @@ class TestDisplayName:
         assert edition(series="Example 12345").display_name == "Example 12345 2027"
 
 
+class TestDisplayNames:
+    def spring(self, **overrides: Any) -> Meeting:
+        values = {"id": "example-symposium-spring-2027", "title": "Example Spring Symposium"}
+        return edition(**{**values, **overrides})
+
+    def fall(self, **overrides: Any) -> Meeting:
+        values = {"id": "example-symposium-fall-2027", "title": "Example Fall Symposium"}
+        return edition(**{**values, **overrides})
+
+    def test_editions_of_one_series_and_year_are_named_by_their_titles(self) -> None:
+        assert display_names([self.spring(), self.fall(), edition(short_title="Symposium")]) == {
+            "example-symposium-spring-2027": "Example Spring Symposium",
+            "example-symposium-fall-2027": "Example Fall Symposium",
+            "example-symposium-2027": "Symposium",
+        }
+
+    def test_a_short_title_frees_the_name_for_the_other_edition(self) -> None:
+        assert display_names([self.spring(short_title="Spring"), self.fall()]) == {
+            "example-symposium-spring-2027": "Spring",
+            "example-symposium-fall-2027": "Example Symposium 2027",
+        }
+
+    def test_another_year_or_series_is_another_name(self) -> None:
+        later = edition(
+            id="example-symposium-2028",
+            start=edition().start.replace(year=2028),
+            end=edition().end.replace(year=2028),
+        )
+        other = self.spring(series="Example Meeting")
+        assert display_names([edition(), later, other]) == {
+            "example-symposium-2027": "Example Symposium 2027",
+            "example-symposium-2028": "Example Symposium 2028",
+            "example-symposium-spring-2027": "Example Meeting 2027",
+        }
+
+
 class TestLoader:
     def test_every_edition_in_order_whatever_its_region(self) -> None:
         editions = registry_editions(registry_source(SYMPOSIUM, SCHOOL))
@@ -124,3 +163,12 @@ class TestCommittedRegistry:
             if milestone.kind in MAIN_TRACK_KINDS
         ]
         assert offending == [], "main-track deadlines of ML conferences are left to ccfddl"
+
+    def test_no_two_editions_with_milestones_share_a_name(self) -> None:
+        shared = []
+        for source in committed_registries():
+            editions = registry_editions(source)
+            names = display_names(editions)
+            counts = Counter(names[meeting.id] for meeting in editions if meeting.milestones)
+            shared += [f"{source.id}: {name}" for name, count in counts.items() if count > 1]
+        assert shared == [], "give these editions a short_title of their own"

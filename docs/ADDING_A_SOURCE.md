@@ -388,9 +388,11 @@ contact, no address of a person, and never a date projected from an earlier edit
 - `short_title` (optional) is the name of the edition in `deadlines.ics` and in the digest,
   one line of at most 40 characters, such as `GEM at ICLR 2027` for a workshop whose title
   is long. Without it the name is the `series` and the year the edition starts in
-  (`ICLR 2027`), or the `series` alone when it holds a year of four digits already. Give
-  one to every edition that shares its `series` with another edition of the registry, such
-  as the workshops of one institute, so that each deadline names its own edition.
+  (`ICLR 2027`), or the `series` alone when it holds a year of four digits already.
+  Editions that would share that name, such as the workshops of one institute in one year,
+  are named by their `title` instead; give such an edition a `short_title` when its title
+  is long. `tests/test_custom_registry_deadlines.py` fails when two editions with milestones
+  still share a name, two equal `short_title` values say.
 - `start` and `end` are local dates, `end` inclusive. Only `region: bay-area` entries
   become events; `world` entries carry their milestones and nothing else.
 - `url` is the organizer's page of the edition: the site of the edition, or the page of

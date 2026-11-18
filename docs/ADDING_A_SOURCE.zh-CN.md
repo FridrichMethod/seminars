@@ -338,9 +338,10 @@ GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；�
 - `id` 写成 `<series slug>-<year>`，以这一届开始的年份结尾。它就是事件的 uid
   （`conf-registry.<id>`），所以永远不改名：改了名的记录是一个新事件，旧事件要到第三次没有它的运行时才离开。
 - `short_title`（可选）是这一届在 `deadlines.ics` 和摘要里的名字，一行、最多 40 个字符，比如标题很长的
-  workshop 写 `GEM at ICLR 2027`。不写时，名字是 `series` 加上这一届开始的年份（`ICLR 2027`）；`series`
-  本身已经含有四位数的年份时，就只用 `series`。和登记表里另一届共用同一个 `series` 的每一届（比如同一个
-  研究所的几个 workshop）都要写 `short_title`，这样每个截止日期写的都是它自己的那一届。
+  workshop 写 `GEM at ICLR 2027`。不写时，名字是 `series` 加上这一届开始的年份（`ICLR 2027`），`series`
+  本身已经含有四位数的年份时则不加年份。会因此同名的几届（比如同一个研究所同一年的几个 workshop）改用各自的
+  `title` 作名字；标题很长时，给这样的一届写一个 `short_title`。有 milestone 的两届如果仍然同名（比如两个相同的
+  `short_title`），`tests/test_custom_registry_deadlines.py` 会失败。
 - `start` 和 `end` 是当地日期，`end` 包含在内。只有 `region: bay-area` 的记录会成为事件；
   `world` 的记录只带它的 milestone。
 - `url` 是组织方这一届的页面：这一届自己的网站，或者公布它的系列或项目的页面（记录的 notes 会

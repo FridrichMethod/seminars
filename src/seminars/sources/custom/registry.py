@@ -25,7 +25,7 @@ Keys of ``params`` (an unknown key is an error that names it):
     one line each;
   - ``short_title`` (optional): the name of the edition in the feed of the
     deadlines, at most ``MAX_SHORT_TITLE`` characters ("GEM at ICLR
-    2027"); without it the name is ``Meeting.display_name``;
+    2027"); without it the name is the one ``display_names`` gives;
   - ``start`` and ``end``: local dates, ``end`` inclusive and at most
     ``MAX_MEETING_DAYS`` days after ``start``;
   - ``region``: ``bay-area`` (an event) or ``world`` (never an event; such
@@ -72,7 +72,12 @@ those days after it passed; nothing in an adapter knows the run itself.
 Every milestone of an edition, ``bay-area`` and ``world`` alike, is also a
 deadline of the feed ``deadlines.ics``: ``seminars.pipeline.deadlines``
 reads the editions with ``registry_editions`` on every run, so no request
-and no run of the adapter is needed for them.
+and no run of the adapter is needed for them. ``display_names`` names each
+edition there: its ``short_title``, else ``<series> <year of start>`` (the
+series alone when it holds a year already, ``Meeting.display_name``), and
+the title of the edition when another edition of the registry without a
+``short_title`` would get that name as well, so that two editions of one
+series and year (the workshops of one institute) are told apart.
 
 ``curation_problems`` says what a curator has to look at on a given day: an
 edition that starts within ``RECHECK_WITHIN_DAYS`` and was verified more
@@ -294,7 +299,7 @@ class Meeting(Model):
 
     @property
     def display_name(self) -> str:
-        """The name of the edition in a feed of deadlines.
+        """The name of the edition alone, before ``display_names`` compares it with others.
 
         ``short_title``, else ``<series> <year of start>``, or the series alone
         when it holds a year of four digits already ("ISMB 2027").
@@ -336,6 +341,26 @@ def registry_editions(source: SourceConfig) -> list[Meeting]:
     source do not fit, as ``fetch`` and ``parse`` do.
     """
     return list(load_params(RegistryParams, source).meetings)
+
+
+def display_names(meetings: Sequence[Meeting]) -> dict[str, str]:
+    """The name of each of ``meetings`` in the feed of the deadlines, by id.
+
+    It is ``Meeting.display_name``, except for an edition without a
+    ``short_title`` whose name another such edition shares: that edition is
+    named by its title. Two editions can still share a name, a ``short_title``
+    twice or one title twice; ``tests/test_custom_registry_deadlines.py``
+    fails when two editions with milestones of the committed registry do.
+    """
+    shared = Counter(m.display_name for m in meetings if m.short_title is None)
+    return {
+        meeting.id: (
+            meeting.title
+            if meeting.short_title is None and shared[meeting.display_name] > 1
+            else meeting.display_name
+        )
+        for meeting in meetings
+    }
 
 
 def first_day(window: TimeWindow, source: SourceConfig) -> dt.date:

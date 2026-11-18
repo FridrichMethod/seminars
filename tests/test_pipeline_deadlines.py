@@ -123,6 +123,17 @@ class TestConfiguredDeadlines:
             result.deadlines, key=lambda item: (item.date, item.uid)
         )
 
+    def test_editions_of_one_series_and_year_are_named_by_their_titles(self) -> None:
+        spring = symposium(id="example-symposium-spring-2027", title="Example Spring Symposium")
+        fall = symposium(id="example-symposium-fall-2027", title="Example Fall Symposium")
+        result = configured(spring, fall, SCHOOL)
+        names = {item.edition_id: item.edition_short for item in result.deadlines}
+        assert names == {
+            "example-symposium-spring-2027": "Example Spring Symposium",
+            "example-symposium-fall-2027": "Example Fall Symposium",
+            "example-school-2027": "Example School",
+        }
+
     def test_the_page_of_the_check_is_kept_beside_the_page_of_the_edition(self) -> None:
         pages = {(item.url, item.verified_url) for item in configured(SYMPOSIUM).deadlines}
         assert pages == {(SYMPOSIUM_URL, SYMPOSIUM_DATES_URL)}

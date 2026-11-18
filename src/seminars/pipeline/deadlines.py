@@ -3,9 +3,10 @@
 Every run reads the milestones of every enabled source with the adapter
 ``registry`` (``seminars.sources.custom.registry.registry_editions``), of
 ``bay-area`` and ``world`` editions alike, and makes one ``Deadline`` of each
-(``configured_deadlines``). Nothing is requested and no adapter runs for
-them, so the edit of a curator shows in the next run, whatever sources that
-run reads (``--source`` included).
+(``configured_deadlines``), named by ``display_names`` of the editions of its
+source. Nothing is requested and no adapter runs for them, so the edit of a
+curator shows in the next run, whatever sources that run reads
+(``--source`` included).
 
 The uid of a milestone is ``dl.<edition id>.<kind>``, and ``-<n>`` is added
 for the n-th milestone of the same kind in the edition (n >= 2), counted by
@@ -56,7 +57,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from seminars.models import Deadline, SourceConfig, deadline_uid, ordered_deadlines
-from seminars.sources.custom.registry import ADAPTER, Meeting, Milestone, registry_editions
+from seminars.sources.custom.registry import (
+    ADAPTER,
+    Meeting,
+    Milestone,
+    display_names,
+    registry_editions,
+)
 
 
 @dataclass(frozen=True)
@@ -72,8 +79,15 @@ def _by_date(milestone: Milestone) -> tuple[dt.date, str, str]:
     return milestone.date, milestone.time or "", milestone.label
 
 
-def edition_deadlines(meeting: Meeting, *, now: datetime) -> list[Deadline]:
-    """One deadline per milestone of ``meeting``, new as of ``now``, by date."""
+def edition_deadlines(
+    meeting: Meeting, *, now: datetime, name: str | None = None
+) -> list[Deadline]:
+    """One deadline per milestone of ``meeting``, new as of ``now``, by date.
+
+    ``name`` is the name of the edition among the others of its registry
+    (``display_names``); without it the edition is named alone
+    (``Meeting.display_name``).
+    """
     stamp = now.astimezone(UTC)
     deadlines: list[Deadline] = []
     positions: dict[str, int] = {}
@@ -84,7 +98,7 @@ def edition_deadlines(meeting: Meeting, *, now: datetime) -> list[Deadline]:
                 uid=deadline_uid(meeting.id, milestone.kind, position),
                 edition_id=meeting.id,
                 edition_title=meeting.title,
-                edition_short=meeting.display_name,
+                edition_short=meeting.display_name if name is None else name,
                 series=meeting.series,
                 region=meeting.region,
                 edition_start=meeting.start,
@@ -125,8 +139,9 @@ def configured_deadlines(sources: Iterable[SourceConfig], *, now: datetime) -> C
             )
             continue
         repeated: list[str] = []
+        names = display_names(editions)
         for meeting in editions:
-            for deadline in edition_deadlines(meeting, now=now):
+            for deadline in edition_deadlines(meeting, now=now, name=names[meeting.id]):
                 if deadline.uid in found:
                     repeated.append(deadline.uid)
                 else:

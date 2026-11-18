@@ -99,7 +99,7 @@ class Deadline(Model):
     ``qualifier`` the milestone, and ``verified_on`` and ``verified_url`` are
     the day and the organizer's page of the last check of its facts (the
     page that states the date). ``edition_short`` is the name of the edition
-    in a feed (``Meeting.display_name`` of the registry). ``time`` and ``zone`` are
+    in a feed (``display_names`` of the registry). ``time`` and ``zone`` are
     as the page writes them; a zone without a time is the zone of the day.
     ``first_seen`` and ``last_changed`` are moments of runs, and ``sequence``
     goes up with every change of a fact that the feed shows
