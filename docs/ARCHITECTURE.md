@@ -336,8 +336,9 @@ replaced by an empty placeholder.
   `short_title`, or the series and the year, or its title when another edition of the
   registry would get the same name (`display_names`). The bytes depend only on the
   deadlines. `seminars validate` checks the feed with the rules of every feed and its own:
-  only VTIMEZONE and VEVENT components, a calendar name, and per VEVENT the uid of a
-  deadline, a DATE value as `DTSTART` and the day after as `DTEND`, free time and no alarm.
+  only VTIMEZONE and VEVENT components, a calendar name and description, and per VEVENT the
+  uid of a deadline, a summary that is not empty, a DATE value as `DTSTART` and the day
+  after as `DTEND` with no rule or date of repetition, free time and no alarm.
 - **Site** (`site/`, `outputs/site_data.py`): static HTML and JavaScript without a build
   step, reading `events.json` and `status.json`; English and Chinese from `locales/`. All
   text from the web is escaped. `seminars build-site` assembles `public/` from the committed

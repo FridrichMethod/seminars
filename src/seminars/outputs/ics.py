@@ -53,10 +53,11 @@ rules: it checks line endings, line lengths, folding, the nesting of
 components, required and repeated properties, the form of dates, offsets,
 escapes and references to time zones, and only then lets the library parse
 the document as a second opinion. Asked to check the feed of the deadlines
-(``deadlines=True``), it also checks its own rules: a calendar name, no
-component but VTIMEZONE and VEVENT, and VEVENTs of one day each
-(``DTSTART`` a DATE, ``DTEND`` the day after), free time, with a uid of a
-deadline, a summary, a description, a page, a sequence, and no alarm.
+(``deadlines=True``), it also checks its own rules: a calendar name and
+description, no component but VTIMEZONE and VEVENT, and VEVENTs of one day
+each (``DTSTART`` a DATE, ``DTEND`` the day after, no ``RRULE``, ``RDATE`` or
+``EXDATE``), free time, with a uid of a deadline, a summary that is not
+empty, a description, a page, a sequence, and no alarm.
 """
 
 from __future__ import annotations
@@ -821,6 +822,9 @@ _DEADLINE_REQUIRED: Final = (
     *("UID", "DTSTAMP", "DTSTART", "DTEND", "SUMMARY", "DESCRIPTION", "URL", "SEQUENCE"),
     *("TRANSP", "X-MICROSOFT-CDO-BUSYSTATUS"),
 )
+_DEADLINE_REPEATS: Final = ("RRULE", "RDATE", "EXDATE")
+"""Properties that would make a deadline more than its one day."""
+_DEADLINE_CALENDAR: Final = ("X-WR-CALNAME", "X-WR-CALDESC")
 
 
 def _deadline_event_problems(event: _Component) -> list[str]:
@@ -829,6 +833,14 @@ def _deadline_event_problems(event: _Component) -> list[str]:
     where = f"line {event.number}: VEVENT"
     problems = [f"{where} has no {name}" for name in _DEADLINE_REQUIRED if name not in by_name]
     problems.extend(f"line {part.number}: {part.name} inside a deadline" for part in event.parts)
+    problems.extend(
+        f"line {line.number}: {line.name} in a deadline"
+        for line in event.lines
+        if line.name in _DEADLINE_REPEATS
+    )
+    summary = by_name.get("SUMMARY")
+    if summary is not None and not summary.value.strip():
+        problems.append(f"line {summary.number}: SUMMARY of a deadline is empty")
     uid = by_name.get("UID")
     if uid is not None and not _DEADLINE_UID.fullmatch(uid.value):
         problems.append(f"line {uid.number}: UID is not the uid of a deadline")
@@ -852,9 +864,12 @@ def _deadline_event_problems(event: _Component) -> list[str]:
 
 def _deadline_feed_problems(calendar: _Component) -> list[str]:
     """The rules of the feed of the deadlines beyond those of every feed."""
-    problems = []
-    if not any(line.name == "X-WR-CALNAME" for line in calendar.lines):
-        problems.append(f"line {calendar.number}: VCALENDAR has no X-WR-CALNAME")
+    names = {line.name for line in calendar.lines}
+    problems = [
+        f"line {calendar.number}: VCALENDAR has no {name}"
+        for name in _DEADLINE_CALENDAR
+        if name not in names
+    ]
     for part in calendar.parts:
         if part.name not in _DEADLINE_PARTS:
             problems.append(f"line {part.number}: {part.name} is not part of the feed of deadlines")

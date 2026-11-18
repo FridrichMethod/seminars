@@ -263,8 +263,9 @@ key 由 prompt 版本、任务和输入文字组成，模型和 provider 都不�
   `DESCRIPTION` 写出这一届、它的日期和地点、请先查看写明这个日期的组织方页面（最后一次核对的页面）的提醒，
   以及那次核对的日期，`URL` 是组织方这一届的页面。届次的名字是它的 `short_title`，或者系列加年份；登记表里
   另一届会得到同一个名字时，就用它的标题（`display_names`）。文件内容只取决于截止日期。`seminars validate`
-  用所有 feed 都要遵守的规则和它自己的规则检查这个 feed：只有 VTIMEZONE 和 VEVENT 组件、有日历名，
-  每个 VEVENT 带截止日期的 uid、`DTSTART` 是 DATE 值、`DTEND` 是第二天、标为空闲时间、没有提醒。
+  用所有 feed 都要遵守的规则和它自己的规则检查这个 feed：只有 VTIMEZONE 和 VEVENT 组件、有日历名和日历说明，
+  每个 VEVENT 带截止日期的 uid、摘要不为空、`DTSTART` 是 DATE 值、`DTEND` 是第二天且没有重复规则或重复日期、
+  标为空闲时间、没有提醒。
 - **网站**（`site/`、`outputs/site_data.py`）：不需要构建步骤的静态 HTML 和 JavaScript，读
   `events.json` 和 `status.json`；中英文文案来自 `locales/`。所有从网上抓来的文字都会转义。
   `seminars build-site` 只根据已经提交的数据组装 `public/`。筛选条件（领域、机构、主办方、类型、时间范围、

@@ -348,6 +348,27 @@ class TestValidation:
             ("UID:dl.example-symposium-2027.scholarship@", "UID:talk-1@", "not the uid of"),
             ("X-WR-CALNAME:Seminars - Deadlines\r\n", "", "VCALENDAR has no X-WR-CALNAME"),
             ("URL:https://symposium.example.org/2027/\r\n", "", "VEVENT has no URL"),
+            ("X-WR-CALDESC:", "X-WR-CALDESK:", "VCALENDAR has no X-WR-CALDESC"),
+            (
+                "SUMMARY:Example Symposium 2027: Scholarship deadline (AoE)\r\n",
+                "SUMMARY:\r\n",
+                "SUMMARY of a deadline is empty",
+            ),
+            (
+                "TRANSP:TRANSPARENT\r\n",
+                "TRANSP:TRANSPARENT\r\nRRULE:FREQ=DAILY\r\n",
+                "RRULE in a deadline",
+            ),
+            (
+                "TRANSP:TRANSPARENT\r\n",
+                "TRANSP:TRANSPARENT\r\nRDATE;VALUE=DATE:20261127\r\n",
+                "RDATE in a deadline",
+            ),
+            (
+                "TRANSP:TRANSPARENT\r\n",
+                "TRANSP:TRANSPARENT\r\nEXDATE;VALUE=DATE:20261120\r\n",
+                "EXDATE in a deadline",
+            ),
         ],
     )
     def test_a_broken_rule_is_named(self, text: str, old: str, new: str, problem: str) -> None:
