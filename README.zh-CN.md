@@ -70,6 +70,9 @@ webcal://fridrichmethod.github.io/seminars/feeds/med.ics
 同时订阅其中两个 feed，这个报告就会显示两次。想让每个报告只出现一次，就只订阅 `all`（或者只订阅 `picks`）。
 报告结束 14 天后，feed 会把它删掉，它也会随之从你的日历里消失。
 
+这里不收集机器学习和计算机科学会议的投稿截止日期。[ccfddl](https://github.com/ccfddl/ccf-deadlines) 项目把 AI 类会议的截止日期发布成可以订阅的日历：
+`https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics`（数据采用 MIT 许可）。
+
 ### Apple Calendar
 
 1. 在 Mac 的"日历"里选择"文件 > 新建日历订阅"。

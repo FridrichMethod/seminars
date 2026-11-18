@@ -84,6 +84,12 @@ twice. To see every talk once, subscribe to `all` alone (or to `picks` alone). A
 keeps a talk until 14 days after it took place and then drops it, so the talk also
 leaves your calendar.
 
+The submission deadlines of machine-learning and computer-science conferences are not
+collected here. The [ccfddl](https://github.com/ccfddl/ccf-deadlines) project publishes
+those of the AI conferences as a calendar to subscribe to,
+`https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics` (its data is under the MIT
+license).
+
 ### Apple Calendar
 
 1. In Calendar on a Mac, choose File > New Calendar Subscription.
