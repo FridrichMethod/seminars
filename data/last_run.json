@@ -1,29 +1,34 @@
 {
   "schema_version": 1,
-  "started_at": "2026-11-17T21:06:09Z",
-  "finished_at": "2026-11-17T21:10:20Z",
+  "started_at": "2026-11-18T20:42:53Z",
+  "finished_at": "2026-11-18T20:47:10Z",
   "ok": true,
   "mode": "live",
   "counts": {
     "sources": 35,
-    "sources_ok": 33,
+    "sources_ok": 28,
     "sources_empty": 1,
-    "sources_failed": 1,
-    "drafts": 2599,
-    "excluded": 406,
-    "merged": 28,
-    "events": 433,
-    "added": 7,
-    "changed": 11,
-    "missing": 2,
+    "sources_failed": 6,
+    "drafts": 2510,
+    "excluded": 397,
+    "merged": 16,
+    "events": 429,
+    "added": 5,
+    "changed": 10,
+    "missing": 23,
     "removed": 0,
     "cancelled": 0,
-    "archived": 12,
-    "picks": 27
+    "archived": 9,
+    "picks": 26
   },
   "llm_provider": "claude-cli",
   "llm_stored_answers": null,
   "failed_sources": [
-    "custom-nlp-seminar"
+    "bayarea-litp",
+    "custom-dbds-workshop",
+    "custom-nlp-seminar",
+    "sites-mathematics",
+    "sites-mrc",
+    "sites-physics"
   ]
 }
