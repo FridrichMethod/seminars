@@ -40,6 +40,14 @@ seminar、talk 和 colloquium，以及湾区的会议和研讨会，以三种形
 按日期、人和标题来辨认。这样的报告如果在同一次更新里既改了时间又改了标题或报告人，或者时间移动超过
 60 天，或者同一位报告人的两场相似报告同时改动，日历里最多会有两天显示两次。
 
+此外，[deadlines.ics](https://fridrichmethod.github.io/seminars/feeds/deadlines.ics)
+收录学术会议和研讨会的截止日期：会议登记表（`config/sources.d/conferences.yaml`）列出的投稿、注册、
+奖学金和通知日期，包括湾区的会议，也包括少数其他地方的会议。每条都是组织方页面写明的那一天的全天事件，
+标为空闲时间。标题写出届次、要做的事，括号里是页面原样写的时间和时区，例如
+`ICLR 2027: Workshop paper notification deadline (23:59 AoE)`。这些日期由人工从每届会议组织方的页面抄录，
+每个事件都链接这个页面；依赖某个日期之前，请先查看页面。这个 feed 不是那 10 个 feed 之一，截止日期也不会出现在其他
+feed 里。
+
 ### 网站
 
 网站的地址是
@@ -53,8 +61,9 @@ seminar、talk 和 colloquium，以及湾区的会议和研讨会，以三种形
 ### 每周摘要
 
 每周一早上开一个带 `digest` 标签的新 issue，列出本周（周一到周日）的报告、之后八周的会议和研讨会
-以及上一期以来新增的更晚的会议和研讨会、上一期以来新增的报告，并关闭上一期摘要。会议和研讨会只列在
-它们自己的一节里，新增的和精选的会标出来。
+以及上一期以来新增的更晚的会议和研讨会、从这个周一起 21 天内的截止日期、上一期以来新增的报告，
+并关闭上一期摘要。会议和研讨会只列在它们自己的一节里，新增的和精选的会标出来。截止日期列出组织方页面写明的
+时间和时区，并链接这个页面；这些天里没有截止日期时，摘要里就没有这一节。
 
 ## 订阅
 
@@ -72,6 +81,7 @@ webcal://fridrichmethod.github.io/seminars/feeds/bio.ics
 webcal://fridrichmethod.github.io/seminars/feeds/physics.ics
 webcal://fridrichmethod.github.io/seminars/feeds/med.ics
 webcal://fridrichmethod.github.io/seminars/feeds/conferences.ics
+webcal://fridrichmethod.github.io/seminars/feeds/deadlines.ics
 ```
 
 一个报告属于几个领域，就会出现在这几个领域各自的 feed 里，而日历应用按 feed 显示事件，每个 feed 一次：
@@ -79,8 +89,11 @@ webcal://fridrichmethod.github.io/seminars/feeds/conferences.ics
 `conferences` 里的会议也在 `all` 和所属领域的 feed 里：同时订阅 `conferences` 和 `all`，每个会议都会显示两次。
 报告结束 14 天后，feed 会把它删掉，它也会随之从你的日历里消失。
 全天事件（比如持续几天的会议）标为空闲时间，不会让你的日历把这几天显示为忙碌。
+`deadlines.ics` 里的每个截止日期也是如此，它和其他 feed 没有共同的事件。
 
-这里不收集机器学习和计算机科学会议的投稿截止日期。[ccfddl](https://github.com/ccfddl/ccf-deadlines) 项目把 AI 类会议的截止日期发布成可以订阅的日历：
+`deadlines.ics` 只收录会议登记表列出的内容，由人工从组织方的页面维护：这里收集的领域里的 workshop、
+学会年会和其他会议的截止日期。机器学习会议主会（NeurIPS、ICML、ICLR 等）的截止日期不收集。
+[ccfddl](https://github.com/ccfddl/ccf-deadlines) 项目把 AI 类会议的截止日期发布成可以订阅的日历：
 `https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics`（数据采用 MIT 许可）。
 
 ### Apple Calendar

@@ -48,6 +48,18 @@ and changes its title or speakers in the same update, moves by more than 60 days
 similar talks of one speaker change at once, your calendar can show it twice for up to
 two days.
 
+Beside them,
+[deadlines.ics](https://fridrichmethod.github.io/seminars/feeds/deadlines.ics) holds the
+deadlines of conferences and workshops: the dates of submissions, registration,
+scholarships and notifications that the registry of meetings lists
+(`config/sources.d/conferences.yaml`), for the meetings of the Bay Area and for a few
+elsewhere. Each is an all-day event of free time on the day the organizer's page names. Its
+title gives the edition, what is due and, in brackets, the time and the zone as the page
+states them, such as `ICLR 2027: Workshop paper notification deadline (23:59 AoE)`. The
+dates are copied by hand from the organizer's page of each edition, which every event
+links; check that page before you rely on a date. The feed is not one of the ten, and a
+deadline is in no other feed.
+
 ### Web site
 
 The site at
@@ -65,9 +77,11 @@ update ran and how each source did.
 
 Every Monday morning a new issue with the label `digest` lists the talks of that week
 (Monday to Sunday), the conferences and workshops of the next eight weeks and the later
-ones added since the previous digest, and the talks added since the previous digest; the
-previous digest issue is closed. A conference or workshop is listed in its own section
-only, marked when it is new or a pick.
+ones added since the previous digest, the deadlines of the 21 days from that Monday, and
+the talks added since the previous digest; the previous digest issue is closed. A
+conference or workshop is listed in its own section only, marked when it is new or a pick.
+A deadline is listed with the time and the zone that the organizer's page states and a link
+to that page; when no deadline falls in those days, the digest has no section of them.
 
 ## Subscribe
 
@@ -86,6 +100,7 @@ webcal://fridrichmethod.github.io/seminars/feeds/bio.ics
 webcal://fridrichmethod.github.io/seminars/feeds/physics.ics
 webcal://fridrichmethod.github.io/seminars/feeds/med.ics
 webcal://fridrichmethod.github.io/seminars/feeds/conferences.ics
+webcal://fridrichmethod.github.io/seminars/feeds/deadlines.ics
 ```
 
 A talk that belongs to several fields is in the feed of each of them, and a calendar
@@ -95,11 +110,15 @@ meetings of `conferences` are in `all` and in their field feeds too: subscribed 
 `conferences` and `all`, a calendar shows each of them twice. A feed keeps a talk until
 14 days after it ended and then drops it, so the talk also leaves your calendar. An
 all-day event, such as a conference of several days, is marked as free time, so it does
-not mark those days as busy in your calendar.
+not mark those days as busy in your calendar. So is every deadline of `deadlines.ics`,
+which shares no event with the other feeds.
 
-The submission deadlines of machine-learning and computer-science conferences are not
-collected here. The [ccfddl](https://github.com/ccfddl/ccf-deadlines) project publishes
-those of the AI conferences as a calendar to subscribe to,
+`deadlines.ics` holds only what the registry of meetings lists, kept by hand from the
+organizers' pages: the deadlines of workshops, society meetings and other meetings of the
+fields collected here. The deadlines of the main tracks of machine-learning conferences
+(NeurIPS, ICML, ICLR and the like) are not collected. The
+[ccfddl](https://github.com/ccfddl/ccf-deadlines) project publishes those of the AI
+conferences as a calendar to subscribe to,
 `https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics` (its data is under the MIT
 license).
 

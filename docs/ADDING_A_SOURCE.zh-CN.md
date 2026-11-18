@@ -337,6 +337,10 @@ GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；�
 
 - `id` 写成 `<series slug>-<year>`，以这一届开始的年份结尾。它就是事件的 uid
   （`conf-registry.<id>`），所以永远不改名：改了名的记录是一个新事件，旧事件要到第三次没有它的运行时才离开。
+- `short_title`（可选）是这一届在 `deadlines.ics` 和摘要里的名字，一行、最多 40 个字符，比如标题很长的
+  workshop 写 `GEM at ICLR 2027`。不写时，名字是 `series` 加上这一届开始的年份（`ICLR 2027`）；`series`
+  本身已经含有四位数的年份时，就只用 `series`。和登记表里另一届共用同一个 `series` 的每一届（比如同一个
+  研究所的几个 workshop）都要写 `short_title`，这样每个截止日期写的都是它自己的那一届。
 - `start` 和 `end` 是当地日期，`end` 包含在内。只有 `region: bay-area` 的记录会成为事件；
   `world` 的记录只带它的 milestone。
 - `url` 是组织方这一届的页面：这一届自己的网站，或者公布它的系列或项目的页面（记录的 notes 会
@@ -354,9 +358,30 @@ GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；�
 - `milestones` 是读者需要据此行动的日期，不晚于这一届的最后一天：截止日期、开放日期、通知日期，带上
   页面给出的时间和时区（`AoE`、`PT`、`MT`、`ET`、`UTC` 或 IANA 时区名）。只有时区没有时间时，时区
   说的是那一天，比如 1 月 22 日 `AoE` 截止。label 用我们自己的几个词。事件的描述按日期列出这些
-  milestone；过去的 milestone 等运行窗口（向前 14 天）越过它之后才会从描述里去掉。
+  milestone；过去的 milestone 等运行窗口（向前 14 天）越过它之后才会从描述里去掉。每个 milestone
+  也是 `deadlines.ics` 里的一个截止日期（见下文）。
 - YAML 把不加引号的 `on`、`off`、`yes`、`no` 读成布尔值，把不加引号的 `23:59` 读成数字：所以核对日期的键叫
   `date`，qualifier 写 `exact` 或 `by`，时间要加引号。
+
+已启用的登记表数据源里的每个 milestone，不论记录是 `bay-area` 还是 `world`，都是 feed `deadlines.ics`
+和摘要里的一个截止日期（`seminars.pipeline.deadlines`）。每次运行都从配置里读取它们，所以改动会出现在
+下一次运行里，不管那次运行抓取哪些数据源。整理它们的规则：
+
+- 每个 milestone 都取自这一届组织方的页面，也就是 `verified` 写的那个页面，带上页面写明的时间和时区，
+  别的都不写：页面没写的日期不录，按往届推算出来的日期也不录。每学期开始时和其他事实一起核对 milestone。
+- 不录机器学习会议主会（NeurIPS、ICML、ICLR 等）的截止日期：README 指向的 ccfddl 日历收录这些。
+  这类会议的 workshop 如果有自己的页面和截止日期，可以登记，它的投稿写成 `workshop_paper`。
+  这类会议的某一届如果有 `paper` 或 `abstract` 类型的 milestone，`tests/test_custom_registry_deadlines.py`
+  会失败。
+- `world` 的记录只为它的 milestone 而存在，永远不会成为事件：只有当湾区以外的会议有这里的读者需要
+  据此行动的截止日期时，才登记它。
+- 截止日期的 uid 是 `dl.<id>.<kind>`；一届会议里同一类型的第 n 个 milestone 后面加 `-<n>`
+  （`-2`、`-3`），按日期计数。同一类型较晚的一轮要加在较早的几轮后面；只要还列着较晚的一轮，较早的就
+  留在记录里：在同类型的另一个 milestone 之前插入或删除一个 milestone，会让它后面每一个的 uid 都变，
+  日历里看到的就是删掉了一个截止日期、又新增了一个。
+- 记录或 milestone 的任何事实（日期、时间、时区、label、标题、页面、核对日期）有改动，订阅的日历里的
+  截止日期就会更新：它的 `SEQUENCE` 加一。删掉的 milestone 在下一次运行时离开 `deadlines.ics`，过去的
+  milestone 在它的日期之后 14 天离开。
 
 结束了的会议会自己离开登记表的列表，所以删掉它的记录不会改变什么。还没开始的会议的记录删掉后，在第三次
 没有它的运行时从 feed 里移除，和数据源不再列出的报告一样；已经开始的一届会议会一直保留到结束。有两种情况
