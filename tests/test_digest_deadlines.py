@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from deadline_samples import make_deadline
+from deadline_samples import SYMPOSIUM_DATES_URL, make_deadline
 from factories import make_event
 from fakes import FakeIssueClient
 from seminars.config import AppConfig
@@ -22,7 +22,8 @@ from test_digest import (
 )
 
 HEADING = both("digest.sections.deadlines", days=DEADLINE_DAYS)
-PAGE = f"[{both('digest.labels.organizer')}](<https://symposium.example.org/2027/>)"
+PAGE = f"[{both('digest.labels.organizer')}](<{SYMPOSIUM_DATES_URL}>)"
+"""The link of a deadline of the symposium: the page that states its dates."""
 
 
 def render(config: AppConfig, deadlines: list[Deadline], **kwargs: Any) -> str:

@@ -127,10 +127,12 @@ time, and none reads the clock.
     of `bay-area` and `world` editions alike, becomes a deadline; it is read from the
     configuration and nothing is fetched for it. The deadlines are compared with
     `data/deadlines.json` by uid, `dl.<edition id>.<kind>` with `-<n>` for the n-th
-    milestone of one kind counted by date: a new one starts at `sequence` 0, a change of any
-    fact raises its `sequence` and sets `last_changed` to the time of the run, and one that
-    the configuration no longer holds, or whose day lies before the window, leaves the file;
-    there is no archive of deadlines. A registry whose `params` cannot be read keeps its
+    milestone of one kind counted by date: a new one starts at `sequence` 0, a change of a
+    fact that the feed or the digest shows (`DEADLINE_SHOWN`) raises its `sequence` and sets
+    `last_changed` to the time of the run, a change of another fact (`series`, `region`,
+    `fields`) is stored with the stamps as they were, and one that the configuration no
+    longer holds, or whose day lies before the window, leaves the file; there is no archive
+    of deadlines. A registry whose `params` cannot be read keeps its
     stored deadlines, and the run report says so in a warning.
 11. **Health** (`outputs/health.py`). The outcome of each source and LLM provider is added to
     the history, and the issues `source-broken` and `llm-auth` are opened, updated or
@@ -329,8 +331,9 @@ replaced by an empty placeholder.
   `SUMMARY` is the name of the edition and the label, followed by the time and the zone as
   the organizer's page states them (`(23:59 AoE)`, `(AoE)`, `(by this day)`), its
   `DESCRIPTION` names the edition, its days and its place, the advice to check the
-  organizer's page and the day of the last check, and its `URL` is that page. The name of an
-  edition is its `short_title`, or the series and the year. The bytes depend only on the
+  organizer's page that states the date (the page of the last check) and the day of that
+  check, and its `URL` is the organizer's page of the edition. The name of an edition is its
+  `short_title`, or the series and the year. The bytes depend only on the
   deadlines. `seminars validate` checks the feed with the rules of every feed and its own:
   only VTIMEZONE and VEVENT components, a calendar name, and per VEVENT the uid of a
   deadline, a DATE value as `DTSTART` and the day after as `DTEND`, free time and no alarm.

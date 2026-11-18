@@ -21,13 +21,30 @@ from deadline_samples import SCHOOL_URL, make_deadline
 from factories import make_event
 from seminars.config import AppConfig
 from seminars.i18n import Locale
-from seminars.models import FEED_IDS, Deadline
-from seminars.outputs.deadlines import DEADLINES_FILE, stated, summary
+from seminars.models import DEADLINE_SHOWN, FEED_IDS, Deadline
+from seminars.outputs.deadlines import DEADLINES_FILE, deadline_vevent, stated, summary
 from seminars.outputs.ics import validate_ics, write_ics_feeds
 from seminars.textio import read_text, write_text_atomic
 from test_ics import UID_DOMAIN, assert_matches_golden, content_lines, timezone_block
 
 CHANGED = datetime(2026, 11, 12, 18, 30, tzinfo=UTC)
+
+SHOWN_CHANGES: dict[str, Any] = {
+    "edition_title": "Example Symposium 2027: Design of Proteins",
+    "edition_short": "Symposium",
+    "edition_start": date(2027, 3, 28),
+    "edition_end": date(2027, 4, 2),
+    "location": "Example Center, Oakland, CA",
+    "url": "https://symposium.example.org/2027/program",
+    "label": "Scholarship application deadline",
+    "date": date(2026, 11, 21),
+    "time": "17:00",
+    "zone": "PT",
+    "qualifier": "by",
+    "verified_on": date(2026, 11, 16),
+    "verified_url": "https://symposium.example.org/2027/key-dates",
+}
+"""Another value of each fact of DEADLINE_SHOWN for ``make_deadline()``."""
 
 
 def golden_deadlines() -> list[Deadline]:
@@ -78,6 +95,7 @@ def golden_deadlines() -> list[Deadline]:
             zone="Europe/Zurich",
             qualifier="by",
             verified_on=date(2026, 11, 2),
+            verified_url=SCHOOL_URL,
         ),
     ]
 
@@ -243,12 +261,32 @@ class TestEvent:
             "",
             "Registration opens: by 2027-02-01",
             "",
-            "Check the organizer's page before you rely on it: https://symposium.example.org/2027/",
+            "Check the organizer's page before you rely on it: "
+            "https://symposium.example.org/2027/dates/",
             "Verified 2026-11-09",
         ]
         school = str(parts["dl.example-school-2027.application"]["description"])
         assert school.split("\n")[1] == "2027-07-05, Example Institute, Basel, Switzerland"
         assert school.split("\n")[3] == "Application deadline: by 2027-01-15 12:00 Europe/Zurich"
+
+    def test_the_event_shows_the_shown_facts_and_no_other(self, english: Locale) -> None:
+        """A change of a fact of DEADLINE_SHOWN changes the bytes, any other change does not."""
+
+        def text(deadline: Deadline) -> bytes:
+            return deadline_vevent(deadline, uid_domain=UID_DOMAIN, locale=english).to_ical()
+
+        base = make_deadline()
+        assert set(SHOWN_CHANGES) == DEADLINE_SHOWN
+        assert [name for name, value in SHOWN_CHANGES.items() if getattr(base, name) == value] == []
+        changed = [
+            name
+            for name, value in SHOWN_CHANGES.items()
+            if text(base.evolve(**{name: value})) == text(base)
+        ]
+        assert changed == []
+        assert text(base.evolve(series="Another Series", region="world", fields=["math"])) == (
+            text(base)
+        )
 
     def test_no_text_is_hardcoded(self, app_config: AppConfig, tmp_path: Path) -> None:
         path = app_config.paths.locales_dir / "en.json"
@@ -265,7 +303,7 @@ class TestEvent:
         assert lines[3:] == [
             "Registration opens: until 2027-02-01",
             "",
-            "See https://symposium.example.org/2027/",
+            "See https://symposium.example.org/2027/dates/",
             "Checked 2026-11-09",
         ]
 

@@ -21,12 +21,17 @@ ones by uid:
 
 * a deadline that is not stored is new: ``first_seen`` and ``last_changed``
   are the time of the run and ``sequence`` is 0;
-* a stored deadline whose facts (``Deadline.facts``: everything but
-  ``first_seen``, ``last_changed`` and ``sequence``) are all the same stays
-  as it is stored;
-* a stored deadline with a fact that changed takes the facts of the
+* a stored deadline whose facts are all the same stays as it is stored;
+* a stored deadline with a fact that the feed or the digest shows
+  (``DEADLINE_SHOWN``: the label, the day, the time, the zone, the
+  qualifier, the name, title, days, place and page of the edition, the day
+  and the page of the check) that changed takes the facts of the
   configuration, ``sequence`` goes up by one and ``last_changed`` becomes
   the time of the run, so a subscribed calendar updates it;
+* a stored deadline of which only a fact that nothing shows changed
+  (``series``, ``region``, ``fields``) takes the facts of the configuration
+  and keeps its ``first_seen``, ``last_changed`` and ``sequence``, so the
+  feed keeps its bytes;
 * a stored deadline that the configuration no longer holds (its milestone,
   its edition or its source was deleted, or the source is disabled) leaves
   the file; there is no archive of deadlines. Only when the ``params`` of a
@@ -94,6 +99,7 @@ def edition_deadlines(meeting: Meeting, *, now: datetime) -> list[Deadline]:
                 zone=milestone.zone,
                 qualifier=milestone.qualifier,
                 verified_on=meeting.verified.date,
+                verified_url=meeting.verified.url,
                 first_seen=stamp,
                 last_changed=stamp,
             )
@@ -151,8 +157,11 @@ def reconcile_deadlines(
         old = previous.get(fresh.uid)
         if old is None:
             kept[fresh.uid] = fresh
-        elif old.facts() == fresh.facts():
-            kept[fresh.uid] = old
+        elif old.shown() == fresh.shown():
+            same = fresh.evolve(
+                first_seen=old.first_seen, last_changed=old.last_changed, sequence=old.sequence
+            )
+            kept[fresh.uid] = old if same == old else same
         else:
             kept[fresh.uid] = fresh.evolve(
                 first_seen=old.first_seen,

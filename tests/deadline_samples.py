@@ -4,8 +4,9 @@ The meetings here are made up: their names, pages and dates belong to no real
 edition, so no test states a fact about a real meeting. ``SYMPOSIUM`` is a
 Bay Area edition with five milestones, two of them of one kind, one of them
 before the window of a run at ``factories.REFERENCE_NOW`` (2026-11-10, whose
-window starts on 2026-10-27); ``SCHOOL`` is a ``world`` edition, which only
-carries its milestones.
+window starts on 2026-10-27), checked on a page of its dates that is not its
+front page; ``SCHOOL`` is a ``world`` edition, which only carries its
+milestones.
 """
 
 from __future__ import annotations
@@ -17,6 +18,8 @@ from factories import REFERENCE_NOW
 from seminars.models import Deadline, SourceConfig
 
 SYMPOSIUM_URL: Final = "https://symposium.example.org/2027/"
+SYMPOSIUM_DATES_URL: Final = "https://symposium.example.org/2027/dates/"
+"""The page of the symposium that states its dates, where its facts were checked."""
 SCHOOL_URL: Final = "https://school.example.org/2027/"
 
 SYMPOSIUM: Final[dict[str, Any]] = {
@@ -32,7 +35,7 @@ SYMPOSIUM: Final[dict[str, Any]] = {
     "fields": ["bio", "chem"],
     "event_type": "conference",
     "status": "confirmed",
-    "verified": {"date": date(2026, 11, 9), "url": SYMPOSIUM_URL},
+    "verified": {"date": date(2026, 11, 9), "url": SYMPOSIUM_DATES_URL},
     "milestones": [
         {
             "kind": "abstract",
@@ -133,6 +136,7 @@ def make_deadline(**overrides: Any) -> Deadline:
         "zone": "AoE",
         "qualifier": "exact",
         "verified_on": date(2026, 11, 9),
+        "verified_url": SYMPOSIUM_DATES_URL,
         "first_seen": REFERENCE_NOW,
         "last_changed": REFERENCE_NOW,
         "sequence": 0,

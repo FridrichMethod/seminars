@@ -105,8 +105,9 @@ fixture 的参考时间。每个阶段都拿到这个时间，没有一个阶段
 10. **截止日期**（`pipeline/deadlines.py`）。已启用的登记表数据源里的每个 milestone，不论这一届是
     `bay-area` 还是 `world`，都成为一个截止日期；它从配置里读出，不为它抓取任何东西。这些截止日期按 uid
     和 `data/deadlines.json` 比较，uid 是 `dl.<edition id>.<kind>`，同一类型的第 n 个 milestone 按日期计数、
-    后面加 `-<n>`：新的从 `sequence` 0 开始；任何事实有改动，`sequence` 就加一，`last_changed` 设为这次
-    运行的时间；配置里不再有的、或者日期在窗口之前的，离开这个文件；截止日期没有归档。某个登记表的
+    后面加 `-<n>`：新的从 `sequence` 0 开始；feed 或摘要显示的事实（`DEADLINE_SHOWN`）有改动，`sequence`
+    就加一，`last_changed` 设为这次运行的时间；其他事实（`series`、`region`、`fields`）的改动照样存下来，
+    时间戳保持原样；配置里不再有的、或者日期在窗口之前的，离开这个文件；截止日期没有归档。某个登记表的
     `params` 读不出来时，它已存储的截止日期保留，运行报告里会有一条警告说明。
 11. **健康**（`outputs/health.py`）。每个数据源和每个 LLM provider 的结果加进历史记录，`source-broken`
     和 `llm-auth` 两种 issue 随之打开、更新或关闭。
@@ -259,10 +260,11 @@ key 由 prompt 版本、任务和输入文字组成，模型和 provider 都不�
   收录 `data/deadlines.json` 里的截止日期，它不是 feed id，所以事件 feed 和选中报告的下载都不知道它。
   每个截止日期是它那一天的一个全天事件（`DTEND` 是第二天），标为空闲时间，不带提醒；它的 `SUMMARY`
   是届次的名字和 label，后面跟着组织方页面原样写的时间和时区（`(23:59 AoE)`、`(AoE)`、`(by this day)`），
-  `DESCRIPTION` 写出这一届、它的日期和地点、请先查看组织方页面的提醒，以及最后一次核对的日期，`URL` 就是
-  这个页面。届次的名字是它的 `short_title`，或者系列加年份。文件内容只取决于截止日期。`seminars validate`
-  用所有 feed 都要遵守的规则和它自己的规则检查这个 feed：只有 VTIMEZONE 和 VEVENT 组件、有日历名，
-  每个 VEVENT 带截止日期的 uid、`DTSTART` 是 DATE 值、`DTEND` 是第二天、标为空闲时间、没有提醒。
+  `DESCRIPTION` 写出这一届、它的日期和地点、请先查看写明这个日期的组织方页面（最后一次核对的页面）的提醒，
+  以及那次核对的日期，`URL` 是组织方这一届的页面。届次的名字是它的 `short_title`，或者系列加年份。
+  文件内容只取决于截止日期。`seminars validate` 用所有 feed 都要遵守的规则和它自己的规则检查这个 feed：
+  只有 VTIMEZONE 和 VEVENT 组件、有日历名，每个 VEVENT 带截止日期的 uid、`DTSTART` 是 DATE 值、`DTEND`
+  是第二天、标为空闲时间、没有提醒。
 - **网站**（`site/`、`outputs/site_data.py`）：不需要构建步骤的静态 HTML 和 JavaScript，读
   `events.json` 和 `status.json`；中英文文案来自 `locales/`。所有从网上抓来的文字都会转义。
   `seminars build-site` 只根据已经提交的数据组装 `public/`。筛选条件（领域、机构、主办方、类型、时间范围、

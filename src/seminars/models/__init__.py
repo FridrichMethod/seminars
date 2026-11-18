@@ -57,7 +57,7 @@ from seminars.models.classify import (
     TagDecision,
 )
 from seminars.models.deadline import (
-    DEADLINE_BOOKKEEPING,
+    DEADLINE_SHOWN,
     DEADLINE_UID_PREFIX,
     DEADLINES_FEED,
     DEADLINES_SCHEMA_VERSION,
@@ -173,7 +173,7 @@ __all__ = [
     "CREDENTIAL_QUERY_PARAMS",
     "DEADLINES_FEED",
     "DEADLINES_SCHEMA_VERSION",
-    "DEADLINE_BOOKKEEPING",
+    "DEADLINE_SHOWN",
     "DEADLINE_UID_PREFIX",
     "DEFAULT_TIMEZONE",
     "DRAFT_TEXT_LIMITS",

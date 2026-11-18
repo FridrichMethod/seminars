@@ -45,8 +45,17 @@ DEADLINES_FEED: Final = "deadlines"
 
 DEADLINE_UID_PREFIX: Final = "dl"
 
-DEADLINE_BOOKKEEPING: Final = frozenset({"first_seen", "last_changed", "sequence"})
-"""The values of a deadline that are no fact of the registry (see ``Deadline.facts``)."""
+DEADLINE_SHOWN: Final = frozenset(
+    {
+        *("edition_title", "edition_short", "edition_start", "edition_end", "location", "url"),
+        *("label", "date", "time", "zone", "qualifier", "verified_on", "verified_url"),
+    }
+)
+"""The facts of a deadline that the feed and the digest show (``Deadline.shown``).
+
+A change of one of them is a change of the deadline, which a subscribed calendar
+has to see. ``uid``, ``edition_id`` and ``kind`` make the uid, and ``series``,
+``region`` and ``fields`` are shown nowhere."""
 
 DeadlineRegion = Literal["bay-area", "world"]
 DeadlineQualifier = Literal["exact", "by"]
@@ -83,17 +92,18 @@ def deadline_uid(edition_id: str, kind: str, position: int = 1) -> str:
 class Deadline(Model):
     """One milestone of an edition: a deadline, an opening or a notification.
 
-    Every value but the three of ``DEADLINE_BOOKKEEPING`` is a fact of the
-    registry entry: ``edition_*``, ``series``, ``region``, ``location``,
-    ``url`` (the organizer's page of the edition) and ``fields`` describe the
-    edition, ``kind``, ``label``, ``date``, ``time``, ``zone`` and
-    ``qualifier`` the milestone, and ``verified_on`` is the day its facts were
-    last checked on the organizer's page. ``edition_short`` is the name of the
-    edition in a feed (``Meeting.display_name`` of the registry). ``time`` and
-    ``zone`` are as the page writes them; a zone without a time is the zone of
-    the day. ``first_seen`` and ``last_changed`` are moments of runs, and
-    ``sequence`` goes up with every change of a fact
-    (``seminars.pipeline.deadlines``).
+    Every value but ``first_seen``, ``last_changed`` and ``sequence`` is a
+    fact of the registry entry: ``edition_*``, ``series``, ``region``,
+    ``location``, ``url`` (the organizer's page of the edition) and ``fields``
+    describe the edition, ``kind``, ``label``, ``date``, ``time``, ``zone`` and
+    ``qualifier`` the milestone, and ``verified_on`` and ``verified_url`` are
+    the day and the organizer's page of the last check of its facts (the
+    page that states the date). ``edition_short`` is the name of the edition
+    in a feed (``Meeting.display_name`` of the registry). ``time`` and ``zone`` are
+    as the page writes them; a zone without a time is the zone of the day.
+    ``first_seen`` and ``last_changed`` are moments of runs, and ``sequence``
+    goes up with every change of a fact that the feed shows
+    (``DEADLINE_SHOWN``, ``seminars.pipeline.deadlines``).
     """
 
     uid: Uid
@@ -114,6 +124,7 @@ class Deadline(Model):
     zone: ZoneName | None = None
     qualifier: DeadlineQualifier = "exact"
     verified_on: dt.date
+    verified_url: AsciiHttpUrl
     first_seen: Timestamp
     last_changed: Timestamp
     sequence: Annotated[int, Field(ge=0)] = 0
@@ -131,13 +142,10 @@ class Deadline(Model):
             raise ValueError("uid must be dl.<edition id>.<kind> or dl.<edition id>.<kind>-<n>")
         return self
 
-    def facts(self) -> dict[str, Any]:
-        """Every value of the registry entry, keyed by field: what a change is measured on."""
-        return {
-            name: getattr(self, name)
-            for name in type(self).model_fields
-            if name not in DEADLINE_BOOKKEEPING
-        }
+    def shown(self) -> dict[str, Any]:
+        """The facts of ``DEADLINE_SHOWN``, keyed by field: what a change is measured on."""
+        fields = type(self).model_fields
+        return {name: getattr(self, name) for name in fields if name in DEADLINE_SHOWN}
 
 
 def ordered_deadlines(deadlines: Iterable[Deadline]) -> list[Deadline]:

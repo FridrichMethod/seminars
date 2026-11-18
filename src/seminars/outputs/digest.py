@@ -18,7 +18,8 @@ Deadlines (data/deadlines.json, the milestones of the registry of meetings)
 have a section of their own as well: every deadline whose date lies in the
 DEADLINE_DAYS days from the Monday of the digest (that Monday included), by
 date, with the name of its edition and its label, the time and the zone as
-the organizer's page states them, and a link to that page. Its row limit
+the organizer's page states them, and a link to that page (the page of the
+last check, ``Deadline.verified_url``). Its row limit
 DEADLINE_ROWS is its own and never shrinks. There is no such section when no
 deadline falls in those days.
 
@@ -455,10 +456,10 @@ def _meetings(events: Sequence[Event], ctx: _Context, rows: int) -> list[str]:
 
 
 def _deadline_row(deadline: Deadline, ctx: _Context) -> str:
-    """Date, the time and zone the page states, edition and label, the organizer's page."""
+    """Date, the time and zone the page states, edition and label, the page that states them."""
     hour = _lines([_cell(stated(deadline, locale), TITLE_MAX_CHARS) for locale in ctx.locales])
     what = _cell(f"{deadline.edition_short}: {deadline.label}", TITLE_MAX_CHARS)
-    url = ascii_url(deadline.url)
+    url = ascii_url(deadline.verified_url)
     page = EMPTY_CELL
     if len(url) <= URL_MAX_CHARS:
         page = f"[{ctx.both('digest.labels.organizer')}](<{url}>)"

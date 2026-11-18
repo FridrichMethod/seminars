@@ -19,8 +19,11 @@ One VEVENT per deadline, all day on the date the page states:
   at the latest on its day ``(by this day)`` or ``(by 23:59 PT)``;
 * ``DESCRIPTION`` names the edition, its days and its place, the date
   with the time, the zone and the qualifier, the advice to check the
-  organizer's page with its address, and the day the facts were verified;
-* ``URL`` is the organizer's page of the edition;
+  organizer's page with the address of the page that states the date
+  (``verified_url``, the page of the last check), and the day the facts
+  were verified;
+* ``URL`` is the organizer's page of the edition (``url``), which can be
+  another page than the one that states the date;
 * ``TRANSP:TRANSPARENT`` and ``X-MICROSOFT-CDO-BUSYSTATUS:FREE``: a deadline
   marks no day as busy. There is no alarm, which calendar programs ignore
   in a subscribed calendar anyway, and no location, since a deadline does
@@ -98,7 +101,7 @@ def description(deadline: Deadline, locale: Locale) -> str:
         [deadline.edition_title, _edition_line(deadline, locale)],
         [_day_line(deadline, locale)],
         [
-            locale.t("deadlines.event.check", url=deadline.url),
+            locale.t("deadlines.event.check", url=deadline.verified_url),
             locale.t("deadlines.event.verified", date=deadline.verified_on.isoformat()),
         ],
     ]

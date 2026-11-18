@@ -430,8 +430,9 @@ sources that run fetches. The rules of curation for them:
 
 - Every milestone comes from the organizer's page of the edition, the one `verified` names,
   with the time and the zone that page states, and nothing else: a date that the page does
-  not state is not entered, and neither is one projected from an earlier edition. Check the
-  milestones with the other facts at the start of each term.
+  not state is not entered, and neither is one projected from an earlier edition. The feed
+  and the digest link that page with the advice to check it. Check the milestones with the
+  other facts at the start of each term.
 - No deadline of the main track of a machine-learning conference (NeurIPS, ICML, ICLR and
   the like) is entered: the calendar of ccfddl that the README points to carries those. A
   workshop of such a conference with a page and deadlines of its own may be registered, its
@@ -444,10 +445,12 @@ sources that run fetches. The rules of curation for them:
   the earlier ones, and keep an earlier round in the entry while a later one is listed: a
   milestone that is inserted or deleted before another one of its kind moves the uid of
   every later one, which a calendar shows as one deadline removed and another added.
-- A change of any fact of the entry or of the milestone (a date, a time, a zone, a label,
-  the title, the page, the day of the check) updates the deadline in subscribed calendars:
-  its `SEQUENCE` goes up. A deleted milestone leaves `deadlines.ics` at the next run, and
-  one that has passed 14 days after its date.
+- A change of a fact that the feed shows (a date, a time, a zone, a qualifier, a label, the
+  name, title, days, place or page of the edition, the day or the page of the check) updates
+  the deadline in subscribed calendars: its `SEQUENCE` goes up. A change of the `series`
+  alone (beside a `short_title`), of the `region` or of the `fields` is stored and shows
+  nowhere. A deleted milestone leaves `deadlines.ics` at the next run, and one that has
+  passed 14 days after its date.
 
 A meeting that is over leaves the registry's listing by itself, so deleting its entry
 changes nothing. The deleted entry of a meeting ahead is removed from the feeds at the

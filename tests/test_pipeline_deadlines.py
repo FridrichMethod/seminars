@@ -22,7 +22,9 @@ from deadline_samples import (
     SCHOOL,
     SCHOOL_UID,
     SYMPOSIUM,
+    SYMPOSIUM_DATES_URL,
     SYMPOSIUM_UIDS,
+    SYMPOSIUM_URL,
     make_deadline,
     registry_source,
 )
@@ -121,6 +123,10 @@ class TestConfiguredDeadlines:
             result.deadlines, key=lambda item: (item.date, item.uid)
         )
 
+    def test_the_page_of_the_check_is_kept_beside_the_page_of_the_edition(self) -> None:
+        pages = {(item.url, item.verified_url) for item in configured(SYMPOSIUM).deadlines}
+        assert pages == {(SYMPOSIUM_URL, SYMPOSIUM_DATES_URL)}
+
     def test_disabled_sources_and_other_adapters_give_nothing(self) -> None:
         off = registry_source(SYMPOSIUM, enabled=False)
         other = registry_source(SYMPOSIUM, id="conf-other", adapter="html_list")
@@ -209,21 +215,56 @@ class TestReconcile:
     @pytest.mark.parametrize(
         "change",
         [
-            {"title": "Example Symposium 2027: Design of Proteins"},
-            {"short_title": "Symposium"},
-            {"url": "https://symposium.example.org/2027/program"},
-            {"location": "Example Center, Oakland, CA"},
-            {"end": date(2027, 4, 2)},
-            {"verified": {"date": date(2026, 11, 16), "url": SYMPOSIUM["url"]}},
-            {"fields": ["bio"]},
+            pytest.param({"title": "Example Symposium 2027: Design of Proteins"}, id="title"),
+            pytest.param({"short_title": "Symposium"}, id="short_title"),
+            pytest.param({"series": "Example Meeting"}, id="series_of_the_name"),
+            pytest.param({"url": "https://symposium.example.org/2027/program"}, id="url"),
+            pytest.param({"location": "Example Center, Oakland, CA"}, id="location"),
+            pytest.param({"start": date(2027, 3, 28)}, id="start"),
+            pytest.param({"end": date(2027, 4, 2)}, id="end"),
+            pytest.param(
+                {"verified": {"date": date(2026, 11, 16), "url": SYMPOSIUM_DATES_URL}},
+                id="verified_on",
+            ),
+            pytest.param(
+                {"verified": {"date": date(2026, 11, 9), "url": SYMPOSIUM_URL}},
+                id="verified_url",
+            ),
         ],
-        ids=lambda change: next(iter(change)),
     )
     def test_a_changed_fact_of_the_edition_is_a_new_sequence(self, change: dict[str, Any]) -> None:
         stored = make_deadline()
         result = {item.uid: item for item in self.run([stored], symposium(**change))}
         assert result[stored.uid].sequence == 1
         assert result[stored.uid].last_changed == LATER
+
+    @pytest.mark.parametrize(
+        ("change", "stored_name"),
+        [
+            pytest.param({"fields": ["bio"]}, "Example Symposium 2027", id="fields"),
+            pytest.param({"region": "world"}, "Example Symposium 2027", id="region"),
+            pytest.param(
+                {"short_title": "Symposium", "series": "Example Meeting"},
+                "Symposium",
+                id="series_beside_a_short_title",
+            ),
+        ],
+    )
+    def test_a_fact_that_nothing_shows_is_stored_without_a_new_sequence(
+        self, change: dict[str, Any], stored_name: str
+    ) -> None:
+        stored = make_deadline(edition_short=stored_name, sequence=2)
+        result = {item.uid: item for item in self.run([stored], symposium(**change))}
+        kept = result[stored.uid]
+        assert (kept.sequence, kept.first_seen, kept.last_changed) == (
+            2,
+            REFERENCE_NOW,
+            REFERENCE_NOW,
+        )
+        assert kept.shown() == stored.shown()
+        assert {name: getattr(kept, name) for name in change if name != "short_title"} == {
+            name: value for name, value in change.items() if name != "short_title"
+        }
 
     def test_a_milestone_that_left_the_registry_leaves_the_file(self) -> None:
         stored = make_deadline()

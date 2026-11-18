@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from deadline_samples import make_deadline
 from factories import REFERENCE_NOW
 from seminars.models import (
-    DEADLINE_BOOKKEEPING,
+    DEADLINE_SHOWN,
     DEADLINES_FEED,
     FEED_IDS,
     UID_PATTERN,
@@ -87,6 +87,8 @@ class TestModel:
             ("location", "Z\u00fcrich"),
             ("url", "https://example.org/caf\u00e9"),
             ("url", "ftp://example.org/"),
+            ("verified_url", "https://example.org/caf\u00e9"),
+            ("verified_url", "mailto:dates@example.org"),
             ("time", "24:00"),
             ("time", "9:00"),
             ("zone", "Pacific Time"),
@@ -109,14 +111,20 @@ class TestModel:
         with pytest.raises(ValidationError, match="before edition_start"):
             make_deadline(edition_end=date(2027, 3, 1), date=date(2027, 2, 1))
 
-    def test_the_facts_are_every_value_but_the_bookkeeping(self) -> None:
+    def test_the_shown_facts_leave_out_the_uid_the_bookkeeping_and_what_no_feed_shows(
+        self,
+    ) -> None:
         deadline = make_deadline()
-        facts = deadline.facts()
-        assert set(facts) == set(Deadline.model_fields) - DEADLINE_BOOKKEEPING
-        assert {"first_seen", "last_changed", "sequence"} == DEADLINE_BOOKKEEPING
+        shown = deadline.shown()
+        identity = {"uid", "edition_id", "kind"}
+        bookkeeping = {"first_seen", "last_changed", "sequence"}
+        unshown = {"series", "region", "fields"}
+        assert set(shown) == DEADLINE_SHOWN
+        assert set(Deadline.model_fields) - identity - bookkeeping - unshown == DEADLINE_SHOWN
         later = deadline.evolve(sequence=4, last_changed=REFERENCE_NOW + timedelta(days=3))
-        assert later.facts() == facts
-        assert deadline.evolve(time="23:59").facts() != facts
+        assert later.shown() == shown
+        assert deadline.evolve(fields=["math"], region="world").shown() == shown
+        assert deadline.evolve(time="23:59").shown() != shown
 
 
 class TestFile:
