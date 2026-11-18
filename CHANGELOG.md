@@ -8,14 +8,16 @@ All notable changes of this project are recorded in this file. The format follow
 
 ### Added
 
-- **Conferences and workshops.** A meeting is a conference, or a workshop that runs over
-  several days or for at least three hours. A source with `meeting_horizon: true` keeps
-  its meetings up to 365 days ahead (`meetings.days_ahead`), while talks keep the
-  window of 120 days. An event that a calendar types as a seminar, lecture or other
-  becomes a conference or a workshop when its title names one (symposium, conference,
-  summit, convening, congress, retreat; workshop, boot camp, summer, winter or spring
-  school) and it is all day or lasts at least three hours. A timed meeting of more than
-  a week is kept over its days as an all-day event.
+- **Conferences and workshops.** A meeting is a conference, an all-day workshop of two
+  days or more, or a workshop with times of day that lasts at least three hours; a
+  workshop listed all day on a single day, such as one day of a hackathon, is no meeting
+  and is listed as a talk. A source with `meeting_horizon: true` keeps its meetings up
+  to 365 days ahead (`meetings.days_ahead`), while talks keep the window of 120 days. An
+  event that a calendar types as a seminar, lecture or other becomes a conference or a
+  workshop when its title names one (symposium, conference, summit, convening, congress,
+  retreat; workshop, boot camp, summer, winter or spring school) and it is all day or
+  lasts at least three hours; such a workshop is a meeting only by the rule above. A
+  timed meeting of more than a week is kept over its days as an all-day event.
 - **Feed `conferences.ics`** with the conferences and workshops. They stay in `all.ics`,
   in the picks and in the field feeds as well.
 - **Kind filter** on the web site (all, talks, conferences and workshops), kept in the

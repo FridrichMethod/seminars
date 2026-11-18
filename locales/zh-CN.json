@@ -47,7 +47,7 @@
     },
     "conferences": {
       "name": "学术报告 - 会议和研讨会",
-      "description": "学术会议和专题研讨会，以及持续多天或至少三小时的研讨会（workshop）。"
+      "description": "学术会议和专题研讨会、持续两天或以上的全天研讨会（workshop），以及有具体时间、至少三小时的研讨会。"
     }
   },
   "deadlines": {

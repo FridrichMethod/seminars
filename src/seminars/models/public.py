@@ -156,9 +156,11 @@ class PublicEvent(Model):
 
     All text comes from scraped web pages and is untrusted: the site must
     render it with ``textContent`` and must only link http(s) URLs.
-    ``meeting`` is ``Event.is_meeting``: a conference, or a workshop over
-    several days or of at least three hours (what the site's filter of the
-    kind calls conferences and workshops; every other event is a talk).
+    ``meeting`` is ``Event.is_meeting``: a conference, an all-day workshop
+    of two days or more, or a workshop with times of day that lasts at
+    least three hours (what the site's filter of the kind calls conferences
+    and workshops). Every other event is a talk, a workshop listed all day
+    on a single day among them.
     """
 
     uid: Uid

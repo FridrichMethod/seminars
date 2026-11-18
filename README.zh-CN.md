@@ -17,8 +17,9 @@ seminar、talk 和 colloquium，以及湾区的会议和研讨会，以三种形
 ### 日历订阅
 
 共 10 个 feed。一个报告可以同时出现在几个领域的 feed 里；`all` 包含至少属于一个领域的全部报告。
-`conferences` 收录学术会议和专题研讨会，以及持续多天或至少三小时的研讨会（workshop）；它们同时也在 `all`
-和所属领域的 feed 里。标记了 `meeting_horizon` 的数据源会保留未来 365 天内的会议和研讨会；所有报告，
+`conferences` 收录学术会议和专题研讨会、持续两天或以上的全天研讨会（workshop），以及有具体时间、至少三小时的研讨会；
+它们同时也在 `all` 和所属领域的 feed 里。只有一天、标为全天的研讨会（比如 hackathon 的某一天）不在其中，按报告列出。
+标记了 `meeting_horizon` 的数据源会保留未来 365 天内的会议和研讨会；所有报告，
 以及其他数据源的会议，只保留未来 120 天内的。
 
 | Feed | 内容 | 订阅 |
@@ -32,7 +33,7 @@ seminar、talk 和 colloquium，以及湾区的会议和研讨会，以三种形
 | `bio` | 生物、生物工程、结构生物学和遗传学 | [bio.ics](https://fridrichmethod.github.io/seminars/feeds/bio.ics) |
 | `physics` | 物理和应用物理 | [physics.ics](https://fridrichmethod.github.io/seminars/feeds/physics.ics) |
 | `med` | 医学和生物医学研究 | [med.ics](https://fridrichmethod.github.io/seminars/feeds/med.ics) |
-| `conferences` | 学术会议和专题研讨会，以及持续多天或至少三小时的研讨会 | [conferences.ics](https://fridrichmethod.github.io/seminars/feeds/conferences.ics) |
+| `conferences` | 学术会议和专题研讨会、持续两天或以上的全天研讨会，以及有具体时间、至少三小时的研讨会 | [conferences.ics](https://fridrichmethod.github.io/seminars/feeds/conferences.ics) |
 
 每个 feed 是网站上的文件 `feeds/<feed>.ics`；表里链接的是它的 `https://` 地址，
 "订阅"一节列出了它的 `webcal://` 地址。每个事件都有稳定的标识符，所以标题或时间变了，

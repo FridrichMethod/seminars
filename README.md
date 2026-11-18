@@ -21,11 +21,13 @@ kept in this repository (`data/`), and every daily update is one commit.
 ### Calendar feeds
 
 Ten feeds. A talk can be in several field feeds; `all` holds every talk that belongs
-to at least one field. `conferences` holds the conferences and symposia, and the
-workshops that run over several days or for at least three hours; they are in `all` and
-in the feeds of their fields as well. A source marked with `meeting_horizon` keeps its
-conferences and workshops up to 365 days ahead; every talk, and the meetings of the
-other sources, up to 120 days ahead.
+to at least one field. `conferences` holds the conferences and symposia, the all-day
+workshops of two days or more, and the workshops with times of day that last at least
+three hours; they are in `all` and in the feeds of their fields as well. A workshop
+listed all day on a single day, such as one day of a hackathon, is not among them: it is
+listed as a talk. A source marked with `meeting_horizon` keeps its conferences and
+workshops up to 365 days ahead; every talk, and the meetings of the other sources, up to
+120 days ahead.
 
 | Feed | Contents | Subscribe |
 |---|---|---|
@@ -38,7 +40,7 @@ other sources, up to 120 days ahead.
 | `bio` | Biology, bioengineering, structural biology and genetics | [bio.ics](https://fridrichmethod.github.io/seminars/feeds/bio.ics) |
 | `physics` | Physics and applied physics | [physics.ics](https://fridrichmethod.github.io/seminars/feeds/physics.ics) |
 | `med` | Medicine and biomedical research | [med.ics](https://fridrichmethod.github.io/seminars/feeds/med.ics) |
-| `conferences` | Conferences and symposia, and workshops of several days or of at least three hours | [conferences.ics](https://fridrichmethod.github.io/seminars/feeds/conferences.ics) |
+| `conferences` | Conferences and symposia, all-day workshops of two days or more, and workshops with times of day of at least three hours | [conferences.ics](https://fridrichmethod.github.io/seminars/feeds/conferences.ics) |
 
 Each feed is the file `feeds/<feed>.ics` of the web site; the table links its
 `https://` address, and the section Subscribe lists its `webcal://` address. Every
