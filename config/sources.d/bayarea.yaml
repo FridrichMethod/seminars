@@ -778,9 +778,11 @@ sources:
       # "meet the Biohub team at Booth 72", with the booth in the location of its
       # page) is left to the event filter, which excludes a numbered booth as
       # not_a_talk (seminars.classify.filters). The uid of an excluded event leaves
-      # the stored events in the same run; a card dropped here never reaches them,
-      # so a skip pattern would keep a booth that an earlier run stored. Do not add
-      # "Other Locations" to exclude_regions: the online webinars carry it too.
+      # the stored events in the same run. A card dropped here never reaches them:
+      # a booth that an earlier run stored would leave only in the third run without
+      # it (events.delete_after_missing_runs), and, while the source lists no other
+      # event, only once it has ended. Do not add "Other Locations" to
+      # exclude_regions: the online webinars carry it too.
       exclude_regions: [Chicago, New York]
       skip_title_patterns: ['\(Invite Only\)']
       skip_summary_patterns: ['will be at booth']

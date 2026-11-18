@@ -3,11 +3,11 @@
 Biohub lists its stands at conferences among its events: "Biohub at NeurIPS
 2026" is a booth in the exhibit hall in Sydney ("meet the Biohub team at Booth
 72"). A card that the adapter skips never reaches the exclusions of a run, and
-a stored event that no run delivers is only counted as missing while its source
-is healthy, which a quiet Biohub page is not. The event filter therefore
+a stored event that no run delivers only counts towards its removal while its
+source is healthy, which a quiet Biohub page is not. The event filter therefore
 excludes a numbered booth (``seminars.classify.filters``): the uid of the
 excluded event is among the exclusions of the run, and the stored booth is
-removed in that run, also when the source lists no other event.
+removed in that run, also when the booth is the only card the source lists.
 
 Every run here uses the real implementations and the shipped configuration;
 only the pages come from memory, made from the recorded Biohub pages.
