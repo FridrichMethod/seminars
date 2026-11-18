@@ -2,9 +2,10 @@
 
 A talk that a source knows by its day or by the address of its page gets a
 new key when it moves to another day, when its speaker's name is spelled
-anew, when a generic title gives way to the real one or when its TBA page
-is renamed. The candidate under the new key takes the uid of the stored
-event (``seminars.pipeline.dedup.adopt_stored_uids``).
+anew, when a generic title gives way to the real one, when its TBA page
+is renamed or when a listing whose page names no year becomes or stops
+being a meeting. The candidate under the new key takes the uid of the
+stored event (``seminars.pipeline.dedup.adopt_stored_uids``).
 """
 
 from __future__ import annotations
@@ -394,3 +395,98 @@ class TestMeetings:
         orphan = stored("old", **old)
         candidate = fresh("new", **new).evolve(hints=EventHints(source_ids=["bayarea-qfarm"]))
         assert adopt([candidate], [orphan]) == ["old"]
+
+
+class TestPageOrDay:
+    """A listing known by its page in one run and by its day in the other keeps its uid.
+
+    The page of a meeting gives its key only when it names the year, so a
+    one-day workshop whose page names none changes from its page to its
+    day when it gets its hours and becomes a meeting, and back.
+    """
+
+    DAY = datetime(2026, 12, 2, tzinfo=PACIFIC)
+    PAGE = "https://qfarm.example.edu/events/conference-workshop/geoflow-workshop"
+    SOURCE = "bayarea-qfarm"
+
+    def by_page(self, uid: str, **overrides: Any) -> dict[str, Any]:
+        """The workshop of one day without hours: no meeting, so its key is its page."""
+        values: dict[str, Any] = {
+            "title": "Geoflow Workshop",
+            "speakers": [],
+            "event_type": "workshop",
+            "all_day": True,
+            "start": self.DAY,
+            "end": None,
+            "url": self.PAGE,
+            "source_urls": [self.PAGE],
+            "source_ids": [f"{self.SOURCE}:url:{self.PAGE}"],
+        }
+        return {"uid": uid, **values, **overrides}
+
+    def by_day(self, uid: str, **overrides: Any) -> dict[str, Any]:
+        """The same workshop from 9:00 to 17:00: a meeting, known by its day."""
+        values: dict[str, Any] = {
+            "all_day": False,
+            "start": self.DAY + timedelta(hours=9),
+            "end": self.DAY + timedelta(hours=17),
+            "source_ids": [day_key(self.DAY, "geoflow-workshop", self.SOURCE)],
+        }
+        return self.by_page(uid, **{**values, **overrides})
+
+    def adopt(self, old: dict[str, Any], *new: dict[str, Any]) -> list[str]:
+        orphan = make_event(**old)
+        candidates = [
+            Candidate(
+                event=make_event(**listing).evolve(
+                    first_seen=REFERENCE_NOW, last_changed=REFERENCE_NOW
+                ),
+                hints=EventHints(source_ids=[self.SOURCE]),
+            )
+            for listing in new
+        ]
+        return adopt(candidates, [orphan])
+
+    def test_the_page_gives_way_to_the_day_and_back(self) -> None:
+        assert not make_event(**self.by_page("old")).is_meeting
+        assert make_event(**self.by_day("old")).is_meeting
+        assert self.adopt(self.by_page("old"), self.by_day("new")) == ["old"]
+        assert self.adopt(self.by_day("old"), self.by_page("new")) == ["old"]
+
+    def test_the_same_people_or_a_side_without_speakers_still_make_it_one(self) -> None:
+        ann = people("Ann Smith")
+        assert self.adopt(self.by_page("old", speakers=ann), self.by_day("new")) == ["old"]
+        both = (self.by_page("old", speakers=ann), self.by_day("new", speakers=ann))
+        assert self.adopt(*both) == ["old"]
+
+    @pytest.mark.parametrize(
+        "change",
+        [
+            {
+                "start": DAY + timedelta(days=1, hours=9),
+                "end": DAY + timedelta(days=1, hours=17),
+                "source_ids": [day_key(DAY + timedelta(days=1), "geoflow-workshop", SOURCE)],
+            },
+            {"title": "Quantum sensing day"},
+            {"url": "https://qfarm.example.edu/events/conference-workshop/quantum-sensing"},
+            {"speakers": people("Bob Jones")},
+            {"source_ids": [day_key(DAY, "geoflow-workshop", "bayarea-kipac")]},
+            {"source_ids": [f"{SOURCE}:url:{PAGE}?day=2"]},
+        ],
+        ids=["another day", "another title", "another page", "others", "source", "two pages"],
+    )
+    def test_another_day_title_page_speaker_or_source_is_another_event(
+        self, change: dict[str, Any]
+    ) -> None:
+        old = self.by_page("old", speakers=people("Ann Smith"))
+        assert self.adopt(old, self.by_day("new", **change)) == ["new"]
+
+    def test_a_guess_between_two_listings_of_that_page_and_day_is_not_made(self) -> None:
+        morning = self.by_day("new1", title="Geoflow Workshop: morning")
+        afternoon = self.by_day(
+            "new2",
+            title="Geoflow Workshop: afternoon",
+            start=self.DAY + timedelta(hours=13),
+            source_ids=[day_key(self.DAY, "geoflow-workshop-afternoon", self.SOURCE)],
+        )
+        assert self.adopt(self.by_page("old"), morning, afternoon) == ["new1", "new2"]

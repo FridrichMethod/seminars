@@ -919,9 +919,17 @@ def adopt_stored_uids(
        own that gives way to another page is another talk;
     5. an orphan moved as in step 2 when neither names a speaker: both
        titles are "TBA", or neither is and they are similar. The title is
-       all there is to go by, so this comes after the slots of step 3.
+       all there is to go by, so this comes after the slots of step 3;
+    6. a listing known by its page in one run and by its day in the other:
+       one source knows one of the two only by the url key of the page
+       of the other (its ``url``) and the other only by day keys, both
+       start on one local day, their titles are similar, and if both name
+       speakers they name the same people; again only a pair that is
+       alone. The page of a meeting gives a key only when it names the
+       year, so a one-day workshop listed by its date that gets its hours
+       goes from its page to its day, and back.
 
-    Steps 2 to 5 are ``seminars.pipeline.ids.follow_changed_keys``. An
+    Steps 2 to 6 are ``seminars.pipeline.ids.follow_changed_keys``. An
     orphan with a native id is never taken there: its key does not change,
     so a new key is another talk. Should an orphan come
     back after its uid was taken, both listings arrive under one uid and
