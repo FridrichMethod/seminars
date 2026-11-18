@@ -331,3 +331,66 @@ class TestRenamedPages:
             fresh("two", **self.page("two", "/events/braids", "Braids")),
         ]
         assert adopt(pages, [orphan]) == ["one", "two"]
+
+
+class TestMeetings:
+    """Adoption follows the title rule of meetings: equal folded titles, nothing less."""
+
+    DAY = datetime(2027, 7, 12, tzinfo=PACIFIC)
+
+    def listing(self, uid: str, source: str, title: str, **overrides: Any) -> dict[str, Any]:
+        """A listing of ``source`` with a page of its own and no speaker, all day by default."""
+        url = f"https://{source}.example.edu/{uid}"
+        values: dict[str, Any] = {
+            "title": title,
+            "speakers": [],
+            "event_type": "conference",
+            "all_day": True,
+            "start": self.DAY,
+            "end": self.DAY + timedelta(days=6),
+            "url": url,
+            "source_urls": [url],
+            "source_ids": [f"{source}:url:{url}"],
+        }
+        return {**values, **overrides}
+
+    def adopt_across(self, old: dict[str, Any], new: dict[str, Any]) -> list[str]:
+        orphan = stored("old", **old)
+        candidate = fresh("new", **new).evolve(hints=EventHints(source_ids=["conf-b"]))
+        return adopt([candidate], [orphan])
+
+    def test_a_meeting_with_a_similar_title_is_another_meeting(self) -> None:
+        old = self.listing("old", "conf-a", "ICML 2027")
+        new = self.listing("new", "conf-b", "ICLR 2027")
+        assert self.adopt_across(old, new) == ["new"]
+
+    def test_a_meeting_with_the_same_title_is_the_same_meeting(self) -> None:
+        old = self.listing("old", "conf-a", "ICML 2027")
+        new = self.listing("new", "conf-b", "icml 2027")
+        assert self.adopt_across(old, new) == ["old"]
+
+    def test_talks_with_these_titles_are_one_talk(self) -> None:
+        # The fuzzy measure takes "ICML 2027" for "ICLR 2027"; only a talk is judged by it.
+        talk: dict[str, Any] = {"event_type": "seminar", "all_day": False, "end": None}
+        old = self.listing("old", "conf-a", "ICML 2027", **talk)
+        new = self.listing("new", "conf-b", "ICLR 2027", **talk)
+        assert self.adopt_across(old, new) == ["old"]
+
+    def test_a_meeting_whose_page_key_gives_way_to_its_day_key_keeps_its_uid(self) -> None:
+        # A meeting stored under the page of its series (a key that a meeting no longer
+        # gets) comes back under its day key; its source and its title say it is the same.
+        page = "https://qfarm.example.edu/events/conference-workshop/geoflow-workshop"
+        timed: dict[str, Any] = {
+            "event_type": "workshop",
+            "all_day": False,
+            "start": self.DAY + timedelta(hours=9),
+            "end": self.DAY + timedelta(hours=17),
+            "url": page,
+            "source_urls": [page],
+        }
+        old = self.listing("old", "bayarea-qfarm", "Geoflow Workshop", **timed)
+        old["source_ids"] = [f"bayarea-qfarm:url:{page}"]
+        new = {**old, "source_ids": ["bayarea-qfarm:day:2027-07-12:geoflow-workshop"]}
+        orphan = stored("old", **old)
+        candidate = fresh("new", **new).evolve(hints=EventHints(source_ids=["bayarea-qfarm"]))
+        assert adopt([candidate], [orphan]) == ["old"]

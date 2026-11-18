@@ -67,7 +67,8 @@ modules (`http*.py`, `robots.py`), `fixtures.py` and the text modules (`textrule
 | `textrules.py` | the charset rule for text and for `data/` |
 
 Configuration lives in `config/`: `settings.yaml` (time zone, the window of 14 days back
-and 120 ahead, HTTP limits, de-duplication and health thresholds), `sources.d/` (one file
+and 120 ahead, the meetings of a source with `meeting_horizon` up to 365 days ahead, HTTP
+limits, de-duplication and health thresholds), `sources.d/` (one file
 per group of sources), `taxonomy.yaml` (the seven fields, exclusions, department labels),
 `interests.yaml` (the picks score) and `llm.yaml` (providers, models, caps). An unknown key
 is an error everywhere. The texts of the site and the digest are in `locales/en.json` and
@@ -89,13 +90,23 @@ time, and none reads the clock.
    the calling thread, source after source in the order of the configuration, so the result
    does not depend on which fetch finished first. For a source with `llm_fallback: true` or
    `adapter: llm_page`, the LLM page extractor reads the pages when the rules read nothing.
-3. **Normalize** (`pipeline/normalize.py`). Times follow the zone of the source, and events
-   that start outside the window are dropped. Every text is cleaned (markup, the charset
-   rule, length), loses meeting credentials, e-mail addresses and telephone numbers
-   (`pipeline/privacy.py`) and credential-shaped strings (`pipeline/secret_scan.py`). The
-   speaker line is split into people (`pipeline/speakers.py`); a draft without speakers gets
-   the people its title names in a common form (`pipeline/title_speakers.py`). The event gets
-   its source key and its uid (`pipeline/ids.py`).
+3. **Normalize** (`pipeline/normalize.py`). Times follow the zone of the source. An event
+   is dropped when it starts after the window or ended before the window starts (one
+   without an end: started before it), so a workshop of three weeks stays while it runs.
+   A meeting, that is a conference or a workshop over several days or of at least 3 hours
+   (`pipeline/meetings.py`), of a source with `meeting_horizon` may start up to 365 days
+   ahead; its talks keep the window. A seminar, lecture or other event that is all day or
+   at least 3 hours long and whose title names a meeting (a symposium, conference, summit,
+   workshop, boot camp or summer school, among others) becomes a conference or a workshop
+   first. A meeting with times of day over more than a week keeps its days as an all-day
+   event when its hours are those of a meeting: its end lies at least 3 hours after its
+   start in the day, or both are midnight; a weekly talk of an hour listed from its first
+   to its last week stays a talk. Every text is cleaned (markup, the charset rule, length),
+   loses meeting credentials, e-mail addresses and telephone numbers (`pipeline/privacy.py`)
+   and credential-shaped strings (`pipeline/secret_scan.py`). The speaker line is split
+   into people (`pipeline/speakers.py`); a draft without speakers gets the people its title
+   names in a common form (`pipeline/title_speakers.py`). The event gets its source key and
+   its uid (`pipeline/ids.py`).
 4. **Filter** (`classify/filters.py`). Phrases of `config/taxonomy.yaml` exclude what is no
    academic talk (receptions, office hours, courses and the like), and some department
    labels are always out of scope.
@@ -179,10 +190,13 @@ source offers:
 1. the native id of the source (Localist instance, JSON:API resource, RSS guid, ICS UID):
    `<source id>:<native id>`;
 2. the address of its own detail page, when no other draft of its source points at it in
-   the run:
+   the run and it is not the front page of a site, which a conference site shares among
+   all its editions; the page of a meeting counts only when its address names the year
+   the meeting starts in, since the page of a series of meetings serves one edition after
+   the other:
    `<source id>:url:<address>`;
 3. the local day of the start plus the first speaker, or else the title, or else the time of
-   day: `<source id>:day:<date>:<words>`.
+   day: `<source id>:day:<date>:<words>`. A meeting names its title first.
 
 `data/uid_map.json` binds every key ever seen to its uid. A known key gives the same uid in
 every run; a new key gets a uid derived from the key alone. When a key changes while the
@@ -193,21 +207,34 @@ uid is handed on to the new key, so the uid stays. In the feeds the UID is
 Two listings are one talk (`pipeline/dedup.py`) when they share a uid or a key, or when
 their starts are at most 15 minutes apart and their titles are similar (a token set ratio
 of at least 85), they share a speaker, the title of one names a speaker of the other, or
-they point at the same detail page. Guards keep unrelated talks apart: "TBA" never matches "TBA", a
-one-word title is not compared, a page that a source is fetched from or that lists a whole
-series is no detail page, and two listings of one source that name different speakers are
-never one talk. A merged event keeps the uid seen first, the best title (not "TBA", not the
-bare name of the series), the longest abstract, all speakers and keys, and the details of
-the host's own listing over those of an aggregator (the campus calendar,
-researchseminars.org). The result does not depend on the order of the input.
+they point at the same detail page. An all-day listing and a listing with hours are one
+when one of them is a meeting, they point at the same detail page, and the one with hours
+starts on one of the days of the other and lasts at least 3 hours: a meeting that one
+source gives as whole days and a calendar with its hours, once or day by day. A meeting is
+one with another listing by its title only when the folded titles are equal: "ICML 2027"
+and "ICLR 2027" are similar by any fuzzy measure, and the opening keynote of a symposium
+is not the symposium. A listing with hours that ends before a meeting does is a part of
+it, such as that keynote, and the page or a speaker it shares with the meeting does not
+join them. Guards keep unrelated talks apart: "TBA" never matches "TBA", a one-word title
+is not compared, a page that a source is fetched from or that lists a whole series is no
+detail page, and two listings of one source that name different speakers are never one
+talk. A merged event keeps the uid seen first, the best title (not "TBA", not the bare
+name of the series), the longest abstract, all speakers and keys, and the details of the
+host's own listing over those of an aggregator (the campus calendar,
+researchseminars.org). A merged event with a meeting among its listings is a meeting: it
+takes the type of that meeting and, when the leading listing is no meeting, its times; an
+all-day listing with more days gives its days, so a meeting keeps them against a
+calendar's listing of its first day. The result does not depend on the order of the input.
 
 ## Stored events
 
-`data/events.json` holds every event of the current window, one per line, sorted by uid.
+`data/events.json` holds every event of the current window, and the meetings ahead of it
+of the sources with `meeting_horizon`, one per line, sorted by uid.
 When a stored event comes back with a change a reader can see, its `sequence` goes up and
 `last_changed` becomes the time of the run; both go into the feeds, so subscribed calendars
 update the event. An event that the run did not deliver is judged by what is known about
-it: one that started before the window goes to `data/archive/<year>.jsonl`; one of a
+it: one that ended before the window starts (one without an end: started before it) goes
+to `data/archive/<year>.jsonl`, so a meeting of several weeks stays while it runs; one of a
 disabled or removed source leaves at once; one that has started or is cancelled stays as it
 is; one whose sources were all read in full counts a missing run, and it is removed once it
 has missed 3 such runs without coming back. A source that failed, came back empty or was not read in full says nothing

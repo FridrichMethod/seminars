@@ -95,8 +95,21 @@ sources:
 - `research` records what you found out: the day you checked, how many events the
   sample had, which formats the site offers, its `Crawl-delay`, notes.
 - Other keys: `homepage`, `series`, `default_event_type`, `timezone`, `aggregator`,
-  `llm_fallback`, `ignore_robots`, `enabled`. The schema, with every key explained, is
-  `SourceConfig` in `src/seminars/models/source.py`; unknown keys are an error.
+  `llm_fallback`, `meeting_horizon`, `ignore_robots`, `enabled`. The schema, with every
+  key explained, is `SourceConfig` in `src/seminars/models/source.py`; unknown keys are an
+  error.
+- `meeting_horizon: true` keeps the meetings of the source, its conferences and its
+  workshops over several days or of at least 3 hours (`Event.is_meeting`), up to
+  `meetings.days_ahead` days ahead (365, in `config/settings.yaml`) instead of the 120 of
+  `window.days_ahead`; its talks keep the usual window. A seminar, lecture or other event
+  whose title names a meeting (a symposium, conference, summit, workshop, boot camp or
+  summer school, among others) and that is all day or at least 3 hours long counts as a
+  meeting too. Set it on a source that announces its meetings months ahead, not on a
+  calendar of talks: the source is fetched with the longer window, so an adapter that asks
+  for a date range, follows pages of a listing or reads a detail page per event makes more
+  requests, all within the same request budget per host and the same 15 minutes per
+  source. Compare the requests and the time that `seminars sources check <id>` reports
+  with and without the key before you commit it.
 - `ignore_robots` lists hosts of the source (of `url`, `urls`, `homepage` or
   `params.extra_hosts`) whose robots.txt `Disallow` rules this source does not follow;
   see "Before you start". A host of another site is an error.

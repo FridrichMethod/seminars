@@ -82,8 +82,16 @@ sources:
 - `research` 记录调研结果：检查的日期、样本里有多少事件、网站提供哪些格式、它的
   `Crawl-delay`、备注。
 - 其他 key：`homepage`、`series`、`default_event_type`、`timezone`、`aggregator`、
-  `llm_fallback`、`ignore_robots`、`enabled`。完整的 schema 和每个 key 的说明在
+  `llm_fallback`、`meeting_horizon`、`ignore_robots`、`enabled`。完整的 schema 和每个 key 的说明在
   `src/seminars/models/source.py` 的 `SourceConfig` 里；未知的 key 会报错。
+- `meeting_horizon: true` 让这个数据源的会议（conference，以及跨好几天或者至少 3 小时的
+  workshop，即 `Event.is_meeting`）保留到往后 `meetings.days_ahead` 天（365 天，在
+  `config/settings.yaml` 里），而不是 `window.days_ahead` 的 120 天；它的报告仍然用平常的窗口。
+  标题里写着会议（symposium、conference、summit、workshop、boot camp、summer school 等）、并且是
+  全天或者至少 3 小时的 seminar、lecture 或 other 类型事件也算会议。只给提前几个月公布会议的
+  数据源设置它，不要给报告日历设置：这个数据源会用更长的窗口抓取，所以按日期范围查询、翻列表页
+  或者每个事件读一个详情页的 adapter 会发出更多请求，而每个 host 的请求预算和每个数据源 15 分钟的
+  上限都不变。提交之前，对比加和不加这个 key 时 `seminars sources check <id>` 报告的请求数和用时。
 - `ignore_robots` 列出这个数据源自己的 host（来自 `url`、`urls`、`homepage` 或
   `params.extra_hosts`），这个数据源不遵守这些 host 的 robots.txt `Disallow` 规则；见“开始之前”。
   列出别的网站的 host 会报错。

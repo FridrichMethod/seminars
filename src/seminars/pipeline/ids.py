@@ -15,9 +15,15 @@ that hold:
      addresses the source itself is fetched from or the front page of a
      site. A page that lists a whole series would otherwise make all its
      talks one event, and the front page of a conference site is that of
-     every edition;
+     every edition. The page of a meeting (``seminars.models.is_meeting_span``)
+     counts only when its address names the year the meeting starts in
+     ("/symposium-2027"): the page of a series of meetings
+     ("/annualsymposium") serves one edition after the other, and as a key
+     it would hand the uid of one edition on to the next;
    * the local day of the start plus the first speaker, or else the title,
-     or else the time of day: ``<source id>:day:<date>:<words>``. The
+     or else the time of day: ``<source id>:day:<date>:<words>``. A
+     meeting is named by its title first, since the people it lists
+     change while it stays the same meeting. The
      words are ASCII (``slug``): accents are folded, a Latin letter without
      a decomposition is spelled out, and a name in another script becomes a
      short digest of itself, so two such talks of one day stay apart.
@@ -183,6 +189,12 @@ def is_site_root(url: str) -> bool:
     return not urlsplit(url).path.strip("/")
 
 
+def names_year(url: str, year: int) -> bool:
+    """Whether the path or the query of ``url`` holds ``year`` as a number of its own."""
+    parts = urlsplit(url)
+    return re.search(rf"(?<!\d){year}(?!\d)", f"{parts.path}?{parts.query}") is not None
+
+
 def draft_key(
     draft: EventDraft,
     *,
@@ -191,20 +203,29 @@ def draft_key(
     title: str | None,
     shared: frozenset[str],
     is_secret: Callable[[str], bool],
+    meeting: bool = False,
 ) -> str:
     """The source key of a draft (see the module docstring for the order of preference).
 
     ``start`` is the normalized start, ``speaker`` the name of the first
     speaker and ``title`` the title unless it is still "TBA"; ``shared`` is
-    the result of ``shared_urls`` for the drafts of the run.
+    the result of ``shared_urls`` for the drafts of the run. ``meeting``
+    tells whether the event is a meeting (``seminars.models.is_meeting_span``).
     """
     native = safe_native_id(draft.native_id or "", is_secret)
     if native:
         return source_key(draft.source_id, native)
     page = canonical_url(draft.url) if draft.url else None
-    if page and page not in shared and not is_site_root(page) and not is_secret(draft.url or ""):
+    if (
+        page
+        and page not in shared
+        and not is_site_root(page)
+        and (not meeting or names_year(page, start.year))
+        and not is_secret(draft.url or "")
+    ):
         return source_key(draft.source_id, URL_KEY_PREFIX + page)
-    words = slug(speaker or "") or slug(title or "") or start.strftime(TIME_OF_DAY_FORMAT)
+    first, second = (title, speaker) if meeting else (speaker, title)
+    words = slug(first or "") or slug(second or "") or start.strftime(TIME_OF_DAY_FORMAT)
     return source_key(draft.source_id, f"{DAY_KEY_PREFIX}{start.date().isoformat()}:{words}")
 
 

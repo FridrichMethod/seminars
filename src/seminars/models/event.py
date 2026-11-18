@@ -48,13 +48,15 @@ def is_meeting_span(
     workshop of an hour or two (a skills session) are not. ``start`` and
     ``end`` are those of ``Event``: an all-day event ends at local
     midnight after its last day, or has no end when it is one day long.
+    Its days are counted by their dates, so a day of 25 hours, when the
+    clocks go back, is still one day.
     """
     if event_type == "conference":
         return True
     if event_type != "workshop" or end is None:
         return False
     if all_day:
-        return end - start > timedelta(days=1)
+        return end.date() - start.date() > timedelta(days=1)
     return end - start >= timedelta(hours=MEETING_MIN_TIMED_HOURS)
 
 

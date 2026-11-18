@@ -14,6 +14,7 @@ from seminars.models import Candidate, EventDraft, EventHints
 from seminars.pipeline.ids import (
     draft_key,
     is_day_key,
+    is_site_root,
     is_time_of_day_key,
     latin_fold,
     renamed_page,
@@ -210,3 +211,83 @@ class TestRenamedPages:
     )
     def test_two_pages_of_one_directory(self, new: str, expected: bool) -> None:
         assert renamed_page("sites-x:url:https://example.edu/events/coming-soon", new) is expected
+
+
+class TestSiteRoots:
+    @pytest.mark.parametrize(
+        ("url", "root"),
+        [
+            ("https://iclr.cc/", True),
+            ("https://iclr.cc", True),
+            ("https://iclr.cc//", True),
+            ("https://iclr.cc/Conferences/2027", False),
+            ("https://www.proteinsociety.org/annualsymposium/", False),
+        ],
+    )
+    def test_the_front_page_of_a_site(self, url: str, root: bool) -> None:
+        assert is_site_root(url) is root
+
+    @pytest.mark.parametrize("url", ["https://iclr.cc/", "https://iclr.cc"])
+    def test_a_front_page_is_never_a_key(self, url: str) -> None:
+        # One edition of a conference must not hand its uid on to the next one.
+        draft = make_draft(native_id=None, url=url, title="ICLR 2027")
+        assert key(draft, title="ICLR 2027") == "sites-bioengineering:day:2026-11-17:iclr-2027"
+
+    def test_a_deeper_page_is(self) -> None:
+        draft = make_draft(native_id=None, url="https://iclr.cc/Conferences/2027/")
+        assert key(draft) == "sites-bioengineering:url:https://iclr.cc/Conferences/2027"
+
+
+class TestMeetingPages:
+    MEETING_START = datetime(2027, 5, 17, 9, 0, tzinfo=PACIFIC)
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://aimi.stanford.edu/events/aimi-symposium-summit-series-2027",
+            "https://iclr.cc/Conferences/2027/",
+            "https://example.org/events?year=2027",
+            "https://example.org/2027/summer-school",
+        ],
+    )
+    def test_the_page_of_one_edition_is_the_key_of_a_meeting(self, url: str) -> None:
+        draft = make_draft(native_id=None, url=url)
+        found = key(draft, start=self.MEETING_START, title="AIMI Symposium", meeting=True)
+        assert found.startswith("sites-bioengineering:url:")
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://www.proteinsociety.org/annualsymposium",
+            "https://example.org/symposium-2026",
+            "https://example.org/events/20270517-symposium",
+            "https://2027.example.org/symposium",
+        ],
+    )
+    def test_the_page_of_a_series_is_no_key_of_a_meeting(self, url: str) -> None:
+        # The series page serves one edition after the other; a page that names another
+        # year, or no year of its own, is no page of this edition either.
+        draft = make_draft(native_id=None, url=url)
+        found = key(
+            draft,
+            start=self.MEETING_START,
+            speaker="Jane Doe",
+            title="Protein Society Symposium 2027",
+            meeting=True,
+        )
+        assert found == "sites-bioengineering:day:2027-05-17:protein-society-symposium-2027"
+        # A talk keeps its page, and its day key names its speaker first.
+        talk = key(draft, start=self.MEETING_START, speaker="Jane Doe", title="Folding")
+        assert talk == f"sites-bioengineering:url:{url}"
+        assert key(make_draft(native_id=None, url=None), speaker="Jane Doe", title="Folding") == (
+            "sites-bioengineering:day:2026-11-17:jane-doe"
+        )
+
+    def test_a_meeting_without_a_title_is_named_by_its_speaker(self) -> None:
+        draft = make_draft(native_id=None, url=None)
+        found = key(draft, speaker="Jane Doe", meeting=True)
+        assert found == "sites-bioengineering:day:2026-11-17:jane-doe"
+
+    def test_a_native_id_stays_the_key_of_a_meeting(self) -> None:
+        draft = make_draft(native_id="777", url="https://www.proteinsociety.org/annualsymposium")
+        assert key(draft, meeting=True) == "sites-bioengineering:777"
