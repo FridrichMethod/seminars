@@ -287,6 +287,24 @@ sources:
         # of Graduate Studies of a sponsoring institution or of a US department of
         # mathematics, first come, first served, from the opening of the nominations.
 
+        - id: slmath-pde-formalization-ai-2026
+          title: Frontier of PDE Formalization and Analysis with AI
+          short_title: "SLMath PDE Formalization and AI 2026"
+          series: SLMath workshops
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2026-12-07
+          end: 2026-12-08
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/workshops/1207
+          fields: [math, ai-ml]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/workshops/1207"}
+          milestones:
+            - {kind: funding, date: 2026-10-15, label: Registration deadline for funding}
+            - {kind: registration, date: 2026-12-08, label: Registration deadline}
+
         - id: slmath-old-problems-in-irrationality-2027
           title: "Revisiting Fundamental Problems Workshop: Old Problems in Irrationality"
           short_title: "SLMath Irrationality Workshop 2027"
