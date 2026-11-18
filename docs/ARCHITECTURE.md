@@ -282,7 +282,11 @@ replaced by an empty placeholder.
 - **Site** (`site/`, `outputs/site_data.py`): static HTML and JavaScript without a build
   step, reading `events.json` and `status.json`; English and Chinese from `locales/`. All
   text from the web is escaped. `seminars build-site` assembles `public/` from the committed
-  data alone.
+  data alone. The filters (fields, institutions, organizer, kind, time range, picks, and
+  the search of titles, people, series, places and abstracts) are part of the address.
+  The kind tells the talks from the meetings by the flag `meeting` of `events.json`, and
+  an event that began before today and has not ended is listed once, under Ongoing above
+  today.
 - **Download of selected talks** (`site/calendar.js`): the talks a reader ticks in the list
   are page state held in memory, never written to the address or to storage. The selection
   bar above the list is a region landmark; while talks are selected and the bar is

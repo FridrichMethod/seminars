@@ -124,15 +124,15 @@
   "site": {
     "app": {
       "name": "斯坦福周边学术报告",
-      "tagline": "每天从公开网页收集的 Stanford、SLAC、CZ Biohub 及周边研究机构的学术报告。"
+      "tagline": "每天从公开网页收集的 Stanford、SLAC、CZ Biohub 及周边研究机构的学术报告、会议和研讨会。"
     },
     "page": {
-      "index_title": "学术报告 - 近期报告",
+      "index_title": "学术报告 - 近期活动",
       "status_title": "学术报告 - 数据源状态"
     },
     "nav": {
       "label": "页面",
-      "talks": "报告",
+      "talks": "活动",
       "status": "数据源状态"
     },
     "lang": {
@@ -145,13 +145,19 @@
       "loading": "正在加载..."
     },
     "filters": {
-      "label": "筛选报告",
+      "label": "筛选活动",
       "search_label": "搜索",
-      "search_placeholder": "标题、报告人、单位、系列或摘要",
+      "search_placeholder": "标题、报告人、单位、系列、地点或摘要",
       "fields": "领域",
       "institutions": "机构",
       "host": "主办方",
       "host_all": "全部主办方",
+      "kind": "类型",
+      "kind_options": {
+        "all": "全部活动",
+        "talks": "报告",
+        "meetings": "会议和研讨会"
+      },
       "range": "时间",
       "range_options": {
         "today": "今天",
@@ -163,11 +169,12 @@
       "clear": "清除筛选"
     },
     "results": {
-      "heading": "近期报告",
-      "count_one": "{count} 场即将举行的报告",
-      "count_other": "{count} 场即将举行的报告",
-      "empty": "没有符合筛选条件的报告。",
-      "load_error": "无法加载报告列表，请稍后再试。"
+      "heading": "近期活动",
+      "count_one": "{count} 项即将举行的活动",
+      "count_other": "{count} 项即将举行的活动",
+      "ongoing": "正在进行",
+      "empty": "没有符合筛选条件的活动。",
+      "load_error": "无法加载活动列表，请稍后再试。"
     },
     "select": {
       "label": "已选报告",
@@ -239,7 +246,7 @@
     },
     "subscribe": {
       "title": "订阅日历",
-      "intro": "每个日历都是一个 ICS 订阅源，每隔几小时自动刷新。订阅一次，之后新的报告会自动出现。属于几个领域的报告会出现在这几个领域的日历里，所以你订阅了几个这样的日历，它就会显示几次。",
+      "intro": "每个日历都是一个 ICS 订阅源，每隔几小时自动刷新。订阅一次，之后新的报告会自动出现。属于几个领域的报告会出现在这几个领域的日历里，会议和研讨会还会出现在会议和研讨会的日历里，所以你订阅了几个这样的日历，它就会显示几次。",
       "feeds": "日历",
       "calendar_link": "日历应用链接",
       "web_link": "网页链接",
@@ -265,8 +272,8 @@
       "last_run_ok": "上次运行成功。",
       "last_run_failed": "上次运行失败。",
       "no_run": "还没有完成过运行。",
-      "events_one": "网站上共有 {count} 场报告",
-      "events_other": "网站上共有 {count} 场报告",
+      "events_one": "网站上共有 {count} 项活动",
+      "events_other": "网站上共有 {count} 项活动",
       "summary": "{total} 个启用的数据源中有 {ok} 个运行正常。",
       "llm": "领域标签使用了 LLM 提供方 {provider}。",
       "llm_none": "领域标签只使用了规则。",

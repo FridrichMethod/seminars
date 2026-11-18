@@ -365,6 +365,7 @@ class TestMessageKeys:
             "feeds.",
             "site.institutions.",
             "site.event_types.",
+            "site.filters.kind_options.",
             "site.filters.range_options.",
             "site.status.disabled_reasons.",
             "site.status.groups.",
@@ -437,6 +438,14 @@ class TestSiteMessages:
         assert match is not None
         ranges = re.findall(r"([a-z_]+):", match.group(1))
         assert child_ids(site_messages("en"), "site.filters.range_options") == ranges
+
+    def test_kind_options_match_the_filter_code(self) -> None:
+        text = (SITE_DIR / "filters.js").read_text(encoding="utf-8")
+        match = re.search(r"export const KINDS = Object\.freeze\(\[([^\]]*)\]\)", text)
+        assert match is not None
+        kinds = re.findall(r'"([a-z_]+)"', match.group(1))
+        assert kinds == ["all", "talks", "meetings"]
+        assert child_ids(site_messages("en"), "site.filters.kind_options") == kinds
 
     def test_apple_calendar_steps_are_numbered_in_order(self) -> None:
         steps = child_ids(site_messages("en"), "site.subscribe.apple.steps")

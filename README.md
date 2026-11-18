@@ -52,10 +52,12 @@ two days.
 
 The site at
 [https://fridrichmethod.github.io/seminars/](https://fridrichmethod.github.io/seminars/)
-lists the upcoming talks in time order, with filters by field and by source and a
-full-text search. It is available in English and Chinese. Every listed talk has a
-checkbox, and the ticked talks can be saved as one calendar file: see the section
-Download selected talks. Its
+lists the upcoming talks, conferences and workshops in time order, with filters by
+field, by source and by kind (talks, or conferences and workshops) and a full-text search
+of titles, people, series, places and abstracts. An event that began before today, such
+as a conference in progress, is listed once under Ongoing at the top. It is available in
+English and Chinese. Every listed event has a checkbox, and the ticked events can be saved
+as one calendar file: see the section Download selected talks. Its
 [status page](https://fridrichmethod.github.io/seminars/status.html) shows when the last
 update ran and how each source did.
 

@@ -7,7 +7,9 @@ import { calendarFor, fetchCalendar, parseCalendar, saveFile } from "./calendar.
 import { h, link, replaceChildren } from "./dom.js";
 import {
   ANY_CHOICES,
+  KINDS,
   NO_FILTERS,
+  ONGOING,
   RANGES,
   filtersFromQuery,
   groupByDay,
@@ -41,6 +43,7 @@ const ui = {
   fields: byId("field-chips"),
   institutions: byId("institution-chips"),
   host: byId("host"),
+  kind: byId("kind"),
   range: byId("range"),
   picks: byId("picks"),
   clear: byId("clear"),
@@ -236,6 +239,10 @@ function buildControls() {
     choices.hosts.map((host) => option(host, host)),
   );
   replaceChildren(
+    ui.kind,
+    KINDS.map((id) => option(id, t("site.filters.kind_options." + id))),
+  );
+  replaceChildren(
     ui.range,
     Object.keys(RANGES).map((id) => option(id, t("site.filters.range_options." + id))),
   );
@@ -255,6 +262,7 @@ function syncControls() {
     }
   }
   ui.host.value = filters.host;
+  ui.kind.value = filters.kind;
   ui.range.value = filters.range;
   ui.picks.checked = filters.picksOnly;
   ui.clear.disabled = isUnfiltered(filters);
@@ -265,6 +273,7 @@ function connectControls() {
   // Enter or leaving the box: no need to wait for the pause.
   ui.search.addEventListener("change", () => pendingSearch.flush());
   ui.host.addEventListener("change", () => setFilters({ ...view.filters, host: ui.host.value }));
+  ui.kind.addEventListener("change", () => setFilters({ ...view.filters, kind: ui.kind.value }));
   ui.range.addEventListener("change", () => setFilters({ ...view.filters, range: ui.range.value }));
   ui.picks.addEventListener("change", () =>
     setFilters({ ...view.filters, picksOnly: ui.picks.checked }),
@@ -895,10 +904,11 @@ function renderList() {
   const positions = new Map(shown.map((event, index) => [event, index + 1]));
   const days = [...groupByDay(shown, today)].map(([day, events], index) => {
     const dayId = `day-${index + 1}`;
+    const heading = day === ONGOING ? t("site.results.ongoing") : tz.formatDay(day, lang, today);
     return h(
       "section",
       { class: "day", "data-day": day },
-      h("h2", { class: "day-heading", id: dayId }, tz.formatDay(day, lang, today)),
+      h("h2", { class: "day-heading", id: dayId }, heading),
       events.map((event) => {
         const position = positions.get(event);
         const ids = { title: `event-title-${position}`, when: `event-when-${position}`, day: dayId };

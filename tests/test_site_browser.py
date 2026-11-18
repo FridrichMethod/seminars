@@ -536,7 +536,7 @@ class TestFilters:
     ) -> None:
         current = session().open("index.html")
         assert current.shown() == UPCOMING
-        assert current.page.locator("#count").text_content() == "11 upcoming talks"
+        assert current.page.locator("#count").text_content() == "11 upcoming events"
         assert current.page.locator("#clear").is_disabled()
         current.assert_clean()
 
@@ -586,7 +586,13 @@ class TestFilters:
             ),
             ("q=zoe+muller", ["sample-tba"]),
             ("q=EVIL+corp", ["sample-xss"]),
-            ("field=nope&inst=mars&range=forever&host=Nobody&picks=yes", UPCOMING),
+            ("q=kavli", ["sample-all-day"]),
+            ("q=packard", ["sample-defense"]),
+            ("kind=meetings", ["sample-all-day"]),
+            ("kind=talks", [uid for uid in UPCOMING if uid != "sample-all-day"]),
+            ("kind=meetings&inst=stanford", []),
+            ("field=nope&inst=mars&range=forever&host=Nobody&picks=yes&kind=all", UPCOMING),
+            ("kind=conferences", UPCOMING),
         ],
     )
     def test_filters_are_read_from_the_address(
@@ -606,6 +612,37 @@ class TestFilters:
         assert current.shown() == []
         assert page.locator("#events .notice").text_content() == catalog("en")["site.results.empty"]
         assert current.query()["range"] == ["week"]
+        current.assert_clean()
+
+    def test_the_kind_of_event_changes_the_address_and_is_cleared(
+        self, session: Callable[..., Session]
+    ) -> None:
+        current = session().open("index.html?kind=meetings")
+        page = current.page
+        kind = page.locator("#kind")
+        assert kind.input_value() == "meetings"
+        assert page.locator('label[for="kind"]').text_content() == "Kind"
+        options = kind.locator("option").evaluate_all("es => es.map((e) => [e.value, e.text])")
+        assert options == [
+            ["all", "All events"],
+            ["talks", "Talks"],
+            ["meetings", "Conferences and workshops"],
+        ]
+        assert current.shown() == ["sample-all-day"]
+        assert current.page.locator("#count").text_content() == "1 upcoming event"
+        assert not page.locator("#clear").is_disabled()
+        kind.select_option("talks")
+        assert "sample-all-day" not in current.shown()
+        assert len(current.shown()) == len(UPCOMING) - 1
+        assert current.query() == {"kind": ["talks"]}
+        kind.select_option("all")
+        assert current.shown() == UPCOMING
+        assert current.query() == {}
+        assert page.locator("#clear").is_disabled()
+        kind.select_option("meetings")
+        page.locator("#clear").click()
+        assert kind.input_value() == "all"
+        assert current.shown() == UPCOMING
         current.assert_clean()
 
     def test_institution_chips_and_the_organizer_list_change_the_address(
@@ -639,7 +676,7 @@ class TestFilters:
     ) -> None:
         current = session().open("index.html?range=today")
         assert current.shown() == []
-        assert current.page.locator("#count").text_content() == "0 upcoming talks"
+        assert current.page.locator("#count").text_content() == "0 upcoming events"
         current.assert_clean()
 
     def test_a_talk_in_progress_is_listed_today_and_an_ended_one_is_not(
