@@ -4,8 +4,9 @@ The registry is the source ``conf-registry`` of config/sources.d/conferences.yam
 adapter requests nothing: every meeting is an entry of its params, checked against the
 organizer's page. The tests cover the schema of an entry, the drafts a run gets, what
 the pipeline makes of them (one event per edition, joined with a listing of the same
-page that gives its hours, removed after the usual missing runs, healthy when every
-meeting is over), and the state of the committed registry on the day the tests run.
+page that gives its hours, removed after the usual missing runs unless one change
+deletes most of the entries, healthy when every meeting is over), and the state of the
+committed registry on the day the tests run.
 """
 
 from __future__ import annotations
@@ -32,7 +33,9 @@ from fakes import (
 from fakes_outputs import FakeEmitters
 from seminars.config import AppConfig, load_settings, load_sources
 from seminars.models import FIELD_IDS, EventDraft, RunReport, SourceConfig, TimeWindow
+from seminars.models.health import HEALTH_HISTORY_LIMIT
 from seminars.outputs.health import allows_empty, source_issue_title, update_health
+from seminars.pipeline.collect import SHRINK_MIN_RUNS
 from seminars.pipeline.normalize import NormalizeContext, normalize_drafts
 from seminars.pipeline.run import RunOptions, run_pipeline
 from seminars.pipeline.secret_scan import build_secret_scanner
@@ -569,6 +572,52 @@ class TestRemovalAndHealth:
         assert [report.sources[0].status for report in reports] == ["empty"] * 4
         (event,) = read_events_file(config.paths.events_file)
         assert (event.uid, event.missing_runs) == ("conf-registry.qbi-symposium-2027", 0)
+
+    def runs(
+        self, app_config: AppConfig, kept: int, days: int
+    ) -> tuple[list[RunReport], list[int], list[list[str]]]:
+        """Runs on ``days`` days, ten editions listed for the first three, ``kept`` after."""
+        entries = [
+            meeting(
+                id=f"symposium-{n}-2027", start=date(2027, 1, 10 + n), end=date(2027, 1, 10 + n)
+            )
+            for n in range(10)
+        ]
+        client = FakeIssueClient()
+        reports, stored, opened = [], [], []
+        for day in range(days):
+            listed = entries if day < SHRINK_MIN_RUNS else entries[:kept]
+            config = with_sources(app_config, registry(*listed))
+            reports.append(run(config, day, update_health=update_health, issues=client))
+            stored.append(len(read_events_file(config.paths.events_file)))
+            opened.append(sorted(issue.title for issue in client.issues if issue.state == "open"))
+        return reports, stored, opened
+
+    def test_deleting_at_most_half_of_the_entries_removes_them_after_three_runs(
+        self, app_config: AppConfig, calendar: FakeAdapter
+    ) -> None:
+        reports, stored, opened = self.runs(app_config, kept=5, days=6)
+        assert all(report.sources[0].read_in_full for report in reports)
+        assert stored == [10, 10, 10, 10, 10, 5]
+        assert opened == [[]] * 6
+
+    def test_deleting_most_entries_at_once_is_a_shrunk_listing_until_it_is_resized(
+        self, app_config: AppConfig, calendar: FakeAdapter
+    ) -> None:
+        # Every run of a source is compared with its usual size (seminars.pipeline.collect):
+        # four editions where there were ten is a listing that lost part of itself. Its
+        # missing events are kept, and an issue opens, until the history holds too few
+        # runs read in full for a measure and the run takes four as the new size.
+        shrunk = HEALTH_HISTORY_LIMIT - SHRINK_MIN_RUNS + 1
+        resized = SHRINK_MIN_RUNS + shrunk
+        reports, stored, opened = self.runs(app_config, kept=4, days=resized + 3)
+        assert [report.sources[0].shrank_from for report in reports] == (
+            [None] * SHRINK_MIN_RUNS + [10] * shrunk + [None] * 3
+        )
+        assert [report.sources[0].resized_from for report in reports[resized:]] == [10, None, None]
+        assert stored == [10] * (resized + 2) + [4]
+        broken = [source_issue_title(REGISTRY_ID)]
+        assert opened == [[]] * (SHRINK_MIN_RUNS + 2) + [broken] * (shrunk - 2) + [[]] * 3
 
     @pytest.mark.parametrize(("allow_empty", "issues"), [(True, []), (False, [REGISTRY_ID])])
     def test_a_registry_whose_meetings_are_over_is_healthy_with_allow_empty(

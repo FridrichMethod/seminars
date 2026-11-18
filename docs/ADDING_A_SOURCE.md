@@ -400,11 +400,21 @@ contact, no address of a person, and never a date projected from an earlier edit
   `23:59` as a number: the day of a check is `date`, a qualifier is `exact` or `by`,
   and a time is written in quotes.
 
-A meeting that is over leaves the registry's listing by itself. A deleted entry is
-removed from the feeds at the third run without it, while the registry still lists
-another meeting, like a talk that its source no longer lists; an edition that has
-already started stays until it ends. A run in which the registry lists no meeting at
-all says nothing about its events, so an entry deleted then stays until it is over.
-No address of a source or of a registered meeting
-may be on a site that lists conferences for a fee (waset.org, 10times.com and the
-like; `tests/test_source_denylist.py` checks this).
+A meeting that is over leaves the registry's listing by itself, so deleting its entry
+changes nothing. The deleted entry of a meeting ahead is removed from the feeds at the
+third run without it, like a talk that its source no longer lists; an edition that has
+already started stays until it ends. Two cases keep a deleted entry longer:
+
+- A run in which the registry lists no meeting at all says nothing about its events, so
+  an entry deleted then stays until it is over.
+- Every run of a source is compared with the usual size of its listing
+  (`seminars.pipeline.collect`). A change that deletes more than half of the listed
+  editions, and at least five, looks like a listing that lost part of itself: the
+  deleted events stay, a `source-broken` issue opens at the third such run, and both
+  last until the 29th run takes the smaller listing as the usual size, which closes the
+  issue; the deleted events leave at the 31st run. Delete at most half of the listed
+  editions, or fewer than five, in one change, and let six runs pass before the next.
+
+No address of a source or of a registered meeting may be on a site that lists
+conferences for a fee (waset.org, 10times.com and the like;
+`tests/test_source_denylist.py` checks this).

@@ -25,6 +25,9 @@
 #   it once a source lists the meeting. A test fails when an edition that starts within
 #   120 days was checked more than 90 days before, or when no Bay Area edition is ahead
 #   (tests/test_custom_registry.py).
+# - Delete at most half of the listed editions, or fewer than five, in one change, and
+#   let six runs pass before the next. A listing that shrinks more at once is taken as
+#   incomplete for 28 runs: the deleted events stay, and a source-broken issue opens.
 # - An id is "<series slug>-<year>" and is never renamed: it is the uid of the event.
 # - Only "region: bay-area" entries become events. "world" entries carry milestones only.
 
