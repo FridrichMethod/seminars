@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from typing import get_args
 
 import pytest
@@ -14,6 +14,7 @@ from seminars.models import MEETING_MIN_TIMED_HOURS, EventType, is_meeting_span
 from seminars.pipeline.meetings import (
     CONFERENCE_WORDS,
     WORKSHOP_WORDS,
+    has_meeting_hours,
     has_not_ended_before,
     in_window,
     meeting_over_days,
@@ -27,6 +28,7 @@ MEETING_WINDOW = SETTINGS.meeting_window_at(REFERENCE_NOW)
 MORNING = datetime(2026, 12, 2, 9, 0, tzinfo=PACIFIC)
 MIDNIGHT = datetime(2026, 12, 2, tzinfo=PACIFIC)
 TALK_TYPES = ("seminar", "colloquium", "lecture", "defense", "other")
+DAY_HOURS = (time(9), time(17))
 
 
 def timed(hours: float | None, start: datetime = MORNING) -> EventTimes:
@@ -201,27 +203,60 @@ class TestMeetingType:
         assert all(word == word.lower() for word in (*CONFERENCE_WORDS, *WORKSHOP_WORDS))
 
 
+def over_days(
+    event_type: EventType, title: str, days: EventTimes, hours: tuple[time, time] = DAY_HOURS
+) -> EventType | None:
+    """``meeting_over_days`` for an event listed from ``hours[0]`` on its first day to ``hours[1]``.
+
+    The end is on the last of ``days``.
+    """
+    assert days.end is not None
+    first = datetime.combine(days.start.date(), hours[0], tzinfo=days.start.tzinfo)
+    last = datetime.combine(days.end.date() - timedelta(days=1), hours[1], tzinfo=days.end.tzinfo)
+    return meeting_over_days(event_type, title, days, start=first, end=last)
+
+
 class TestMeetingOverDays:
     def test_a_conference_or_workshop_of_more_than_a_week_keeps_its_days(self) -> None:
-        assert meeting_over_days("conference", "PhyStat 2027", all_day(12)) == "conference"
-        assert meeting_over_days("workshop", "Program on kernels", all_day(8)) == "workshop"
+        assert over_days("conference", "PhyStat 2027", all_day(12)) == "conference"
+        assert over_days("workshop", "Program on kernels", all_day(8)) == "workshop"
 
     def test_the_title_rule_applies_to_the_days(self) -> None:
-        assert (
-            meeting_over_days("seminar", "Summer School in Statistics", all_day(12)) == "workshop"
-        )
-        assert meeting_over_days("lecture", "Symposium on RNA", all_day(9)) == "conference"
+        assert over_days("seminar", "Summer School in Statistics", all_day(12)) == "workshop"
+        assert over_days("lecture", "Symposium on RNA", all_day(9)) == "conference"
 
     @pytest.mark.parametrize("event_type", ["seminar", "colloquium", "lecture", "defense", "other"])
     def test_a_talk_does_not(self, event_type: EventType) -> None:
         # A quarter-long series listed from its first to its last day.
-        assert meeting_over_days(event_type, "Applied Physics Seminar Series", all_day(70)) is None
+        assert over_days(event_type, "Applied Physics Seminar Series", all_day(70)) is None
+
+    @pytest.mark.parametrize(
+        ("event_type", "title", "hours"),
+        [
+            ("seminar", "Applied Microeconomics Workshop", (time(12), time(13))),
+            ("lecture", "Symposium Lecture", (time(16), time(17))),
+            ("other", "Startup Boot Camp", (time(18), time(20))),
+            ("workshop", "Theory Workshop", (time(12), time(13, 30))),
+            ("conference", "Annual Conference", (time(17), time(12))),
+        ],
+    )
+    def test_a_series_of_short_hours_does_not(
+        self, event_type: EventType, title: str, hours: tuple[time, time]
+    ) -> None:
+        # A weekly talk of an hour, listed from its first to its last week of a quarter, has
+        # a word of a meeting in its title or is typed as one; it is a series of talks.
+        assert over_days(event_type, title, all_day(71), hours) is None
 
     @pytest.mark.parametrize("days", [1, 2, 7])
     def test_a_week_or_less_does_not(self, days: int) -> None:
         # The length rule drops the end of a talk at noon that is listed until noon of the
         # next day as well: that is a slip of whoever entered it, no meeting of two days.
-        assert meeting_over_days("conference", "Annual Conference", all_day(days)) is None
+        times = all_day(days)
+        end = (times.end or MIDNIGHT + timedelta(days=1)) - timedelta(hours=12)
+        found = meeting_over_days(
+            "conference", "Annual Conference", times, start=MIDNIGHT + timedelta(hours=12), end=end
+        )
+        assert found is None
 
     def test_the_days_are_counted_by_their_dates(self) -> None:
         # Monday 9:00 to Sunday 9:00 loses its end by the rule of the same time on a later
@@ -229,9 +264,29 @@ class TestMeetingOverDays:
         pdt, pst = timezone(timedelta(hours=-7)), timezone(timedelta(hours=-8))
         week = datetime(2026, 10, 26, tzinfo=pdt), datetime(2026, 11, 2, tzinfo=pst)
         days = EventTimes(start=week[0], end=week[1], all_day=True)
-        assert meeting_over_days("conference", "Annual Conference", days) is None
+        assert over_days("conference", "Annual Conference", days) is None
         longer = EventTimes(start=week[0], end=week[1] + timedelta(days=1), all_day=True)
-        assert meeting_over_days("conference", "Annual Conference", longer) == "conference"
+        assert over_days("conference", "Annual Conference", longer) == "conference"
+
+
+class TestMeetingHours:
+    @pytest.mark.parametrize(
+        ("first", "last", "expected"),
+        [
+            (time(9), time(17), True),
+            (time(9), time(12), True),
+            (time(9), time(11, 59), False),
+            (time(12), time(13), False),
+            (time(17), time(12), False),
+            (time(0), time(0), True),
+            (time(9), time(0), False),
+            (time(0), time(2), False),
+        ],
+    )
+    def test_the_hours_of_a_meeting(self, first: time, last: time, expected: bool) -> None:
+        start = datetime.combine(MIDNIGHT.date(), first, tzinfo=PACIFIC)
+        end = datetime.combine(MIDNIGHT.date() + timedelta(days=10), last, tzinfo=PACIFIC)
+        assert has_meeting_hours(start, end) is expected
 
 
 class TestEndedBefore:

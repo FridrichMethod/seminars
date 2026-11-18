@@ -299,6 +299,48 @@ class TestMeetings:
         (record,) = caplog.records
         assert "the end of 2 timed event(s) is not kept" in record.getMessage()
 
+    def test_a_long_series_of_short_talks_stays_a_series_of_talks(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # Weekly talks of an hour that a source lists from the first to the last week, with
+        # a word of a meeting in the title or typed as a workshop: no meeting of ten weeks.
+        start, end = datetime(2026, 11, 20, 12, 0), datetime(2027, 1, 29, 13, 0)
+        drafts = [
+            make_draft(
+                native_id="a", title="Applied Microeconomics Workshop", start=start, end=end
+            ),
+            make_draft(
+                native_id="b",
+                title="Symposium Lecture",
+                event_type_hint="lecture",
+                start=start.replace(hour=16),
+                end=end.replace(hour=17),
+            ),
+            make_draft(native_id="c", event_type_hint="workshop", start=start, end=end),
+        ]
+        result = normalize(*drafts, source=make_source(meeting_horizon=True))
+        found = [
+            (c.event.event_type, c.event.all_day, c.event.end, c.event.is_meeting)
+            for c in result.candidates
+        ]
+        assert found == [
+            ("seminar", False, None, False),
+            ("lecture", False, None, False),
+            ("workshop", False, None, False),
+        ]
+        (record,) = caplog.records
+        assert "the end of 3 timed event(s) is not kept" in record.getMessage()
+
+    def test_a_timed_meeting_with_a_date_as_its_end_has_no_hours_of_a_meeting(self) -> None:
+        # A start with its time of day and a last day without one: the hours are unknown.
+        draft = make_draft(
+            title="Winter School on Diffusion",
+            start=datetime(2027, 1, 4, 9, 0),
+            end=date(2027, 1, 15),
+        )
+        event = one(draft).event
+        assert (event.event_type, event.all_day, event.end) == ("seminar", False, None)
+
     def test_an_ongoing_meeting_is_kept_by_its_end(self) -> None:
         # A workshop of three weeks that began twenty days before the run, all day.
         first = (REFERENCE_NOW - timedelta(days=20)).date()

@@ -343,6 +343,23 @@ def _times(
         raise _Invalid(f"start: {error}") from error
 
 
+def _listed_end(
+    draft: EventDraft, source: SourceConfig, context: NormalizeContext
+) -> datetime | None:
+    """The end of ``draft`` as a moment in the zone of the project, read as a start would be.
+
+    The times of an event drop an end that breaks the length rule; the
+    hours of a meeting over its days are told by it (``meeting_over_days``).
+    """
+    if draft.end is None:
+        return None
+    end = draft.model_copy(update={"start": draft.end, "end": None})
+    try:
+        return _times(end, source, context).start
+    except _Invalid:
+        return None
+
+
 def _labels(labels: Iterable[str], cleaner: _Cleaner) -> list[str]:
     """Categories or tags of a draft: cleaned, without empty ones, at most ``MAX_CATEGORIES``."""
     cleaned = (cleaner.line(label, MAX_CATEGORY) for label in labels)
@@ -456,9 +473,10 @@ def normalize_drafts(
             times = _times(draft, source, context)
             stated = draft.event_type_hint or source.default_event_type
             event_type = meeting_type(stated, draft.title, times)
-            if times.end_dropped_as_too_long:
+            if times.end_dropped_as_too_long and (end := _listed_end(draft, source, context)):
                 days = _times(draft, source, context, all_day=True)
-                if (typed := meeting_over_days(stated, draft.title, days)) is not None:
+                typed = meeting_over_days(stated, draft.title, days, start=times.start, end=end)
+                if typed is not None:
                     times, event_type = days, typed
             meeting = is_meeting_span(event_type, times.start, times.end, all_day=times.all_day)
             if not in_window(

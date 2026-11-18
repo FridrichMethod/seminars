@@ -17,10 +17,15 @@ title too:
 * a conference or a workshop with times of day that lasts more than
   ``MAX_TIMED_LENGTH``, whose end the length rule of
   ``seminars.pipeline.times`` drops, keeps its days as an all-day event
-  instead (``meeting_over_days``): a summer school from 9:00 on a Monday
-  to 17:00 on the Friday of the next week runs over those twelve days, it
-  is no talk of an hour on its first morning. An event of any other type
-  loses its end, as the length rule says;
+  instead (``meeting_over_days``) when its hours are those of a meeting:
+  its end's time of day lies at least ``MEETING_MIN_TIMED_HOURS`` hours
+  after its start's, or both are midnight. A summer school from 9:00 on a
+  Monday to 17:00 on the Friday of the next week runs over those twelve
+  days, it is no talk of an hour on its first morning; the title rule
+  applies to such an event as to one of a day. A weekly "Workshop" from
+  noon to 1 pm that a source lists from its first to its last week is a
+  series of talks, whatever its type, and an event of any other type or
+  with other hours loses its end, as the length rule says;
 * a source with ``meeting_horizon`` keeps its meetings that start up to
   ``meetings.days_ahead`` ahead (``Settings.meeting_window_at``); its talks,
   and every event of the other sources, keep the window of the run;
@@ -32,7 +37,7 @@ title too:
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 from typing import Final
 
 from seminars.models import MEETING_MIN_TIMED_HOURS, EventType, SourceConfig, TimeWindow
@@ -91,20 +96,38 @@ def meeting_type(event_type: EventType, title: str | None, times: EventTimes) ->
     return event_type
 
 
+def has_meeting_hours(start: datetime, end: datetime) -> bool:
+    """Whether a span over several days has the hours of a meeting on each of them.
+
+    Its end's time of day lies at least ``MEETING_MIN_TIMED_HOURS`` hours
+    after its start's (9:00 to 17:00), or both are midnight: whole days.
+    The times of day are compared as the clock shows them.
+    """
+    first, last = start.time(), end.time()
+    if first == last == time.min:
+        return True
+    gap = datetime.combine(date.min, last) - datetime.combine(date.min, first)
+    return gap >= timedelta(hours=MEETING_MIN_TIMED_HOURS)
+
+
 def meeting_over_days(
-    event_type: EventType, title: str | None, days: EventTimes
+    event_type: EventType, title: str | None, days: EventTimes, *, start: datetime, end: datetime
 ) -> EventType | None:
     """The meeting type of a timed event of more than a week that is kept over its days.
 
-    ``days`` are the times of the event read as all day (its first to its
-    last local day). The result is the type of the event, after the title
-    rule of ``meeting_type``, when that is a conference or a workshop and
-    the days span more than ``MAX_TIMED_LENGTH``; otherwise ``None``, and
-    the event keeps its times of day without an end. The days are counted
-    by their dates: a week with the day the clocks go back lasts an hour
-    more and is still a week.
+    ``start`` and ``end`` are the times of day the event was listed with,
+    and ``days`` the same event read as all day (its first to its last
+    local day). The result is the type of the event, after the title rule
+    of ``meeting_type``, when that is a conference or a workshop, the days
+    span more than ``MAX_TIMED_LENGTH`` and the hours are those of a
+    meeting (``has_meeting_hours``); otherwise ``None``, and the event
+    keeps its times of day without an end. The days are counted by their
+    dates: a week with the day the clocks go back lasts an hour more and is
+    still a week.
     """
     if days.end is None or days.end.date() - days.start.date() <= MAX_TIMED_LENGTH:
+        return None
+    if not has_meeting_hours(start, end):
         return None
     typed = meeting_type(event_type, title, days)
     return typed if typed in MEETING_TYPES else None
