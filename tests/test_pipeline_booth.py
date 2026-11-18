@@ -140,7 +140,7 @@ def test_a_stored_booth_is_removed_in_the_run_that_excludes_it(config: AppConfig
     )
     # bio from the source, ai-ml from the name of the meeting (taxonomy series)
     assert booth.fields == ["ai-ml", "bio"]
-    for feed_id in ("all", "ai-ml", "bio"):
+    for feed_id in ("all", "ai-ml", "bio", "conferences"):
         assert f"UID:{BOOTH_UID}@" in feed(config, feed_id)
 
     report = run(config, real_services(config, BOOTH_PAGES))
@@ -153,7 +153,7 @@ def test_a_stored_booth_is_removed_in_the_run_that_excludes_it(config: AppConfig
         "location names a booth",
     )
     assert excluded.source_ids == ["bayarea-biohub:52886"]
-    for feed_id in ("all", "ai-ml", "bio"):
+    for feed_id in ("all", "ai-ml", "bio", "conferences"):
         assert BOOTH_UID not in feed(config, feed_id)
 
 
