@@ -31,11 +31,15 @@ department that hosts them. Two candidates are the same talk when
   whole meeting when its source leads the merge.
 
 Meetings (conferences and long workshops, ``Event.is_meeting``) are
-compared by title more strictly than talks: two meetings are one by their
-titles only when the folded titles are equal, and a meeting is never one
-with a talk by its title alone. All-day meetings of one day all start at
-midnight, and "ICML 2027" is similar to "ICLR 2027" by any fuzzy measure;
-the opening keynote of a symposium is not the symposium.
+compared by title more strictly than talks: a meeting is one with another
+listing by their titles only when the folded titles are equal. All-day
+meetings of one day all start at midnight, and "ICML 2027" is similar to
+"ICLR 2027" by any fuzzy measure; "AIMI Symposium: Opening keynote" is
+similar to "AIMI Symposium" as well, and the keynote is not the
+symposium. The same title at about the same time is one listing, though,
+even when only one of them is a meeting: a calendar that gives the hours
+of a symposium makes it a conference by the title rule, while a host that
+gives only its start leaves it a talk.
 
 Four guards keep unrelated talks apart. "TBA" is never similar to "TBA",
 and a title of a single word ("Seminar") is not compared at all, because
@@ -318,16 +322,16 @@ def _names_one_of(profile: _Profile, names: Collection[str]) -> bool:
 def _similar_titles(first: _Profile, second: _Profile, threshold: int) -> bool:
     """Whether two titles are similar enough to make one talk (see the module docstring).
 
-    A meeting is compared strictly: it is the same meeting as another one
-    only by an equal folded title, and never the same as a talk by its
-    title alone. All-day meetings of one day all start at midnight, and
+    A meeting is compared strictly: it is the same event as another
+    listing, a meeting or a talk, by its title only when the folded titles
+    are equal. All-day meetings of one day all start at midnight, and
     "ICML 2027" against "ICLR 2027", or "RECOMB 2027" against
     "RECOMB-Seq 2027", are similar by any fuzzy measure.
     """
     if first.title is None or second.title is None:
         return False
     if first.meeting or second.meeting:
-        return first.meeting and second.meeting and first.title == second.title
+        return first.title == second.title
     return fuzz.token_set_ratio(first.title, second.title) >= threshold
 
 

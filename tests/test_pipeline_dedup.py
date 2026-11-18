@@ -275,6 +275,17 @@ class TestMeetings:
         for order in ((symposium, keynote), (keynote, symposium)):
             assert uids(run(*order)) == ["a", "b"]
 
+    def test_a_meeting_and_a_talk_with_one_title_at_one_time_are_one(self) -> None:
+        # Localist gives the hours and the title rule makes it a conference; the host gives
+        # only the start, so its listing stays a seminar.
+        title = "Knight Initiative Winter 2027 Symposium"
+        symposium = timed_listing("a", title)
+        listing = timed_listing("b", f"{title}!", event_type="seminar", end=None)
+        assert symposium.event.is_meeting
+        assert not listing.event.is_meeting
+        for order in ((symposium, listing), (listing, symposium)):
+            assert uids(run(*order)) == ["a"]
+
     @pytest.mark.parametrize("days", [1, 5])
     def test_an_all_day_meeting_and_its_listing_with_hours_are_one(self, days: int) -> None:
         # From 9:00 on the first day to 17:00 on the last: the days of the meeting.
