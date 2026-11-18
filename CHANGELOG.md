@@ -4,6 +4,71 @@ All notable changes of this project are recorded in this file. The format follow
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version numbers follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **Conferences and workshops.** A meeting is a conference, or a workshop that runs over
+  several days or for at least three hours. A source with `meeting_horizon: true` keeps
+  its meetings up to 365 days ahead (`meetings.days_ahead`), while talks keep the
+  window of 120 days. An event that a calendar types as a seminar, lecture or other
+  becomes a conference or a workshop when its title names one (symposium, conference,
+  summit, convening, congress, retreat; workshop, boot camp, summer, winter or spring
+  school) and it is all day or lasts at least three hours. A timed meeting of more than
+  a week is kept over its days as an all-day event.
+- **Feed `conferences.ics`** with the conferences and workshops. They stay in `all.ics`,
+  in the picks and in the field feeds as well.
+- **Kind filter** on the web site (all, talks, conferences and workshops), kept in the
+  address like the other filters. A meeting in progress is listed once, under Ongoing,
+  and the full-text search also reads the location.
+- **Conferences and workshops in the weekly digest**, in a section of their own; they
+  leave the picks and field tables of the digest.
+- **Registry of meetings** (`conf-registry`, `config/sources.d/conferences.yaml`, group
+  `conferences`): Bay Area conferences and workshops that no source carries, kept by
+  hand with the facts of the organizer's page of each edition (dates, venue and the
+  dates of its deadlines, which the event lists). It sends no request. A test fails
+  when an edition that starts within 120 days was checked more than 90 days before,
+  and another one keeps the sites of conference aggregators out of every source.
+- **Workshops of the Simons Institute** (`bayarea-simons-workshops`): workshops, boot
+  camps and symposia of the Upcoming tab, a year ahead.
+- **SLAC workshops and schools** (`bayarea-slac-workshops`) from the iCalendar feeds of
+  five Indico categories, a year ahead; robots.txt of indico.slac.stanford.edu is set
+  aside for this source as for the SLAC seminars.
+- The AIMI Symposium (`sites-aimi`) and the conferences of HAI (`custom-hai-events`) are
+  kept a year ahead.
+- **Meetings of the owner's fields as picks**: the series Protein Society, RosettaCon,
+  Rosetta Commons, BayLearn, MLSB, MLBio, RECOMB, ISMB, ICLR, Enzyme Engineering and
+  Generative and Experimental Perspectives (GEM), and the keywords enzyme engineering and
+  biomolecular design. The taxonomy places NeurIPS, ICML and ICLR in ai-ml and RECOMB,
+  ISMB, Protein Society and RosettaCon in bio.
+- `allow_empty` for sources of the `ics` adapter: a run in which every feed is a
+  calendar without an event is healthy.
+- The READMEs point readers of ML and CS conference deadlines to the calendar of the
+  ccfddl project.
+
+### Changed
+
+- An all-day event is marked as free time in every feed (`TRANSP:TRANSPARENT` and
+  `X-MICROSOFT-CDO-BUSYSTATUS:FREE`), so a conference of a week does not block the
+  calendar.
+- Events are kept in the window, and archived, by their end: a workshop that began
+  before the window and still runs stays.
+- Merging of listings: a meeting joins another listing on its title only when the
+  titles are equal (so ICML 2027 and ICLR 2027 stay apart, and a symposium stays apart
+  from a talk that is part of it); an all-day meeting joins the listing of one of its
+  days that links the same page and gives its hours; a merged event is a meeting when
+  one of its listings is. Neither the front page of a site nor the page of a series
+  that a meeting links is used as a key.
+- The descriptions of the picks and field feeds say that they hold meetings too.
+
+### Fixed
+
+- The booth of an exhibitor at a meeting ("Biohub at NeurIPS 2026", Booth 72) is left
+  out as no talk; it had been listed in the bio feed.
+- `html_list` dates of a range: a first day without a year takes the year that the last
+  day states, and a last day without a year the year of the first day (dates read
+  without `date_format`).
+
 ## v0.3.0 - 2026-11-16
 
 ### Added
