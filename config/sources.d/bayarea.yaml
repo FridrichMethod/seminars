@@ -890,6 +890,12 @@ sources:
       #   community". The Quantum Industry Day ("5th Annual Quantum Industry Day
       #   2026") asks for registration because space is limited and restricts nobody,
       #   so it is kept.
+      # The detail page of "Experimental Focus Fortnight" (A Quantum Sprint, 2027-03-15
+      # to 03-25) names no audience. The program page says "The program will start
+      # with a boot camp and experimental focus fortnight", and the institute's page
+      # "Participating in a Workshop" (/participating-workshop) says "Everyone is
+      # welcome to attend the boot camp and workshops that are part of the program",
+      # so it is kept.
       skip_title_patterns:
         - '(?i)\breunion\b'
         - '(?i)^\w+ Annual Industry Day$'
