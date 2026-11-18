@@ -230,7 +230,7 @@ class TestSchema:
         [
             ({"date": date(2027, 1, 9)}, "after the end of the edition: Deadline"),
             ({"time": "23:59", "zone": "PST"}, "zone"),
-            ({"zone": "AoE"}, "a zone needs a time"),
+            ({"zone": "PST"}, "zone"),
             ({"time": "24:00"}, "params.meetings.0.milestones.0.time"),
             ({"time": 1439}, "write the time in quotes"),
             ({"qualifier": True}, "write exact or by (YAML reads an unquoted on"),
@@ -250,6 +250,11 @@ class TestSchema:
         entry = meeting(milestones=[{**values, "label": "Deadline"}])
         (parsed,) = load_params(RegistryParams, registry(entry)).meetings
         assert parsed.milestones[0].zone == zone
+
+    def test_a_zone_without_a_time_is_the_zone_of_the_day(self) -> None:
+        values = {"kind": "paper", "date": date(2026, 12, 1), "zone": "AoE", "label": "Deadline"}
+        (parsed,) = load_params(RegistryParams, registry(meeting(milestones=[values]))).meetings
+        assert [milestone.line for milestone in parsed.milestones] == ["Deadline: 2026-12-01 AoE"]
 
     def test_the_yaml_traps_are_errors_that_say_what_to_write(self) -> None:
         # YAML 1.1 reads "on" as true and 23:59 as the number 1439.

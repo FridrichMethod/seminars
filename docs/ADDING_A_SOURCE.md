@@ -391,11 +391,12 @@ contact, no address of a person, and never a date projected from an earlier edit
   Delete the entry once a source lists the meeting. `tests/test_custom_registry.py`
   fails when an edition that starts within 120 days was checked more than 90 days
   before, or when no Bay Area edition is ahead, and names the entries to look at.
-- `milestones` are the dates of the edition that a reader acts on: deadlines,
-  openings, notifications, with the time and zone the page gives (`AoE`, `PT`, `MT`,
-  `ET`, `UTC` or an IANA name). The label is a few words of our own. The description of
-  the event lists them by date; one that has passed leaves it once the window of the run
-  (14 days back) has moved past it.
+- `milestones` are the dates of the edition that a reader acts on, on or before its last
+  day: deadlines, openings, notifications, with the time and zone the page gives (`AoE`,
+  `PT`, `MT`, `ET`, `UTC` or an IANA name). A zone without a time is the zone of the
+  day, as in a deadline of January 22 `AoE`. The label is a few words of our own. The
+  description of the event lists them by date; one that has passed leaves it once the
+  window of the run (14 days back) has moved past it.
 - YAML reads an unquoted `on`, `off`, `yes` or `no` as true or false and an unquoted
   `23:59` as a number: the day of a check is `date`, a qualifier is `exact` or `by`,
   and a time is written in quotes.

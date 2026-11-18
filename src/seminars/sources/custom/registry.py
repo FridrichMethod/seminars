@@ -34,11 +34,12 @@ Keys of ``params`` (an unknown key is an error that names it):
   - ``verified``: ``date`` and ``url`` (https) of the last check of the
     facts on the organizer's page;
   - ``milestones`` (optional): dates of the edition (``Milestone``), each
-    with ``kind`` (``MILESTONE_KINDS``), ``date``, ``time`` (``"HH:MM"`` in
-    quotes, or none), ``zone`` (``ZONE_NAMES`` or an IANA name, only with
-    a time), ``qualifier`` (``exact``, the default, or ``by``: at the
-    latest on that day, as in "opens by February 1") and ``label``, a few
-    words of our own ("Poster deadline");
+    with ``kind`` (``MILESTONE_KINDS``), ``date`` (on or before ``end``),
+    ``time`` (``"HH:MM"`` in quotes, or none), ``zone`` (``ZONE_NAMES`` or
+    an IANA name, or none; without a time it is the zone of the day, as in
+    "January 22 AoE"), ``qualifier`` (``exact``, the default, or ``by``: at
+    the latest on that day, as in "opens by February 1") and ``label``, a
+    few words of our own ("Poster deadline");
   - ``notes`` (optional): lines for the curator; they are never published.
 
 Every text is printable ASCII on one line, without white space at either
@@ -226,15 +227,9 @@ class Milestone(Model):
     qualifier: Qualifier = "exact"
     label: Label
 
-    @model_validator(mode="after")
-    def _check_zone(self) -> Self:
-        if self.zone is not None and self.time is None:
-            raise ValueError("a zone needs a time")
-        return self
-
     @property
     def line(self) -> str:
-        """The line of the abstract: "Poster deadline: 2027-03-30 23:59 PT"."""
+        """The line of the abstract: "Poster deadline: 2027-03-30 23:59 PT", "2027-01-22 AoE"."""
         when = " ".join(part for part in (self.date.isoformat(), self.time, self.zone) if part)
         return f"{self.label}: {'by ' if self.qualifier == 'by' else ''}{when}"
 
