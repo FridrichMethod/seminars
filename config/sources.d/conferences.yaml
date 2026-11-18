@@ -270,7 +270,10 @@ sources:
 
         # --- Mathematics (SLMath, Berkeley) --------------------------------------------
         # slmath.org renders its pages in the browser, so no source reads them. Its
-        # workshops take place in Berkeley; the deadlines on the pages have no time of day.
+        # workshops take place in Berkeley; the deadlines on the workshop pages have no
+        # time of day. A summer graduate school takes a student nominated by the Director
+        # of Graduate Studies of a sponsoring institution or of a US department of
+        # mathematics, first come, first served, from the opening of the nominations.
 
         - id: slmath-old-problems-in-irrationality-2027
           title: "Revisiting Fundamental Problems Workshop: Old Problems in Irrationality"
@@ -339,6 +342,73 @@ sources:
             - {kind: funding, date: 2027-01-12, label: Registration deadline for funding}
             - {kind: registration, date: 2027-04-16, label: Registration deadline}
 
+        - id: slmath-sgs-min-max-methods-geometry-2027
+          title: "Summer Graduate School: Min-Max Methods in Geometry"
+          series: SLMath Summer Graduate Schools
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-06-21
+          end: 2027-07-02
+          region: bay-area
+          location: UC Berkeley, Berkeley, CA
+          url: https://www.slmath.org/summer-schools/1163
+          fields: [math]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools/1163"}
+          milestones:
+            - kind: other
+              date: 2026-12-01
+              time: "10:00"
+              zone: PT
+              label: Summer 2027 nominations open
+          notes:
+            - The opening of the nominations is on https://www.slmath.org/summer-schools,
+              which the page of the school links for how to apply.
+
+        - id: slmath-sgs-geometric-topology-complex-surfaces-2027
+          title: "Summer Graduate School: Geometric Topology of Complex Surfaces"
+          series: SLMath Summer Graduate Schools
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-06-28
+          end: 2027-07-09
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/summer-schools/1178
+          fields: [math]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools/1178"}
+          milestones:
+            - kind: other
+              date: 2026-12-01
+              time: "10:00"
+              zone: PT
+              label: Summer 2027 nominations open
+          notes:
+            - The opening of the nominations is on https://www.slmath.org/summer-schools.
+
+        - id: slmath-sgs-classification-fusion-categories-2027
+          title: "Summer Graduate School: Classification of Fusion Categories"
+          series: SLMath Summer Graduate Schools
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-07-12
+          end: 2027-07-23
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/summer-schools/1155
+          fields: [math]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools/1155"}
+          milestones:
+            - kind: other
+              date: 2026-12-01
+              time: "10:00"
+              zone: PT
+              label: Summer 2027 nominations open
+          notes:
+            - The opening of the nominations is on https://www.slmath.org/summer-schools.
+
         - id: slmath-pathways-algcomb-tropical-2027
           title: "Pathways Workshop: Algebraic Combinatorics & New Trends in Tropical Geometry"
           series: SLMath workshops
@@ -391,7 +461,7 @@ sources:
             - {kind: registration, date: 2027-12-10, label: Registration deadline}
     research:
       verified: 2026-11-18
-      sample_events: 17
+      sample_events: 20
       notes:
         - Every meeting was checked on the page of its organizer on 2026-11-18.
         - Left out on purpose. SynBioBeta 2027 (an industry summit with paid passes) and
