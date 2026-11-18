@@ -670,6 +670,20 @@ class TestCurationProblems:
             "check the organizer's page again"
         ]
 
+    def test_an_old_check_of_a_meeting_that_is_running_is_stale(self) -> None:
+        start = self.TODAY - timedelta(days=2)
+        found = self.checked(365, id="running-2027", start=start, end=self.TODAY)
+        assert found == [
+            "running-2027: starts on 2027-01-08 and was last verified on 2026-01-10; "
+            "check the organizer's page again"
+        ]
+
+    def test_an_old_check_of_a_meeting_that_is_over_is_no_problem(self) -> None:
+        # Only the registry without a Bay Area meeting ahead is: an edition that is over
+        # leaves the listing, and checking its page again would change nothing.
+        found = self.checked(365, id="over-2026", start=date(2026, 12, 1), end=date(2026, 12, 2))
+        assert found == ["no bay-area meeting ends on or after today; curate the registry"]
+
     def test_an_old_check_of_a_meeting_further_ahead_can_wait(self) -> None:
         start = self.TODAY + timedelta(days=RECHECK_WITHIN_DAYS + 1)
         assert self.checked(365, id="later-2027", start=start, end=start) == []
