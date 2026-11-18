@@ -24,7 +24,7 @@ from seminars.config import PROVIDER_CREDENTIAL_ENV, load_settings, load_sources
 from seminars.fixtures import reference_time
 from seminars.models import FIELD_IDS, Event, read_events
 
-RUN_TIME = datetime(2026, 11, 17, 4, 0, 41, tzinfo=UTC)
+RUN_TIME = datetime(2026, 11, 18, 9, 58, 33, tzinfo=UTC)
 """The latest recording time of the fixtures: the "now" of an offline run."""
 
 PAST_AFTERNOON = {

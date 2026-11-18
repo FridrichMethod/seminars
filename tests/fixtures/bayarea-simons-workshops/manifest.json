@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source_id": "bayarea-simons-workshops",
+  "entries": {
+    "https://simons.berkeley.edu/programs-events/workshop-symposia": {
+      "file": "programs-events-workshop-symposia-83f03d06.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-18T09:58:31Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://simons.berkeley.edu/programs-events/workshop-symposia?page=1": {
+      "file": "programs-events-workshop-symposia-77627446.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-18T09:58:32Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://simons.berkeley.edu/programs-events/workshop-symposia?page=2": {
+      "file": "programs-events-workshop-symposia-e291e058.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-18T09:58:33Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}
