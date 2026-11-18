@@ -121,12 +121,15 @@ class TestSection:
             "-",
         ]
 
-    def test_the_table_has_a_limit_of_its_own(self, app_config: AppConfig) -> None:
-        deadlines = [on(WEEK + timedelta(days=n % 21), n) for n in range(1, DEADLINE_ROWS + 6)]
+    @pytest.mark.parametrize("left", [1, 5])
+    def test_the_table_has_a_limit_of_its_own(self, app_config: AppConfig, left: int) -> None:
+        count = DEADLINE_ROWS + left
+        deadlines = [on(WEEK + timedelta(days=n % 21), n) for n in range(1, count + 1)]
         talks = [make_event(uid=f"t{i:02}") for i in range(3)]
         (_, table, more) = section(render(app_config, deadlines, events=talks), HEADING)
         assert len(rows(table)) == DEADLINE_ROWS == 25
-        assert more == f"5 more deadlines\n{zh('digest.labels.more_deadlines', count=5)}"
+        # Without a noun, as below the other tables: the line reads well for one as well.
+        assert more == f"{left} more\n{zh('digest.labels.more_deadlines', count=left)}"
 
     def test_the_texts_of_a_deadline_are_literal(self, app_config: AppConfig) -> None:
         hostile = on(WEEK, label="Talks of @octocat for #12 | *all* <b>x</b>")
