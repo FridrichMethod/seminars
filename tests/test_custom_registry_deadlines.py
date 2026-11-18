@@ -3,16 +3,17 @@
 The key ``short_title`` and the name of an edition in a feed (``Meeting.display_name``
 and ``display_names``), the public loader of the editions of a registry source
 (``registry_editions``), and two rules of curation that the committed registry has to
-follow for its milestones: no milestone is a deadline of the main track of a machine
-learning conference, which the README leaves to the calendar of ccfddl, and no two
-editions with milestones share a name in the feed.
+follow for its milestones: no milestone is a submission deadline of the main track of a
+machine-learning or computer-science conference, which the README leaves to the calendar
+of ccfddl, and no two editions with milestones share a name in the feed.
 """
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import pytest
 from pydantic import ValidationError
@@ -35,14 +36,35 @@ from seminars.sources.generic.common import AdapterConfigError
 
 ROOT = Path(__file__).resolve().parents[1]
 
-ML_MAIN_TRACKS = frozenset(
-    {"AAAI", "AISTATS", "COLT", "CVPR", "ECCV", "ICCV", "ICLR", "ICML", "IJCAI", "NeurIPS"}
-    | {"UAI"}
+MAIN_TRACK_SERIES: Final = frozenset(
+    {
+        *("aaai", "aistats", "colt", "corl", "cvpr", "eccv", "iccv", "iclr", "icml"),
+        *("ijcai", "neurips", "nips", "uai", "wacv"),
+        *("acl", "coling", "eacl", "emnlp", "naacl"),
+        *("cikm", "icde", "kdd", "sigir", "sigkdd", "sigmod", "vldb", "wsdm", "www"),
+        *("chi", "focs", "osdi", "siggraph", "soda", "sosp", "stoc"),
+    }
 )
-"""Machine learning conferences whose main-track deadlines the calendar of ccfddl carries."""
+"""Machine-learning and computer-science conferences whose main tracks the README leaves
+to ccfddl, as a word of the series or the id of an edition names them (in lower case)."""
 
-MAIN_TRACK_KINDS = frozenset({"abstract", "paper"})
+MAIN_TRACK_KINDS: Final = frozenset({"abstract", "paper"})
 """Kinds of a milestone that would be a main-track submission; a workshop has its own."""
+
+AWAITING_THE_OWNER: Final = {
+    "naacl-2027": (
+        "its system demonstration and commitment deadlines (kind paper) are deadlines of "
+        "the main conference; the owner decides whether they leave "
+        "config/sources.d/conferences.yaml"
+    ),
+}
+"""Editions of the committed registry that break the rule of the main tracks until the
+owner decides; the test of such an edition is expected to fail (strictly, so the entry
+here goes once the edition follows the rule)."""
+
+_WORD: Final = re.compile(r"[a-z0-9]+")
+
+PAPER: Final = {"kind": "paper", "date": "2027-01-10", "label": "Paper deadline"}
 
 
 def edition(**overrides: Any) -> Meeting:
@@ -52,6 +74,42 @@ def edition(**overrides: Any) -> Meeting:
 def committed_registries() -> list[SourceConfig]:
     sources = load_sources(ROOT / "config" / "sources.d")
     return [source for source in sources if source.enabled and source.adapter == ADAPTER]
+
+
+def committed_editions() -> list[Meeting]:
+    return [meeting for source in committed_registries() for meeting in registry_editions(source)]
+
+
+def names_a_main_track(meeting: Meeting) -> bool:
+    """True for an edition, not a workshop, of a conference of ``MAIN_TRACK_SERIES``."""
+    words = set(_WORD.findall(f"{meeting.series} {meeting.id}".lower()))
+    return meeting.event_type != "workshop" and bool(words & MAIN_TRACK_SERIES)
+
+
+def main_track_milestones(meeting: Meeting) -> list[str]:
+    """The milestones of ``meeting`` that would be submissions to a main track."""
+    if not names_a_main_track(meeting):
+        return []
+    return [
+        f"{meeting.id}: {milestone.kind} {milestone.label}"
+        for milestone in meeting.milestones
+        if milestone.kind in MAIN_TRACK_KINDS
+    ]
+
+
+def main_track_cases() -> list[Any]:
+    """One case per committed edition of a main-track conference, by id."""
+    return [
+        pytest.param(
+            meeting,
+            id=meeting.id,
+            marks=[pytest.mark.xfail(strict=True, reason=AWAITING_THE_OWNER[meeting.id])]
+            if meeting.id in AWAITING_THE_OWNER
+            else [],
+        )
+        for meeting in committed_editions()
+        if names_a_main_track(meeting)
+    ]
 
 
 class TestShortTitle:
@@ -151,18 +209,14 @@ class TestCommittedRegistry:
     def test_there_is_a_registry(self) -> None:
         assert committed_registries()
 
-    def test_no_milestone_is_a_main_track_deadline_of_a_machine_learning_conference(
-        self,
+    @pytest.mark.parametrize("meeting", main_track_cases())
+    def test_no_milestone_is_a_main_track_submission_of_a_machine_learning_or_cs_conference(
+        self, meeting: Meeting
     ) -> None:
-        offending = [
-            f"{meeting.id}: {milestone.kind}"
-            for source in committed_registries()
-            for meeting in registry_editions(source)
-            if meeting.series in ML_MAIN_TRACKS
-            for milestone in meeting.milestones
-            if milestone.kind in MAIN_TRACK_KINDS
-        ]
-        assert offending == [], "main-track deadlines of ML conferences are left to ccfddl"
+        assert main_track_milestones(meeting) == [], "main-track deadlines are left to ccfddl"
+
+    def test_every_edition_awaiting_the_owner_is_in_the_registry(self) -> None:
+        assert set(AWAITING_THE_OWNER) <= {meeting.id for meeting in committed_editions()}
 
     def test_no_two_editions_with_milestones_share_a_name(self) -> None:
         shared = []
@@ -172,3 +226,40 @@ class TestCommittedRegistry:
             counts = Counter(names[meeting.id] for meeting in editions if meeting.milestones)
             shared += [f"{source.id}: {name}" for name, count in counts.items() if count > 1]
         assert shared == [], "give these editions a short_title of their own"
+
+
+class TestMainTrackRule:
+    """The rule that the committed registry is held to, on made-up editions."""
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            pytest.param({"series": "NeurIPS"}, id="series"),
+            pytest.param({"series": "neurips 2027"}, id="case_and_year"),
+            pytest.param(
+                {"series": "International Conference on Machine Learning (ICML)"},
+                id="acronym_in_the_name",
+            ),
+            pytest.param({"id": "naacl-2027", "series": "Nations of the Americas"}, id="id"),
+            pytest.param({"series": "ACM SIGKDD"}, id="computer_science"),
+        ],
+    )
+    def test_a_main_track_submission_is_found_by_a_word(self, overrides: dict[str, Any]) -> None:
+        meeting = edition(**overrides, milestones=[PAPER])
+        assert main_track_milestones(meeting) == [f"{meeting.id}: paper Paper deadline"]
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            pytest.param({"series": "ICLR", "event_type": "workshop"}, id="a_workshop"),
+            pytest.param(
+                {"series": "ICLR", "milestones": [{**PAPER, "kind": "workshop_paper"}]},
+                id="a_workshop_paper",
+            ),
+            pytest.param({"series": "Oracle Symposium"}, id="no_word_of_its_own"),
+            pytest.param({"series": "Example Symposium"}, id="another_meeting"),
+        ],
+    )
+    def test_other_milestones_pass(self, overrides: dict[str, Any]) -> None:
+        meeting = edition(**{"milestones": [PAPER], **overrides})
+        assert main_track_milestones(meeting) == []

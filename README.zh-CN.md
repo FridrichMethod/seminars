@@ -92,8 +92,8 @@ webcal://fridrichmethod.github.io/seminars/feeds/deadlines.ics
 `deadlines.ics` 里的每个截止日期也是如此，它和其他 feed 没有共同的事件。
 
 `deadlines.ics` 只收录会议登记表列出的内容，由人工从组织方的页面维护：这里收集的领域里的 workshop、
-学会年会和其他会议的截止日期。机器学习会议主会（NeurIPS、ICML、ICLR 等）的截止日期不收集。
-[ccfddl](https://github.com/ccfddl/ccf-deadlines) 项目把 AI 类会议的截止日期发布成可以订阅的日历：
+学会年会和其他会议的截止日期。不收集机器学习和计算机科学会议主会（NeurIPS、ICML、ICLR、ACL、KDD
+等）的投稿截止日期。[ccfddl](https://github.com/ccfddl/ccf-deadlines) 项目把 AI 类会议的截止日期发布成可以订阅的日历：
 `https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics`（数据采用 MIT 许可）。
 
 ### Apple Calendar

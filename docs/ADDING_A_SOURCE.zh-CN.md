@@ -371,10 +371,10 @@ GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；�
 - 每个 milestone 都取自这一届组织方的页面，也就是 `verified` 写的那个页面，带上页面写明的时间和时区，
   别的都不写：页面没写的日期不录，按往届推算出来的日期也不录。feed 和摘要都链接这个页面，并提醒读者先查看它。
   每学期开始时和其他事实一起核对 milestone。
-- 不录机器学习会议主会（NeurIPS、ICML、ICLR 等）的截止日期：README 指向的 ccfddl 日历收录这些。
-  这类会议的 workshop 如果有自己的页面和截止日期，可以登记，它的投稿写成 `workshop_paper`。
-  这类会议的某一届如果有 `paper` 或 `abstract` 类型的 milestone，`tests/test_custom_registry_deadlines.py`
-  会失败。
+- 不录机器学习和计算机科学会议主会（NeurIPS、ICML、ICLR、ACL、KDD 等）的投稿截止日期：README 把这些留给
+  ccfddl 的日历。这类会议的 workshop 如果有自己的页面和截止日期，可以登记（`event_type: workshop`），会议
+  本身的 workshop 截止日期也可以录（`workshop_paper`）。一届不是 workshop、`series` 或 `id` 里有这类会议
+  名字的会议，如果有 `paper` 或 `abstract` 类型的 milestone，`tests/test_custom_registry_deadlines.py` 会失败。
 - `world` 的记录只为它的 milestone 而存在，永远不会成为事件：只有当湾区以外的会议有这里的读者需要
   据此行动的截止日期时，才登记它。
 - 截止日期的 uid 是 `dl.<id>.<kind>`；一届会议里同一类型的第 n 个 milestone 后面加 `-<n>`

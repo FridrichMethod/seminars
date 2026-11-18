@@ -435,11 +435,13 @@ sources that run fetches. The rules of curation for them:
   not state is not entered, and neither is one projected from an earlier edition. The feed
   and the digest link that page with the advice to check it. Check the milestones with the
   other facts at the start of each term.
-- No deadline of the main track of a machine-learning conference (NeurIPS, ICML, ICLR and
-  the like) is entered: the calendar of ccfddl that the README points to carries those. A
-  workshop of such a conference with a page and deadlines of its own may be registered, its
-  submission as `workshop_paper`. `tests/test_custom_registry_deadlines.py` fails when an
-  edition of those conferences has a milestone of the kind `paper` or `abstract`.
+- No submission deadline of the main track of a machine-learning or computer-science
+  conference (NeurIPS, ICML, ICLR, ACL, KDD and the like) is entered: the README leaves those
+  to the calendar of ccfddl. A workshop of such a conference with a page and deadlines of its
+  own may be registered (`event_type: workshop`), and so may the workshop deadlines of the
+  conference itself (`workshop_paper`). `tests/test_custom_registry_deadlines.py` fails when
+  an edition that is no workshop, and whose `series` or `id` names such a conference, has a
+  milestone of the kind `paper` or `abstract`.
 - A `world` entry exists only for its milestones and never becomes an event: register a
   meeting outside the Bay Area only for a deadline that a reader here acts on.
 - The uid of a deadline is `dl.<id>.<kind>`, and `-<n>` follows for the n-th milestone of

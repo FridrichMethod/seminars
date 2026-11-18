@@ -1,9 +1,10 @@
 """What the documents say about the deadlines of conferences and workshops.
 
 The README describes the feed deadlines.ics at its published address and points readers of
-the deadlines of the main tracks of machine-learning conferences to a calendar that is not
-collected here; it and the architecture quote the days and the rows of the digest as the code
-has them; the guide to the registry names the key and the rules of curation of a milestone.
+the submission deadlines of the main tracks of machine-learning and computer-science
+conferences to a calendar that is not collected here; it and the architecture quote the
+days and the rows of the digest as the code has them; the guide to the registry names the
+key and the rules of curation of a milestone.
 """
 
 from __future__ import annotations
@@ -44,7 +45,12 @@ DIGEST = {
         f"{DEADLINE_DAYS} \u5929\u5185\u7684\u622a\u6b62\u65e5\u671f",
     ),
 }
-MAIN_TRACKS = {"en": "main tracks of machine-learning conferences", "zh-CN": "\u4e3b\u4f1a"}
+MAIN_TRACKS = {
+    "en": "main tracks of machine-learning and computer-science conferences",
+    "zh-CN": "\u673a\u5668\u5b66\u4e60\u548c\u8ba1\u7b97\u673a\u79d1\u5b66\u4f1a\u8bae\u4e3b\u4f1a",
+}
+"""The policy of the README: no main track of a machine-learning or computer-science
+conference, in the words the README had before deadlines.ics (ML and CS alike)."""
 ARCHITECTURE = {
     "docs/ARCHITECTURE.md": (
         f"of the {DEADLINE_DAYS} days from the Monday",

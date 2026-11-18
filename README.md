@@ -115,10 +115,10 @@ which shares no event with the other feeds.
 
 `deadlines.ics` holds only what the registry of meetings lists, kept by hand from the
 organizers' pages: the deadlines of workshops, society meetings and other meetings of the
-fields collected here. The deadlines of the main tracks of machine-learning conferences
-(NeurIPS, ICML, ICLR and the like) are not collected. The
-[ccfddl](https://github.com/ccfddl/ccf-deadlines) project publishes those of the AI
-conferences as a calendar to subscribe to,
+fields collected here. The submission deadlines of the main tracks of machine-learning and
+computer-science conferences (NeurIPS, ICML, ICLR, ACL, KDD and the like) are not
+collected. The [ccfddl](https://github.com/ccfddl/ccf-deadlines) project publishes those of
+the AI conferences as a calendar to subscribe to,
 `https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics` (its data is under the MIT
 license).
 

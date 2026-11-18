@@ -53,7 +53,7 @@
   "deadlines": {
     "feed": {
       "name": "Seminars - Deadlines",
-      "description": "Deadlines, openings and notifications of conferences and workshops, kept by hand from the organizers' pages. The deadlines of the main tracks of machine learning conferences are not in it."
+      "description": "Deadlines, openings and notifications of conferences and workshops, kept by hand from the organizers' pages. The submission deadlines of the main tracks of machine-learning and computer-science conferences are not in it."
     },
     "when": {
       "by": "by {when}",
@@ -279,7 +279,7 @@
       "intro": "Each calendar is an ICS feed that refreshes itself every few hours. Subscribe once and new talks appear on their own. A talk in several fields is in each of their calendars, and a conference or workshop is in the calendar of conferences and workshops as well, so it appears once per calendar you subscribe to.",
       "feeds": "Calendars",
       "deadlines": "Deadlines",
-      "deadlines_note": "Kept by hand from the organizers' pages; check a page before you rely on its date. The deadlines of the main tracks of machine learning conferences are in the calendar of {ccfddl}.",
+      "deadlines_note": "Kept by hand from the organizers' pages; check a page before you rely on its date. The submission deadlines of the main tracks of machine-learning and computer-science conferences are not collected; {ccfddl} publishes those of the AI conferences as a calendar.",
       "calendar_link": "Calendar app link",
       "web_link": "Web link",
       "copy": "Copy",

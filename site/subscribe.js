@@ -81,10 +81,11 @@ function eventFeedItem(feed) {
 
 /**
  * The feed of the deadlines, with the sentence that it is kept by hand and that the
- * deadlines of the main tracks of machine learning conferences are in ccfddl's
- * calendar. The address of that calendar is a message of the locale files, since no
- * file of the site holds an address of another host, and becomes a link only when it
- * is an http(s) address (link()).
+ * submission deadlines of the main tracks of machine-learning and computer-science
+ * conferences are not collected, and the link to ccfddl's calendar of the AI ones. The
+ * address of that calendar is a message of the locale files, since no file of the site
+ * holds an address of another host, and becomes a link only when it is an http(s)
+ * address (link()).
  */
 function deadlineFeedItem() {
   const ccfddl = link(t("deadlines.ccfddl.url"), {}, t("deadlines.ccfddl.name"));

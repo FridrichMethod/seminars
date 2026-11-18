@@ -4,8 +4,9 @@ PRODID:-//seminars.fridrichmethod.github.io//seminars//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 X-WR-CALDESC:Deadlines\, openings and notifications of conferences and wor
- kshops\, kept by hand from the organizers' pages. The deadlines of the mai
- n tracks of machine learning conferences are not in it.
+ kshops\, kept by hand from the organizers' pages. The submission deadlines
+  of the main tracks of machine-learning and computer-science conferences a
+ re not in it.
 X-WR-CALNAME:Seminars - Deadlines
 REFRESH-INTERVAL;VALUE=DURATION:PT6H
 X-PUBLISHED-TTL:PT6H
