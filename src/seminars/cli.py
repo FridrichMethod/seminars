@@ -549,6 +549,7 @@ def digest(
                 now=current_time(),
                 owner=repository_owner(project.env),
                 dry_run=dry_run,
+                deadlines=state.deadlines,
             )
         finally:
             wiring.release_issues(issues)

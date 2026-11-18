@@ -186,13 +186,6 @@ def project_with_a_deadline_today(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     return root
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "seminars digest (src/seminars/cli.py) does not hand state.deadlines to the "
-        "publisher yet; the integrator adds deadlines=state.deadlines to that call"
-    ),
-)
 @pytest.mark.usefixtures("project_with_a_deadline_today")
 def test_the_digest_command_lists_the_stored_deadlines() -> None:
     result = CliRunner().invoke(cli.app, ["digest", "--dry-run"])
