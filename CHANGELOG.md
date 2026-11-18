@@ -75,6 +75,16 @@ All notable changes of this project are recorded in this file. The format follow
   one of its listings is. Neither the front page of a site nor the page of a series
   that a meeting links is used as a key.
 - The descriptions of the picks and field feeds say that they hold meetings too.
+- The web site speaks of events where it lists talks, conferences and workshops
+  together: the title of the page, the navigation, the heading and the count of the
+  list, the label of the filters and the count of the status page; its tagline names
+  conferences and workshops.
+- `seminars validate` requires `public/feeds/conferences.ics` and
+  `public/feeds/deadlines.ics`, and checks the feed of the deadlines by its own rules as
+  well.
+- Free-form times that name an offset from UTC that no time zone has ("UTC-13") or an
+  offset and a zone that differ ("4 PM UTC-8 (EST)") make the event invalid; dateutil
+  read the first as 13 hours ahead of UTC and the second as Eastern time.
 
 ### Fixed
 
@@ -84,9 +94,11 @@ All notable changes of this project are recorded in this file. The format follow
   EEST are read as their regions.
 - The booth of an exhibitor at a meeting ("Biohub at NeurIPS 2026", Booth 72) is left
   out as no talk; it had been listed in the bio feed.
-- `html_list` dates of a range: a first day without a year takes the year that the last
-  day states, and a last day without a year the year of the first day (dates read
-  without `date_format`).
+- `html_list` dates of a range (dates read without `date_format`): a first day without a
+  year takes the year that the last day states, or the year before when its month comes
+  later ("Dec. 28 - Jan. 3, 2027" starts on 2026-12-28), and a last day without a year
+  the year that the first day states, or the year after when its month comes earlier
+  ("Dec. 28, 2026 - Jan. 3" ends on 2027-01-03).
 
 ## v0.3.0 - 2026-11-16
 
