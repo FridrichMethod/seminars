@@ -1,10 +1,11 @@
-"""An offline run of the three sources that keep their meetings a year ahead.
+"""An offline run of three of the sources that keep their meetings a year ahead.
 
 ``seminars run --offline --no-llm`` over the recordings of sites-aimi,
-custom-hai-events and bayarea-slac-workshops, the sources with
+custom-hai-events and bayarea-slac-workshops, three of the sources with
 ``meeting_horizon``: their conferences and long workshops after the window of
-talks are stored, their talks are not. The run happens at the latest recording
-time of all fixtures, as every offline run does.
+talks are stored, their talks are not. The project holds the fixtures of these
+three sources only, so the run happens at the latest recording of the three: a
+recording of another source cannot move the window of talks over a meeting.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ from conftest import REPO_ROOT
 from seminars import cli
 from seminars.config import PROVIDER_CREDENTIAL_ENV, load_settings, load_sources
 from seminars.fixtures import reference_time
-from seminars.models import Event, read_events
+from seminars.models import Event, TimeWindow, read_events
 
 SOURCES = ("sites-aimi", "custom-hai-events", "bayarea-slac-workshops")
 PACIFIC = ZoneInfo("America/Los_Angeles")
@@ -58,10 +59,12 @@ MEETINGS = {
 def offline_run(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """The project that one offline run of the three sources wrote into."""
     root = tmp_path_factory.mktemp("horizon") / "project"
-    (root / "tests").mkdir(parents=True)
     shutil.copytree(REPO_ROOT / "config", root / "config")
     shutil.copytree(REPO_ROOT / "locales", root / "locales")
-    (root / "tests" / "fixtures").symlink_to(REPO_ROOT / "tests" / "fixtures")
+    for source in SOURCES:
+        shutil.copytree(
+            REPO_ROOT / "tests" / "fixtures" / source, root / "tests" / "fixtures" / source
+        )
     arguments = ["run", "--offline", "--no-llm"]
     for source in SOURCES:
         arguments += ["--source", source]
@@ -86,7 +89,15 @@ def report(root: Path) -> dict[str, Any]:
     return json.loads((root / "data" / "run_report.json").read_text(encoding="utf-8"))
 
 
-def test_the_three_sources_are_the_ones_with_the_meeting_horizon() -> None:
+def windows(root: Path) -> tuple[TimeWindow, TimeWindow]:
+    """The windows of talks and of meetings of the run in ``root``, at its recordings."""
+    settings = load_settings(REPO_ROOT / "config" / "settings.yaml")
+    now = reference_time(root / "tests" / "fixtures")
+    assert now is not None
+    return settings.window_at(now), settings.meeting_window_at(now)
+
+
+def test_the_three_sources_have_the_meeting_horizon() -> None:
     sources = load_sources(REPO_ROOT / "config" / "sources.d")
     flagged = {source.id for source in sources if source.meeting_horizon}
     assert set(SOURCES) <= flagged
@@ -98,6 +109,8 @@ def test_a_meeting_after_the_window_of_talks_is_stored(
     offline_run: Path, title: str, expected: tuple[str, str, bool, datetime, datetime]
 ) -> None:
     source, event_type, all_day, start, end = expected
+    talks, _ = windows(offline_run)
+    assert start >= talks.end, f"{title} is in the window of talks"
     (event,) = [event for event in stored(offline_run) if event.title == title]
     assert {key.split(":")[0] for key in event.source_ids} == {source}
     assert (event.event_type, event.all_day, event.start, event.end) == (
@@ -111,11 +124,7 @@ def test_a_meeting_after_the_window_of_talks_is_stored(
 
 
 def test_after_the_window_of_talks_only_meetings_are_stored(offline_run: Path) -> None:
-    settings = load_settings(REPO_ROOT / "config" / "settings.yaml")
-    now = reference_time(REPO_ROOT / "tests" / "fixtures")
-    assert now is not None
-    talks = settings.window_at(now)
-    meetings = settings.meeting_window_at(now)
+    talks, meetings = windows(offline_run)
     later = [event for event in stored(offline_run) if event.start >= talks.end]
     assert {event.title for event in later} == set(MEETINGS)
     assert all(event.is_meeting and event.start < meetings.end for event in later)
