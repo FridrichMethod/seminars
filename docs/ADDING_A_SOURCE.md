@@ -374,17 +374,23 @@ contact, no address of a person, and never a date projected from an earlier edit
   new event, and the old one stays until the third run without it.
 - `start` and `end` are local dates, `end` inclusive. Only `region: bay-area` entries
   become events; `world` entries carry their milestones and nothing else.
-- `url` is the organizer's page of the edition, not the front page of the series. A
-  source that lists the same meeting later becomes one event with the entry when its
-  listing points at the same page and starts on the same day; otherwise the meeting
-  shows twice.
+- `url` is the organizer's page of the edition: the site of the edition, or the page of
+  the series or program that announces it (the notes of the entry say so). A listing of
+  the same meeting by a source becomes one event with the entry only when it points at
+  the same page, starts on the first day, ends on the last and lasts at least 3 hours
+  (`pipeline/dedup.py`). Otherwise the meeting shows twice: a listing of one day of a
+  longer meeting, a listing of a calendar that links its own page of the event (Localist
+  does), and any listing of an entry whose `url` is the front page of a site
+  (`https://2027.naacl.org/`), which is no detail page.
 - `location` is the venue and the city the page names. While it names none, write
   `To be announced`, which the event shows as no location.
 - `status: tentative` marks a date that is only saved, without venue or program.
 - `verified` says on which page and on which day the facts were last checked. Check
-  every entry again at the start of each term. `tests/test_custom_registry.py` fails
-  when an edition that starts within 120 days was checked more than 90 days before, or
-  when no Bay Area edition is ahead, and names the entries to look at.
+  every entry again at the start of each term: its facts on the organizer's page, and
+  whether a source lists the meeting by now (search `data/events.json` for its title).
+  Delete the entry once a source lists the meeting. `tests/test_custom_registry.py`
+  fails when an edition that starts within 120 days was checked more than 90 days
+  before, or when no Bay Area edition is ahead, and names the entries to look at.
 - `milestones` are the dates of the edition that a reader acts on: deadlines,
   openings, notifications, with the time and zone the page gives (`AoE`, `PT`, `MT`,
   `ET`, `UTC` or an IANA name). The label is a few words of our own. The description of

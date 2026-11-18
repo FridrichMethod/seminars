@@ -10,17 +10,21 @@
 #
 # Rules for an entry:
 # - Register a meeting only when no enabled source delivers it: search data/events.json
-#   and the site for its title first. A meeting that a source lists as well becomes one
-#   event with that listing only when both point at the same page and start on the same
-#   day, so "url" is the organizer's own page of the edition.
+#   and the site for its title first. "url" is the organizer's page of the edition, or
+#   the page of the series or program that announces it (say so in the notes). A
+#   listing of the meeting by a source joins the entry only when it points at the same
+#   page, starts on the first day, ends on the last and lasts at least 3 hours. A
+#   calendar that links its own page of the event (Localist) never joins, nor does any
+#   listing when "url" is the front page of a site: the meeting then shows twice.
 # - Facts only, each from the organizer's page of the edition: title, dates, venue and
 #   city, the dates of its deadlines. No description, no contact, no address of a
 #   person, no date projected from an earlier edition. Labels of milestones are a few
 #   words of our own.
 # - "verified" says when and on which page the facts were last checked. Check every
-#   entry again at the start of each term; a test fails when an edition that starts
-#   within 120 days was checked more than 90 days before, or when no Bay Area edition
-#   is ahead (tests/test_custom_registry.py).
+#   entry again at the start of each term, search data/events.json for it, and delete
+#   it once a source lists the meeting. A test fails when an edition that starts within
+#   120 days was checked more than 90 days before, or when no Bay Area edition is ahead
+#   (tests/test_custom_registry.py).
 # - An id is "<series slug>-<year>" and is never renamed: it is the uid of the event.
 # - Only "region: bay-area" entries become events. "world" entries carry milestones only.
 
@@ -103,6 +107,7 @@ sources:
               label: Camera-ready deadline
           notes:
             - The page names no venue.
+            - The url is the front page of the edition's site, so no listing joins the entry.
 
         - id: kdd-2027
           title: ACM KDD 2027 (SIGKDD Conference on Knowledge Discovery and Data Mining)
@@ -119,6 +124,7 @@ sources:
           verified: {date: 2026-11-18, url: "https://kdd2027.kdd.org/"}
           notes:
             - The research track lists only the dates of its first cycle, all past.
+            - The url is the front page of the edition's site, so no listing joins the entry.
 
         # --- Biology, chemistry and medicine -------------------------------------------
 
@@ -195,6 +201,8 @@ sources:
           verified: {date: 2026-11-18, url: "https://dbds.stanford.edu/warren-alpert-scholars/"}
           notes:
             - Save the date only; the page names no venue, city, program or registration.
+            - The url is the page of the scholars program, which gives the date of the 2027
+              symposium.
             - Not on the Stanford Events calendar for May 11, 2027 (searched 2026-11-18).
 
         - id: bay-area-biotech-day-2027
@@ -212,6 +220,8 @@ sources:
           verified: {date: 2026-11-18, url: "https://mcb.berkeley.edu/bay-area-biotech-day"}
           notes:
             - Program and registration are to be announced on the page.
+            - The url is the page of the series, which gives the date and venue of the 2027
+              edition.
 
         - id: isscr-2027
           title: ISSCR 2027 Annual Meeting
@@ -234,6 +244,7 @@ sources:
             - {kind: abstract, date: 2027-03-31, label: Late-breaking abstract deadline}
           notes:
             - The deadlines are on https://www.isscr2027.org/abstracts, with no time of day.
+            - The url is the front page of the edition's site, so no listing joins the entry.
 
         - id: protein-society-annual-symposium-2027
           title: The Protein Society 41st Annual Symposium (PS41)
@@ -251,6 +262,8 @@ sources:
           notes:
             - Registration and abstract submission are to open "by February 1" (no year on
               the page); add the milestone once the page dates it.
+            - The url is the page of the annual symposium, which gives the dates and venue
+              of PS41.
 
         # --- Mathematics (SLMath, Berkeley) --------------------------------------------
         # slmath.org renders its pages in the browser, so no source reads them. Its

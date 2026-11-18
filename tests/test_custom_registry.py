@@ -3,9 +3,9 @@
 The registry is the source ``conf-registry`` of config/sources.d/conferences.yaml. Its
 adapter requests nothing: every meeting is an entry of its params, checked against the
 organizer's page. The tests cover the schema of an entry, the drafts a run gets, what
-the pipeline makes of them (one event per edition, joined with a calendar listing of
-the same page and day, removed after the usual missing runs, healthy when every meeting
-is over), and the state of the committed registry on the day the tests run.
+the pipeline makes of them (one event per edition, joined with a listing of the same
+page that gives its hours, removed after the usual missing runs, healthy when every
+meeting is over), and the state of the committed registry on the day the tests run.
 """
 
 from __future__ import annotations
@@ -398,8 +398,7 @@ class TestNormalized:
 
 # --- whole runs -----------------------------------------------------------------------------
 
-LOCALIST_ID = "localist-example"
-LOCALIST_URL = "https://events.example.edu/api/2/events"
+CALENDAR_URL = "https://events.example.edu/api/2/events"
 
 
 def services(**overrides: Any) -> Services:
@@ -432,18 +431,24 @@ def with_sources(config: AppConfig, *sources: SourceConfig) -> AppConfig:
 
 
 def calendar_listing(**overrides: Any) -> EventDraft:
-    """The symposium as a campus calendar lists it: with its hours and a title of its own."""
+    """The symposium as another source lists it: with its hours, under a title of its own.
+
+    The listing spans the meeting, from the first day to the last, and links the
+    organizer's page of the edition, as the host's own listing or a feed that gives
+    that address does. A Localist calendar links its own page of the event
+    (``localist_url``) instead, so its listing never shares the page of an entry.
+    """
     values: dict[str, Any] = {
-        "source_id": LOCALIST_ID,
+        "source_id": "bayarea-qbi",
         "extraction": "api",
         "native_id": "777",
         "url": PAGE,
         "title": "QBI-TAU Symposium: Computational Biology, Drug Discovery and AI",
         "start": datetime(2027, 1, 7, 9, 0, tzinfo=PACIFIC),
-        "end": datetime(2027, 1, 7, 17, 0, tzinfo=PACIFIC),
+        "end": datetime(2027, 1, 8, 17, 0, tzinfo=PACIFIC),
         "speaker_text": None,
         "location": "Byers Hall",
-        "abstract": "A day of talks on computational biology.",
+        "abstract": "Two days of talks on computational biology.",
     }
     return make_draft(**{**values, **overrides})
 
@@ -451,46 +456,91 @@ def calendar_listing(**overrides: Any) -> EventDraft:
 @pytest.fixture
 def calendar(fake_registry: AdapterRegistry) -> FakeAdapter:
     fake_registry.register("registry")(RegistryAdapter)
-    return FakeAdapter().register(fake_registry, "localist_like")
+    return FakeAdapter().register(fake_registry, "calendar_like")
 
 
-def localist() -> SourceConfig:
+def calendar_source(source_id: str = "bayarea-qbi", *, aggregator: bool = False) -> SourceConfig:
     return make_source(
-        id=LOCALIST_ID,
-        group="localist",
-        adapter="localist_like",
-        url=LOCALIST_URL,
-        aggregator=True,
+        id=source_id,
+        group="bayarea",
+        adapter="calendar_like",
+        url=CALENDAR_URL,
+        aggregator=aggregator,
         default_fields=["bio"],
     )
 
 
-class TestWithACalendarListingOfTheSameMeeting:
-    def test_the_listing_of_the_same_page_and_day_joins_the_registered_meeting(
-        self, app_config: AppConfig, calendar: FakeAdapter
+class TestWithAListingOfTheSameMeeting:
+    @pytest.mark.parametrize(
+        ("source_id", "aggregator", "all_day", "start", "end"),
+        [
+            # The host's own listing leads the merge and gives its hours.
+            (
+                "bayarea-qbi",
+                False,
+                False,
+                datetime(2027, 1, 7, 9, 0, tzinfo=PACIFIC),
+                datetime(2027, 1, 8, 17, 0, tzinfo=PACIFIC),
+            ),
+            # The entry leads an aggregator's listing and keeps the whole days.
+            (
+                "bayarea-calendar",
+                True,
+                True,
+                datetime(2027, 1, 7, tzinfo=PACIFIC),
+                datetime(2027, 1, 9, tzinfo=PACIFIC),
+            ),
+        ],
+    )
+    def test_a_listing_of_the_same_page_that_gives_the_hours_joins_the_entry(
+        self,
+        app_config: AppConfig,
+        calendar: FakeAdapter,
+        source_id: str,
+        aggregator: bool,
+        all_day: bool,
+        start: datetime,
+        end: datetime,
     ) -> None:
-        config = with_sources(app_config, registry(meeting()), localist())
+        other = calendar_source(source_id, aggregator=aggregator)
+        config = with_sources(app_config, registry(meeting()), other)
         run(config, 0)
         (before,) = read_events_file(config.paths.events_file)
-        calendar.drafts = [calendar_listing()]
+        calendar.drafts = [calendar_listing(source_id=source_id)]
         report = run(config, 1)
         (event,) = read_events_file(config.paths.events_file)
         assert report.counts.merged == 1
         assert event.uid == before.uid == "conf-registry.qbi-symposium-2027"
-        assert event.source_ids == ["conf-registry:qbi-symposium-2027", "localist-example:777"]
-        assert event.all_day
-        assert event.start == datetime(2027, 1, 7, tzinfo=PACIFIC)
+        assert sorted(event.source_ids) == [
+            f"{source_id}:777",
+            "conf-registry:qbi-symposium-2027",
+        ]
+        assert (event.all_day, event.start, event.end) == (all_day, start, end)
 
     def test_a_listing_of_another_page_stays_an_event_of_its_own(
         self, app_config: AppConfig, calendar: FakeAdapter
     ) -> None:
-        config = with_sources(app_config, registry(meeting()), localist())
+        config = with_sources(app_config, registry(meeting()), calendar_source())
         calendar.drafts = [calendar_listing(url="https://events.example.edu/event/777")]
         run(config, 0)
         events = read_events_file(config.paths.events_file)
         assert sorted(event.uid for event in events) == [
+            "bayarea-qbi.777",
             "conf-registry.qbi-symposium-2027",
-            "localist-example.777",
+        ]
+
+    def test_an_entry_whose_url_is_a_front_page_joins_no_listing(
+        self, app_config: AppConfig, calendar: FakeAdapter
+    ) -> None:
+        # A front page is no detail page: the edition sites of NAACL and KDD are such.
+        site = "https://2027.symposium.example.org/"
+        config = with_sources(app_config, registry(meeting(url=site)), calendar_source())
+        calendar.drafts = [calendar_listing(url=site)]
+        run(config, 0)
+        events = read_events_file(config.paths.events_file)
+        assert sorted(event.uid for event in events) == [
+            "bayarea-qbi.777",
+            "conf-registry.qbi-symposium-2027",
         ]
 
 
