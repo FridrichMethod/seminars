@@ -468,6 +468,54 @@ class TestMeetings:
         assert (merged.event.all_day, merged.event.end) == (True, whole.event.end)
         assert result.absorbed == {"day0": "a", "day1": "a", "day2": "a"}
 
+    def test_a_listing_of_one_day_or_one_session_does_not_name_the_meeting(self) -> None:
+        # "XYZ Workshop 2027 - Day 1" holds every word of the meeting's title and one more,
+        # which would win among titles of one talk; the poster session of a source that
+        # sorts first and leads would win by the order.
+        title = "XYZ Workshop 2027"
+        whole = meeting("a", title, days=3, url=MEETING_PAGE)
+        days = [
+            candidate(
+                f"day{day}",
+                sources=("localist-stanford",),
+                title=f"{title} - Day {day + 1}",
+                event_type="workshop",
+                url=MEETING_PAGE,
+                start=MORNING + timedelta(days=day),
+                end=MORNING + timedelta(days=day, hours=8),
+            )
+            for day in range(3)
+        ]
+        posters = timed_listing(
+            "p",
+            "Poster session (day 2)",
+            sources=("bayarea-c",),
+            event_type="other",
+            url=MEETING_PAGE,
+            start=MORNING + timedelta(days=1),
+            end=MORNING + timedelta(days=1, hours=3),
+        )
+        for listings in ([whole, *days], [whole, posters], [whole, posters, *days]):
+            for order in (listings, listings[::-1]):
+                (merged,) = run(*order).candidates
+                event = merged.event
+                assert (event.uid, event.title, event.all_day) == ("a", title, True)
+                assert event.end == MEETING_DAY + timedelta(days=3)
+
+    def test_a_meeting_listed_over_all_its_days_takes_the_title_that_says_more(self) -> None:
+        # Both listings cover the two days; of their titles the one with more words wins.
+        whole = meeting("a", "QBI Symposium 2027", days=2, url=MEETING_PAGE)
+        hours = timed_listing(
+            "c",
+            "QBI Symposium 2027: Quantitative biology at scale",
+            sources=("bayarea-c",),
+            url=MEETING_PAGE,
+            end=MORNING + timedelta(days=1, hours=8),
+        )
+        for order in ((whole, hours), (hours, whole)):
+            (merged,) = run(*order).candidates
+            assert merged.event.title == hours.event.title
+
     def test_a_talk_or_a_listing_without_an_end_stays_apart(self) -> None:
         # The opening keynote links the page of the symposium, an hour long; so does a
         # session of two hours. Neither gives the hours of a day of the meeting, nor does
