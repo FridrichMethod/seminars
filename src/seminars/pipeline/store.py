@@ -177,10 +177,15 @@ def data_files(
     events: Sequence[Event],
     uid_map: UidMap,
     health: HealthFile,
+    deadlines: Sequence[Deadline],
     archived: Sequence[Event] = (),
-    deadlines: Sequence[Deadline] = (),
 ) -> dict[Path, str]:
-    """The text of every data file of a run except the two records of the run itself."""
+    """The text of every data file of a run except the two records of the run itself.
+
+    ``deadlines`` has no default: data/deadlines.json is written from it, and
+    a call that left it out would empty the stored deadlines, so that the
+    next run counted every one of them as new.
+    """
     return {
         paths.events_file: dump_events(events),
         paths.uid_map_file: dump_json(uid_map),

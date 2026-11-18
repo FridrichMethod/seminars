@@ -51,7 +51,7 @@ class TestLoad:
         uid_map = UidMap(aliases={"sites-x:1": "a"})
         entry = SourceHealthEntry(at=REFERENCE_NOW, status="ok", events=2)
         health = HealthFile().with_source_entry("sites-x", entry)
-        files = data_files(paths, events=events, uid_map=uid_map, health=health)
+        files = data_files(paths, events=events, uid_map=uid_map, health=health, deadlines=())
         write_files({**files, **report_files(paths, report())})
         state = load_state(paths)
         assert [event.uid for event in state.events] == ["a", "b"]
@@ -62,8 +62,12 @@ class TestLoad:
 
     def test_writing_the_same_state_twice_gives_the_same_bytes(self, paths: ProjectPaths) -> None:
         events = [make_event(uid="b"), make_event(uid="a")]
-        files = data_files(paths, events=events, uid_map=UidMap(), health=HealthFile())
-        again = data_files(paths, events=events[::-1], uid_map=UidMap(), health=HealthFile())
+        files = data_files(
+            paths, events=events, uid_map=UidMap(), health=HealthFile(), deadlines=()
+        )
+        again = data_files(
+            paths, events=events[::-1], uid_map=UidMap(), health=HealthFile(), deadlines=()
+        )
         assert files == again
         write_files(files)
         assert {path: read_text(path) for path in files} == files
@@ -114,7 +118,7 @@ class TestArchive:
 
     def test_nothing_to_archive_touches_no_file(self, paths: ProjectPaths) -> None:
         assert archive_files(paths, []) == {}
-        files = data_files(paths, events=[], uid_map=UidMap(), health=HealthFile())
+        files = data_files(paths, events=[], uid_map=UidMap(), health=HealthFile(), deadlines=())
         names = sorted(path.name for path in files)
         assert names == ["deadlines.json", "events.json", "health.json", "uid_map.json"]
 

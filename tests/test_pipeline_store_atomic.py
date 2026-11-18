@@ -140,7 +140,7 @@ def entry(moment: datetime, status: Any = "ok") -> SourceHealthEntry:
 def written(
     paths: ProjectPaths, health: HealthFile, *, started: datetime | None, mode: RunMode = "live"
 ) -> None:
-    files = data_files(paths, events=[], uid_map=UidMap(), health=health)
+    files = data_files(paths, events=[], uid_map=UidMap(), health=health, deadlines=())
     if started is not None:
         report = RunReport(started_at=started, finished_at=started, mode=mode, ok=True)
         files = {**files, **report_files(paths, report)}
