@@ -57,6 +57,7 @@
     "summary": "{events} talks this week, {picks} of them picks.",
     "sections": {
       "picks": "Picks",
+      "meetings": "Conferences and workshops",
       "new": "New since last issue",
       "health": "Source health"
     },
@@ -68,7 +69,8 @@
       "location": "Location",
       "link": "Link",
       "field": "Field",
-      "reasons": "Why picked"
+      "reasons": "Why picked",
+      "note": "Note"
     },
     "labels": {
       "all_day": "All day",
@@ -77,7 +79,9 @@
       "tentative": "Tentative",
       "tba": "TBA",
       "details": "Details",
-      "more": "{count} more"
+      "more": "{count} more",
+      "new": "New",
+      "pick": "Pick"
     },
     "reasons": {
       "keyword": "\"{term}\" in {place} ({points})",
@@ -93,6 +97,7 @@
     "empty": {
       "picks": "No picks this week.",
       "field": "No talks this week.",
+      "meetings": "No conferences or workshops until {end}.",
       "new": "Nothing new since the last issue.",
       "first_issue": "First issue: everything is new."
     },

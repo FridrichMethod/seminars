@@ -64,8 +64,10 @@ update ran and how each source did.
 ### Weekly digest
 
 Every Monday morning a new issue with the label `digest` lists the talks of that week
-(Monday to Sunday) and what was added since the previous digest; the previous digest
-issue is closed.
+(Monday to Sunday), the conferences and workshops of the next eight weeks and the later
+ones added since the previous digest, and the talks added since the previous digest; the
+previous digest issue is closed. A conference or workshop is listed in its own section
+only, marked when it is new or a pick.
 
 ## Subscribe
 

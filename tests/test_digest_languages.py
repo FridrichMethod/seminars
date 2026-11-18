@@ -97,7 +97,7 @@ class TestFieldNames:
     def test_every_heading_splits_into_its_two_languages(self, app_config: AppConfig) -> None:
         text = body(app_config, picks_reasons=LINES)
         headings = [line for line in text.split("\n") if line.startswith("#")]
-        assert len(headings) == 4 + len(FIELD_IDS)  # title, picks, fields, new, health
+        assert len(headings) == 5 + len(FIELD_IDS)  # title, picks, fields, meetings, new, health
         for heading in headings:
             english, chinese = heading.split(" ", 1)[1].split(BILINGUAL_SEPARATOR)
             assert english.isascii(), heading

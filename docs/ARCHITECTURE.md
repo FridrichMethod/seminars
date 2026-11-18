@@ -317,10 +317,13 @@ replaced by an empty placeholder.
   nor `events.json` has anything of its own for the download: the file is made from the
   feed that `outputs/ics.py` writes.
 - **Digest** (`outputs/digest.py`): the talks of the week (Monday to Sunday), the picks first,
-  then one table per field, the talks new since the previous issue and the state of the
-  sources, with every label in English and Chinese. No state is kept: "new" is measured from
-  the time the previous digest issue was opened, and an issue with the title of this week
-  is looked for first.
+  then one table per field, the conferences and workshops, the talks new since the previous
+  issue and the state of the sources, with every label in English and Chinese. The meetings
+  (`Event.is_meeting`) are in their own table only: those with a day in the eight weeks from
+  the Monday and the later ones new since the previous issue, each marked when it is new or a
+  pick. That table has a row limit of its own, which shrinks only once the other tables are
+  down to one row. No state is kept: "new" is measured from the time the previous digest
+  issue was opened, and an issue with the title of this week is looked for first.
 - **Health** (`outputs/health.py`): the last 30 runs of each source and provider in
   `data/health.json`. A source that failed 3 runs in a row, that delivered talks and then
   came back empty 3 runs in a row, or that was not read in full 3 runs in a row gets a

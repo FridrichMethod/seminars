@@ -57,6 +57,7 @@
     "summary": "本周共 {events} 场报告，其中精选 {picks} 场。",
     "sections": {
       "picks": "精选",
+      "meetings": "会议和研讨会",
       "new": "上一期以来新增",
       "health": "数据源健康状况"
     },
@@ -68,7 +69,8 @@
       "location": "地点",
       "link": "链接",
       "field": "领域",
-      "reasons": "入选理由"
+      "reasons": "入选理由",
+      "note": "备注"
     },
     "labels": {
       "all_day": "全天",
@@ -77,7 +79,9 @@
       "tentative": "待定",
       "tba": "待公布",
       "details": "详情",
-      "more": "另有 {count} 场"
+      "more": "另有 {count} 场",
+      "new": "新增",
+      "pick": "精选"
     },
     "reasons": {
       "keyword": "{place}含\"{term}\"（{points}）",
@@ -93,6 +97,7 @@
     "empty": {
       "picks": "本周没有精选报告。",
       "field": "本周没有报告。",
+      "meetings": "{end} 之前没有会议或研讨会。",
       "new": "上一期以来没有新增。",
       "first_issue": "第一期：全部都是新增。"
     },
