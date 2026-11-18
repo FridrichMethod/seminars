@@ -327,3 +327,78 @@ Commit the YAML entry, the adapter module if there is one, the fixtures and the
 test. Do not commit the `data/` that a local run rewrote: the daily update owns it.
 Pull requests run the CI workflow only, which has no credentials; the new source
 joins the daily update once the change is merged.
+
+## Conferences and workshops without a source
+
+Some meetings are announced months ahead on pages that no source reads: the annual
+meeting of a society in San Francisco, a symposium that a center posts once, the
+workshops of an institute whose site needs a browser. The registry keeps them by hand.
+It is the source `conf-registry` in `config/sources.d/conferences.yaml`, with the
+adapter `registry` (`src/seminars/sources/custom/registry.py`, whose docstring
+describes every key). Its adapter requests nothing: each meeting is an entry of
+`params.meetings`, and its `url` is the page of that file on GitHub, which the status
+page links and nothing fetches. The source has `meeting_horizon: true`, so a meeting is
+kept up to a year ahead, and `allow_empty: true`, so a registry whose meetings are all
+over is no broken source.
+
+Register a meeting only when no enabled source delivers it: search `data/events.json`
+and the site for its title first. An entry holds the facts of one edition, each from
+the organizer's own page of that edition, and nothing else: no description, no
+contact, no address of a person, and never a date projected from an earlier edition.
+
+```yaml
+- id: iclr-2027
+  title: "ICLR 2027: The Fifteenth International Conference on Learning Representations"
+  series: ICLR
+  host_org: International Conference on Learning Representations (ICLR)
+  start: 2027-04-26
+  end: 2027-04-30
+  region: bay-area
+  location: Moscone Center, San Francisco, CA
+  url: https://iclr.cc/Conferences/2027
+  fields: [ai-ml, cs]
+  event_type: conference
+  status: confirmed
+  verified: {date: 2026-11-18, url: "https://iclr.cc/Conferences/2027"}
+  milestones:
+    - {kind: workshop_paper, date: 2027-02-01, label: Suggested workshop paper deadline}
+    - kind: notification
+      date: 2027-02-26
+      time: "23:59"
+      zone: AoE
+      label: Workshop paper notification deadline
+```
+
+- `id` is `<series slug>-<year>`, ending in the year the edition starts in. It is the
+  uid of the event (`conf-registry.<id>`), so it is never renamed: a renamed entry is a
+  new event, and the old one stays until the third run without it.
+- `start` and `end` are local dates, `end` inclusive. Only `region: bay-area` entries
+  become events; `world` entries carry their milestones and nothing else.
+- `url` is the organizer's page of the edition, not the front page of the series. A
+  source that lists the same meeting later becomes one event with the entry when its
+  listing points at the same page and starts on the same day; otherwise the meeting
+  shows twice.
+- `location` is the venue and the city the page names. While it names none, write
+  `To be announced`, which the event shows as no location.
+- `status: tentative` marks a date that is only saved, without venue or program.
+- `verified` says on which page and on which day the facts were last checked. Check
+  every entry again at the start of each term. `tests/test_custom_registry.py` fails
+  when an edition that starts within 120 days was checked more than 90 days before, or
+  when no Bay Area edition is ahead, and names the entries to look at.
+- `milestones` are the dates of the edition that a reader acts on: deadlines,
+  openings, notifications, with the time and zone the page gives (`AoE`, `PT`, `MT`,
+  `ET`, `UTC` or an IANA name). The label is a few words of our own. The description of
+  the event lists them by date; one that has passed leaves it once the window of the run
+  (14 days back) has moved past it.
+- YAML reads an unquoted `on`, `off`, `yes` or `no` as true or false and an unquoted
+  `23:59` as a number: the day of a check is `date`, a qualifier is `exact` or `by`,
+  and a time is written in quotes.
+
+A meeting that is over leaves the registry's listing by itself. A deleted entry is
+removed from the feeds at the third run without it, while the registry still lists
+another meeting, like a talk that its source no longer lists; an edition that has
+already started stays until it ends. A run in which the registry lists no meeting at
+all says nothing about its events, so an entry deleted then stays until it is over.
+No address of a source or of a registered meeting
+may be on a site that lists conferences for a fee (waset.org, 10times.com and the
+like; `tests/test_source_denylist.py` checks this).

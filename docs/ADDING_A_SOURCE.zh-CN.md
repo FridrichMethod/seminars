@@ -288,3 +288,62 @@ uv run pytest
 提交 YAML 记录、adapter 模块（如果有）、fixture 和测试。不要提交本地运行改写的 `data/`：
 它归每日更新管。pull request 只运行 CI workflow，那里没有任何凭证；改动合并之后，新数据源就会
 加入每日更新。
+
+## 没有数据源的会议和 workshop
+
+有些会议提前几个月就在没有任何数据源读取的页面上公布：某个学会在 San Francisco 的年会、
+某个中心只发一次的 symposium、网站要靠浏览器渲染的研究所的 workshop。会议登记表（registry）
+人工维护这些会议。它是 `config/sources.d/conferences.yaml` 里的数据源 `conf-registry`，
+adapter 是 `registry`（`src/seminars/sources/custom/registry.py`，它的 docstring 说明每个键）。
+这个 adapter 不发任何请求：每个会议是 `params.meetings` 里的一条记录；数据源的 `url` 是这个文件在
+GitHub 上的页面，状态页链接到它，但没有任何东西抓取它。这个数据源设了 `meeting_horizon: true`，
+所以会议最多提前一年保留；还设了 `allow_empty: true`，所以会议全部结束的登记表不算坏掉的数据源。
+
+只登记没有任何已启用数据源提供的会议：先在 `data/events.json` 和网站上搜它的标题。一条记录只写
+一届会议的事实，每一项都取自组织方这一届的页面，别的都不写：不写简介、不写联系方式、不写任何人的
+地址，也绝不写按往届推算出来的日期。
+
+```yaml
+- id: iclr-2027
+  title: "ICLR 2027: The Fifteenth International Conference on Learning Representations"
+  series: ICLR
+  host_org: International Conference on Learning Representations (ICLR)
+  start: 2027-04-26
+  end: 2027-04-30
+  region: bay-area
+  location: Moscone Center, San Francisco, CA
+  url: https://iclr.cc/Conferences/2027
+  fields: [ai-ml, cs]
+  event_type: conference
+  status: confirmed
+  verified: {date: 2026-11-18, url: "https://iclr.cc/Conferences/2027"}
+  milestones:
+    - {kind: workshop_paper, date: 2027-02-01, label: Suggested workshop paper deadline}
+    - kind: notification
+      date: 2027-02-26
+      time: "23:59"
+      zone: AoE
+      label: Workshop paper notification deadline
+```
+
+- `id` 写成 `<series slug>-<year>`，以这一届开始的年份结尾。它就是事件的 uid
+  （`conf-registry.<id>`），所以永远不改名：改了名的记录是一个新事件，旧事件要到第三次没有它的运行时才离开。
+- `start` 和 `end` 是当地日期，`end` 包含在内。只有 `region: bay-area` 的记录会成为事件；
+  `world` 的记录只带它的 milestone。
+- `url` 是组织方这一届的页面，不是系列的首页。之后某个数据源也列出同一个会议时，只要它的条目指向
+  同一个页面、并且在同一天开始，就和这条记录合并成一个事件；否则这个会议会出现两次。
+- `location` 写页面给出的场地和城市。页面还没写时填 `To be announced`，事件会显示为没有地点。
+- `status: tentative` 表示只是预告了日期（save the date），还没有场地和日程。
+- `verified` 写明事实最后一次是在哪个页面、哪一天核对的。每学期开始时把每条记录重新核对一遍。
+  一届会议在 120 天内开始、但上次核对已超过 90 天，或者前面没有任何湾区会议时，
+  `tests/test_custom_registry.py` 会失败，并列出需要查看的记录。
+- `milestones` 是读者需要据此行动的日期：截止日期、开放日期、通知日期，带上页面给出的时间和时区
+  （`AoE`、`PT`、`MT`、`ET`、`UTC` 或 IANA 时区名）。label 用我们自己的几个词。事件的描述按日期列出
+  这些 milestone；过去的 milestone 等运行窗口（向前 14 天）越过它之后才会从描述里去掉。
+- YAML 把不加引号的 `on`、`off`、`yes`、`no` 读成布尔值，把不加引号的 `23:59` 读成数字：所以核对日期的键叫
+  `date`，qualifier 写 `exact` 或 `by`，时间要加引号。
+
+结束了的会议会自己离开登记表的列表。删掉的记录在第三次没有它的运行时从 feed 里移除（前提是登记表还列着
+别的会议），和数据源不再列出的报告一样；已经开始的一届会议会一直保留到结束。登记表一个会议都没列出的运行
+对它的事件不下任何结论，所以这时删掉的记录会保留到会议结束。数据源和登记的会议的地址都不能
+在收费列出会议的网站上（waset.org、10times.com 之类；`tests/test_source_denylist.py` 检查这一点）。

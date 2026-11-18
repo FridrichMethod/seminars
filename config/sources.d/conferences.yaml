@@ -1,0 +1,382 @@
+# The registry: Bay Area conferences and workshops that no enabled source delivers,
+# kept by hand. Schema of the source entry: seminars.models.SourceConfig; every key of
+# a meeting is described in the docstring of seminars.sources.custom.registry, and
+# how to add or update one in docs/ADDING_A_SOURCE.md ("Conferences and workshops
+# without a source").
+#
+# The adapter requests nothing. "url" is the page of this file on GitHub: the status
+# page links it, so a reader sees where these meetings come from. It is a placeholder
+# of the source contract (a source needs a url) and is never fetched.
+#
+# Rules for an entry:
+# - Register a meeting only when no enabled source delivers it: search data/events.json
+#   and the site for its title first. A meeting that a source lists as well becomes one
+#   event with that listing only when both point at the same page and start on the same
+#   day, so "url" is the organizer's own page of the edition.
+# - Facts only, each from the organizer's page of the edition: title, dates, venue and
+#   city, the dates of its deadlines. No description, no contact, no address of a
+#   person, no date projected from an earlier edition. Labels of milestones are a few
+#   words of our own.
+# - "verified" says when and on which page the facts were last checked. Check every
+#   entry again at the start of each term; a test fails when an edition that starts
+#   within 120 days was checked more than 90 days before, or when no Bay Area edition
+#   is ahead (tests/test_custom_registry.py).
+# - An id is "<series slug>-<year>" and is never renamed: it is the uid of the event.
+# - Only "region: bay-area" entries become events. "world" entries carry milestones only.
+
+sources:
+  - id: conf-registry
+    name: Conference registry (kept by hand)
+    group: conferences
+    adapter: registry
+    url: https://github.com/FridrichMethod/seminars/blob/main/config/sources.d/conferences.yaml
+    institution: other
+    host_org: Conference registry
+    default_event_type: conference
+    meeting_horizon: true
+    params:
+      # Every meeting may be over between two curations: a run without a meeting
+      # ahead is healthy, not a broken source.
+      allow_empty: true
+      meetings:
+        # --- AI and computer science ---------------------------------------------------
+
+        - id: iclr-2027
+          title: "ICLR 2027: The Fifteenth International Conference on Learning Representations"
+          series: ICLR
+          host_org: International Conference on Learning Representations (ICLR)
+          start: 2027-04-26
+          end: 2027-04-30
+          region: bay-area
+          location: Moscone Center, San Francisco, CA
+          url: https://iclr.cc/Conferences/2027
+          fields: [ai-ml, cs]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://iclr.cc/Conferences/2027"}
+          milestones:
+            - {kind: other, date: 2026-11-29, label: Accepted workshops announced}
+            - kind: registration_open
+              date: 2026-12-23
+              time: "10:00"
+              zone: PT
+              label: Registration opens
+            - {kind: workshop_paper, date: 2027-02-01, label: Suggested workshop paper deadline}
+            - kind: notification
+              date: 2027-02-26
+              time: "23:59"
+              zone: AoE
+              label: Workshop paper notification deadline
+          notes:
+            - Main conference April 26-28, workshops April 29-30 (Dates page).
+            - The venue is named only in an image caption of the main page; check again.
+
+        - id: naacl-2027
+          title: "NAACL 2027: The 2027 Annual Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics"
+          series: NAACL
+          host_org: Nations of the Americas Chapter of the Association for Computational Linguistics
+          start: 2027-06-01
+          end: 2027-06-05
+          region: bay-area
+          location: San Francisco, CA
+          url: https://2027.naacl.org/
+          fields: [ai-ml, cs]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://2027.naacl.org/"}
+          milestones:
+            - kind: paper
+              date: 2026-12-04
+              time: "23:59"
+              zone: AoE
+              label: System demonstration deadline
+            - kind: paper
+              date: 2026-12-23
+              time: "23:59"
+              zone: AoE
+              label: Commitment deadline
+            - {kind: notification, date: 2027-02-10, label: Notification of acceptance}
+            - kind: other
+              date: 2027-03-03
+              time: "23:59"
+              zone: AoE
+              label: Camera-ready deadline
+          notes:
+            - The page names no venue.
+
+        - id: kdd-2027
+          title: ACM KDD 2027 (SIGKDD Conference on Knowledge Discovery and Data Mining)
+          series: KDD
+          host_org: ACM SIGKDD
+          start: 2027-08-01
+          end: 2027-08-05
+          region: bay-area
+          location: San Jose McEnery Convention Center, San Jose, CA
+          url: https://kdd2027.kdd.org/
+          fields: [ai-ml, cs]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://kdd2027.kdd.org/"}
+          notes:
+            - The research track lists only the dates of its first cycle, all past.
+
+        # --- Biology, chemistry and medicine -------------------------------------------
+
+        - id: qbi-computational-biology-drug-discovery-ai-2027
+          title: Computational Biology, Drug Discovery and AI
+          series: QBI symposia
+          host_org: UCSF Quantitative Biosciences Institute (QBI) and Tel Aviv University
+          start: 2027-01-07
+          end: 2027-01-08
+          region: bay-area
+          location: UCSF Mission Bay, San Francisco, CA
+          url: https://qbi.ucsf.edu/events/qbi-tau-symposium-2027
+          fields: [ai-ml, bio, med]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://qbi.ucsf.edu/events/qbi-tau-symposium-2027"}
+          milestones:
+            - {kind: other, date: 2026-11-01, label: Speaker interest form deadline}
+          notes:
+            - The list card of QBI shows January 8 only; the detail page gives both days.
+
+        - id: sdds-2027
+          title: "SDDS 2027: 11th Annual Stanford Drug Discovery Symposium"
+          series: Stanford Drug Discovery Symposium (SDDS)
+          host_org: Stanford Cardiovascular Institute
+          start: 2027-04-26
+          end: 2027-04-27
+          region: bay-area
+          location: Frances C. Arrillaga Alumni Center, Stanford, CA
+          url: https://med.stanford.edu/cvi/events/sdds2027-stanford-drug-discovery-symposium.html
+          fields: [chem, bio, med]
+          event_type: conference
+          status: confirmed
+          verified:
+            date: 2026-11-18
+            url: https://www.eventbrite.com/e/11th-annual-stanford-drug-discovery-symposium-sdds-tickets-1989607757361
+          milestones:
+            - kind: poster
+              date: 2027-03-30
+              time: "23:59"
+              zone: PT
+              label: Poster registration deadline
+          notes:
+            - The page of the institute names the venue but no dates; the dates are on its
+              Eventbrite registration page, which the institute links.
+            - Not on the Stanford Events calendar for April 26-27, 2027 (searched 2026-11-18).
+
+        - id: qbi-full-circle-native-indigenous-scientists-2027
+          title: Full Circle of Native and Indigenous Scientists in Biology
+          series: Full Circle of Native and Indigenous Scientists in Biology
+          host_org: UCSF Quantitative Biosciences Institute (QBI)
+          start: 2027-05-06
+          end: 2027-05-07
+          region: bay-area
+          location: UCSF Mission Bay, San Francisco, CA
+          url: https://qbi.ucsf.edu/events/full-circle-symposium-2027
+          fields: [bio]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://qbi.ucsf.edu/events/full-circle-symposium-2027"}
+
+        - id: warren-alpert-cbai-symposium-2027
+          title: 2027 Warren Alpert CBAI Research Symposium
+          series: Warren Alpert Computational Biology and Artificial Intelligence Research Symposium
+          host_org: Stanford Department of Biomedical Data Science
+          start: 2027-05-11
+          end: 2027-05-11
+          region: bay-area
+          location: To be announced
+          url: https://dbds.stanford.edu/warren-alpert-scholars/
+          fields: [ai-ml, bio, med]
+          event_type: conference
+          status: tentative
+          verified: {date: 2026-11-18, url: "https://dbds.stanford.edu/warren-alpert-scholars/"}
+          notes:
+            - Save the date only; the page names no venue, city, program or registration.
+            - Not on the Stanford Events calendar for May 11, 2027 (searched 2026-11-18).
+
+        - id: bay-area-biotech-day-2027
+          title: Bay Area Biotech Day 2027
+          series: Bay Area Biotech Day
+          host_org: UC Berkeley Department of Molecular and Cell Biology
+          start: 2027-05-17
+          end: 2027-05-17
+          region: bay-area
+          location: Li Ka Shing Center, UC Berkeley, Berkeley, CA
+          url: https://mcb.berkeley.edu/bay-area-biotech-day
+          fields: [bio, med]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://mcb.berkeley.edu/bay-area-biotech-day"}
+          notes:
+            - Program and registration are to be announced on the page.
+
+        - id: isscr-2027
+          title: ISSCR 2027 Annual Meeting
+          series: ISSCR Annual Meeting
+          host_org: International Society for Stem Cell Research (ISSCR)
+          start: 2027-06-15
+          end: 2027-06-18
+          region: bay-area
+          location: Moscone West Convention Center, San Francisco, CA
+          url: https://www.isscr2027.org/
+          fields: [bio, med]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.isscr.org/upcoming-events/isscr-2027"}
+          milestones:
+            - {kind: abstract, date: 2027-01-27, label: Oral and poster abstract deadline}
+            - kind: travel_award
+              date: 2027-01-27
+              label: Travel and merit award deadline (with a poster abstract)
+            - {kind: abstract, date: 2027-03-31, label: Late-breaking abstract deadline}
+          notes:
+            - The deadlines are on https://www.isscr2027.org/abstracts, with no time of day.
+
+        - id: protein-society-annual-symposium-2027
+          title: The Protein Society 41st Annual Symposium (PS41)
+          series: Protein Society Annual Symposium
+          host_org: The Protein Society
+          start: 2027-07-09
+          end: 2027-07-12
+          region: bay-area
+          location: Hilton San Francisco Union Square, San Francisco, CA
+          url: https://www.proteinsociety.org/annual-symposium
+          fields: [chem, bio]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.proteinsociety.org/annual-symposium"}
+          notes:
+            - Registration and abstract submission are to open "by February 1" (no year on
+              the page); add the milestone once the page dates it.
+
+        # --- Mathematics (SLMath, Berkeley) --------------------------------------------
+        # slmath.org renders its pages in the browser, so no source reads them. Its
+        # workshops take place in Berkeley; the deadlines on the pages have no time of day.
+
+        - id: slmath-old-problems-in-irrationality-2027
+          title: "Revisiting Fundamental Problems Workshop: Old Problems in Irrationality"
+          series: SLMath workshops
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-01-19
+          end: 2027-01-22
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/workshops/1161
+          fields: [math]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/workshops/1161"}
+          milestones:
+            - {kind: funding, date: 2026-10-31, label: Registration deadline for funding}
+            - {kind: registration, date: 2027-01-22, label: Registration deadline}
+
+        - id: slmath-mechanistic-estimation-winter-school-2027
+          title: Winter School on Mechanistic Estimation for Neural Networks
+          series: SLMath workshops
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-02-16
+          end: 2027-02-19
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/workshops/1220
+          fields: [math, ai-ml]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/workshops/1220"}
+          notes:
+            - The page shows no registration or funding deadline.
+
+        - id: slmath-geometric-sen-theory-hot-topics-2027
+          title: "Hot Topics Workshop: Geometric Sen Theory, the p-adic Simpson Correspondence, and Modularity"
+          series: SLMath workshops
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-02-22
+          end: 2027-02-26
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/workshops/1165
+          fields: [math]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/workshops/1165"}
+          milestones:
+            - {kind: funding, date: 2026-12-04, label: Registration deadline for funding}
+            - {kind: registration, date: 2027-02-26, label: Registration deadline}
+
+        - id: slmath-commutative-algebra-age-of-ai-2027
+          title: Commutative Algebra in the age of AI
+          series: SLMath workshops
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-04-12
+          end: 2027-04-16
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/workshops/1221
+          fields: [math, ai-ml]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/workshops/1221"}
+          milestones:
+            - {kind: funding, date: 2027-01-12, label: Registration deadline for funding}
+            - {kind: registration, date: 2027-04-16, label: Registration deadline}
+
+        - id: slmath-pathways-algcomb-tropical-2027
+          title: "Pathways Workshop: Algebraic Combinatorics & New Trends in Tropical Geometry"
+          series: SLMath workshops
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-08-18
+          end: 2027-08-20
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/workshops/1169
+          fields: [math]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/workshops/1169"}
+          milestones:
+            - {kind: funding, date: 2027-05-18, label: Registration deadline for funding}
+            - {kind: registration, date: 2027-08-20, label: Registration deadline}
+
+        - id: slmath-recent-developments-algebraic-combinatorics-2027
+          title: Recent Developments in Algebraic Combinatorics
+          series: SLMath workshops
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-10-04
+          end: 2027-10-08
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/workshops/1190
+          fields: [math]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/workshops/1190"}
+          milestones:
+            - {kind: funding, date: 2027-07-11, label: Registration deadline for funding}
+            - {kind: registration, date: 2027-10-08, label: Registration deadline}
+
+        - id: slmath-enumerative-tropical-geometry-2027
+          title: Enumerative Aspects of Tropical Geometry
+          series: SLMath workshops
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-12-06
+          end: 2027-12-10
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/workshops/1171
+          fields: [math]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/workshops/1171"}
+          milestones:
+            - {kind: funding, date: 2027-09-10, label: Registration deadline for funding}
+            - {kind: registration, date: 2027-12-10, label: Registration deadline}
+    research:
+      verified: 2026-11-18
+      sample_events: 17
+      notes:
+        - Every meeting was checked on the page of its organizer on 2026-11-18.
+        - Left out on purpose. SynBioBeta 2027 (an industry summit with paid passes) and
+          Critical Issues in Mathematics Education 2027 at SLMath (education, not research).

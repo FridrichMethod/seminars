@@ -113,7 +113,7 @@ fixture 的参考时间。每个阶段都拿到这个时间，没有一个阶段
 
 ## 数据源
 
-数据源配置在 `config/sources.d/` 里，分成四层：
+数据源配置在 `config/sources.d/` 里，分成四层，旁边还有一个人工维护的会议登记表：
 
 | 层 | 组 | 内容 | Adapter |
 |---|---|---|---|
@@ -121,6 +121,7 @@ fixture 的参考时间。每个阶段都拿到这个时间，没有一个阶段
 | 2 | `stanford-sites` | 建在 Stanford Sites（Drupal）上的院系网站 | `drupal_jsonapi`、`rss` |
 | 3 | `stanford-custom`、`researchseminars` | 有自己页面的实验室、中心和系列；researchseminars.org 上的系列 | `html_list` 和定制 adapter |
 | 湾区 | `bayarea` | SLAC、CZ Biohub 和湾区其他研究机构 | `rss`、`html_list`、`drupal_jsonapi`、`slac_drupal` |
+| 登记表 | `conferences` | 没有任何数据源提供的会议和 workshop，人工写在数据源记录里；不抓取任何页面 | `registry` |
 
 抽取方法按这个顺序选：结构化 API、feed、页面里的 JSON-LD、用 CSS 选择器读的 HTML 列表，最后才是
 LLM 页面抽取器。Stanford Sites 的两种模板不一样：一种提供 Drupal JSON:API（`/jsonapi/node/hs_event`），
