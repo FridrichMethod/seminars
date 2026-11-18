@@ -41,6 +41,19 @@ All notable changes of this project are recorded in this file. The format follow
   Generative and Experimental Perspectives (GEM), and the keywords enzyme engineering and
   biomolecular design. The taxonomy places NeurIPS, ICML and ICLR in ai-ml and RECOMB,
   ISMB, Protein Society and RosettaCon in bio.
+- **Deadlines feed `deadlines.ics`**: the dates of the meetings in the registry
+  (abstracts, posters, short talks, scholarships, applications, registration), one
+  all-day event on the day the organizer's page states, with the stated time and zone in
+  the summary (`ICLR 2027: Workshop paper notification deadline (23:59 AoE)`), marked as
+  free time. It is kept by hand: registry entries outside the Bay Area (`region: world`)
+  carry deadlines only, and no main-track deadline of a machine-learning or
+  computer-science conference is entered (those stay with ccfddl). The first seeds are
+  ML-bio, comp-bio, protein-design and enzyme meetings of 2027 (Keystone, Gordon, PSB,
+  RECOMB, ISMB/ECCB, EMBO-EMBL, RosettaCon) and the SLMath summer graduate schools.
+  `data/deadlines.json` keeps each deadline's `SEQUENCE`, which goes up when a fact the
+  feed shows changes; an edition may set a `short_title` for its name in the feed.
+- **Deadlines in the weekly digest**: a section of the deadlines of the 21 days from the
+  Monday of the issue. The subscription panel of the site lists the deadlines feed.
 - `allow_empty` for sources of the `ics` adapter: a run in which every feed is a
   calendar without an event is healthy.
 - The READMEs point readers of ML and CS conference deadlines to the calendar of the
@@ -63,6 +76,10 @@ All notable changes of this project are recorded in this file. The format follow
 
 ### Fixed
 
+- Free-form times: "AoE" and "Anywhere on Earth" are read as UTC-12 instead of making
+  the event invalid, "UTC-8" and "GMT+1" are read with the sign people write (dateutil
+  read them the other way round, 24 hours off at UTC-12), and CET, CEST, BST, EET and
+  EEST are read as their regions.
 - The booth of an exhibitor at a meeting ("Biohub at NeurIPS 2026", Booth 72) is left
   out as no talk; it had been listed in the bio feed.
 - `html_list` dates of a range: a first day without a year takes the year that the last
