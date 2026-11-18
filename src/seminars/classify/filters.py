@@ -16,14 +16,18 @@
    happens here rather than after classification so that such an event
    is never merged with another one, never sent to the LLM tagger, and
    the run report names the category that decided.
-3. An exhibitor's stand at a meeting. A candidate whose title, series or
-   location names a numbered booth (``BOOTH``: "Booth 72", "booth #301")
-   is a stand in an exhibit hall, not a talk, and is excluded with reason
-   ``not_a_talk``, whatever else it says. A booth without a number
-   ("Chicago Booth", a photo booth) is no such sign. Like the categories,
-   this is decided here rather than in the adapter: the uid of a booth
-   that an earlier run stored is then among the exclusions of the run,
-   and the stored event leaves in the same run.
+3. An exhibitor's stand at a meeting. A candidate whose location names a
+   numbered booth (``BOOTH``: "Halls 5-7 Booth 72", "booth #301"), or
+   whose title or series names one as a stand (``BOOTH_IN_NAME``: "at
+   Booth 72", "booth #301", "Booth No. 5"), is a stand in an exhibit hall,
+   not a talk, and is excluded with reason ``not_a_talk``, whatever else it
+   says. A booth without a number ("Chicago Booth", a photo booth) is no
+   such sign, and neither is a bare number after the word that reads as a
+   year, a date or an hour ("Chicago Booth 2026", "Jane Booth 3/12",
+   "Booth 10 am"). Like the categories, this is decided here rather than
+   in the adapter: the uid of a booth that an earlier run stored is then
+   among the exclusions of the run, and the stored event leaves in the
+   same run.
 4. The exclusion phrases of ``taxonomy.exclusions``, one list per reason,
    matched like every term of this package (whole words, see
    ``seminars.classify.rules``). The reasons are tried in the order of
@@ -110,10 +114,20 @@ DEFENSE_PHRASES: Final[tuple[str, ...]] = (
 )
 """Titles of PhD defenses, for sources that do not mark them with event type ``defense``."""
 
-BOOTH: Final = re.compile(r"\bbooth\s*(?:#|no\.?|number)?\s*\d+[a-z]?(?!\w)", re.IGNORECASE)
-"""A numbered booth ("Booth 72", "booth #301", "Booth No. 5"): an exhibitor's stand."""
+_BOOTH_NUMBER: Final = r"\d+[a-z]?(?![/:-]\d|\.\w|\w)"
+"""A booth number ("72", "12A"), not the start of a date, a time or a longer word."""
+_PLAIN_BOOTH_NUMBER: Final = rf"(?!(?:19|20)\d\d(?!\w)){_BOOTH_NUMBER}(?!\s*[ap]\.?m(?!\w))"
+"""A booth number without "#" or "No.": also not a year ("2026") and not an hour ("10 am")."""
+_MARKED_BOOTH: Final = rf"\bbooth(?:\s*#|\s+no\.?|\s+number)\s*{_BOOTH_NUMBER}"
+"""A booth with a marked number ("booth #301", "Booth No. 5", "Booth number 7")."""
+BOOTH: Final = re.compile(rf"{_MARKED_BOOTH}|\bbooth\s+{_PLAIN_BOOTH_NUMBER}", re.IGNORECASE)
+"""A numbered booth in a location ("Halls 5-7 Booth 72", "Booth#88"): an exhibitor's stand."""
+BOOTH_IN_NAME: Final = re.compile(
+    rf"{_MARKED_BOOTH}|\bat\s+(?:the\s+|our\s+)?booth\s+{_PLAIN_BOOTH_NUMBER}", re.IGNORECASE
+)
+"""A booth as a stand in a title or series ("at Booth 72", "booth #301"), not a surname."""
 BOOTH_DETAIL: Final = "{place} names a booth"
-"""Detail of an exclusion by ``BOOTH``; ``{place}`` is title, series or location."""
+"""Detail of an exclusion of a booth; ``{place}`` is title, series or location."""
 
 DEFENSE_TYPE_DETAIL: Final = "event type defense"
 OUT_OF_SCOPE_DETAIL: Final = "no field after classification"
@@ -203,10 +217,14 @@ class RuleEventFilter:
 
     @staticmethod
     def _booth(event: Event) -> _Verdict | None:
-        """The verdict for an exhibitor's booth (``BOOTH`` in title, series or location)."""
-        places = {"title": event.title, "series": event.series, "location": event.location}
-        for place, text in places.items():
-            if text and BOOTH.search(text):
+        """The verdict for an exhibitor's booth (``BOOTH_IN_NAME`` or ``BOOTH``)."""
+        places = (
+            ("title", event.title, BOOTH_IN_NAME),
+            ("series", event.series, BOOTH_IN_NAME),
+            ("location", event.location, BOOTH),
+        )
+        for place, text, pattern in places:
+            if text and pattern.search(text):
                 return _Verdict("not_a_talk", BOOTH_DETAIL.format(place=place))
         return None
 
@@ -290,6 +308,7 @@ def build_event_filter(taxonomy: Taxonomy, settings: Settings) -> EventFilter:
 __all__ = [
     "BOOTH",
     "BOOTH_DETAIL",
+    "BOOTH_IN_NAME",
     "DEFENSE_PHRASES",
     "DEFENSE_TYPE_DETAIL",
     "OUT_OF_SCOPE_CATEGORY_DETAIL",

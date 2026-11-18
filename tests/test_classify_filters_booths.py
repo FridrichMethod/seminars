@@ -1,9 +1,10 @@
 """The event filter excludes an exhibitor's booth at a meeting (seminars.classify.filters).
 
-A numbered booth in the title, the series or the location ("Booth 72", "booth
-#301") marks a stand in an exhibit hall, which is no talk. The rule holds with
-the shipped taxonomy and without any phrase at all, and it never reads the
-abstract.
+A numbered booth in the location ("Booth 72", "booth #301"), or a booth named
+as a stand in the title or the series ("at Booth 72", "booth #301"), marks a
+stand in an exhibit hall, which is no talk. A surname or a school followed by a
+year, a date or an hour is no booth. The rule holds with the shipped taxonomy
+and without any phrase at all, and it never reads the abstract.
 """
 
 from __future__ import annotations
@@ -77,8 +78,11 @@ def test_the_biohub_booth_at_neurips_is_not_a_talk(event_filter: EventFilter) ->
     ("place", "text"),
     [
         ("title", "Biohub at Booth 72"),
+        ("title", "Meet the team at the booth 12"),
         ("title", "Visit us at booth #301 in the exhibit hall"),
         ("series", "ASCB exhibitors, Booth No. 5"),
+        ("series", "Exhibitors (booth number 40)"),
+        ("location", "Exhibit hall, Booth #2026"),
         ("location", "Moscone South, Booth 1234"),
         ("location", "Exhibit Hall B, booth no 12"),
         ("location", "Hall C, Booth number 7"),
@@ -121,3 +125,29 @@ def test_the_title_is_reported_before_the_location() -> None:
 def test_everything_else_is_left_to_the_other_rules(overrides: dict[str, Any]) -> None:
     item = candidate(**overrides)
     assert verdict(EMPTY, item) is None
+
+
+@pytest.mark.parametrize(
+    ("place", "text"),
+    [
+        # a speaker named Booth, followed by a date, an hour or a count
+        ("title", "Seminar with Prof. Jane Booth 3/12"),
+        ("title", "Talk by Jane Booth 4 pm"),
+        ("title", "Jane Booth 3 lectures on protein folding"),
+        ("title", "Wayne C. Booth 100th anniversary"),
+        # in a title or series only a booth named as a stand counts
+        ("title", "Booth 10: the speaker's notes"),
+        ("series", "Chicago Booth 2026 Accounting Conference"),
+        ("title", "Seminar at Booth 2026"),
+        # in the location a year, a date or an hour after the word is no booth number
+        ("location", "Chicago Booth 2026 Accounting Conference"),
+        ("location", "Booth 10 am, Harper Center"),
+        ("location", "Booth 10:30, Harper Center"),
+        ("location", "Booth 3/12, Harper Center"),
+        ("location", "Chicago Booth, Harper Center, Room 104"),
+    ],
+)
+def test_a_surname_or_a_school_with_a_number_is_no_booth(place: str, text: str) -> None:
+    item = candidate(**{place: text})
+    assert verdict(EMPTY, item) is None
+    assert verdict(SHIPPED, item) is None
