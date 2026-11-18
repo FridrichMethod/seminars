@@ -53,6 +53,7 @@ uv run python -m seminars.fixtures fetch --save-dir .scratch/example \
 | `stanford-custom` | `stanford-custom.yaml` | `custom-` | 有自己页面的 Stanford 实验室和中心 |
 | `bayarea` | `bayarea.yaml` | `bayarea-` | SLAC、CZ Biohub 和其他湾区研究机构 |
 | `researchseminars` | `researchseminars.yaml` | `rsorg-` | researchseminars.org 上的系列报告 |
+| `conferences` | `conferences.yaml` | `conf-` | 会议登记表：人工维护的会议和 workshop |
 
 使用通用 adapter 的一条记录：
 
@@ -295,3 +296,77 @@ uv run pytest
 提交 YAML 记录、adapter 模块（如果有）、fixture 和测试。不要提交本地运行改写的 `data/`：
 它归每日更新管。pull request 只运行 CI workflow，那里没有任何凭证；改动合并之后，新数据源就会
 加入每日更新。
+
+## 没有数据源的会议和 workshop
+
+有些会议提前几个月就在没有任何数据源读取的页面上公布：某个学会在 San Francisco 的年会、
+某个中心只发一次的 symposium、网站要靠浏览器渲染的研究所的 workshop。会议登记表（registry）
+人工维护这些会议。它是 `config/sources.d/conferences.yaml` 里的数据源 `conf-registry`，
+adapter 是 `registry`（`src/seminars/sources/custom/registry.py`，它的 docstring 说明每个键）。
+这个 adapter 不发任何请求：每个会议是 `params.meetings` 里的一条记录；数据源的 `url` 是这个文件在
+GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；也没有 fixture 可录。这个数据源设了
+`meeting_horizon: true`，所以会议最多提前一年保留；还设了 `allow_empty: true`，所以会议全部结束的
+登记表不算坏掉的数据源。
+
+只登记没有任何已启用数据源提供的会议：先在 `data/events.json` 和网站上搜它的标题。一条记录只写
+一届会议的事实，每一项都取自组织方这一届的页面，别的都不写：不写简介、不写联系方式、不写任何人的
+地址，也绝不写按往届推算出来的日期。
+
+```yaml
+- id: iclr-2027
+  title: "ICLR 2027: The Fifteenth International Conference on Learning Representations"
+  series: ICLR
+  host_org: International Conference on Learning Representations (ICLR)
+  start: 2027-04-26
+  end: 2027-04-30
+  region: bay-area
+  location: Moscone Center, San Francisco, CA
+  url: https://iclr.cc/Conferences/2027
+  fields: [ai-ml, cs]
+  event_type: conference
+  status: confirmed
+  verified: {date: 2026-11-18, url: "https://iclr.cc/Conferences/2027"}
+  milestones:
+    - {kind: workshop_paper, date: 2027-02-01, label: Suggested workshop paper deadline}
+    - kind: notification
+      date: 2027-02-26
+      time: "23:59"
+      zone: AoE
+      label: Workshop paper notification deadline
+```
+
+- `id` 写成 `<series slug>-<year>`，以这一届开始的年份结尾。它就是事件的 uid
+  （`conf-registry.<id>`），所以永远不改名：改了名的记录是一个新事件，旧事件要到第三次没有它的运行时才离开。
+- `start` 和 `end` 是当地日期，`end` 包含在内。只有 `region: bay-area` 的记录会成为事件；
+  `world` 的记录只带它的 milestone。
+- `url` 是组织方这一届的页面：这一届自己的网站，或者公布它的系列或项目的页面（记录的 notes 会
+  说明）。某个数据源列出同一个会议时，只有它的条目指向同一个页面、在第一天开始、在最后一天结束、
+  并且至少 3 小时长，才和这条记录合并成一个事件（`pipeline/dedup.py`）。否则这个会议会出现两次：
+  只列出较长会议其中一天的条目、链接到日历自己的事件页面的条目（Localist 就是这样），以及 `url` 是
+  网站首页（`https://2027.naacl.org/`）的记录的任何条目，因为首页不算详情页。
+- `fields` 是这个会议肯定属于的领域。领域标注器保留它们，并可能加上标题提到的领域。
+- `location` 写页面给出的场地和城市。页面还没写时填 `To be announced`，事件会显示为没有地点。
+- `status: tentative` 表示只是预告了日期（save the date），还没有场地和日程。
+- `verified` 写明事实最后一次是在哪个页面、哪一天核对的。每学期开始时把每条记录重新核对一遍：核对
+  组织方页面上的事实，并查看现在是否已有数据源列出这个会议（在 `data/events.json` 里搜它的标题）。
+  一旦有数据源列出这个会议，就删掉这条记录。一届会议在 120 天内开始、但上次核对已超过 90 天，或者
+  前面没有任何湾区会议时，`tests/test_custom_registry.py` 会失败，并列出需要查看的记录。
+- `milestones` 是读者需要据此行动的日期，不晚于这一届的最后一天：截止日期、开放日期、通知日期，带上
+  页面给出的时间和时区（`AoE`、`PT`、`MT`、`ET`、`UTC` 或 IANA 时区名）。只有时区没有时间时，时区
+  说的是那一天，比如 1 月 22 日 `AoE` 截止。label 用我们自己的几个词。事件的描述按日期列出这些
+  milestone；过去的 milestone 等运行窗口（向前 14 天）越过它之后才会从描述里去掉。
+- YAML 把不加引号的 `on`、`off`、`yes`、`no` 读成布尔值，把不加引号的 `23:59` 读成数字：所以核对日期的键叫
+  `date`，qualifier 写 `exact` 或 `by`，时间要加引号。
+
+结束了的会议会自己离开登记表的列表，所以删掉它的记录不会改变什么。还没开始的会议的记录删掉后，在第三次
+没有它的运行时从 feed 里移除，和数据源不再列出的报告一样；已经开始的一届会议会一直保留到结束。有两种情况
+会让删掉的记录保留得更久：
+
+- 登记表一个会议都没列出的运行对它的事件不下任何结论，所以这时删掉的记录会保留到会议结束。
+- 每个数据源的每次运行都会和它列表的通常大小比较（`seminars.pipeline.collect`）。一次删掉一半以上、
+  并且至少五条列出的记录，看起来就像列表丢了一部分：删掉的事件会保留，第三次这样的运行会开一个
+  `source-broken` issue，两者一直持续到第 29 次运行把变小的列表当作通常大小并关闭 issue；删掉的事件在
+  第 31 次运行时离开。一次最多删掉列出的记录的一半，或者少于五条，并且隔六次运行再删下一批。
+
+数据源和登记的会议的地址都不能在掠夺性或低质量的会议聚合网站上（waset.org、wikicfp.com、10times.com
+之类；`tests/test_source_denylist.py` 检查这一点）。

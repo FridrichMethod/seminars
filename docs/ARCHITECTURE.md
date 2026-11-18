@@ -144,7 +144,8 @@ does everything in a scratch directory and changes nothing.
 
 ## Sources
 
-Sources are configured in `config/sources.d/` and fall into four tiers:
+Sources are configured in `config/sources.d/` and fall into four tiers, with the
+registry of meetings kept by hand beside them:
 
 | Tier | Group | What | Adapters |
 |---|---|---|---|
@@ -152,6 +153,7 @@ Sources are configured in `config/sources.d/` and fall into four tiers:
 | 2 | `stanford-sites` | department sites on Stanford Sites (Drupal) | `drupal_jsonapi`, `rss` |
 | 3 | `stanford-custom`, `researchseminars` | labs, centers and series with pages of their own; series on researchseminars.org | `html_list` and custom adapters |
 | Bay Area | `bayarea` | SLAC, CZ Biohub and other Bay Area institutes | `rss`, `html_list`, `drupal_jsonapi`, `slac_drupal` |
+| Registry | `conferences` | conferences and workshops that no source delivers, kept by hand in the entry of the source; nothing is fetched | `registry` |
 
 The extraction method is chosen in this order: a structured API, a feed, JSON-LD in the
 page, an HTML list read with CSS selectors, and only then the LLM page extractor. The two

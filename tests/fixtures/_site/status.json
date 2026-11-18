@@ -25,6 +25,23 @@
       "resized_from": null
     },
     {
+      "id": "conf-registry",
+      "name": "Conference registry (kept by hand)",
+      "group": "conferences",
+      "url": "https://github.com/FridrichMethod/seminars/blob/main/config/sources.d/conferences.yaml",
+      "state": "ok",
+      "events": 16,
+      "last_run_at": "2026-11-10T12:23:00Z",
+      "last_success_at": "2026-11-10T12:23:00Z",
+      "consecutive_failures": 0,
+      "error": null,
+      "read_in_full": true,
+      "skipped_pages": 0,
+      "listed": null,
+      "usual_size": null,
+      "resized_from": null
+    },
+    {
       "id": "custom-nlp",
       "name": "Stanford NLP Seminar <script>alert('xss-status')</script>",
       "group": "stanford-custom",

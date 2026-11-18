@@ -126,7 +126,7 @@ class TestStatusPage:
             for source in sample("status.json")["sources"]
         ]
         summary = page.locator("#summary").text_content() or ""
-        assert "3 of 7 active sources are healthy." in summary
+        assert "4 of 8 active sources are healthy." in summary
         assert "claude-cli" in summary
         unlinked = page.locator('article[data-source="rsorg-new-series"] .source-name a')
         assert unlinked.count() == 0

@@ -28,9 +28,10 @@ in every text field, an all-day event, a cancelled and a tentative event,
 online and hybrid events, a "TBA" title, a missing end time, several
 speakers, non-ASCII names, picks with reasons of every kind the picks scorer
 writes, a past event, a far-future event, all seven fields and all
-institutions. The sources have every state, and two of them a last run
-that was not read in full (pages that could not be fetched, a listing far
-smaller than usual) or that took a smaller listing as the usual size.
+institutions. The sources have every state and every group, and two of them
+a last run that was not read in full (pages that could not be fetched, a
+listing far smaller than usual) or that took a smaller listing as the usual
+size.
 """
 
 from __future__ import annotations
@@ -311,6 +312,16 @@ def sample_status_payload() -> PublicStatusPayload:
             state="empty",
             last_run_at=ran_at,
             last_success_at=week_ago,
+        ),
+        PublicSourceStatus(
+            id="conf-registry",
+            name="Conference registry (kept by hand)",
+            group="conferences",
+            url="https://github.com/FridrichMethod/seminars/blob/main/config/sources.d/conferences.yaml",
+            state="ok",
+            events=16,
+            last_run_at=ran_at,
+            last_success_at=ran_at,
         ),
         PublicSourceStatus(
             id="custom-nlp",
