@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time as clock
 from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
@@ -18,6 +19,7 @@ from seminars.pipeline.times import (
 LA = "America/Los_Angeles"
 PST = timezone(timedelta(hours=-8))
 PDT = timezone(timedelta(hours=-7))
+AOE = timezone(timedelta(hours=-12))
 
 
 def resolve(
@@ -339,3 +341,370 @@ class TestFreeText:
             resolve(datetime(1, 1, 1, 0, 0, tzinfo=timezone(timedelta(hours=14))))
         with pytest.raises(TimeError):
             resolve(date(9999, 12, 30), date(9999, 12, 31))
+
+
+class TestAnywhereOnEarth:
+    """AoE is UTC-12 all year: 23:59 AoE is 11:59 UTC of the next day."""
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Jan 29, 2027 23:59 AoE",
+            "Jan 29, 2027 23:59 AOE",
+            "Jan 29, 2027 23:59 aoe",
+            "Jan 29, 2027 23:59 (AoE)",
+            "Jan 29, 2027 23:59 ( AoE )",
+            "Jan 29, 2027 23:59 Anywhere on Earth",
+            "Jan 29, 2027 23:59 (Anywhere on Earth)",
+            "Jan 29, 2027 23:59 (anywhere on earth)",
+            "Jan 29, 2027 23:59 ANYWHERE ON EARTH",
+            "Jan 29, 2027 23:59 Anywhere-on-Earth",
+            "Jan 29, 2027 23:59 Anywhere on Earth (AoE)",
+            "Jan 29, 2027 23:59 AoE (UTC-12)",
+            "Jan 29, 2027 23:59 (Anywhere on Earth, UTC-12)",
+            "Jan 29, 2027 23:59 (AoE/UTC-12)",
+            "Jan 29, 2027 23:59 -12:00 AoE",
+            "January 29, 2027, 11:59 pm AoE",
+            "11:59 PM AoE, Friday, January 29, 2027",
+            "Jan 29 23:59 AoE",
+        ],
+    )
+    def test_spellings(self, text: str) -> None:
+        moment = parse_moment(text, reference=REFERENCE_NOW)
+        assert moment == datetime(2027, 1, 29, 23, 59, tzinfo=AOE)
+        assert isinstance(moment, datetime)
+        assert moment.utcoffset() == timedelta(hours=-12)
+
+    def test_a_deadline_at_midnight_is_on_the_next_day_in_pacific_time(self) -> None:
+        assert iso(resolve("Jan 29, 2027 23:59 AoE").start) == "2027-01-30T03:59:00-08:00"
+        assert iso(resolve("Jan 29, 2027 0:00 AoE").start) == "2027-01-29T04:00:00-08:00"
+        assert iso(resolve("Jan 29, 2027 19:59 AoE").start) == "2027-01-29T23:59:00-08:00"
+        assert iso(resolve("Jan 29, 2027 20:00 AoE").start) == "2027-01-30T00:00:00-08:00"
+
+    def test_the_zone_of_the_source_does_not_matter(self) -> None:
+        for zone in (LA, "UTC", "Europe/Berlin", "Asia/Tokyo"):
+            times = resolve("Jan 29, 2027 23:59 AoE", source_zone=zone)
+            assert iso(times.start) == "2027-01-30T03:59:00-08:00"
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            # The clocks go forward at 10:00 UTC on 2027-03-14 in America/Los_Angeles.
+            ("Mar 13, 2027 21:59 AoE", "2027-03-14T01:59:00-08:00"),
+            ("Mar 13, 2027 22:00 AoE", "2027-03-14T03:00:00-07:00"),
+            ("Mar 13, 2027 23:59 AoE", "2027-03-14T04:59:00-07:00"),
+            # They go back at 09:00 UTC on 2027-11-07: 01:00 comes twice.
+            ("Nov 6, 2027 20:00 AoE", "2027-11-07T01:00:00-07:00"),
+            ("Nov 6, 2027 21:00 AoE", "2027-11-07T01:00:00-08:00"),
+            ("Nov 6, 2027 23:59 AoE", "2027-11-07T03:59:00-08:00"),
+        ],
+    )
+    def test_across_the_dst_changes_of_the_source(self, text: str, expected: str) -> None:
+        assert iso(resolve(text).start) == expected
+
+    def test_an_end_in_aoe_keeps_the_length(self) -> None:
+        times = resolve("Mar 13, 2027 21:00 AoE", "Mar 13, 2027 23:00 AoE")
+        assert iso(times.start) == "2027-03-14T01:00:00-08:00"
+        assert iso(times.end) == "2027-03-14T04:00:00-07:00"
+        assert times.end is not None
+        assert times.end - times.start == timedelta(hours=2)
+
+    def test_a_date_in_aoe_is_that_day(self) -> None:
+        assert parse_moment("Jan 29, 2027 AoE", reference=REFERENCE_NOW) == date(2027, 1, 29)
+        assert parse_moment("January 29 (AoE)", reference=REFERENCE_NOW) == date(2027, 1, 29)
+        times = resolve("Jan 29, 2027 (Anywhere on Earth)")
+        assert times.all_day is True
+        assert iso(times.start) == "2027-01-29T00:00:00-08:00"
+
+    @pytest.mark.parametrize("text", ["AoE", "(Anywhere on Earth)", "23:59 AoE"])
+    def test_a_zone_without_a_day_is_an_error(self, text: str) -> None:
+        with pytest.raises(TimeError):
+            parse_moment(text, reference=REFERENCE_NOW)
+
+    @pytest.mark.parametrize(
+        "text", ["Jan 29, 2027 23:59 AoEx", "Jan 29, 2027 23:59 xAoE", "Jan 29, 2027 23:59 AoE2"]
+    )
+    def test_aoe_is_a_word_of_its_own(self, text: str) -> None:
+        with pytest.raises(TimeError):
+            parse_moment(text, reference=REFERENCE_NOW)
+
+
+class TestOffsetsFromUtc:
+    """ "UTC-8" is eight hours behind UTC, not the POSIX "UTC-8" of dateutil, eight ahead."""
+
+    @pytest.mark.parametrize(
+        ("zone", "hours", "minutes"),
+        [
+            ("UTC-8", -8, 0),
+            ("UTC+8", 8, 0),
+            ("GMT-8", -8, 0),
+            ("GMT+1", 1, 0),
+            ("UTC-12", -12, 0),
+            ("GMT-12", -12, 0),
+            ("UTC+14", 14, 0),
+            ("UTC-08", -8, 0),
+            ("UTC-08:00", -8, 0),
+            ("GMT-0800", -8, 0),
+            ("UTC+5:30", 5, 30),
+            ("UTC+05:30", 5, 30),
+            ("UTC+0530", 5, 30),
+            ("GMT+0545", 5, 45),
+            ("UTC-9:30", -9, -30),
+            ("UTC+12:45", 12, 45),
+            ("UTC+0", 0, 0),
+            ("GMT-0", 0, 0),
+            ("UTC+00:00", 0, 0),
+            ("UTC -8", -8, 0),
+            ("GMT +01:00", 1, 0),
+            ("UTC  +0530", 5, 30),
+            ("UTC\u22128", -8, 0),
+            ("utc-8", -8, 0),
+            ("Gmt+1", 1, 0),
+            ("(UTC-8)", -8, 0),
+            ("( GMT+5:30 )", 5, 30),
+            ("UTC-8.", -8, 0),
+        ],
+    )
+    def test_the_offset_as_people_write_it(self, zone: str, hours: int, minutes: int) -> None:
+        moment = parse_moment(f"Jan 29, 2027 23:59 {zone}", reference=REFERENCE_NOW)
+        assert isinstance(moment, datetime)
+        assert (moment.hour, moment.minute) == (23, 59)
+        assert moment.utcoffset() == timedelta(hours=hours, minutes=minutes)
+
+    def test_through_the_rules_of_normalization(self) -> None:
+        assert iso(resolve("Jan 29, 2027 23:59 UTC-12").start) == "2027-01-30T03:59:00-08:00"
+        assert iso(resolve("Jan 29, 2027 9:00 GMT+1").start) == "2027-01-29T00:00:00-08:00"
+        assert iso(resolve("Jul 1, 2027 9:00 UTC+8").start) == "2027-06-30T18:00:00-07:00"
+        assert iso(resolve("Jul 1, 2027 23:30 UTC+5:30").start) == "2027-07-01T11:00:00-07:00"
+
+    def test_an_offset_before_the_date(self) -> None:
+        moment = parse_moment("11:59 PM UTC-12, January 29, 2027", reference=REFERENCE_NOW)
+        assert moment == datetime(2027, 1, 29, 23, 59, tzinfo=AOE)
+
+    @pytest.mark.parametrize(
+        ("text", "offset"),
+        [
+            ("Fri, 29 Jan 2027 23:59:00 AoE", -12),
+            ("Fri, 29 Jan 2027 23:59:00 UTC-12", -12),
+            ("Fri, 29 Jan 2027 23:59:00 GMT-8", -8),
+            ("Fri, 29 Jan 2027 23:59:00 GMT+0100", 1),
+            ("Fri, 29 Jan 2027 23:59:00 CET", 1),
+        ],
+    )
+    def test_the_date_of_a_feed_with_a_zone_in_words(self, text: str, offset: int) -> None:
+        # The form of RFC 822 with a zone that RFC 822 does not have.
+        moment = parse_moment(text, reference=REFERENCE_NOW)
+        assert isinstance(moment, datetime)
+        assert (moment.hour, moment.minute) == (23, 59)
+        assert moment.utcoffset() == timedelta(hours=offset)
+
+    def test_the_time_that_javascript_writes(self) -> None:
+        # Date.prototype.toString, without the name of the zone in parentheses
+        moment = parse_moment("Fri Jan 29 2027 16:00:00 GMT-0800", reference=REFERENCE_NOW)
+        assert moment == datetime(2027, 1, 29, 16, 0, tzinfo=PST)
+        assert isinstance(moment, datetime)
+        assert moment.utcoffset() == timedelta(hours=-8)
+
+    def test_a_date_with_an_offset_is_that_day(self) -> None:
+        assert parse_moment("Jan 29, 2027 UTC+8", reference=REFERENCE_NOW) == date(2027, 1, 29)
+
+    @pytest.mark.parametrize(
+        "zone",
+        [
+            "UTC-13",  # no zone is that far behind
+            "UTC+15",
+            "UTC-24",
+            "GMT+2400",
+            "UTC+5:60",
+            "UTC+0575",
+        ],
+    )
+    def test_an_offset_that_no_time_zone_has_is_an_error(self, zone: str) -> None:
+        with pytest.raises(TimeError, match="no time zone has"):
+            parse_moment(f"Jan 29, 2027 23:59 {zone}", reference=REFERENCE_NOW)
+
+    def test_a_numeric_offset_of_a_day_next_to_aoe_is_an_error(self) -> None:
+        # dateutil reads "+2500" as an offset that datetime cannot use.
+        with pytest.raises(TimeError, match="no time zone has"):
+            parse_moment("Jan 29, 2027 10:00 +2500 AoE", reference=REFERENCE_NOW)
+
+    @pytest.mark.parametrize(
+        "zone",
+        [
+            "UTC - 8",  # a sign between spaces: a range as often as an offset
+            "UTC + 8",
+            "UTC- 8",
+            "UTC+530",  # three digits
+            "UTC+5:3",
+            "UTC-12h",
+            "UTC+8.5",
+            "UTC-8 pm",
+        ],
+    )
+    def test_an_offset_that_cannot_be_read_is_an_error_not_a_guess(self, zone: str) -> None:
+        with pytest.raises(TimeError, match="cannot be read"):
+            parse_moment(f"Jan 29, 2027 23:59 {zone}", reference=REFERENCE_NOW)
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Jan 29, 2027 10:00 GMT - 11:00",
+            "Jan 29, 2027 10:00 GMT - 11:00 GMT",
+            "Jan 29, 2027 4 PM GMT-5 PM",
+        ],
+    )
+    def test_a_range_is_not_read_as_an_offset(self, text: str) -> None:
+        with pytest.raises(TimeError):
+            parse_moment(text, reference=REFERENCE_NOW)
+
+    def test_an_iana_name_is_not_an_offset(self) -> None:
+        # Etc/GMT+12 is UTC-12 (the POSIX sign); it is no "GMT+12" of a page.
+        with pytest.raises(TimeError, match="cannot be parsed"):
+            parse_moment("Jan 29, 2027 23:59 Etc/GMT+12", reference=REFERENCE_NOW)
+
+    def test_numeric_offsets_and_utc_keep_what_dateutil_gives(self) -> None:
+        for text, offset in [
+            ("Jan 29, 2027 23:59 -12:00", timedelta(hours=-12)),
+            ("Jan 29, 2027 23:59 -0800", timedelta(hours=-8)),
+            ("Jan 29, 2027 23:59 +0100", timedelta(hours=1)),
+            ("Jan 29, 2027 23:59 UTC", timedelta(0)),
+            ("Jan 29, 2027 23:59 GMT", timedelta(0)),
+            ("Jan 29, 2027 23:59 Z", timedelta(0)),
+        ]:
+            moment = parse_moment(text, reference=REFERENCE_NOW)
+            assert isinstance(moment, datetime)
+            assert moment.utcoffset() == offset
+
+
+class TestTwoZones:
+    @pytest.mark.parametrize(
+        ("text", "offset"),
+        [
+            ("Jan 29, 2027 4:00 PM PST (UTC-8)", -8),
+            ("Jul 1, 2027 4:00 PM PDT (UTC-7)", -7),
+            ("Jan 29, 2027 16:00 UTC (GMT+0)", 0),
+            ("Jan 29, 2027 23:59 AoE (UTC-12)", -12),
+            ("Jan 29, 2027 23:59 UTC-8 (PST)", -8),
+            ("Jan 29, 2027 23:59 UTC-8 ( PT )", -8),
+            ("Jan 29, 2027 23:59 GMT+1 (CET)", 1),
+            ("Jul 1, 2027 23:59 UTC+2 (CEST)", 2),
+            ("Jan 29, 2027 23:59 CET (UTC+1)", 1),
+        ],
+    )
+    def test_two_zones_that_agree(self, text: str, offset: int) -> None:
+        moment = parse_moment(text, reference=REFERENCE_NOW)
+        assert isinstance(moment, datetime)
+        assert moment.utcoffset() == timedelta(hours=offset)
+
+    def test_an_unknown_name_next_to_an_offset_is_ignored(self) -> None:
+        moment = parse_moment("Jan 29, 2027 23:59 UTC+5:30 (IST)", reference=REFERENCE_NOW)
+        assert moment == datetime(2027, 1, 29, 23, 59, tzinfo=timezone(timedelta(hours=5.5)))
+
+    def test_a_name_in_parentheses_without_an_offset_is_left_to_dateutil(self) -> None:
+        with pytest.raises(TimeError, match="cannot be parsed"):
+            parse_moment("Jan 29, 2027 23:59 (PST)", reference=REFERENCE_NOW)
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            # PST in July is the time of Los Angeles, UTC-7, written or not next to UTC-8.
+            ("Jul 1, 2027 4:00 PM UTC-8 (PST)", "2027-07-01T16:00:00-07:00"),
+            ("Jul 1, 2027 4:00 PM PST (UTC-8)", "2027-07-01T16:00:00-07:00"),
+            ("Jul 1, 2027 4:00 PM UTC-8 PST", "2027-07-01T16:00:00-07:00"),
+            ("Jan 29, 2027 4:00 PM PDT (UTC-7)", "2027-01-29T16:00:00-08:00"),
+            ("Jan 29, 2027 4:00 PM UTC-7 (PT)", "2027-01-29T16:00:00-08:00"),
+            # CET in July is the time of Berlin, UTC+2; BST in January that of London, UTC.
+            ("Jul 1, 2027 23:59 CET (UTC+1)", "2027-07-01T23:59:00+02:00"),
+            ("Jan 29, 2027 23:59 UTC+2 (CET)", "2027-01-29T23:59:00+01:00"),
+            ("Jan 29, 2027 23:59 BST (UTC+1)", "2027-01-29T23:59:00+00:00"),
+        ],
+    )
+    def test_an_offset_of_the_other_season_keeps_the_region(self, text: str, expected: str) -> None:
+        moment = parse_moment(text, reference=REFERENCE_NOW)
+        assert isinstance(moment, datetime)
+        assert moment.isoformat() == expected
+
+    def test_the_region_through_the_rules_of_normalization(self) -> None:
+        assert iso(resolve("Jul 1, 2027 4:00 PM UTC-8 (PST)").start) == "2027-07-01T16:00:00-07:00"
+        assert iso(resolve("Jul 1, 2027 23:59 CET (UTC+1)").start) == "2027-07-01T14:59:00-07:00"
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            # 01:00 to 02:00 comes twice on 2027-11-07 in Los Angeles: the offset says which.
+            ("Nov 7, 2027 1:30 AM UTC-7 (PT)", "2027-11-07T01:30:00-07:00"),
+            ("Nov 7, 2027 1:30 AM UTC-8 (PT)", "2027-11-07T01:30:00-08:00"),
+            ("Nov 7, 2027 1:30 AM UTC-8 (PDT)", "2027-11-07T01:30:00-08:00"),
+            ("Nov 7, 2027 1:30 AM PST (UTC-7)", "2027-11-07T01:30:00-07:00"),
+            # 02:00 to 03:00 does not exist on 2027-03-14: the offset says which instant.
+            ("Mar 14, 2027 2:30 AM UTC-8 (PT)", "2027-03-14T03:30:00-07:00"),
+            ("Mar 14, 2027 2:30 AM UTC-7 (PT)", "2027-03-14T01:30:00-08:00"),
+        ],
+    )
+    def test_the_offset_settles_the_hour_that_the_clocks_change(
+        self, text: str, expected: str
+    ) -> None:
+        assert iso(resolve(text).start) == expected
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Jan 29, 2027 23:59 PST AoE",
+            "Jan 29, 2027 23:59 AoE (UTC+8)",
+            "Jan 29, 2027 23:59 UTC-8 (UTC-7)",
+            "Jan 29, 2027 23:59 UTC+8 (CST)",  # China, not Chicago: Chicago is never UTC+8
+            "Jan 29, 2027 23:59 UTC-6 (PST)",
+            "Jul 1, 2027 23:59 UTC-12 (PT)",
+            "Jan 29, 2027 10:00 UTC+1 (GMT)",
+            "Jan 29, 2027 10:00 GMT (UTC+1)",
+            "Jan 29, 2027 23:59 AoE (UTC)",
+            "Jan 29, 2027 23:59 -0800 (UTC-12)",
+        ],
+    )
+    def test_two_zones_that_differ_are_an_error(self, text: str) -> None:
+        with pytest.raises(TimeError, match="different"):
+            parse_moment(text, reference=REFERENCE_NOW)
+
+
+class TestEuropeanAbbreviations:
+    """Like "PST", each is the zone of its region in every season."""
+
+    @pytest.mark.parametrize(
+        ("text", "offset"),
+        [
+            ("Jan 29, 2027 23:59 CET", 1),
+            ("Jul 1, 2027 23:59 CEST", 2),
+            ("Jul 1, 2027 23:59 CET", 2),
+            ("Jan 29, 2027 23:59 CEST", 1),
+            ("Jul 1, 2027 18:00 BST", 1),
+            ("Jan 29, 2027 18:00 BST", 0),
+            ("Jan 29, 2027 18:00 EET", 2),
+            ("Jul 1, 2027 18:00 EEST", 3),
+        ],
+    )
+    def test_the_zone_of_the_region(self, text: str, offset: int) -> None:
+        moment = parse_moment(text, reference=REFERENCE_NOW)
+        assert isinstance(moment, datetime)
+        assert moment.utcoffset() == timedelta(hours=offset)
+
+    def test_through_the_rules_of_normalization(self) -> None:
+        assert iso(resolve("Jan 29, 2027 17:00 CET").start) == "2027-01-29T08:00:00-08:00"
+        # Europe changes its clocks on 2027-03-28, two weeks after America.
+        assert iso(resolve("Mar 20, 2027 17:00 CET").start) == "2027-03-20T09:00:00-07:00"
+        assert iso(resolve("Mar 30, 2027 17:00 CEST").start) == "2027-03-30T08:00:00-07:00"
+
+
+class TestUnknownAbbreviations:
+    def test_an_unknown_abbreviation_is_wall_time_of_the_source(self) -> None:
+        assert parse_moment("Jan 29, 2027 23:59 IST", reference=REFERENCE_NOW) == datetime(
+            2027, 1, 29, 23, 59
+        )
+        assert iso(resolve("Jan 29, 2027 9:00 IST").start) == "2027-01-29T09:00:00-08:00"
+
+    def test_on_a_machine_whose_zone_uses_it_too(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # dateutil takes a name of the machine's own zone as the machine's local time.
+        monkeypatch.setattr(clock, "tzname", ("IST", "IST"))
+        moment = parse_moment("Jan 29, 2027 23:59 IST", reference=REFERENCE_NOW)
+        assert moment == datetime(2027, 1, 29, 23, 59)
+        assert isinstance(moment, datetime)
+        assert moment.tzinfo is None
