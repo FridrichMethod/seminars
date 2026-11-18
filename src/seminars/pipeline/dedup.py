@@ -114,6 +114,10 @@ becomes one event:
   rule falls back on too. The uid plays no part in it, since the next run
   hands every listing of the talk the merged uid, and the merged event
   must stay what it was;
+* a group with a meeting is a meeting. Its type is that of the first
+  meeting in the order above, and when the lead is no meeting, the times
+  are that meeting's as well: a calendar gives the hours of a symposium,
+  and the host that leads gives only its start;
 * a cancellation that any listing reports is kept.
 
 The result does not depend on the order of the input, and running it over
@@ -557,6 +561,16 @@ def _title(events: Sequence[Event], speakers: Sequence[Speaker]) -> str:
     return titled[kept[0]].title  # unreachable: one with the most words is never beaten
 
 
+def _timing(events: Sequence[Event]) -> Event:
+    """The member of a group, in merge order, whose times the merged event takes.
+
+    That is the lead, or the first meeting when the lead is none (see the
+    module docstring).
+    """
+    meetings = [event for event in events if event.is_meeting]
+    return meetings[0] if meetings and not events[0].is_meeting else events[0]
+
+
 def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidate:
     """One candidate for a group; a group of one comes back in canonical form."""
 
@@ -571,8 +585,10 @@ def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidat
     members = sorted(group, key=rank)
     events = [member.event for member in members]
     lead = events[0]
+    timing = _timing(events)
+    meeting = next((event for event in events if event.is_meeting), lead)
     abstracts = [event.abstract for event in events if event.abstract]
-    same_time = [e for e in events if e.start == lead.start and e.all_day == lead.all_day]
+    same_time = [e for e in events if e.start == timing.start and e.all_day == timing.all_day]
     hints = members[0].hints
     for member in members[1:]:
         hints = hints.merge(member.hints)
@@ -582,7 +598,10 @@ def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidat
         title=_title(events, speakers),
         speakers=speakers,
         series=_first([event.series for event in events]),
-        end=_first([event.end for event in same_time]),
+        event_type=meeting.event_type,
+        start=timing.start,
+        end=_first([timing.end, *(event.end for event in same_time)]),
+        all_day=timing.all_day,
         location=_first([event.location for event in events]),
         is_online=any(event.is_online for event in events),
         stream_url=_first([event.stream_url for event in events]),

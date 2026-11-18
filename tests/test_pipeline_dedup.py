@@ -228,15 +228,17 @@ def meeting(uid: str, title: str, *, days: int = 5, **overrides: Any) -> Candida
     return candidate(uid, sources=(f"conf-{uid}",), **{**values, **overrides})
 
 
-def timed_listing(uid: str, title: str, **overrides: Any) -> Candidate:
-    """A listing with times of day of its own source (``sites-<uid>``) on the first day."""
+def timed_listing(
+    uid: str, title: str, *, sources: tuple[str, ...] | None = None, **overrides: Any
+) -> Candidate:
+    """A conference from 9:00 to 17:00 on the first day, of ``sites-<uid>`` unless told."""
     values: dict[str, Any] = {
         "title": title,
         "event_type": "conference",
         "start": MORNING,
         "end": MORNING + timedelta(hours=8),
     }
-    return candidate(uid, sources=(f"sites-{uid}",), **{**values, **overrides})
+    return candidate(uid, sources=sources or (f"sites-{uid}",), **{**values, **overrides})
 
 
 class TestMeetings:
@@ -275,16 +277,37 @@ class TestMeetings:
         for order in ((symposium, keynote), (keynote, symposium)):
             assert uids(run(*order)) == ["a", "b"]
 
-    def test_a_meeting_and_a_talk_with_one_title_at_one_time_are_one(self) -> None:
+    @pytest.mark.parametrize(
+        ("meeting_source", "talk_source"),
+        [("sites-a", "sites-b"), ("sites-b", "sites-a"), ("localist-stanford", "sites-z")],
+    )
+    def test_a_meeting_and_a_talk_with_one_title_at_one_time_are_one_meeting(
+        self, meeting_source: str, talk_source: str
+    ) -> None:
         # Localist gives the hours and the title rule makes it a conference; the host gives
-        # only the start, so its listing stays a seminar.
+        # only the start, so its listing stays a seminar. The merged event is the meeting,
+        # whichever listing leads.
         title = "Knight Initiative Winter 2027 Symposium"
-        symposium = timed_listing("a", title)
-        listing = timed_listing("b", f"{title}!", event_type="seminar", end=None)
+        symposium = timed_listing("a", title, sources=(meeting_source,))
+        listing = timed_listing("b", f"{title}!", sources=(talk_source,), event_type="seminar")
+        listing = listing.evolve(event=listing.event.evolve(end=None))
         assert symposium.event.is_meeting
         assert not listing.event.is_meeting
         for order in ((symposium, listing), (listing, symposium)):
-            assert uids(run(*order)) == ["a"]
+            (merged,) = run(*order).candidates
+            event = merged.event
+            assert (event.uid, event.event_type, event.is_meeting) == ("a", "conference", True)
+            assert (event.start, event.end) == (MORNING, MORNING + timedelta(hours=8))
+
+    def test_the_lead_gives_the_times_when_it_is_a_meeting(self) -> None:
+        # Of two meetings, the host leads as it does for talks.
+        title = "Knight Initiative Winter 2027 Symposium"
+        later = MORNING + timedelta(minutes=10)
+        host = timed_listing("b", title, sources=("sites-a",), start=later)
+        calendar = timed_listing("a", title, sources=("localist-stanford",))
+        for order in ((host, calendar), (calendar, host)):
+            (merged,) = run(*order).candidates
+            assert (merged.event.start, merged.event.end) == (later, MORNING + timedelta(hours=8))
 
     @pytest.mark.parametrize("days", [1, 5])
     def test_an_all_day_meeting_and_its_listing_with_hours_are_one(self, days: int) -> None:
