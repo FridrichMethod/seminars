@@ -184,6 +184,11 @@ sources:
     host_org: Stanford HAI
     default_fields: [ai-ml]
     default_event_type: seminar
+    # HAI lists its conferences months ahead (PhyStat 2027 in May, tag Conference), so
+    # its meetings are kept up to a year ahead. The longer fetch window asks for the
+    # detail pages of the upcoming events of that year that have one, never more than
+    # max_detail_pages (15): with the list at most 16 requests (no Crawl-delay).
+    meeting_horizon: true
     params:
       # The list page embeds the events as JSON in the Next.js server component payload
       # (React flight data). The README of the fixture has the details.
