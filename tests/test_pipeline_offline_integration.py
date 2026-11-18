@@ -20,9 +20,10 @@ from typer.testing import CliRunner
 
 from conftest import REPO_ROOT
 from seminars import cli
-from seminars.config import PROVIDER_CREDENTIAL_ENV, load_settings
+from seminars.config import PROVIDER_CREDENTIAL_ENV, load_settings, load_sources
 from seminars.fixtures import reference_time
 from seminars.models import FIELD_IDS, Event, read_events
+from seminars.pipeline.meetings import has_not_ended_before
 
 RUN_TIME = datetime(2026, 11, 17, 4, 0, 41, tzinfo=UTC)
 """The latest recording time of the fixtures: the "now" of an offline run."""
@@ -91,11 +92,25 @@ def test_the_run_happens_at_that_time_and_no_source_fails(offline_run: tuple[str
 
 
 def test_every_stored_talk_lies_in_the_window_of_the_run(offline_run: tuple[str, Path]) -> None:
+    # An event counts until its end. Past the window lie only the meetings of the
+    # sources with meeting_horizon, and those only within the meeting window.
     _, root = offline_run
-    window = load_settings(REPO_ROOT / "config" / "settings.yaml").window_at(RUN_TIME)
+    settings = load_settings(REPO_ROOT / "config" / "settings.yaml")
+    window, meetings = settings.window_at(RUN_TIME), settings.meeting_window_at(RUN_TIME)
+    flagged = {
+        source.id
+        for source in load_sources(REPO_ROOT / "config" / "sources.d")
+        if source.meeting_horizon
+    }
     events = stored(root)
     assert len(events) > 100
-    assert all(window.contains(event.start) for event in events)
+    for event in events:
+        assert has_not_ended_before(event.start, event.end, window.start), event.uid
+        if event.start >= window.end:
+            sources = {key.partition(":")[0] for key in event.source_ids}
+            assert event.is_meeting, event.uid
+            assert sources & flagged, event.uid
+            assert event.start < meetings.end, event.uid
 
 
 def test_the_talks_of_the_afternoon_before_have_taken_place(

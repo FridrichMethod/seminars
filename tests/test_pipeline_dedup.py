@@ -211,6 +211,93 @@ class TestPairs:
         assert run(*result.candidates).candidates == result.candidates
 
 
+MEETING_DAY = datetime(2027, 4, 26, tzinfo=PACIFIC)
+MORNING = MEETING_DAY + timedelta(hours=9)
+MEETING_PAGE = "https://example.edu/meetings/2027"
+
+
+def meeting(uid: str, title: str, *, days: int = 5, **overrides: Any) -> Candidate:
+    """An all-day conference of ``days`` days of its own source (``conf-<uid>``)."""
+    values: dict[str, Any] = {
+        "title": title,
+        "event_type": "conference",
+        "all_day": True,
+        "start": MEETING_DAY,
+        "end": None if days == 1 else MEETING_DAY + timedelta(days=days),
+    }
+    return candidate(uid, sources=(f"conf-{uid}",), **{**values, **overrides})
+
+
+def timed_listing(uid: str, title: str, **overrides: Any) -> Candidate:
+    """A listing with times of day of its own source (``sites-<uid>``) on the first day."""
+    values: dict[str, Any] = {
+        "title": title,
+        "event_type": "conference",
+        "start": MORNING,
+        "end": MORNING + timedelta(hours=8),
+    }
+    return candidate(uid, sources=(f"sites-{uid}",), **{**values, **overrides})
+
+
+class TestMeetings:
+    @pytest.mark.parametrize(
+        ("one", "other"),
+        [
+            ("ICML 2027", "ICLR 2027"),
+            ("RECOMB 2027", "RECOMB-Seq 2027"),
+            ("NeurIPS 2026", "Biohub at NeurIPS 2026"),
+        ],
+    )
+    @pytest.mark.parametrize("days", [1, 5])
+    def test_meetings_with_similar_titles_stay_apart(self, one: str, other: str, days: int) -> None:
+        first, second = meeting("a", one, days=days), meeting("b", other, days=days)
+        for order in ((first, second), (second, first)):
+            assert uids(run(*order)) == ["a", "b"]
+        # As talks at one time the same titles would be one talk.
+        talks = [candidate("a", title=one), candidate("b", sources=("sites-y",), title=other)]
+        assert uids(run(*talks)) == ["a"]
+
+    def test_meetings_with_one_title_are_one(self) -> None:
+        result = run(meeting("a", "ICLR 2027"), meeting("b", "iclr  2027!"))
+        assert uids(result) == ["a"]
+        assert result.absorbed == {"b": "a"}
+
+    def test_a_symposium_and_its_opening_keynote_stay_apart(self) -> None:
+        symposium = timed_listing("a", "AIMI Symposium 2027")
+        keynote = timed_listing(
+            "b",
+            "AIMI Symposium 2027: Opening keynote",
+            event_type="seminar",
+            end=MORNING + timedelta(hours=1),
+        )
+        assert symposium.event.is_meeting
+        assert not keynote.event.is_meeting
+        for order in ((symposium, keynote), (keynote, symposium)):
+            assert uids(run(*order)) == ["a", "b"]
+
+    def test_an_all_day_meeting_and_its_timed_listing_of_that_day_are_one(self) -> None:
+        whole = meeting("a", "Stanford Drug Discovery Symposium 2027", url=MEETING_PAGE)
+        hours = timed_listing("b", "SDDS 2027", url=MEETING_PAGE)
+        for order in ((whole, hours), (hours, whole)):
+            result = run(*order)
+            assert uids(result) == ["a"]
+            (merged,) = result.candidates
+            assert merged.event.source_ids == ["conf-a:a", "sites-b:b"]
+
+    def test_another_page_or_another_day_keeps_them_apart(self) -> None:
+        whole = meeting("a", "Stanford Drug Discovery Symposium 2027", url=MEETING_PAGE)
+        elsewhere = timed_listing("b", "SDDS 2027", url=f"{MEETING_PAGE}/program")
+        next_day = timed_listing(
+            "c",
+            "SDDS 2027",
+            url=MEETING_PAGE,
+            start=MORNING + timedelta(days=1),
+            end=MORNING + timedelta(days=1, hours=8),
+        )
+        assert uids(run(whole, elsewhere)) == ["a", "b"]
+        assert uids(run(whole, next_day)) == ["a", "c"]
+
+
 class TestOneSourceTwoSpeakers:
     """Two listings of one source with different speakers are two talks."""
 
@@ -735,6 +822,8 @@ TITLES = [
     "TBA",
     "Seminar",
     "Dark matter searches underground",
+    "ICML 2027",
+    "ICLR 2027",
 ]
 NAMES = ["Jane Doe", "Dr. Jane Doe", "John Roe", "Jos\u00e9 Garc\u00eda"]
 PAGES = [
@@ -749,18 +838,30 @@ MINUTES = [0, 5, 14, 15, 16, 29, 31, 44, 120]
 
 @st.composite
 def similar_candidates(draw: st.DrawFn) -> Candidate:
-    """Candidates drawn from small pools, so that duplicates of every kind are common."""
+    """Candidates drawn from small pools, so that duplicates of every kind are common.
+
+    Some are meetings: a conference or a workshop of four hours, or one over
+    the whole day of the talks or three days from it.
+    """
     source = draw(st.sampled_from(SOURCES))
     uid = draw(st.sampled_from(["u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8"]))
     keys = draw(st.lists(st.sampled_from(["k1", "k2", "k3", "k4", "k5"]), min_size=1, max_size=2))
     speakers = draw(st.lists(st.sampled_from(NAMES), max_size=2, unique=True))
+    kind = draw(st.sampled_from(["talk", "talk", "meeting", "all-day meeting"]))
     start = START + timedelta(minutes=draw(st.sampled_from(MINUTES)))
+    end = draw(st.none() | st.just(start + timedelta(hours=1 if kind == "talk" else 4)))
+    if kind == "all-day meeting":
+        start = START.replace(hour=0, minute=0)
+        end = draw(st.none() | st.just(start + timedelta(days=3)))
+    event_type = "seminar" if kind == "talk" else draw(st.sampled_from(["conference", "workshop"]))
     event = make_event(
         uid=uid,
         title=draw(st.sampled_from(TITLES)),
         speakers=[Speaker(name=name) for name in speakers],
+        event_type=event_type,
         start=start,
-        end=draw(st.none() | st.just(start + timedelta(hours=1))),
+        end=end,
+        all_day=kind == "all-day meeting",
         url=draw(st.sampled_from(PAGES)),
         source_urls=draw(st.lists(st.sampled_from(PAGES), min_size=1, max_size=2)),
         source_ids=[f"{source}:{key}" for key in keys],

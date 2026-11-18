@@ -9,7 +9,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from factories import REFERENCE_NOW
+from factories import REFERENCE_NOW, make_source
 from seminars.config import (
     ENV_HTTP_CACHE_DIR,
     LOCAL_ONLY_PROVIDERS,
@@ -123,6 +123,35 @@ class TestSettings:
         assert window.start.isoformat() == "2026-10-27T00:00:00-07:00"
         assert window.end.isoformat() == "2027-03-11T00:00:00-08:00"
 
+    def test_meeting_window_at(self) -> None:
+        settings = load_settings(REPO_ROOT / "config" / "settings.yaml")
+        assert settings.meetings.days_ahead == 365
+        window = settings.meeting_window_at(REFERENCE_NOW)
+        assert window.start == settings.window_at(REFERENCE_NOW).start
+        assert window.end.isoformat() == "2027-11-11T00:00:00-08:00"
+
+    def test_fetch_window_at_follows_the_meeting_horizon_of_the_source(self) -> None:
+        settings = load_settings(REPO_ROOT / "config" / "settings.yaml")
+        flagged = make_source(meeting_horizon=True)
+        assert settings.fetch_window_at(REFERENCE_NOW, flagged) == settings.meeting_window_at(
+            REFERENCE_NOW
+        )
+        assert settings.fetch_window_at(REFERENCE_NOW, make_source()) == settings.window_at(
+            REFERENCE_NOW
+        )
+
+    @pytest.mark.parametrize("days", [0, 30, 120])
+    def test_a_short_meeting_horizon_never_shortens_the_window(self, days: int) -> None:
+        data = yaml.safe_load((REPO_ROOT / "config" / "settings.yaml").read_text(encoding="utf-8"))
+        data["meetings"]["days_ahead"] = days
+        settings = Settings.model_validate(data)
+        assert settings.meeting_window_at(REFERENCE_NOW) == settings.window_at(REFERENCE_NOW)
+
+    def test_the_meeting_horizon_has_a_default(self) -> None:
+        data = yaml.safe_load((REPO_ROOT / "config" / "settings.yaml").read_text(encoding="utf-8"))
+        del data["meetings"]
+        assert Settings.model_validate(data).meetings.days_ahead == 365
+
     def test_missing_settings_file_is_an_error(self, tmp_path: Path) -> None:
         with pytest.raises(ConfigError, match="required configuration file is missing"):
             load_settings(tmp_path / "config" / "settings.yaml")
@@ -146,6 +175,7 @@ class TestSettings:
             ("http", "timeout_seconds", 0),
             ("http", "retries", -1),
             ("window", "days_back", -1),
+            ("meetings", "days_ahead", -1),
             ("dedup", "title_similarity", 101),
             ("site", "base_url", "https://example.org/seminars"),
         ],

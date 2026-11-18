@@ -222,6 +222,71 @@ class TestWindow:
         assert (result.outside_window, result.invalid) == (2, ())
 
 
+class TestMeetings:
+    @staticmethod
+    def far_ahead(**overrides: Any) -> list[EventDraft]:
+        """A conference and a talk 200 days after the run: past the window, within a year."""
+        start = REFERENCE_NOW + timedelta(days=200)
+        values: dict[str, Any] = {"start": start, "end": start + timedelta(hours=8)}
+        return [
+            make_draft(native_id="conference", event_type_hint="conference", **values, **overrides),
+            make_draft(native_id="talk", **{**values, "end": start + timedelta(hours=1)}),
+        ]
+
+    def test_a_source_with_a_meeting_horizon_keeps_its_meetings_a_year_ahead(self) -> None:
+        result = normalize(*self.far_ahead(), source=make_source(meeting_horizon=True))
+        assert [c.event.uid for c in result.candidates] == ["sites-bioengineering.conference"]
+        assert result.candidates[0].event.is_meeting
+        assert result.outside_window == 1  # the talk keeps the window of the run
+
+    def test_a_source_without_it_keeps_neither(self) -> None:
+        result = normalize(*self.far_ahead())
+        assert (result.candidates, result.outside_window) == ((), 2)
+
+    def test_a_meeting_beyond_the_meeting_window_is_dropped(self) -> None:
+        end = SETTINGS.meeting_window_at(REFERENCE_NOW).end
+        late = make_draft(native_id="late", event_type_hint="conference", start=end, end=None)
+        result = normalize(late, source=make_source(meeting_horizon=True))
+        assert (result.candidates, result.outside_window) == ((), 1)
+
+    def test_the_title_makes_a_talk_a_meeting_before_the_window_is_applied(self) -> None:
+        start = date(2027, 5, 17)  # all day, about six months after the run
+        draft = make_draft(title="AIMI Symposium 2027", start=start, end=start)
+        event = one(draft, source=make_source(meeting_horizon=True)).event
+        assert (event.event_type, event.all_day, event.is_meeting) == ("conference", True, True)
+
+    def test_a_long_talk_named_a_symposium_is_stored_as_a_conference(self) -> None:
+        draft = make_draft(
+            title="Wu Tsai Human Performance Alliance Research Symposium 2026",
+            event_type_hint="lecture",
+            start=datetime(2026, 11, 12, 9, 0),
+            end=datetime(2026, 11, 12, 18, 0),
+        )
+        assert one(draft).event.event_type == "conference"
+
+    def test_a_symposium_lecture_of_an_hour_stays_a_lecture(self) -> None:
+        draft = make_draft(title="Symposium Lecture: Jane Doe", event_type_hint="lecture")
+        assert one(draft).event.event_type == "lecture"
+
+    def test_an_ongoing_meeting_is_kept_by_its_end(self) -> None:
+        # A workshop of three weeks that began twenty days before the run, all day.
+        first = (REFERENCE_NOW - timedelta(days=20)).date()
+        last = first + timedelta(days=20)
+        begun = make_draft(native_id="begun", event_type_hint="workshop", start=first, end=last)
+        over = make_draft(
+            native_id="over",
+            event_type_hint="workshop",
+            start=first - timedelta(days=30),
+            end=last - timedelta(days=30),
+        )
+        result = normalize(begun, over)
+        assert [c.event.uid for c in result.candidates] == ["sites-bioengineering.begun"]
+        event = result.candidates[0].event
+        assert event.end is not None
+        assert event.start < make_window().start < event.end
+        assert result.outside_window == 1
+
+
 class TestInvalidDrafts:
     def test_an_unusable_start_is_reported_and_the_rest_goes_on(self) -> None:
         bad = make_draft(native_id="bad", title="Broken <b>talk</b>", start="no idea", end=None)

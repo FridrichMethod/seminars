@@ -14,6 +14,7 @@ from seminars.models import Candidate, EventDraft, EventHints
 from seminars.pipeline.ids import (
     draft_key,
     is_day_key,
+    is_site_root,
     is_time_of_day_key,
     latin_fold,
     renamed_page,
@@ -210,3 +211,28 @@ class TestRenamedPages:
     )
     def test_two_pages_of_one_directory(self, new: str, expected: bool) -> None:
         assert renamed_page("sites-x:url:https://example.edu/events/coming-soon", new) is expected
+
+
+class TestSiteRoots:
+    @pytest.mark.parametrize(
+        ("url", "root"),
+        [
+            ("https://iclr.cc/", True),
+            ("https://iclr.cc", True),
+            ("https://iclr.cc//", True),
+            ("https://iclr.cc/Conferences/2027", False),
+            ("https://www.proteinsociety.org/annualsymposium/", False),
+        ],
+    )
+    def test_the_front_page_of_a_site(self, url: str, root: bool) -> None:
+        assert is_site_root(url) is root
+
+    @pytest.mark.parametrize("url", ["https://iclr.cc/", "https://iclr.cc"])
+    def test_a_front_page_is_never_a_key(self, url: str) -> None:
+        # One edition of a conference must not hand its uid on to the next one.
+        draft = make_draft(native_id=None, url=url, title="ICLR 2027")
+        assert key(draft, title="ICLR 2027") == "sites-bioengineering:day:2026-11-17:iclr-2027"
+
+    def test_a_deeper_page_is(self) -> None:
+        draft = make_draft(native_id=None, url="https://iclr.cc/Conferences/2027/")
+        assert key(draft) == "sites-bioengineering:url:https://iclr.cc/Conferences/2027"
