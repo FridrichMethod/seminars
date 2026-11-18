@@ -296,15 +296,24 @@ replaced by an empty placeholder.
 
 ## Outputs
 
-- **Feeds** (`outputs/ics.py`): nine calendars, `all`, `picks` and one per field. A timed
+- **Feeds** (`outputs/ics.py`): ten calendars, `all`, `picks`, one per field and
+  `conferences`. `conferences` holds the meetings (`Event.is_meeting`: a conference, or a
+  workshop over several days or of at least three hours), which are in `all` and in their
+  field feeds as well, so the download of selected talks reads `all` alone. A timed
   event is written in the zone of the settings with one VTIMEZONE sub-component per change
-  of the offset; a cancelled talk stays with `STATUS:CANCELLED`. The bytes depend only on
-  the events, so a calendar sees a change only when an event changed. `seminars validate`
-  checks every feed with a validator of its own.
+  of the offset. An all-day event is free time (`TRANSP:TRANSPARENT` and
+  `X-MICROSOFT-CDO-BUSYSTATUS:FREE`), so a conference of a week does not fill a calendar
+  with busy days; no event has an alarm. A cancelled talk stays with `STATUS:CANCELLED`.
+  The bytes depend only on the events, so a calendar sees a change only when an event
+  changed. `seminars validate` checks every feed with a validator of its own.
 - **Site** (`site/`, `outputs/site_data.py`): static HTML and JavaScript without a build
   step, reading `events.json` and `status.json`; English and Chinese from `locales/`. All
   text from the web is escaped. `seminars build-site` assembles `public/` from the committed
-  data alone.
+  data alone. The filters (fields, institutions, organizer, kind, time range, picks, and
+  the search of titles, people, series, places and abstracts) are part of the address.
+  The kind tells the talks from the meetings by the flag `meeting` of `events.json`, and
+  an event that began before today and has not ended is listed once, under Ongoing above
+  today.
 - **Download of selected talks** (`site/calendar.js`): the talks a reader ticks in the list
   are page state held in memory, never written to the address or to storage. The selection
   bar above the list is a region landmark; while talks are selected and the bar is
@@ -335,10 +344,13 @@ replaced by an empty placeholder.
   nor `events.json` has anything of its own for the download: the file is made from the
   feed that `outputs/ics.py` writes.
 - **Digest** (`outputs/digest.py`): the talks of the week (Monday to Sunday), the picks first,
-  then one table per field, the talks new since the previous issue and the state of the
-  sources, with every label in English and Chinese. No state is kept: "new" is measured from
-  the time the previous digest issue was opened, and an issue with the title of this week
-  is looked for first.
+  then one table per field, the conferences and workshops, the talks new since the previous
+  issue and the state of the sources, with every label in English and Chinese. The meetings
+  (`Event.is_meeting`) are in their own table only: those with a day in the eight weeks from
+  the Monday and the later ones new since the previous issue, each marked when it is new or a
+  pick. That table has a row limit of its own, which shrinks only once the other tables are
+  down to one row. No state is kept: "new" is measured from the time the previous digest
+  issue was opened, and an issue with the title of this week is looked for first.
 - **Health** (`outputs/health.py`): the last 30 runs of each source and provider in
   `data/health.json`. A source that failed 3 runs in a row, that delivered talks and then
   came back empty 3 runs in a row, or that was not read in full 3 runs in a row gets a

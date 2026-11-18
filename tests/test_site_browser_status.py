@@ -83,7 +83,7 @@ class TestStatusPage:
         assert page.locator("#summary li").all_text_contents() == [
             english["site.status.no_run"],
             english["site.status.last_run_failed"],
-            "0 talks on the site",
+            "0 events on the site",
             "0 of 1 active sources are healthy.",
             english["site.status.llm_none"],
         ]

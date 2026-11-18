@@ -200,6 +200,22 @@ class TestEventsPayload:
         assert raw["start"] == "2026-11-17T16:00:00-08:00"
         assert raw["speakers"][0]["name"] == NAME  # readable, not an escape
 
+    def test_a_meeting_is_flagged(self, app_config: AppConfig, tmp_path: Path) -> None:
+        events = [
+            make_event(uid="talk"),
+            make_event(uid="symposium", event_type="conference", all_day=True, end=None),
+        ]
+        payload, _ = write(app_config, tmp_path, events)
+        assert {event.uid: event.meeting for event in payload.events} == {
+            "talk": False,
+            "symposium": True,
+        }
+        raw = json.loads(read_text(tmp_path / "events.json"))["events"]
+        assert {event["uid"]: event["meeting"] for event in raw} == {
+            "talk": False,
+            "symposium": True,
+        }
+
     def test_the_picks_threshold_comes_from_the_interests(
         self, app_config: AppConfig, tmp_path: Path
     ) -> None:

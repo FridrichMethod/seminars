@@ -33,8 +33,12 @@ ExtractionMethod = Literal["api", "feed", "jsonld", "html", "llm"]
 FIELD_IDS: Final[tuple[str, ...]] = ("math", "cs", "ai-ml", "chem", "bio", "physics", "med")
 """Canonical field ids in canonical order."""
 
-FEED_IDS: Final[tuple[str, ...]] = ("all", "picks", *FIELD_IDS)
-"""Ids of the nine ICS feeds; feed ``<id>`` is published as ``feeds/<id>.ics``."""
+FEED_IDS: Final[tuple[str, ...]] = ("all", "picks", *FIELD_IDS, "conferences")
+"""Ids of the ten ICS feeds; feed ``<id>`` is published as ``feeds/<id>.ics``.
+
+``conferences`` holds the meetings (``Event.is_meeting``). An id is part of a
+public address, so it never changes once it is published.
+"""
 
 UID_PATTERN: Final = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
 SOURCE_ID_PATTERN: Final = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"

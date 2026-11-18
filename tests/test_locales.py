@@ -23,6 +23,7 @@ DIGEST_KEYS = {
     "digest.intro",
     "digest.summary",
     "digest.sections.picks",
+    "digest.sections.meetings",
     "digest.sections.new",
     "digest.sections.health",
     "digest.table.date",
@@ -33,6 +34,7 @@ DIGEST_KEYS = {
     "digest.table.link",
     "digest.table.field",
     "digest.table.reasons",
+    "digest.table.note",
     "digest.labels.all_day",
     "digest.labels.online",
     "digest.labels.cancelled",
@@ -40,6 +42,8 @@ DIGEST_KEYS = {
     "digest.labels.tba",
     "digest.labels.details",
     "digest.labels.more",
+    "digest.labels.new",
+    "digest.labels.pick",
     "digest.reasons.keyword",
     "digest.reasons.series",
     "digest.reasons.speaker",
@@ -49,6 +53,7 @@ DIGEST_KEYS = {
     "digest.reasons.places.abstract",
     "digest.empty.picks",
     "digest.empty.field",
+    "digest.empty.meetings",
     "digest.empty.new",
     "digest.empty.first_issue",
     "digest.health.all_ok",
@@ -138,6 +143,7 @@ class TestLocaleFiles:
         assert english.t("digest.sections.health") == "Source health"
         for field in FIELD_IDS:
             assert english.t(f"feeds.{field}.name") == f"Seminars - {english.t(f'fields.{field}')}"
+        assert english.t("feeds.conferences.name") == "Seminars - Conferences and workshops"
 
     @pytest.mark.parametrize("lang", LOCALES)
     def test_files_use_two_space_indentation_and_end_with_newline(self, lang: str) -> None:

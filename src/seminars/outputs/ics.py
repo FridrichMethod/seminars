@@ -1,12 +1,15 @@
 """ICS calendar feeds (RFC 5545) and the validator behind ``seminars validate``.
 
 ``write_ics_feeds`` writes one calendar per feed id: ``all`` holds every
-event it is given, ``picks`` the events at or above the picks threshold and
-each field feed the events tagged with that field. The files are a pure
-function of the arguments. Events are ordered by start and uid, every time
-stamp comes from the event (``DTSTAMP`` and ``LAST-MODIFIED`` are its
-``last_changed``) and nothing reads the clock, so the same events give the
-same bytes and a subscriber only sees a change when an event changed.
+event it is given, ``picks`` the events at or above the picks threshold,
+each field feed the events tagged with that field and ``conferences`` the
+meetings (``Event.is_meeting``: a conference, or a workshop over several
+days or of at least three hours), which are in ``all`` and in their field
+feeds as well. The files are a pure function of the arguments. Events are
+ordered by start and uid, every time stamp comes from the event
+(``DTSTAMP`` and ``LAST-MODIFIED`` are its ``last_changed``) and nothing
+reads the clock, so the same events give the same bytes and a subscriber
+only sees a change when an event changed.
 
 A calendar holds
 
@@ -21,7 +24,12 @@ A calendar holds
 * one VEVENT per event. ``UID`` is ``<uid>@<uid_domain>`` and never changes;
   ``SEQUENCE`` is the counter of the event. A timed event is written in the
   zone of the settings and gets the default duration when it has no end; an
-  all-day event is written with DATE values and an exclusive end. A
+  all-day event is written with DATE values and an exclusive end. An all-day
+  event is free time (``TRANSP:TRANSPARENT``, and
+  ``X-MICROSOFT-CDO-BUSYSTATUS:FREE`` for Outlook, which reads only that),
+  so a conference of a week does not mark the days of a subscriber as busy;
+  a timed event keeps the default of RFC 5545, busy. No event has an alarm:
+  calendar programs ignore the alarms of a subscribed calendar. A
   cancelled event stays in the feed with ``STATUS:CANCELLED`` and a marked
   summary, because not every program shows the status.
 
@@ -71,6 +79,9 @@ ZONE_MAX_YEARS: Final = 10
 
 EMPTY_RUN_YEAR: Final = 1970
 """Year of the time zone definition when a run has no event at all."""
+
+MEETINGS_FEED: Final = "conferences"
+"""The feed of the meetings (``Event.is_meeting``), one of FEED_IDS."""
 
 _LABEL_SPEAKER: Final = "digest.table.speaker"
 _LABEL_REASONS: Final = "digest.table.reasons"
@@ -276,6 +287,9 @@ def _vevent(event: Event, ctx: _Context) -> icalendar.Event:
     component.add("description", _description(event, ctx))
     component.add("url", ascii_url(str(event.url)))
     component.add("status", event.status.upper())
+    if event.all_day:
+        component.add("transp", "TRANSPARENT")
+        component.add("x-microsoft-cdo-busystatus", "FREE")
     location = _location(event, ctx)
     if location:
         component.add("location", location)
@@ -410,11 +424,13 @@ def _in_feed(event: Event, feed_id: str, ctx: _Context) -> bool:
         return True
     if feed_id == "picks":
         return event.is_pick(ctx.picks_threshold)
+    if feed_id == MEETINGS_FEED:
+        return event.is_meeting
     return feed_id in event.fields
 
 
 def write_ics_feeds(events: Sequence[Event], out_dir: Path, *, config: AppConfig) -> list[Path]:
-    """Write ``<out_dir>/<feed id>.ics`` for all nine FEED_IDS; return the paths.
+    """Write ``<out_dir>/<feed id>.ics`` for all ten FEED_IDS; return the paths.
 
     The contract is ``seminars.contracts.IcsFeedWriter``. Every event given
     is written, cancelled and past ones included; choosing the events is the
@@ -453,6 +469,8 @@ _ESCAPES_ONLY: Final = re.compile(r"(?:[^\\]|\\[\\;,nN])*")
 _SEPARATORS: Final = re.compile(r"(?<!\\)(?:\\\\)*[;,]")
 _LIST_SEPARATORS: Final = re.compile(r"(?<!\\)(?:\\\\)*;")
 _EVENT_STATUSES: Final = frozenset({"TENTATIVE", "CONFIRMED", "CANCELLED"})
+_TRANSPARENCIES: Final = re.compile("(?i)OPAQUE|TRANSPARENT")
+_BUSY_STATUSES: Final = re.compile("(?i)FREE|TENTATIVE|BUSY|OOF|WORKINGELSEWHERE")
 _OBSERVANCES: Final = ("STANDARD", "DAYLIGHT")
 _PARSER_DETAIL_CHARS: Final = 200
 
@@ -615,6 +633,10 @@ _RULES: Final[Mapping[tuple[str, str], Callable[[_Line], str | None]]] = {
     ("VEVENT", "STATUS"): lambda line: (
         None if line.value.upper() in _EVENT_STATUSES else "STATUS is not a status of an event"
     ),
+    ("VEVENT", "TRANSP"): _pattern_rule(_TRANSPARENCIES, "is neither OPAQUE nor TRANSPARENT"),
+    ("VEVENT", "X-MICROSOFT-CDO-BUSYSTATUS"): _pattern_rule(
+        _BUSY_STATUSES, "is not a busy status of Outlook"
+    ),
     ("STANDARD", "DTSTART"): _local_rule,
     ("DAYLIGHT", "DTSTART"): _local_rule,
     ("*", "DTSTAMP"): _utc_rule,
@@ -643,6 +665,7 @@ _AT_MOST_ONCE: Final[Mapping[str, tuple[str, ...]]] = {
         *("UID", "DTSTAMP", "DTSTART", "DTEND", "DURATION", "SUMMARY", "DESCRIPTION"),
         *("LOCATION", "STATUS", "SEQUENCE", "LAST-MODIFIED", "CREATED", "URL", "CLASS"),
         *("TRANSP", "PRIORITY", "ORGANIZER", "GEO", "RECURRENCE-ID"),
+        "X-MICROSOFT-CDO-BUSYSTATUS",
     ),
     "VTIMEZONE": ("TZID", "LAST-MODIFIED", "TZURL"),
     "STANDARD": ("DTSTART", "TZOFFSETFROM", "TZOFFSETTO"),

@@ -1,10 +1,17 @@
-"""The weekly digest: one GitHub issue with the talks of a week.
+"""The weekly digest: one GitHub issue with the talks of a week and the meetings ahead.
 
 ``render_digest`` turns the stored events and the run history into a
-markdown document: the picks first, then one table per field, the talks
-that were first seen since the previous issue, and the state of the sources.
-``publish_digest`` opens the issue for the week that contains ``now`` and
-closes the earlier ones.
+markdown document: the picks first, then one table per field, the
+conferences and workshops, the talks that were first seen since the previous
+issue, and the state of the sources. ``publish_digest`` opens the issue for
+the week that contains ``now`` and closes the earlier ones.
+
+Meetings (``Event.is_meeting``: a conference, or a workshop over several days
+or of at least three hours) have a section of their own: every meeting with a
+day in the MEETING_WEEKS weeks from the Monday of the digest, and every later
+one first seen since the previous issue, marked as new and as a pick where it
+is one. A meeting is in no other table, and the sentence that counts the
+talks of the week leaves it out, so nothing is listed twice.
 
 No state is kept. "New since the last issue" is whatever was first seen
 after the previous digest issue was created, and a week is never posted
@@ -75,6 +82,13 @@ from seminars.textrules import ascii_printable, clean_text
 ROW_LIMITS: Final = (40, 30, 20, 15, 10, 5, 2, 1)
 """Rows per table: the first limit that keeps the body within MAX_BODY_CHARS is used."""
 
+MEETING_ROW_LIMITS: Final = (40, 20, 10, 5, 2, 1)
+"""Rows of the table of meetings, which has a limit of its own: the first one holds
+until the other tables are down to the last of ROW_LIMITS, and only then the next."""
+
+MEETING_WEEKS: Final = 8
+"""Weeks from the Monday of the digest whose meetings are all listed."""
+
 MAX_BODY_CHARS: Final = 60_000
 """GitHub refuses an issue body of more than 65536 characters."""
 
@@ -120,6 +134,7 @@ class _Context:
     zone: ZoneInfo
     week_start: date
     picks_threshold: float
+    previous_issue_at: datetime | None = None
 
     @property
     def locales(self) -> tuple[Locale, Locale]:
@@ -141,7 +156,9 @@ def _issue_title(primary: Locale, week_start: date) -> str:
     return primary.t("digest.issue_title", date=week_start.isoformat())
 
 
-def _context(config: AppConfig, week_start: date) -> _Context:
+def _context(
+    config: AppConfig, week_start: date, previous_issue_at: datetime | None = None
+) -> _Context:
     locales = load_locales(config.paths.locales_dir)
     return _Context(
         primary=locales[DEFAULT_LOCALE],
@@ -149,6 +166,7 @@ def _context(config: AppConfig, week_start: date) -> _Context:
         zone=ZoneInfo(config.settings.timezone),
         week_start=week_start,
         picks_threshold=config.interests.threshold,
+        previous_issue_at=previous_issue_at,
     )
 
 
@@ -212,9 +230,14 @@ def _speaker(speaker: Speaker) -> str:
 
 
 def _days(event: Event, zone: ZoneInfo) -> tuple[date, date]:
-    """First and last local day of an event; a timed event counts for the day it starts."""
+    """First and last local day of an event.
+
+    An all-day event and a meeting, with hours or without, last until their end, which
+    is exclusive: an end at local midnight closes the day before. Any other timed event
+    counts for the day it starts.
+    """
     first = event.start.astimezone(zone).date()
-    if not event.all_day or event.end is None:
+    if event.end is None or not (event.all_day or event.is_meeting):
         return first, first
     end = event.end.astimezone(zone)
     last = end.date() - _ONE_DAY if end.time() == time.min else end.date()
@@ -276,6 +299,19 @@ def _reasons_cell(event: Event, ctx: _Context) -> str:
     return _lines(lines) or EMPTY_CELL
 
 
+def _note_cell(event: Event, ctx: _Context) -> str:
+    """Whether a meeting is new since the previous issue and whether it is a pick."""
+    marks = [
+        ctx.both(key)
+        for key, marked in (
+            ("digest.labels.new", _is_new(event, ctx)),
+            ("digest.labels.pick", event.is_pick(ctx.picks_threshold)),
+        )
+        if marked
+    ]
+    return ", ".join(marks) or EMPTY_CELL
+
+
 def _link_cell(event: Event, ctx: _Context) -> str:
     url = ascii_url(str(event.url))
     if len(url) > URL_MAX_CHARS:
@@ -295,10 +331,17 @@ _WHEN_WHAT_WHO_WHERE: Final[tuple[_Column, ...]] = (
 )
 _FIELD: Final[_Column] = ("digest.table.field", _field_cell)
 _REASONS: Final[_Column] = ("digest.table.reasons", _reasons_cell)
+_NOTE: Final[_Column] = ("digest.table.note", _note_cell)
 _LINK: Final[_Column] = ("digest.table.link", _link_cell)
 _FIELD_COLUMNS: Final = (*_WHEN_WHAT_WHO_WHERE, _LINK)
 _PICK_COLUMNS: Final = (*_WHEN_WHAT_WHO_WHERE, _FIELD, _REASONS, _LINK)
 _NEW_COLUMNS: Final = (*_WHEN_WHAT_WHO_WHERE, _FIELD, _LINK)
+_MEETING_COLUMNS: Final = (
+    *(column for column in _WHEN_WHAT_WHO_WHERE if column[0] != "digest.table.speaker"),
+    _FIELD,
+    _NOTE,
+    _LINK,
+)
 
 
 # --- blocks --------------------------------------------------------------------------------
@@ -338,8 +381,13 @@ def _in_week(event: Event, ctx: _Context) -> bool:
     return first < ctx.week_start + _WEEK and last >= ctx.week_start
 
 
+def _is_new(event: Event, ctx: _Context) -> bool:
+    """True when the event was first seen after the previous issue was opened."""
+    return ctx.previous_issue_at is not None and event.first_seen > ctx.previous_issue_at
+
+
 def _opening(week: Sequence[Event], ctx: _Context) -> list[str]:
-    """Heading, the days covered and how many talks take place."""
+    """Heading, the days covered and how many talks (``week``, no meeting) take place."""
     held = [event for event in week if event.status != "cancelled"]
     picks = sum(event.is_pick(ctx.picks_threshold) for event in held)
     sunday = ctx.week_start + _WEEK - _ONE_DAY
@@ -351,7 +399,7 @@ def _opening(week: Sequence[Event], ctx: _Context) -> list[str]:
 
 
 def _talks(week: Sequence[Event], ctx: _Context, rows: int) -> list[str]:
-    """The picks, then one section per field."""
+    """The picks, then one section per field, of the talks of the week (no meeting)."""
     picks = [event for event in week if event.is_pick(ctx.picks_threshold)]
     heading = ctx.both("digest.sections.picks")
     blocks = _section(heading, picks, _PICK_COLUMNS, "digest.empty.picks", ctx, rows)
@@ -362,17 +410,38 @@ def _talks(week: Sequence[Event], ctx: _Context, rows: int) -> list[str]:
     return blocks
 
 
-def _new(
-    events: Sequence[Event], previous_issue_at: datetime | None, ctx: _Context, rows: int
-) -> list[str]:
-    """Talks first seen after the previous issue that have not taken place yet."""
+def _meetings_until(ctx: _Context) -> date:
+    """The first day after the MEETING_WEEKS weeks whose meetings are all listed."""
+    return ctx.week_start + MEETING_WEEKS * _WEEK
+
+
+def _is_listed_meeting(event: Event, ctx: _Context) -> bool:
+    """A meeting not over before the week, within MEETING_WEEKS weeks or new."""
+    if not event.is_meeting:
+        return False
+    first, last = _days(event, ctx.zone)
+    return last >= ctx.week_start and (first < _meetings_until(ctx) or _is_new(event, ctx))
+
+
+def _meetings(events: Sequence[Event], ctx: _Context, rows: int) -> list[str]:
+    """The meetings of the next MEETING_WEEKS weeks and the later ones that are new."""
+    heading = ctx.both("digest.sections.meetings")
+    listed = [event for event in events if _is_listed_meeting(event, ctx)]
+    if not listed:
+        last_day = (_meetings_until(ctx) - _ONE_DAY).isoformat()
+        return [f"## {heading}", ctx.sentence("digest.empty.meetings", end=last_day)]
+    return [f"## {heading}", *_table(listed, _MEETING_COLUMNS, ctx, rows)]
+
+
+def _new(talks: Sequence[Event], ctx: _Context, rows: int) -> list[str]:
+    """Talks (no meeting) first seen after the previous issue that have not taken place yet."""
     heading = ctx.both("digest.sections.new")
-    if previous_issue_at is None:
+    if ctx.previous_issue_at is None:
         return [f"## {heading}", ctx.sentence("digest.empty.first_issue")]
     new = [
         event
-        for event in events
-        if event.first_seen > previous_issue_at and _days(event, ctx.zone)[1] >= ctx.week_start
+        for event in talks
+        if _is_new(event, ctx) and _days(event, ctx.zone)[1] >= ctx.week_start
     ]
     return _section(heading, new, _NEW_COLUMNS, "digest.empty.new", ctx, rows)
 
@@ -516,34 +585,42 @@ def render_digest(
 ) -> DigestDocument:
     """Render the digest for the week starting on ``week_start`` (a Monday).
 
-    The contract is ``seminars.contracts.DigestRenderer``. The tables hold
-    the events with a day in that week, by local days of the configured
-    zone; a table that is too long ends with a count of the talks left out,
-    and the limit shrinks until the body fits into a GitHub issue.
+    The contract is ``seminars.contracts.DigestRenderer``. The tables of
+    talks hold the talks with a day in that week, by local days of the
+    configured zone; the table of meetings is described in the module
+    docstring. A table that is too long ends with a count of the events left
+    out, and the limits shrink until the body fits into a GitHub issue: first
+    ROW_LIMITS, then MEETING_ROW_LIMITS.
     """
     if week_start.weekday() != 0:
         raise ValueError(f"week_start must be a Monday: {week_start.isoformat()}")
     if previous_issue_at is not None and previous_issue_at.tzinfo is None:
         raise ValueError("previous_issue_at must be timezone-aware")
-    ctx = _context(config, week_start)
+    ctx = _context(config, week_start, previous_issue_at)
     ordered = _ordered(events)
-    week = [event for event in ordered if _in_week(event, ctx)]
+    talks = [event for event in ordered if not event.is_meeting]
+    week = [event for event in talks if _in_week(event, ctx)]
     fixed_start = _opening(week, ctx)
     fixed_end = _closing(config, owner, ctx)
 
-    def body(rows: int) -> str:
+    def body(rows: int, meeting_rows: int) -> str:
         middle = [
             *_talks(week, ctx, rows),
-            *_new(ordered, previous_issue_at, ctx, rows),
+            *_meetings(ordered, ctx, meeting_rows),
+            *_new(talks, ctx, rows),
             *_health(health, config, ctx, rows),
         ]
         return "\n\n".join([*fixed_start, *middle, *fixed_end]) + "\n"
 
-    text = body(ROW_LIMITS[0])
-    for rows in ROW_LIMITS[1:]:
+    limits = [
+        *((rows, MEETING_ROW_LIMITS[0]) for rows in ROW_LIMITS),
+        *((ROW_LIMITS[-1], meeting_rows) for meeting_rows in MEETING_ROW_LIMITS[1:]),
+    ]
+    text = body(*limits[0])
+    for rows, meeting_rows in limits[1:]:
         if len(text) <= MAX_BODY_CHARS:
             break
-        text = body(rows)
+        text = body(rows, meeting_rows)
     title = _issue_title(ctx.primary, week_start)
     return DigestDocument(week_start=week_start, title=title, body=text)
 

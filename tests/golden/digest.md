@@ -58,6 +58,14 @@ Talks from 2026-11-16 to 2026-11-22. All times are Pacific Time.
 | --- | --- | --- | --- | --- | --- |
 | 2026-11-22 | 23:30-00:30 | Grand Rounds: cell therapies for solid tumors<br>Stanford Medicine | Maria Chen; Omar Haddad; Ana Diaz; ... | Li Ka Shing Center, Berg Hall (Online / \u7ebf\u4e0a) | [Details / \u8be6\u60c5](<https://example.stanford.edu/events/hybrid>) |
 
+## Conferences and workshops / \u4f1a\u8bae\u548c\u7814\u8ba8\u4f1a
+
+| Date / \u65e5\u671f | Time / \u65f6\u95f4 | Title / \u6807\u9898 | Location / \u5730\u70b9 | Field / \u9886\u57df | Note / \u5907\u6ce8 | Link / \u94fe\u63a5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-19 - 2026-11-20 | All day / \u5168\u5929 | Bay Area RNA Symposium<br>Stanford Biochemistry | Li Ka Shing Center | Chemistry, Biology<br>\u5316\u5b66, \u751f\u7269 | Pick / \u7cbe\u9009 | [Details / \u8be6\u60c5](<https://example.stanford.edu/events/symposium>) |
+| 2027-01-08 | 09:00-17:00 | Protein design retreat<br>Bioengineering workshops | Asilomar | Biology<br>\u751f\u7269 | New / \u65b0\u589e | [Details / \u8be6\u60c5](<https://example.stanford.edu/events/retreat>) |
+| 2027-04-29 - 2027-04-30 | All day / \u5168\u5929 | Workshops of ICLR 2027<br>ICLR 2027 | San Francisco | AI/ML, Biology<br>AI/\u673a\u5668\u5b66\u4e60, \u751f\u7269 | New / \u65b0\u589e | [Details / \u8be6\u60c5](<https://example.stanford.edu/events/iclr-workshop>) |
+
 ## New since last issue / \u4e0a\u4e00\u671f\u4ee5\u6765\u65b0\u589e
 
 | Date / \u65e5\u671f | Time / \u65f6\u95f4 | Title / \u6807\u9898 | Speaker / \u62a5\u544a\u4eba | Location / \u5730\u70b9 | Field / \u9886\u57df | Link / \u94fe\u63a5 |

@@ -237,13 +237,19 @@ key 由 prompt 版本、任务和输入文字组成，模型和 provider 都不�
 
 ## 输出
 
-- **Feed**（`outputs/ics.py`）：九个日历，`all`、`picks` 和每个领域一个。有具体时间的事件按设置里的时区
-  写出，VTIMEZONE 里每次 UTC 偏移的变化各占一个子组件；已取消的报告保留，带 `STATUS:CANCELLED`。
+- **Feed**（`outputs/ics.py`）：十个日历，`all`、`picks`、每个领域一个，以及 `conferences`。`conferences`
+  收录会议（`Event.is_meeting`：学术会议，或者持续多天或至少三小时的 workshop），它们同时也在 `all` 和所属领域的
+  feed 里，所以下载选中的报告只需要读 `all`。有具体时间的事件按设置里的时区
+  写出，VTIMEZONE 里每次 UTC 偏移的变化各占一个子组件。全天事件标为空闲时间（`TRANSP:TRANSPARENT` 和
+  `X-MICROSOFT-CDO-BUSYSTATUS:FREE`），所以持续一周的会议不会把日历占满忙碌的日子；事件都不带提醒。
+  已取消的报告保留，带 `STATUS:CANCELLED`。
   文件内容只取决于事件，所以只有事件真的变了，日历才看到变化。`seminars validate` 用自己的校验器
   检查每个 feed。
 - **网站**（`site/`、`outputs/site_data.py`）：不需要构建步骤的静态 HTML 和 JavaScript，读
   `events.json` 和 `status.json`；中英文文案来自 `locales/`。所有从网上抓来的文字都会转义。
-  `seminars build-site` 只根据已经提交的数据组装 `public/`。
+  `seminars build-site` 只根据已经提交的数据组装 `public/`。筛选条件（领域、机构、主办方、类型、时间范围、
+  只看精选，以及在标题、人名、系列、地点和摘要里的搜索）都写在地址里。类型按 `events.json` 里的 `meeting`
+  标记区分报告和会议；今天之前开始、还没结束的活动只在今天上方的"正在进行"下列出一次。
 - **选中报告的下载**（`site/calendar.js`）：读者在列表里勾选的报告是页面状态，只保存在内存里，
   从不写进地址栏或浏览器存储。列表上方的选择栏是一个 region landmark；选中了报告而选择栏向上滚出屏幕时
   （由 IntersectionObserver 判断，它观察的范围一直延伸到屏幕下方很远处，所以还在屏幕下方的选择栏算作在屏幕上），
@@ -262,8 +268,10 @@ key 由 prompt 版本、任务和输入文字组成，模型和 provider 都不�
   这个日历通过 Blob 存成 `seminars-selected.ics`；选中的报告有不在 feed 里的，就略过并计数；feed 取不到、
   读不了，或者里面没有任何一个选中的报告时，不生成文件。JavaScript 里不写任何 ICS，后端和 `events.json` 也没有专门为下载准备的东西：
   文件取自 `outputs/ics.py` 写出的 feed。
-- **摘要**（`outputs/digest.py`）：一周（周一到周日）的报告，先列精选，然后每个领域一张表，再列上一期
-  以来新增的报告和数据源的状态，每个标签都有英文和中文。不保存任何状态："新增"从上一期摘要 issue
+- **摘要**（`outputs/digest.py`）：一周（周一到周日）的报告，先列精选，然后每个领域一张表，再列会议和研讨会、
+  上一期以来新增的报告和数据源的状态，每个标签都有英文和中文。会议（`Event.is_meeting`）只列在它们自己的表里：
+  从本周一起八周内有日子的会议，加上上一期以来新增的更晚的会议，新增的和精选的都会标出来。这张表有自己的行数上限，
+  只有其他表都缩到一行之后它才缩小。不保存任何状态："新增"从上一期摘要 issue
   打开的时间算起，开 issue 之前先找有没有本周标题的 issue。
 - **健康**（`outputs/health.py`）：`data/health.json` 保存每个数据源和 provider 最近 30 次运行。
   连续 3 次失败、给出过报告之后连续 3 次为空、或者连续 3 次没有完整读完的数据源，会有一个

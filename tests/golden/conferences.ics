@@ -1,0 +1,51 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//seminars.fridrichmethod.github.io//seminars//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALDESC:Conferences and symposia\, and workshops that run over severa
+ l days or for at least three hours.
+X-WR-CALNAME:Seminars - Conferences and workshops
+REFRESH-INTERVAL;VALUE=DURATION:PT6H
+X-PUBLISHED-TTL:PT6H
+X-WR-TIMEZONE:America/Los_Angeles
+BEGIN:VTIMEZONE
+TZID:America/Los_Angeles
+BEGIN:STANDARD
+DTSTART:20260101T000000
+TZNAME:PST
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0800
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:20260308T020000
+TZNAME:PDT
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0700
+END:DAYLIGHT
+BEGIN:STANDARD
+DTSTART:20261101T020000
+TZNAME:PST
+TZOFFSETFROM:-0700
+TZOFFSETTO:-0800
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+SUMMARY:Bay Area Symposium on Structural Biology
+DTSTART;VALUE=DATE:20261120
+DTEND;VALUE=DATE:20261122
+DTSTAMP:20261110T200000Z
+UID:golden-all-day@seminars.fridrichmethod.github.io
+SEQUENCE:0
+CATEGORIES:Chemistry,Biology,Physics
+DESCRIPTION:SLAC\nWhy picked: abstract: cryo-EM\n\nTwo days of talks\; cry
+ o-EM\, crystallography\, and structure prediction.\n\nDetails: https://exa
+ mple.stanford.edu/events/golden-all-day
+LAST-MODIFIED:20261110T200000Z
+LOCATION:SLAC\, Kavli Auditorium
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+URL:https://example.stanford.edu/events/golden-all-day
+X-MICROSOFT-CDO-BUSYSTATUS:FREE
+END:VEVENT
+END:VCALENDAR
