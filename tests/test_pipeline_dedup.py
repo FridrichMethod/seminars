@@ -365,23 +365,27 @@ class TestMeetings:
                 assert merged.event.source_ids == ["conf-a:a", "sites-b:b"]
                 assert (merged.event.all_day, merged.event.end) == (True, whole.event.end)
 
+    @pytest.mark.parametrize("listing_type", ["seminar", "conference"])
     @pytest.mark.parametrize(
         ("listing_source", "aggregators"),
         [("bayarea-c", frozenset()), ("localist-stanford", AGGREGATORS)],
     )
     def test_a_listing_of_its_first_day_does_not_shorten_the_meeting(
-        self, listing_source: str, aggregators: frozenset[str]
+        self, listing_source: str, aggregators: frozenset[str], listing_type: str
     ) -> None:
         # A curated list gives the meeting of two days; a calendar lists its first day,
         # 9:00 to 17:00, on the same page. "bayarea-c" sorts first and leads the merge,
-        # the aggregator does not; either way the meeting keeps its days.
+        # the aggregator does not; either way the meeting keeps its days. As a conference
+        # the listing of the first day is a meeting of its own that leads, and the all-day
+        # listing with more days still gives them.
         whole = meeting("a", "QBI Symposium 2027", days=2, url=MEETING_PAGE)
         first_day = timed_listing(
             "c", "QBI Symposium 2027", sources=(listing_source,), url=MEETING_PAGE
         )
         first_day = first_day.evolve(
-            event=first_day.event.evolve(location="Genentech Hall", event_type="seminar")
+            event=first_day.event.evolve(location="Genentech Hall", event_type=listing_type)
         )
+        assert first_day.event.is_meeting == (listing_type == "conference")
         for order in ((whole, first_day), (first_day, whole)):
             result = dedupe(list(order), settings=SETTINGS, aggregators=aggregators)
             (merged,) = result.candidates
@@ -390,6 +394,58 @@ class TestMeetings:
             assert (event.start, event.end) == (MEETING_DAY, MEETING_DAY + timedelta(days=2))
             assert result.absorbed == {"c": "a"}
             assert dedupe(list(result.candidates), settings=SETTINGS).candidates == (merged,)
+
+    def test_a_meeting_gives_the_times_when_the_lead_is_no_meeting(self) -> None:
+        # "sites-a" leads with the start alone, ten minutes late, as a talk; the calendar
+        # gives the hours of the conference.
+        title = "Knight Initiative Winter 2027 Symposium"
+        hours = timed_listing("b", title, sources=("sites-b",))
+        start_only = timed_listing(
+            "a",
+            title,
+            sources=("sites-a",),
+            event_type="seminar",
+            start=MORNING + timedelta(minutes=10),
+            end=None,
+        )
+        for order in ((hours, start_only), (start_only, hours)):
+            (merged,) = run(*order).candidates
+            assert merged.event.source_ids == ["sites-a:a", "sites-b:b"]
+            assert (merged.event.start, merged.event.end) == (MORNING, MORNING + timedelta(hours=8))
+
+    def test_a_meeting_of_one_day_keeps_it_against_a_talk_that_leads_with_hours(self) -> None:
+        # The listing with hours is a seminar of "bayarea-c", which sorts first: it leads the
+        # merge, but the meeting gives the times.
+        whole = meeting("a", "QBI Symposium 2027", days=1, url=MEETING_PAGE)
+        hours = timed_listing(
+            "c",
+            "QBI Symposium 2027",
+            sources=("bayarea-c",),
+            event_type="seminar",
+            url=MEETING_PAGE,
+        )
+        for order in ((whole, hours), (hours, whole)):
+            (merged,) = run(*order).candidates
+            event = merged.event
+            assert event.source_ids == ["bayarea-c:c", "conf-a:a"]
+            assert (event.all_day, event.start, event.end) == (True, MEETING_DAY, None)
+
+    def test_hours_that_end_at_midnight_do_not_cover_the_next_day(self) -> None:
+        # From 9:00 on the first day to midnight after the second: two days, so the all-day
+        # listing of three days gives them, though the listing with hours leads.
+        whole = meeting("a", "QBI Symposium 2027", days=3, url=MEETING_PAGE)
+        hours = timed_listing(
+            "c",
+            "QBI Symposium 2027",
+            sources=("bayarea-c",),
+            url=MEETING_PAGE,
+            end=MEETING_DAY + timedelta(days=2),
+        )
+        for order in ((whole, hours), (hours, whole)):
+            (merged,) = run(*order).candidates
+            event = merged.event
+            assert event.source_ids == ["bayarea-c:c", "conf-a:a"]
+            assert (event.all_day, event.end) == (True, MEETING_DAY + timedelta(days=3))
 
     def test_a_listing_of_each_day_joins_the_meeting(self) -> None:
         # A calendar lists every day of a meeting of three days as an instance of its own.
