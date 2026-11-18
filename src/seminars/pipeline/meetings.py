@@ -100,9 +100,11 @@ def meeting_over_days(
     last local day). The result is the type of the event, after the title
     rule of ``meeting_type``, when that is a conference or a workshop and
     the days span more than ``MAX_TIMED_LENGTH``; otherwise ``None``, and
-    the event keeps its times of day without an end.
+    the event keeps its times of day without an end. The days are counted
+    by their dates: a week with the day the clocks go back lasts an hour
+    more and is still a week.
     """
-    if days.end is None or days.end - days.start <= MAX_TIMED_LENGTH:
+    if days.end is None or days.end.date() - days.start.date() <= MAX_TIMED_LENGTH:
         return None
     typed = meeting_type(event_type, title, days)
     return typed if typed in MEETING_TYPES else None

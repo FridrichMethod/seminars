@@ -223,6 +223,16 @@ class TestMeetingOverDays:
         # next day as well: that is a slip of whoever entered it, no meeting of two days.
         assert meeting_over_days("conference", "Annual Conference", all_day(days)) is None
 
+    def test_the_days_are_counted_by_their_dates(self) -> None:
+        # Monday 9:00 to Sunday 9:00 loses its end by the rule of the same time on a later
+        # day; its seven days last seven days and an hour over the day the clocks go back.
+        pdt, pst = timezone(timedelta(hours=-7)), timezone(timedelta(hours=-8))
+        week = datetime(2026, 10, 26, tzinfo=pdt), datetime(2026, 11, 2, tzinfo=pst)
+        days = EventTimes(start=week[0], end=week[1], all_day=True)
+        assert meeting_over_days("conference", "Annual Conference", days) is None
+        longer = EventTimes(start=week[0], end=week[1] + timedelta(days=1), all_day=True)
+        assert meeting_over_days("conference", "Annual Conference", longer) == "conference"
+
 
 class TestEndedBefore:
     MOMENT = datetime(2026, 12, 2, 12, 0, tzinfo=PACIFIC)
