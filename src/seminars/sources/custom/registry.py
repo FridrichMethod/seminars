@@ -53,10 +53,11 @@ get an error that says so.
 A run gets one draft for every ``bay-area`` edition that has not ended
 before the window starts (``payload.window``), in the order of the entries:
 all day from ``start`` to ``end``, native id ``id``, ``url``, ``title``,
-``series``, ``host_org``, ``location``, ``fields`` as field hints,
-``event_type`` and ``status`` as stated. An edition that is over leaves the
-listing, as on a page of upcoming events, so a registry of past meetings
-gives no draft (see ``allow_empty``). An edition further ahead than the
+``series``, ``host_org``, ``location``, ``fields`` as field hints (the
+field tagger keeps them and may add fields that the title or the abstract
+names), ``event_type`` and ``status`` as stated. An edition that is over
+leaves the listing, as on a page of upcoming events, so a registry of past
+meetings gives no draft (see ``allow_empty``). An edition further ahead than the
 window reaches is left to normalization, which counts it as outside the
 window until the window reaches it. The abstract is one line per
 milestone from the first day of the window on, by date:

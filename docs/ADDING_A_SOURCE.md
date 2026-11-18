@@ -337,9 +337,9 @@ It is the source `conf-registry` in `config/sources.d/conferences.yaml`, with th
 adapter `registry` (`src/seminars/sources/custom/registry.py`, whose docstring
 describes every key). Its adapter requests nothing: each meeting is an entry of
 `params.meetings`, and its `url` is the page of that file on GitHub, which the status
-page links and nothing fetches. The source has `meeting_horizon: true`, so a meeting is
-kept up to a year ahead, and `allow_empty: true`, so a registry whose meetings are all
-over is no broken source.
+page links and nothing fetches; there is no fixture to record either. The source has
+`meeting_horizon: true`, so a meeting is kept up to a year ahead, and `allow_empty: true`,
+so a registry whose meetings are all over is no broken source.
 
 Register a meeting only when no enabled source delivers it: search `data/events.json`
 and the site for its title first. An entry holds the facts of one edition, each from
@@ -382,6 +382,8 @@ contact, no address of a person, and never a date projected from an earlier edit
   longer meeting, a listing of a calendar that links its own page of the event (Localist
   does), and any listing of an entry whose `url` is the front page of a site
   (`https://2027.naacl.org/`), which is no detail page.
+- `fields` are the fields the meeting certainly belongs to. The field tagger keeps them
+  and may add fields that the title names.
 - `location` is the venue and the city the page names. While it names none, write
   `To be announced`, which the event shows as no location.
 - `status: tentative` marks a date that is only saved, without venue or program.
@@ -416,6 +418,6 @@ already started stays until it ends. Two cases keep a deleted entry longer:
   issue; the deleted events leave at the 31st run. Delete at most half of the listed
   editions, or fewer than five, in one change, and let six runs pass before the next.
 
-No address of a source or of a registered meeting may be on a site that lists
-conferences for a fee (waset.org, 10times.com and the like;
+No address of a source or of a registered meeting may be on a predatory or low-quality
+conference aggregator (waset.org, wikicfp.com, 10times.com and the like;
 `tests/test_source_denylist.py` checks this).

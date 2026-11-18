@@ -1,10 +1,10 @@
-"""No source and no registered meeting points at a site that lists conferences for a fee.
+"""No source and no registered meeting points at a predatory or low-quality aggregator.
 
-Aggregators such as waset.org or 10times.com list paid or predatory "conferences" next to
-real ones, and their dates are copied from elsewhere at best. No source is fetched from
-them, and the registry of meetings (config/sources.d/conferences.yaml) takes its facts
-from the organizer's own page: neither the page of a meeting nor the page it was verified
-on is one of theirs.
+Conference aggregators such as waset.org, wikicfp.com or 10times.com list predatory
+"conferences" next to real ones, or copy their dates from elsewhere without time zones.
+No source is fetched from them, and the registry of meetings
+(config/sources.d/conferences.yaml) takes its facts from the organizer's own page:
+neither the page of a meeting nor the page it was verified on is one of theirs.
 """
 
 from __future__ import annotations

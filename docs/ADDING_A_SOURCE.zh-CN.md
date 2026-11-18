@@ -296,8 +296,9 @@ uv run pytest
 人工维护这些会议。它是 `config/sources.d/conferences.yaml` 里的数据源 `conf-registry`，
 adapter 是 `registry`（`src/seminars/sources/custom/registry.py`，它的 docstring 说明每个键）。
 这个 adapter 不发任何请求：每个会议是 `params.meetings` 里的一条记录；数据源的 `url` 是这个文件在
-GitHub 上的页面，状态页链接到它，但没有任何东西抓取它。这个数据源设了 `meeting_horizon: true`，
-所以会议最多提前一年保留；还设了 `allow_empty: true`，所以会议全部结束的登记表不算坏掉的数据源。
+GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；也没有 fixture 可录。这个数据源设了
+`meeting_horizon: true`，所以会议最多提前一年保留；还设了 `allow_empty: true`，所以会议全部结束的
+登记表不算坏掉的数据源。
 
 只登记没有任何已启用数据源提供的会议：先在 `data/events.json` 和网站上搜它的标题。一条记录只写
 一届会议的事实，每一项都取自组织方这一届的页面，别的都不写：不写简介、不写联系方式、不写任何人的
@@ -335,6 +336,7 @@ GitHub 上的页面，状态页链接到它，但没有任何东西抓取它。�
   并且至少 3 小时长，才和这条记录合并成一个事件（`pipeline/dedup.py`）。否则这个会议会出现两次：
   只列出较长会议其中一天的条目、链接到日历自己的事件页面的条目（Localist 就是这样），以及 `url` 是
   网站首页（`https://2027.naacl.org/`）的记录的任何条目，因为首页不算详情页。
+- `fields` 是这个会议肯定属于的领域。领域标注器保留它们，并可能加上标题提到的领域。
 - `location` 写页面给出的场地和城市。页面还没写时填 `To be announced`，事件会显示为没有地点。
 - `status: tentative` 表示只是预告了日期（save the date），还没有场地和日程。
 - `verified` 写明事实最后一次是在哪个页面、哪一天核对的。每学期开始时把每条记录重新核对一遍：核对
@@ -358,5 +360,5 @@ GitHub 上的页面，状态页链接到它，但没有任何东西抓取它。�
   `source-broken` issue，两者一直持续到第 29 次运行把变小的列表当作通常大小并关闭 issue；删掉的事件在
   第 31 次运行时离开。一次最多删掉列出的记录的一半，或者少于五条，并且隔六次运行再删下一批。
 
-数据源和登记的会议的地址都不能在收费列出会议的网站上（waset.org、10times.com 之类；
-`tests/test_source_denylist.py` 检查这一点）。
+数据源和登记的会议的地址都不能在掠夺性或低质量的会议聚合网站上（waset.org、wikicfp.com、10times.com
+之类；`tests/test_source_denylist.py` 检查这一点）。
