@@ -1,0 +1,37 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//CERN//INDICO//EN
+BEGIN:VEVENT
+SUMMARY:Reinforcement Learning for Autonomous Accelerators (RL4AA'27)
+DTSTART:20270420T200000Z
+DTEND:20270424T003000Z
+DTSTAMP:20261118T095000Z
+UID:indico-event-10793@indico.slac.stanford.edu
+DESCRIPTION:Page under construction\, final details to come!\nWe are pleas
+ ed to announce RL4AA'27\, the fifth workshop of the series organized by th
+ e Reinforcement Learning for Autonomous Accelerators (RL4AA) Collaboratio
+ n. After four successful workshops (KIT in 2023\, Salzburg in 2024\, DESY 
+ in 2025\, and Liverpool in 2026) RL4AA'27 will be hosted in 2027 by SLAC N
+ ational Accelerator Laboratory in Menlo Park\, California!\nRL4AA brings t
+ ogether the reinforcement learning and accelerator physics communities to 
+ share results\, practical insights from the field\, and the big questions 
+ ahead for real-world RL. Expect engaging keynotes\, invited and contribute
+ d talks\, a lively poster session\, and a hands-on coding challenge.\nScop
+ e\nSubmissions are not limited to particle accelerators. We welcome any wo
+ rk on sequential decision-making in real-world settings (e.g.\, safety\, s
+ ample efficiency\, sim-to-real\, partial observability). A set of student 
+ talk slots will be reserved.\nCoding challenge\nJoin a team to tackle an a
+ ccelerator-themed RL task. We will form balanced teams that mix newer folk
+ s and experienced contributors. You’ll submit results to a live leaderbo
+ ard as you go\, improve your model\, and we will wrap with awards for the 
+ top two teams.\nWho should attend\nWhether you are deep into RL research o
+ r just starting and curious\, there’s something for you (from introducto
+ ry lectures the first day to advanced talks).\nRegistration\nThe event is 
+ free\, but places are limited. Please register early to secure your spot.\
+ n\nhttps://indico.slac.stanford.edu/event/10793/
+IMAGE;VALUE=URI:https://indico.slac.stanford.edu/event/10793/logo-16443087
+ 57.png
+LOCATION:SLAC
+URL:https://indico.slac.stanford.edu/event/10793/
+END:VEVENT
+END:VCALENDAR

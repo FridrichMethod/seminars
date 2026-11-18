@@ -342,6 +342,70 @@ sources:
         - Talks that have no speaker yet are called "TBA" and have "TBA" as description.
 
   - <<: *bayarea
+    id: bayarea-slac-workshops
+    name: SLAC workshops and schools
+    adapter: ics
+    # The category exports of the public workshop categories of Indico, one feed each:
+    # 170 RL4AA, 171 SSRL Workshops, 20 QIS Workshop, 16 SLAC Summer Institute and 19
+    # ML@SLAC Workshop. Not the parent category 5, whose feed takes in the weekly
+    # CIDeR-ML General Meetings of category 110 (internal, with Zoom links), and not
+    # categories 129 and 14, the seminars of bayarea-slac-theory and
+    # bayarea-slac-experimental.
+    url: https://indico.slac.stanford.edu/category/170/events.ics
+    urls:
+      - https://indico.slac.stanford.edu/category/171/events.ics
+      - https://indico.slac.stanford.edu/category/20/events.ics
+      - https://indico.slac.stanford.edu/category/16/events.ics
+      - https://indico.slac.stanford.edu/category/19/events.ics
+    homepage: https://indico.slac.stanford.edu/category/5/
+    # robots.txt of indico.slac.stanford.edu disallows every path, as for
+    # bayarea-slac-theory; the owner chose to fetch these public feeds: five requests
+    # per run.
+    ignore_robots: [indico.slac.stanford.edu]
+    institution: slac
+    host_org: SLAC National Accelerator Laboratory
+    default_fields: [physics]
+    # The feeds give no event type; the categories hold workshops and a school. One that
+    # runs over several days or for at least three hours is a meeting, and
+    # meeting_horizon keeps it up to a year ahead.
+    default_event_type: workshop
+    meeting_horizon: true
+    params:
+      # DESCRIPTION: an optional line "Speakers: Name (Affiliation), Name (Affiliation),
+      # ...", blank lines, the description of the event and, after a blank line, the
+      # address of the Indico event. The abstract is the description alone. The speaker
+      # line of a workshop lists its organisers and speakers, which a pattern cannot
+      # split (it sets one speaker), and its names would count as keywords of a field
+      # ("Dula Parkinson" for med). An event with a speaker line and no description has
+      # no abstract. The second pattern takes the description to its end when the first
+      # finds no address at the end: a description without it, or one longer than the
+      # adapter reads (MAX_PATTERN_INPUT).
+      property_fields: {DESCRIPTION: null}
+      patterns:
+        DESCRIPTION:
+          - '\A(?:Speakers: [^\n]*\n\s*)?(?P<abstract>(?!Speakers: )\S[\s\S]*?)\s*\nhttps://indico\.slac\.stanford\.edu/event/\d+/\s*\Z'
+          - '\A(?:Speakers: [^\n]*\n\s*)?(?P<abstract>(?!Speakers: |https://indico\.slac\.stanford\.edu/event/)\S[\s\S]*)'
+    research:
+      verified: 2026-11-18
+      sample_events: 3
+      has_rss: false
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 0
+      robots: "indico.slac.stanford.edu: User-agent * / Disallow / (every path); ignored, see ignore_robots"
+      requests_per_run: 5
+      notes:
+        - The export of a category lists the events of the category and its subcategories that ended at most four weeks before the request, with no upper bound, so a feed already holds the meetings of next year.
+        - 170 RL4AA holds RL4AA'27 (2027-04-20 to 04-23, free, places limited); 171 SSRL Workshops holds "Re-envisioning X-ray Science in the Age of SI and Automation" (2026-12-09 to 12-10, hybrid); 20 QIS Workshop holds "Q-NEXT All Hands 2027" (2027-03-16 to 03-17), a meeting of the Q-NEXT center that the taxonomy drops as administrative ("all-hands"); its last public workshop was RISQ26 (June 2026).
+        - '16 SLAC Summer Institute (under 13, "Schools, Seminars and Courses") is empty: SSI 2026 (2026-08-10 to 08-14) has ended and the next institute is not listed yet. 19 ML@SLAC Workshop is empty, its last event the ML Initiatives School of December 2021; it stays for the next one, at one request.'
+        - The other public subcategories of 5 (AD, Astronomy, HEP, ICALEPCS, LCLS, NP and TID workshops, SLAC Colloquium, Faculty Retreat, SLACmass, Snowmass, Graduate Student Orientation, US-Japan Meeting) were not looked at and are not collected.
+        - The feeds give no event type, CATEGORIES, registration or abstract deadline. DTSTART and DTEND are in UTC; LOCATION is "<room> (<venue>)" or "SLAC"; CONTACT holds an e-mail address, which the adapter does not read.
+        - DESCRIPTION is free text. A Zoom link of a hybrid workshop in it loses its password in normalization (pipeline/privacy.py); none of the recorded events has one.
+        - The categories list workshops now and then (16 and 19 none, 170, 171 and 20 one each), and a feed drops an event four weeks after its end. A run in which no category lists an event parses no draft and counts as empty, and three such runs in a row open a source-broken issue; the ics adapter has no allow_empty. With the recorded events that happens after 2027-05-21, unless SLAC lists another workshop by then.
+
+  - <<: *bayarea
     id: bayarea-slac-ais
     name: SLAC Advanced Instrumentation Seminars (AIS)
     adapter: llm_page

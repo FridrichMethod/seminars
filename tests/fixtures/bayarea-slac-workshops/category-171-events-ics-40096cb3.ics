@@ -1,0 +1,45 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//CERN//INDICO//EN
+BEGIN:VEVENT
+SUMMARY:Re-envisioning X-ray Science in the Age of SI and Automation
+DTSTART:20261209T163000Z
+DTEND:20261211T010000Z
+DTSTAMP:20261118T095000Z
+UID:indico-event-10814@indico.slac.stanford.edu
+CONTACT:redacted@slac.stanford.edu
+DESCRIPTION:Speakers: Uta Ruett (SLAC)\, Adi Natan (SLAC)\, Apurva Mehta (
+ SLAC)\, Dennis Nordlund (SLAC)\, Dionisio Doering (SLAC)\, Nicholas Strang
+ e (SLAC)\, Ashley White (LBL)\, Dula Parkinson (LBL)\n\n\nSuperintelligenc
+ e (SI)\, capable of reasoning and acting in computational and physical env
+ ironments\, allows us to re-envision X-ray science at user facilities a de
+ cade from now. It offers the freedom to rethink how scientific questions b
+ ecome experiments and how experiments lead to discovery. We will explore w
+ hat we could learn about matter by overcoming the constraints of today’s
+  instruments\, workflows\, photon delivery\, and ways of accessing facilit
+ ies. In this context\, we will consider how SI\, automation\, and advances
+  in X-ray capabilities could open new scientific directions and reshape ho
+ w facilities are designed\, operated\, and used.\nWe welcome ambitious ide
+ as\, unexpected connections\, and challenges to current assumptions. The g
+ oal is to look for compelling scientific possibilities that could be enabl
+ ed in one or two decades and identify the capabilities and choices that co
+ uld bring them within reach.\nPreliminary workshop discussion outline:\n\n
+  Current barriers: What are the main causes of unsuccessful experiments?
+  What would improve the reliability and quality of experiments?\nComplex 
+ automation and autonomous control: What kind of scientific question can w
+ e address\, when SI can act on the experimental floor in many capacities? 
+ How can we accelerate success and progress faster?How can SI enable in sit
+ u changes to setups that would otherwise require a newbeamtime request in 
+ a later allocation cycle?How can we leverage autonomous co-optimization of
+  the source\, sample manipulation\, detector\, and data handling for nove
+ l experiments? What are new approaches we could address?\nScientific reach
+ :Which experiments are currently impossible\, and what prevents them?What 
+ new opportunities arise when humans don’t need to enter the experimental
+ areas?How can we move from experiments that require X-ray expertise to app
+ roachesfocused on answering scientific questions?How can SI lower barriers
+  for new users and new areas of science?\n\n\nhttps://indico.slac.stanford
+ .edu/event/10814/
+LOCATION:53/2-2002 - Berryessa (SLAC)
+URL:https://indico.slac.stanford.edu/event/10814/
+END:VEVENT
+END:VCALENDAR

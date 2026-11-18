@@ -1,0 +1,16 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//CERN//INDICO//EN
+BEGIN:VEVENT
+SUMMARY:Q-NEXT All Hands 2027
+DTSTART:20270316T150000Z
+DTEND:20270318T000000Z
+DTSTAMP:20261118T095000Z
+UID:indico-event-10807@indico.slac.stanford.edu
+CONTACT:redacted@slac.stanford.edu
+DESCRIPTION:Speakers: Gunther Haller\, Lisa Bonetti\, Jennifer Dionne\n\n\
+ n\nhttps://indico.slac.stanford.edu/event/10807/
+LOCATION:51/1-102 - Kavli Auditorium (SLAC)
+URL:https://indico.slac.stanford.edu/event/10807/
+END:VEVENT
+END:VCALENDAR

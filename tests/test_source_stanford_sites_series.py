@@ -15,15 +15,18 @@ import pytest
 
 from factories import make_window
 from fakes import FakeHttpClient
-from seminars.config import load_sources
+from seminars.config import load_settings, load_sources
 from seminars.http import offline_client
-from seminars.models import TBA_TITLE, EventDraft, FetchedDocument
+from seminars.models import TBA_TITLE, EventDraft, FetchedDocument, SourceConfig
+from seminars.pipeline.collect import SOURCE_FETCH_LIMIT_SECONDS
+from seminars.pipeline.normalize import NormalizeContext, Normalized, normalize_drafts
 from seminars.sources.base import get_adapter
 from seminars.sources.generic import rss
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = REPO_ROOT / "tests" / "fixtures"
 SOURCES = {source.id: source for source in load_sources(REPO_ROOT / "config" / "sources.d")}
+SETTINGS = load_settings(REPO_ROOT / "config" / "settings.yaml")
 NOW = datetime(2026, 11, 12, 23, 18, 7, tzinfo=UTC)
 """The latest recording time of the fixtures, which is also the "now" of an offline run."""
 PST = timezone(timedelta(hours=-8))
@@ -172,6 +175,75 @@ class TestAimi:
         first, second, _ = patterns
         assert first.search(title) is None
         assert second.search(title) is None
+
+
+class TestAimiMeetingHorizon:
+    """AIMI keeps its symposium in May (meeting_horizon) and is fetched a year ahead."""
+
+    SYMPOSIUM = "AIMI Symposium + Summit Series 2027"
+    COURSE = "Stanford AI in Healthcare Leadership Strategy Course (HAILS)"
+
+    def fetched(self) -> tuple[list[str], list[EventDraft]]:
+        source = SOURCES["sites-aimi"]
+        http = offline_client(source.id)
+        adapter = get_adapter(source.adapter)
+        window = SETTINGS.fetch_window_at(NOW, source)
+        drafts = adapter.parse(adapter.fetch(http, source, window=window), source)
+        return list(http.requests), drafts
+
+    def normalized(self, source: SourceConfig) -> Normalized:
+        _, drafts = self.fetched()
+        context = NormalizeContext(settings=SETTINGS, now=NOW, window=SETTINGS.window_at(NOW))
+        return normalize_drafts(drafts, source, context)
+
+    def test_the_fetch_window_adds_the_pages_of_the_two_events_of_may(self) -> None:
+        source = SOURCES["sites-aimi"]
+        assert source.meeting_horizon
+        requests, drafts = self.fetched()
+        assert requests == [
+            f"{AIMI}/events/all/rss",
+            f"{AIMI}/events",
+            f"{AIMI}/events/ibiis-aimi-seminar-prateek-prasanna-phd",
+            f"{AIMI}/events/grand-rounds/aimi-grand-rounds-tba-5",
+            f"{AIMI}/events/grand-rounds/aimi-grand-rounds-genetic-diagnosis-and-discovery-"
+            "enabled-large-language-models",
+            f"{AIMI}/events/stanford-ai-healthcare-leadership-strategy-course-hails",
+            f"{AIMI}/events/aimi-symposium-summit-series-2027",
+        ]
+        assert len(drafts) == 7
+
+    def test_the_fetch_stays_within_the_budgets_at_the_crawl_delay_of_the_site(self) -> None:
+        # The feed, the list and at most max_pages detail pages, 30 s apart: well under the
+        # time one source may take.
+        source = SOURCES["sites-aimi"]
+        assert source.research is not None
+        delay = source.research.crawl_delay
+        assert delay == 30
+        most = 2 + source.params["detail_page"]["max_pages"]
+        assert most <= SETTINGS.http.max_requests_per_host
+        assert most * delay < SOURCE_FETCH_LIMIT_SECONDS / 3
+
+    def test_the_symposium_is_a_conference_kept_beyond_the_window_of_talks(self) -> None:
+        result = self.normalized(SOURCES["sites-aimi"])
+        events = {candidate.event.title: candidate.event for candidate in result.candidates}
+        symposium = events[self.SYMPOSIUM]
+        assert symposium.event_type == "conference"  # by its title; the source says seminar
+        assert symposium.is_meeting
+        assert symposium.all_day
+        assert symposium.start == datetime(2027, 5, 17, tzinfo=PDT)
+        assert symposium.end == datetime(2027, 5, 20, tzinfo=PDT)  # the day after the last
+        assert symposium.start >= SETTINGS.window_at(NOW).end
+        assert symposium.url is not None
+        assert str(symposium.url) == f"{AIMI}/events/aimi-symposium-summit-series-2027"
+        # The course is no meeting: it stays out, like every talk after the window.
+        assert self.COURSE not in events
+        assert result.outside_window == 1
+
+    def test_without_the_meeting_horizon_both_events_of_may_are_dropped(self) -> None:
+        result = self.normalized(SOURCES["sites-aimi"].evolve(meeting_horizon=False))
+        titles = {candidate.event.title for candidate in result.candidates}
+        assert self.SYMPOSIUM not in titles
+        assert result.outside_window == 2
 
 
 class TestMse:
