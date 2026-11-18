@@ -21,9 +21,14 @@ department that hosts them. Two candidates are the same talk when
   title alone on "/events/breakthroughs/Mehnert.html", while the campus
   calendar announces "Breakthroughs in Cancer: Janice Mehnert, MD", a
   title that shares no word with the host's, or
-* one of them is all day, both start on the same local day, and they
-  point at the same detail page: a meeting that a curated list or its host
-  gives as a whole day and a calendar lists with its hours.
+* one of them is all day, the other gives its hours, and they point at
+  the same detail page: a meeting that a curated list or its host gives as
+  whole days and a calendar lists with its hours. The listing with hours
+  starts on the first of those days, ends on the last and lasts at least
+  ``seminars.models.MEETING_MIN_TIMED_HOURS`` hours: the opening keynote
+  of a symposium links the page of the symposium too, and a listing of
+  only the first day of a meeting of a week would hand its hours to the
+  whole meeting when its source leads the merge.
 
 Meetings (conferences and long workshops, ``Event.is_meeting``) are
 compared by title more strictly than talks: two meetings are one by their
@@ -119,7 +124,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Collection, Hashable, Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Final
 from urllib.parse import unquote, urlsplit
 
@@ -127,6 +132,7 @@ from rapidfuzz import fuzz
 
 from seminars.config import DedupSettings
 from seminars.models import (
+    MEETING_MIN_TIMED_HOURS,
     Candidate,
     Event,
     EventHints,
@@ -151,6 +157,8 @@ from seminars.pipeline.text import canonical_name, fold, word_set
 
 MIN_TITLE_WORDS: Final = 2
 """Titles with fewer words are not compared: "Seminar" is part of too many titles."""
+_ONE_DAY: Final = timedelta(days=1)
+_JUST_BEFORE: Final = timedelta(microseconds=1)
 
 
 _TITLE_FILLER: Final = word_set(
@@ -209,6 +217,7 @@ class _Profile:
     native: frozenset[str]  # ids of the sources whose native id the event holds
     meeting: bool = False  # a conference or a long workshop (``Event.is_meeting``)
     all_day: bool = False
+    end: datetime | None = None
 
 
 def _detail_page(event: Event, not_pages: Collection[str]) -> str | None:
@@ -280,6 +289,7 @@ def _profile(candidate: Candidate, not_pages: Collection[str]) -> _Profile:
         native=frozenset(key.partition(":")[0] for key in event.source_ids if is_native_key(key)),
         meeting=event.is_meeting,
         all_day=event.all_day,
+        end=event.end,
     )
 
 
@@ -323,6 +333,24 @@ def _similar_titles(first: _Profile, second: _Profile, threshold: int) -> bool:
 
 def _same_page(first: _Profile, second: _Profile) -> bool:
     return first.page is not None and first.page == second.page
+
+
+def _last_day(profile: _Profile) -> date | None:
+    """The local day an event ends on (its end is exclusive); ``None`` without an end."""
+    if profile.all_day:
+        return profile.start.date() if profile.end is None else profile.end.date() - _ONE_DAY
+    return None if profile.end is None else (profile.end - _JUST_BEFORE).date()
+
+
+def _days_and_hours(first: _Profile, second: _Profile) -> bool:
+    """Whether one of two listings is all day and the other gives the hours of its days."""
+    if first.all_day == second.all_day:
+        return False
+    whole, timed = (first, second) if first.all_day else (second, first)
+    if timed.end is None or timed.start.date() != whole.start.date():
+        return False
+    long_enough = timed.end - timed.start >= timedelta(hours=MEETING_MIN_TIMED_HOURS)
+    return long_enough and _last_day(timed) == _last_day(whole)
 
 
 def _distinct(first: _Profile, second: _Profile) -> bool:
@@ -428,12 +456,12 @@ def _group(
                 yield first, second
 
     def day_pairs() -> Iterator[tuple[int, int]]:
-        """Pairs of one local day of which one is all day: a meeting and its timed listing."""
+        """Pairs of an all-day listing and one that gives its hours: a meeting twice."""
         for index, first in enumerate(order):
             for second in order[index + 1 :]:
                 if profiles[second].start.date() != profiles[first].start.date():
                     break
-                if profiles[first].all_day != profiles[second].all_day:
+                if _days_and_hours(profiles[first], profiles[second]):
                     yield first, second
 
     def titles(first: _Profile, second: _Profile) -> bool:

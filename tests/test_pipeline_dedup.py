@@ -275,14 +275,45 @@ class TestMeetings:
         for order in ((symposium, keynote), (keynote, symposium)):
             assert uids(run(*order)) == ["a", "b"]
 
-    def test_an_all_day_meeting_and_its_timed_listing_of_that_day_are_one(self) -> None:
-        whole = meeting("a", "Stanford Drug Discovery Symposium 2027", url=MEETING_PAGE)
-        hours = timed_listing("b", "SDDS 2027", url=MEETING_PAGE)
+    @pytest.mark.parametrize("days", [1, 5])
+    def test_an_all_day_meeting_and_its_listing_with_hours_are_one(self, days: int) -> None:
+        # From 9:00 on the first day to 17:00 on the last: the days of the meeting.
+        whole = meeting("a", "Stanford Drug Discovery Symposium 2027", days=days, url=MEETING_PAGE)
+        last = MORNING + timedelta(days=days - 1, hours=8)
+        hours = timed_listing("b", "SDDS 2027", url=MEETING_PAGE, end=last)
         for order in ((whole, hours), (hours, whole)):
             result = run(*order)
             assert uids(result) == ["a"]
             (merged,) = result.candidates
             assert merged.event.source_ids == ["conf-a:a", "sites-b:b"]
+
+    def test_a_talk_or_a_day_that_links_the_page_of_the_meeting_stays_apart(self) -> None:
+        # The opening keynote links the page of the symposium; so does a listing of the
+        # first day only, from a source whose key sorts first: merged, it would lead and
+        # the meeting of five days would be one of a day. Neither gives the hours of the
+        # meeting, nor does a listing without an end.
+        one_day = meeting("a", "Stanford Drug Discovery Symposium 2027", days=1, url=MEETING_PAGE)
+        five_days = meeting("a", "Stanford Drug Discovery Symposium 2027", url=MEETING_PAGE)
+        keynote = timed_listing(
+            "b",
+            "Opening keynote",
+            event_type="seminar",
+            url=MEETING_PAGE,
+            end=MORNING + timedelta(hours=1),
+        )
+        first_day = candidate(
+            "c",
+            sources=("bayarea-c",),
+            title="SDDS 2027, day 1",
+            event_type="conference",
+            url=MEETING_PAGE,
+            start=MORNING,
+            end=MORNING + timedelta(hours=8),
+        )
+        no_end = timed_listing("d", "SDDS 2027", url=MEETING_PAGE, end=None)
+        for whole, timed in ((one_day, keynote), (five_days, first_day), (one_day, no_end)):
+            for order in ((whole, timed), (timed, whole)):
+                assert uids(run(*order)) == sorted(("a", timed.event.uid))
 
     def test_another_page_or_another_day_keeps_them_apart(self) -> None:
         whole = meeting("a", "Stanford Drug Discovery Symposium 2027", url=MEETING_PAGE)
