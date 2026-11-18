@@ -24,7 +24,12 @@ A calendar holds
 * one VEVENT per event. ``UID`` is ``<uid>@<uid_domain>`` and never changes;
   ``SEQUENCE`` is the counter of the event. A timed event is written in the
   zone of the settings and gets the default duration when it has no end; an
-  all-day event is written with DATE values and an exclusive end. A
+  all-day event is written with DATE values and an exclusive end. An all-day
+  event is free time (``TRANSP:TRANSPARENT``, and
+  ``X-MICROSOFT-CDO-BUSYSTATUS:FREE`` for Outlook, which reads only that),
+  so a conference of a week does not mark the days of a subscriber as busy;
+  a timed event keeps the default of RFC 5545, busy. No event has an alarm:
+  calendar programs ignore the alarms of a subscribed calendar. A
   cancelled event stays in the feed with ``STATUS:CANCELLED`` and a marked
   summary, because not every program shows the status.
 
@@ -282,6 +287,9 @@ def _vevent(event: Event, ctx: _Context) -> icalendar.Event:
     component.add("description", _description(event, ctx))
     component.add("url", ascii_url(str(event.url)))
     component.add("status", event.status.upper())
+    if event.all_day:
+        component.add("transp", "TRANSPARENT")
+        component.add("x-microsoft-cdo-busystatus", "FREE")
     location = _location(event, ctx)
     if location:
         component.add("location", location)
@@ -461,6 +469,8 @@ _ESCAPES_ONLY: Final = re.compile(r"(?:[^\\]|\\[\\;,nN])*")
 _SEPARATORS: Final = re.compile(r"(?<!\\)(?:\\\\)*[;,]")
 _LIST_SEPARATORS: Final = re.compile(r"(?<!\\)(?:\\\\)*;")
 _EVENT_STATUSES: Final = frozenset({"TENTATIVE", "CONFIRMED", "CANCELLED"})
+_TRANSPARENCIES: Final = re.compile("(?i)OPAQUE|TRANSPARENT")
+_BUSY_STATUSES: Final = re.compile("(?i)FREE|TENTATIVE|BUSY|OOF|WORKINGELSEWHERE")
 _OBSERVANCES: Final = ("STANDARD", "DAYLIGHT")
 _PARSER_DETAIL_CHARS: Final = 200
 
@@ -623,6 +633,10 @@ _RULES: Final[Mapping[tuple[str, str], Callable[[_Line], str | None]]] = {
     ("VEVENT", "STATUS"): lambda line: (
         None if line.value.upper() in _EVENT_STATUSES else "STATUS is not a status of an event"
     ),
+    ("VEVENT", "TRANSP"): _pattern_rule(_TRANSPARENCIES, "is neither OPAQUE nor TRANSPARENT"),
+    ("VEVENT", "X-MICROSOFT-CDO-BUSYSTATUS"): _pattern_rule(
+        _BUSY_STATUSES, "is not a busy status of Outlook"
+    ),
     ("STANDARD", "DTSTART"): _local_rule,
     ("DAYLIGHT", "DTSTART"): _local_rule,
     ("*", "DTSTAMP"): _utc_rule,
@@ -651,6 +665,7 @@ _AT_MOST_ONCE: Final[Mapping[str, tuple[str, ...]]] = {
         *("UID", "DTSTAMP", "DTSTART", "DTEND", "DURATION", "SUMMARY", "DESCRIPTION"),
         *("LOCATION", "STATUS", "SEQUENCE", "LAST-MODIFIED", "CREATED", "URL", "CLASS"),
         *("TRANSP", "PRIORITY", "ORGANIZER", "GEO", "RECURRENCE-ID"),
+        "X-MICROSOFT-CDO-BUSYSTATUS",
     ),
     "VTIMEZONE": ("TZID", "LAST-MODIFIED", "TZURL"),
     "STANDARD": ("DTSTART", "TZOFFSETFROM", "TZOFFSETTO"),

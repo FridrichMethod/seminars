@@ -61,6 +61,8 @@ DESCRIPTION:SLAC\nWhy picked: abstract: cryo-EM\n\nTwo days of talks\; cry
 LAST-MODIFIED:20261110T200000Z
 LOCATION:SLAC\, Kavli Auditorium
 STATUS:CONFIRMED
+TRANSP:TRANSPARENT
 URL:https://example.stanford.edu/events/golden-all-day
+X-MICROSOFT-CDO-BUSYSTATUS:FREE
 END:VEVENT
 END:VCALENDAR

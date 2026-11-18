@@ -219,9 +219,11 @@ key 由 prompt 版本、任务和输入文字组成，模型和 provider 都不�
 ## 输出
 
 - **Feed**（`outputs/ics.py`）：十个日历，`all`、`picks`、每个领域一个，以及 `conferences`。`conferences`
-  收录会议（`Event.is_meeting`：学术会议，或者持续多天、至少三小时的 workshop），它们同时也在 `all` 和所属领域的
+  收录会议（`Event.is_meeting`：学术会议，或者持续多天或至少三小时的 workshop），它们同时也在 `all` 和所属领域的
   feed 里，所以下载选中的报告只需要读 `all`。有具体时间的事件按设置里的时区
-  写出，VTIMEZONE 里每次 UTC 偏移的变化各占一个子组件；已取消的报告保留，带 `STATUS:CANCELLED`。
+  写出，VTIMEZONE 里每次 UTC 偏移的变化各占一个子组件。全天事件标为空闲时间（`TRANSP:TRANSPARENT` 和
+  `X-MICROSOFT-CDO-BUSYSTATUS:FREE`），所以持续一周的会议不会把日历占满忙碌的日子；事件都不带提醒。
+  已取消的报告保留，带 `STATUS:CANCELLED`。
   文件内容只取决于事件，所以只有事件真的变了，日历才看到变化。`seminars validate` 用自己的校验器
   检查每个 feed。
 - **网站**（`site/`、`outputs/site_data.py`）：不需要构建步骤的静态 HTML 和 JavaScript，读

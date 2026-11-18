@@ -89,7 +89,9 @@ app shows a talk once per feed: subscribed to two of those feeds, it shows the t
 twice. To see every talk once, subscribe to `all` alone (or to `picks` alone). The
 meetings of `conferences` are in `all` and in their field feeds too: subscribed to
 `conferences` and `all`, a calendar shows each of them twice. A feed keeps a talk until
-14 days after it ended and then drops it, so the talk also leaves your calendar.
+14 days after it ended and then drops it, so the talk also leaves your calendar. An
+all-day event, such as a conference of several days, is marked as free time, so it does
+not mark those days as busy in your calendar.
 
 ### Apple Calendar
 

@@ -477,6 +477,18 @@ class TestEventProperties:
         assert f"DTEND;VALUE=DATE:{after}\r\n".encode() in component.to_ical()
         assert component.decoded("dtstart") == date(2026, 11, 20)
 
+    def test_an_all_day_event_is_free_time_and_a_timed_one_is_not(self, one: Any) -> None:
+        all_day = one(make_event(all_day=True, start=at(11, 20, 0), end=at(11, 27, 0)))
+        assert all_day["transp"] == "TRANSPARENT"
+        assert all_day["x-microsoft-cdo-busystatus"] == "FREE"
+        lines = all_day.to_ical().split(b"\r\n")
+        assert {b"TRANSP:TRANSPARENT", b"X-MICROSOFT-CDO-BUSYSTATUS:FREE"} <= set(lines)
+        timed = one(make_event(event_type="conference", end=at(11, 18, 17)))
+        assert "transp" not in timed
+        assert "x-microsoft-cdo-busystatus" not in timed
+        for component in (all_day, timed):
+            assert component.walk("VALARM") == []
+
     def test_all_day_dates_are_days_of_the_configured_zone(self, one: Any) -> None:
         midnight = utc(11, 20, 8)  # 00:00 Pacific Standard Time
         component = one(make_event(all_day=True, start=midnight, end=None))
@@ -857,6 +869,9 @@ class TestValidator:
         assert validate_ics(swapped(START, "DTSTART:20261117T235959Z")) == []  # 15:59:59 PST
         dates = [*MINIMAL[:START], "DTSTART;VALUE=DATE:20261117", "DTEND;VALUE=DATE:20261118"]
         assert validate_ics(document(*dates, *MINIMAL[SUMMARY:])) == []
+        free = ["TRANSP:TRANSPARENT", "X-MICROSOFT-CDO-BUSYSTATUS:FREE"]
+        assert validate_ics(document(*dates, *free, *MINIMAL[SUMMARY:])) == []
+        assert validate_ics(swapped(STATUS, MINIMAL[STATUS], "TRANSP:OPAQUE")) == []
         bare = [*MINIMAL[:3], *MINIMAL[11:14], "DTSTART:20261117T160000Z", *MINIMAL[CLOSE:]]
         assert validate_ics(document(*bare)) == []
 
@@ -923,6 +938,22 @@ class TestValidator:
             (END, ["DTEND:20261117T235959Z"], "line 16: DTEND is not later than DTSTART"),
             (END, [MINIMAL[END], "DURATION:PT1H"], "line 12: VEVENT has both DTEND and DURATION"),
             (STATUS, ["STATUS:MAYBE"], "line 19: STATUS is not a status of an event"),
+            (STATUS, ["TRANSP:CLEAR"], "line 19: TRANSP is neither OPAQUE nor TRANSPARENT"),
+            (
+                STATUS,
+                ["X-MICROSOFT-CDO-BUSYSTATUS:AWAY"],
+                "line 19: X-MICROSOFT-CDO-BUSYSTATUS is not a busy status of Outlook",
+            ),
+            (
+                STATUS,
+                ["X-MICROSOFT-CDO-BUSYSTATUS:FREE", "X-MICROSOFT-CDO-BUSYSTATUS:BUSY"],
+                "line 12: VEVENT has more than one X-MICROSOFT-CDO-BUSYSTATUS",
+            ),
+            (
+                STATUS,
+                ["TRANSP:TRANSPARENT", "TRANSP:OPAQUE"],
+                "line 12: VEVENT has more than one TRANSP",
+            ),
             (SEQUENCE, ["SEQUENCE:-1"], "line 20: SEQUENCE is not a non-negative integer"),
             (SEQUENCE, ["SEQUENCE:0", "SEQUENCE:1"], "line 12: VEVENT has more than one SEQUENCE"),
             (SUMMARY, ["SUMMARY:a, b"], "line 17: SUMMARY has an unescaped separator"),

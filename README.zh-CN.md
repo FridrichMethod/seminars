@@ -75,6 +75,7 @@ webcal://fridrichmethod.github.io/seminars/feeds/conferences.ics
 同时订阅其中两个 feed，这个报告就会显示两次。想让每个报告只出现一次，就只订阅 `all`（或者只订阅 `picks`）。
 `conferences` 里的会议也在 `all` 和所属领域的 feed 里：同时订阅 `conferences` 和 `all`，每个会议都会显示两次。
 报告结束 14 天后，feed 会把它删掉，它也会随之从你的日历里消失。
+全天事件（比如持续几天的会议）标为空闲时间，不会让你的日历把这几天显示为忙碌。
 
 ### Apple Calendar
 

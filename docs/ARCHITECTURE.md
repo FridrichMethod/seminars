@@ -274,9 +274,11 @@ replaced by an empty placeholder.
   workshop over several days or of at least three hours), which are in `all` and in their
   field feeds as well, so the download of selected talks reads `all` alone. A timed
   event is written in the zone of the settings with one VTIMEZONE sub-component per change
-  of the offset; a cancelled talk stays with `STATUS:CANCELLED`. The bytes depend only on
-  the events, so a calendar sees a change only when an event changed. `seminars validate`
-  checks every feed with a validator of its own.
+  of the offset. An all-day event is free time (`TRANSP:TRANSPARENT` and
+  `X-MICROSOFT-CDO-BUSYSTATUS:FREE`), so a conference of a week does not fill a calendar
+  with busy days; no event has an alarm. A cancelled talk stays with `STATUS:CANCELLED`.
+  The bytes depend only on the events, so a calendar sees a change only when an event
+  changed. `seminars validate` checks every feed with a validator of its own.
 - **Site** (`site/`, `outputs/site_data.py`): static HTML and JavaScript without a build
   step, reading `events.json` and `status.json`; English and Chinese from `locales/`. All
   text from the web is escaped. `seminars build-site` assembles `public/` from the committed

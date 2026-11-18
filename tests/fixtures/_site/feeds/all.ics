@@ -178,7 +178,9 @@ DESCRIPTION:SLAC\nWhy picked: "cryo-EM" in abstract (+3)\; "structure pred
 LAST-MODIFIED:20261110T200000Z
 LOCATION:SLAC\, Kavli Auditorium
 STATUS:CONFIRMED
+TRANSP:TRANSPARENT
 URL:https://example.stanford.edu/events/sample-all-day
+X-MICROSOFT-CDO-BUSYSTATUS:FREE
 END:VEVENT
 BEGIN:VEVENT
 SUMMARY:Dark matter searches with quantum sensors - Kenji Watanabe
