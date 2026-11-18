@@ -63,6 +63,7 @@ names its fixture directory `tests/fixtures/<id>/`.
 | `stanford-custom` | `stanford-custom.yaml` | `custom-` | Stanford labs and centers with pages of their own |
 | `bayarea` | `bayarea.yaml` | `bayarea-` | SLAC, CZ Biohub and other Bay Area institutes |
 | `researchseminars` | `researchseminars.yaml` | `rsorg-` | series listed on researchseminars.org |
+| `conferences` | `conferences.yaml` | `conf-` | the registry: conferences and workshops kept by hand |
 
 An entry for a generic adapter:
 

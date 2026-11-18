@@ -26,8 +26,14 @@ SOURCE_GROUP_PREFIXES: Final[dict[str, str]] = {
     "stanford-custom": "custom-",
     "bayarea": "bayarea-",
     "researchseminars": "rsorg-",
+    "conferences": "conf-",
 }
-"""Mandatory id prefix for each of the five built-in source groups."""
+"""Mandatory id prefix for each of the six built-in source groups.
+
+``conferences`` holds the registry of meetings kept by hand
+(``seminars.sources.custom.registry``); the other five hold sources that
+are read from the web.
+"""
 
 LLM_PAGE_ADAPTER: Final = "llm_page"
 """Adapter name of sources that are extracted by the LLM page extractor only.
@@ -93,7 +99,7 @@ class SourceConfig(Model):
 
     * ``id``: lower-case words joined by hyphens. It names the fixture
       directory tests/fixtures/<id>/ and prefixes ``Event.source_ids``. The
-      five built-in groups require the prefix in SOURCE_GROUP_PREFIXES.
+      six built-in groups require the prefix in SOURCE_GROUP_PREFIXES.
     * ``url`` / ``urls``: at least one absolute http(s) URL; ``all_urls``
       lists them in order. URLs are used exactly as written.
     * ``adapter``: name of the adapter, which is the name of its module: one

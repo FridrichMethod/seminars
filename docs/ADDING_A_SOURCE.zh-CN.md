@@ -53,6 +53,7 @@ uv run python -m seminars.fixtures fetch --save-dir .scratch/example \
 | `stanford-custom` | `stanford-custom.yaml` | `custom-` | 有自己页面的 Stanford 实验室和中心 |
 | `bayarea` | `bayarea.yaml` | `bayarea-` | SLAC、CZ Biohub 和其他湾区研究机构 |
 | `researchseminars` | `researchseminars.yaml` | `rsorg-` | researchseminars.org 上的系列报告 |
+| `conferences` | `conferences.yaml` | `conf-` | 会议登记表：人工维护的会议和 workshop |
 
 使用通用 adapter 的一条记录：
 
