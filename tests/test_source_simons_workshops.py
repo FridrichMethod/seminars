@@ -5,7 +5,8 @@ per tab and page. A card gives a title, a link and the dates: a range of all
 days ("Monday, Aug. 30 - Friday, Sept. 3, 2027", the year only at the end) or
 one day with times. The list runs about a year ahead, so the source keeps its
 meetings up to the meeting window; the end-to-end test runs the pipeline over
-this source alone and checks what it stores.
+this source's fixtures alone, at the time of their recording, and checks what
+it stores.
 """
 
 from __future__ import annotations
@@ -174,10 +175,12 @@ def test_an_offline_run_keeps_every_workshop_as_a_meeting_of_computer_science(
     tmp_path: Path,
 ) -> None:
     root = tmp_path / "project"
-    (root / "tests").mkdir(parents=True)
     shutil.copytree(REPO_ROOT / "config", root / "config")
     shutil.copytree(REPO_ROOT / "locales", root / "locales")
-    (root / "tests" / "fixtures").symlink_to(REPO_ROOT / "tests" / "fixtures")
+    # Only this source's fixtures: an offline run happens at the latest recording of
+    # the fixtures it finds, so a later recording of another source cannot move the
+    # windows below.
+    shutil.copytree(FIXTURES, root / "tests" / "fixtures" / SOURCE_ID)
     with pytest.MonkeyPatch.context() as patch:
         for name in (*filter(None, PROVIDER_CREDENTIAL_ENV.values()), "GITHUB_TOKEN"):
             patch.delenv(name, raising=False)
@@ -192,6 +195,7 @@ def test_an_offline_run_keeps_every_workshop_as_a_meeting_of_computer_science(
     assert len(events) == 13
     settings = load_settings(REPO_ROOT / "config" / "settings.yaml")
     run_time = datetime.fromisoformat(result.output.splitlines()[0].rpartition(" ")[2])
+    assert run_time == NOW
     talks, meetings = settings.window_at(run_time), settings.meeting_window_at(run_time)
     # The talk window ends 120 days after the run; the meetings after it stay.
     beyond = {title for title, event in events.items() if event.start >= talks.end}
