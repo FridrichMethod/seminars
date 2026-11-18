@@ -80,6 +80,9 @@ webcal://fridrichmethod.github.io/seminars/feeds/conferences.ics
 报告结束 14 天后，feed 会把它删掉，它也会随之从你的日历里消失。
 全天事件（比如持续几天的会议）标为空闲时间，不会让你的日历把这几天显示为忙碌。
 
+这里不收集机器学习和计算机科学会议的投稿截止日期。[ccfddl](https://github.com/ccfddl/ccf-deadlines) 项目把 AI 类会议的截止日期发布成可以订阅的日历：
+`https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics`（数据采用 MIT 许可）。
+
 ### Apple Calendar
 
 1. 在 Mac 的"日历"里选择"文件 > 新建日历订阅"。

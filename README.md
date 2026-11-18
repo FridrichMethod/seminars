@@ -97,6 +97,12 @@ meetings of `conferences` are in `all` and in their field feeds too: subscribed 
 all-day event, such as a conference of several days, is marked as free time, so it does
 not mark those days as busy in your calendar.
 
+The submission deadlines of machine-learning and computer-science conferences are not
+collected here. The [ccfddl](https://github.com/ccfddl/ccf-deadlines) project publishes
+those of the AI conferences as a calendar to subscribe to,
+`https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics` (its data is under the MIT
+license).
+
 ### Apple Calendar
 
 1. In Calendar on a Mac, choose File > New Calendar Subscription.

@@ -294,6 +294,11 @@ fields:
       - Statistical Learning Seminar
       - Computer Vision Seminar
       - Robot Learning Seminar
+      # meetings: an edition, a workshop or a session at one ("ICLR 2027", "Biohub
+      # at NeurIPS 2026", "NeurIPS 2026 recap")
+      - NeurIPS
+      - ICML
+      - ICLR
     keywords:
       artificial intelligence: 1.0
       # "AI" alone also names people ("Ai Weiwei") and the AI policy and
@@ -515,6 +520,12 @@ fields:
       # Hopkins Marine Station also lists get bio from that department already;
       # the name places the ones that only the Oceans Department lists.
       - Oceans Seminar
+      # meetings, as for ai-ml ("RECOMB 2027", "ISMB/ECCB 2027", "Protein Society 41st
+      # Annual Symposium")
+      - RECOMB
+      - ISMB
+      - Protein Society
+      - RosettaCon
     keywords:
       biology: 1.0
       biological: 0.5
