@@ -16,7 +16,15 @@
    happens here rather than after classification so that such an event
    is never merged with another one, never sent to the LLM tagger, and
    the run report names the category that decided.
-3. The exclusion phrases of ``taxonomy.exclusions``, one list per reason,
+3. An exhibitor's stand at a meeting. A candidate whose title, series or
+   location names a numbered booth (``BOOTH``: "Booth 72", "booth #301")
+   is a stand in an exhibit hall, not a talk, and is excluded with reason
+   ``not_a_talk``, whatever else it says. A booth without a number
+   ("Chicago Booth", a photo booth) is no such sign. Like the categories,
+   this is decided here rather than in the adapter: the uid of a booth
+   that an earlier run stored is then among the exclusions of the run,
+   and the stored event leaves in the same run.
+4. The exclusion phrases of ``taxonomy.exclusions``, one list per reason,
    matched like every term of this package (whole words, see
    ``seminars.classify.rules``). The reasons are tried in the order of
    ``RuleExclusionReason`` and the phrases in the order of the file; the
@@ -30,7 +38,7 @@
    labels or tags (``hints.labels``) marks the candidate uncertain as well.
    Uncertain candidates stay in unless the LLM tagger answers that they are
    not talks.
-4. Everything else is kept. The abstract is never read: announcements of
+5. Everything else is kept. The abstract is never read: announcements of
    real talks routinely mention office hours or a reception afterwards.
    A cancelled talk is a talk: normalization has already taken the word
    off its title ("CANCELED: ...") and set its status to ``cancelled``, so
@@ -46,6 +54,7 @@ the others.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final, get_args
@@ -100,6 +109,11 @@ DEFENSE_PHRASES: Final[tuple[str, ...]] = (
     "PhD oral exam",
 )
 """Titles of PhD defenses, for sources that do not mark them with event type ``defense``."""
+
+BOOTH: Final = re.compile(r"\bbooth\s*(?:#|no\.?|number)?\s*\d+[a-z]?(?!\w)", re.IGNORECASE)
+"""A numbered booth ("Booth 72", "booth #301", "Booth No. 5"): an exhibitor's stand."""
+BOOTH_DETAIL: Final = "{place} names a booth"
+"""Detail of an exclusion by ``BOOTH``; ``{place}`` is title, series or location."""
 
 DEFENSE_TYPE_DETAIL: Final = "event type defense"
 OUT_OF_SCOPE_DETAIL: Final = "no field after classification"
@@ -187,6 +201,15 @@ class RuleEventFilter:
                 return _Verdict("defense", f'{place} matches "{phrase}"')
         return None
 
+    @staticmethod
+    def _booth(event: Event) -> _Verdict | None:
+        """The verdict for an exhibitor's booth (``BOOTH`` in title, series or location)."""
+        places = {"title": event.title, "series": event.series, "location": event.location}
+        for place, text in places.items():
+            if text and BOOTH.search(text):
+                return _Verdict("not_a_talk", BOOTH_DETAIL.format(place=place))
+        return None
+
     def _out_of_scope_category(self, candidate: Candidate) -> _Verdict | None:
         """The verdict for a candidate of a category that is always out of scope."""
         carried = {label_key(category) for category in candidate.hints.categories}
@@ -211,6 +234,9 @@ class RuleEventFilter:
         out_of_scope = self._out_of_scope_category(candidate)
         if out_of_scope is not None:
             return out_of_scope
+        booth = self._booth(event)
+        if booth is not None:
+            return booth
         final = _first_match(self._final, texts)
         if final is not None:
             return final
@@ -262,6 +288,8 @@ def build_event_filter(taxonomy: Taxonomy, settings: Settings) -> EventFilter:
 
 
 __all__ = [
+    "BOOTH",
+    "BOOTH_DETAIL",
     "DEFENSE_PHRASES",
     "DEFENSE_TYPE_DETAIL",
     "OUT_OF_SCOPE_CATEGORY_DETAIL",

@@ -774,6 +774,13 @@ sources:
       # other hosts (booth cards point to ascb.org and neurips.cc) are never fetched:
       # the skip patterns drop those cards first, and a remaining card whose link is
       # not on biohub.org is dropped as well.
+      # A booth card that links to a page of biohub.org ("Biohub at NeurIPS 2026",
+      # "meet the Biohub team at Booth 72", with the booth in the location of its
+      # page) is left to the event filter, which excludes a numbered booth as
+      # not_a_talk (seminars.classify.filters). The uid of an excluded event leaves
+      # the stored events in the same run; a card dropped here never reaches them,
+      # so a skip pattern would keep a booth that an earlier run stored. Do not add
+      # "Other Locations" to exclude_regions: the online webinars carry it too.
       exclude_regions: [Chicago, New York]
       skip_title_patterns: ['\(Invite Only\)']
       skip_summary_patterns: ['will be at booth']
