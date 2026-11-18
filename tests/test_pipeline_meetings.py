@@ -16,6 +16,7 @@ from seminars.pipeline.meetings import (
     WORKSHOP_WORDS,
     has_not_ended_before,
     in_window,
+    meeting_over_days,
     meeting_type,
 )
 from seminars.pipeline.times import EventTimes
@@ -198,6 +199,29 @@ class TestMeetingType:
         assert set(CONFERENCE_WORDS) >= {"congress", "retreat"}
         assert set(WORKSHOP_WORDS) >= {"workshop", "boot camp", "summer school", "winter school"}
         assert all(word == word.lower() for word in (*CONFERENCE_WORDS, *WORKSHOP_WORDS))
+
+
+class TestMeetingOverDays:
+    def test_a_conference_or_workshop_of_more_than_a_week_keeps_its_days(self) -> None:
+        assert meeting_over_days("conference", "PhyStat 2027", all_day(12)) == "conference"
+        assert meeting_over_days("workshop", "Program on kernels", all_day(8)) == "workshop"
+
+    def test_the_title_rule_applies_to_the_days(self) -> None:
+        assert (
+            meeting_over_days("seminar", "Summer School in Statistics", all_day(12)) == "workshop"
+        )
+        assert meeting_over_days("lecture", "Symposium on RNA", all_day(9)) == "conference"
+
+    @pytest.mark.parametrize("event_type", ["seminar", "colloquium", "lecture", "defense", "other"])
+    def test_a_talk_does_not(self, event_type: EventType) -> None:
+        # A quarter-long series listed from its first to its last day.
+        assert meeting_over_days(event_type, "Applied Physics Seminar Series", all_day(70)) is None
+
+    @pytest.mark.parametrize("days", [1, 2, 7])
+    def test_a_week_or_less_does_not(self, days: int) -> None:
+        # The length rule drops the end of a talk at noon that is listed until noon of the
+        # next day as well: that is a slip of whoever entered it, no meeting of two days.
+        assert meeting_over_days("conference", "Annual Conference", all_day(days)) is None
 
 
 class TestEndedBefore:

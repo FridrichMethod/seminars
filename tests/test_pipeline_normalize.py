@@ -268,6 +268,37 @@ class TestMeetings:
         draft = make_draft(title="Symposium Lecture: Jane Doe", event_type_hint="lecture")
         assert one(draft).event.event_type == "lecture"
 
+    def test_a_timed_meeting_of_more_than_a_week_is_kept_over_its_days(self) -> None:
+        # From 9:00 on a Monday to 17:00 on the Friday of the next week: twelve days.
+        start, end = datetime(2027, 8, 2, 9, 0), datetime(2027, 8, 13, 17, 0)
+        school = make_draft(
+            native_id="school", title="Summer School on Diffusion", start=start, end=end
+        )
+        typed = make_draft(native_id="typed", event_type_hint="workshop", start=start, end=end)
+        result = normalize(school, typed, source=make_source(meeting_horizon=True))
+        for candidate in result.candidates:
+            event = candidate.event
+            assert (event.event_type, event.all_day, event.is_meeting) == ("workshop", True, True)
+            assert event.start.isoformat() == "2027-08-02T00:00:00-07:00"
+            assert event.end is not None
+            assert event.end.isoformat() == "2027-08-14T00:00:00-07:00"
+        assert len(result.candidates) == 2
+
+    def test_a_long_timed_talk_still_loses_its_end(self, caplog: pytest.LogCaptureFixture) -> None:
+        start, end = datetime(2027, 1, 4, 9, 0), datetime(2027, 1, 15, 17, 0)
+        series = make_draft(title="Applied Physics Seminar Series", start=start, end=end)
+        slip = make_draft(
+            native_id="slip",
+            event_type_hint="conference",
+            start=datetime(2026, 11, 17, 12, 0),
+            end=datetime(2026, 11, 18, 12, 0),
+        )
+        result = normalize(series, slip)
+        times = [(c.event.event_type, c.event.all_day, c.event.end) for c in result.candidates]
+        assert times == [("seminar", False, None), ("conference", False, None)]
+        (record,) = caplog.records
+        assert "the end of 2 timed event(s) is not kept" in record.getMessage()
+
     def test_an_ongoing_meeting_is_kept_by_its_end(self) -> None:
         # A workshop of three weeks that began twenty days before the run, all day.
         first = (REFERENCE_NOW - timedelta(days=20)).date()

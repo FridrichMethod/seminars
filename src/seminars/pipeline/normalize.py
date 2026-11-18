@@ -6,8 +6,9 @@ publishes, so this is where the rules for stored data are applied:
 * times follow ``seminars.pipeline.times``; an event outside the window of
   the run is dropped and counted: one that starts after it, or ended
   before it began. A meeting of a source with ``meeting_horizon`` has a
-  longer window, and a title can make a talk a meeting
-  (``seminars.pipeline.meetings``). An end that the length
+  longer window, a title can make a talk a meeting, and a meeting with
+  times of day that lasts more than a week keeps its days as an all-day
+  event (``seminars.pipeline.meetings``). Any other end that the length
   rule drops (the same wall time on a later day, or more than a week after
   the start) is logged as a warning with the source and the uids, at most
   ``MAX_LOGGED_UIDS`` of them, once per source;
@@ -74,7 +75,7 @@ from seminars.models import (
     url_has_credential,
 )
 from seminars.pipeline.ids import draft_key, resolve_uid, shared_urls
-from seminars.pipeline.meetings import in_window, meeting_type
+from seminars.pipeline.meetings import in_window, meeting_over_days, meeting_type
 from seminars.pipeline.privacy import is_private_link, scrub_private, scrub_title, strip_markers
 from seminars.pipeline.speakers import ParsedSpeaker, split_speakers
 from seminars.pipeline.text import (
@@ -325,12 +326,15 @@ def _place(draft: EventDraft, cleaner: _Cleaner) -> tuple[str | None, bool, Http
     return location, online or bool(_HYBRID_WORDS.intersection(words)), stream
 
 
-def _times(draft: EventDraft, source: SourceConfig, context: NormalizeContext) -> EventTimes:
+def _times(
+    draft: EventDraft, source: SourceConfig, context: NormalizeContext, *, all_day: bool = False
+) -> EventTimes:
+    """The times of ``draft``; with ``all_day`` read as all day whatever the draft says."""
     try:
         return resolve_times(
             draft.start,
             draft.end,
-            all_day=draft.all_day,
+            all_day=all_day or draft.all_day,
             source_zone=draft.timezone or source.timezone,
             project_zone=context.settings.timezone,
             reference=context.now,
@@ -450,9 +454,12 @@ def normalize_drafts(
             if draft.source_id != source.id:
                 raise _Invalid("source_id: the draft belongs to another source")
             times = _times(draft, source, context)
-            event_type = meeting_type(
-                draft.event_type_hint or source.default_event_type, draft.title, times
-            )
+            stated = draft.event_type_hint or source.default_event_type
+            event_type = meeting_type(stated, draft.title, times)
+            if times.end_dropped_as_too_long:
+                days = _times(draft, source, context, all_day=True)
+                if (typed := meeting_over_days(stated, draft.title, days)) is not None:
+                    times, event_type = days, typed
             meeting = is_meeting_span(event_type, times.start, times.end, all_day=times.all_day)
             if not in_window(
                 times,
