@@ -46,7 +46,7 @@ class FakeEmitters:
     def write_ics_feeds(
         self, events: Sequence[Event], out_dir: Path, *, config: AppConfig
     ) -> list[Path]:
-        """Write nine placeholder calendars that state how many events each feed has."""
+        """Write ten placeholder calendars that state how many events each feed has."""
         self.calls.append(("write_ics_feeds", {"events": len(events), "out_dir": out_dir}))
         threshold = config.interests.threshold
         paths = []

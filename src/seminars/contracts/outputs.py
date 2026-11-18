@@ -25,7 +25,7 @@ class IcsFeedWriter(Protocol):
     """``seminars.outputs.ics:write_ics_feeds``."""
 
     def __call__(self, events: Sequence[Event], out_dir: Path, *, config: AppConfig) -> list[Path]:
-        """Write ``<out_dir>/<feed id>.ics`` for all nine FEED_IDS; return the paths.
+        """Write ``<out_dir>/<feed id>.ics`` for all ten FEED_IDS; return the paths.
 
         Output is a pure function of the arguments: the same events give the
         same bytes.

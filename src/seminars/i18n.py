@@ -14,7 +14,7 @@ Python outputs (ICS calendar names, the weekly digest). Format:
 Namespaces:
 
 * ``fields.<field id>``: display name of each of the seven fields;
-* ``feeds.<feed id>.name`` / ``.description``: the nine ICS feeds. The
+* ``feeds.<feed id>.name`` / ``.description``: the ten ICS feeds. The
   English name is the calendar name inside the ICS file;
 * ``digest.*``: every string of the weekly digest. ``digest.issue_title`` is
   used in English only as the GitHub issue title (it must stay stable so

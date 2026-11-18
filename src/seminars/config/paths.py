@@ -30,7 +30,7 @@ class ProjectPaths:
         public/
           index.html, status.html, ...   copied from site/
           locales/<lang>.json            copied from locales/
-          feeds/<feed id>.ics            the nine calendar feeds
+          feeds/<feed id>.ics            the ten calendar feeds
           events.json, status.json       the public payloads
     """
 

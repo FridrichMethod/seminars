@@ -148,6 +148,7 @@ def golden_events() -> list[Event]:
             speakers=[],
             series=None,
             host_org="SLAC",
+            event_type="conference",
             end=at(11, 22, 0),
             all_day=True,
             location="SLAC, Kavli Auditorium",
@@ -204,7 +205,7 @@ class TestFeedFiles:
         validator: IcsValidator = load_implementation("ics_validator")
         assert (writer, validator) == (write_ics_feeds, validate_ics)
 
-    def test_nine_feeds_are_written_in_feed_order(self, app_config: AppConfig) -> None:
+    def test_ten_feeds_are_written_in_feed_order(self, app_config: AppConfig) -> None:
         out_dir = app_config.paths.public_feeds_dir
         paths = write_ics_feeds(golden_events(), out_dir, config=app_config)
         assert paths == [out_dir / f"{feed}.ics" for feed in FEED_IDS]
@@ -220,11 +221,32 @@ class TestFeedFiles:
         ]
         assert uids(feeds["picks"]) == ["golden-pick", "golden-all-day"]
         assert uids(feeds["cs"]) == []
+        assert uids(feeds["conferences"]) == ["golden-all-day"]
         for field in FIELD_IDS:
             expected = {event.uid for event in golden_events() if field in event.fields}
             assert set(uids(feeds[field])) == expected
         same_start = [make_event(uid=uid) for uid in ("c", "a", "b")]
         assert uids(write_feeds(same_start, app_config, tmp_path)["all"]) == ["a", "b", "c"]
+
+    def test_the_conferences_feed_holds_the_meetings(
+        self, app_config: AppConfig, tmp_path: Path
+    ) -> None:
+        day = {"all_day": True, "start": at(12, 1, 0)}
+        events = [
+            make_event(uid="talk"),
+            make_event(uid="conference", event_type="conference"),
+            make_event(uid="long-workshop", event_type="workshop", end=at(11, 17, 19)),
+            make_event(uid="short-workshop", event_type="workshop"),
+            make_event(uid="workshop-days", event_type="workshop", **day, end=at(12, 3, 0)),
+            make_event(uid="workshop-day", event_type="workshop", **day, end=None),
+            make_event(uid="cancelled", event_type="conference", status="cancelled"),
+        ]
+        feeds = write_feeds(events, app_config, tmp_path)
+        meetings = ["cancelled", "conference", "long-workshop", "workshop-days"]
+        assert uids(feeds["conferences"]) == meetings
+        assert {event.uid for event in events if event.is_meeting} == set(meetings)
+        assert set(uids(feeds["all"])) == {event.uid for event in events}
+        assert set(meetings) <= set(uids(feeds["bio"]))
 
     def test_the_picks_threshold_comes_from_the_interests(
         self, app_config: AppConfig, tmp_path: Path
@@ -270,7 +292,7 @@ class TestDeterminism:
 
 
 class TestGoldenFiles:
-    @pytest.mark.parametrize("feed", ["all", "picks", "cs"])
+    @pytest.mark.parametrize("feed", ["all", "picks", "cs", "conferences"])
     def test_feed_matches_its_golden_file(
         self, feed: str, app_config: AppConfig, tmp_path: Path
     ) -> None:

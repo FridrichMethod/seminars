@@ -11,7 +11,7 @@
   "feeds": {
     "all": {
       "name": "Seminars - All",
-      "description": "Every academic talk collected from Stanford, SLAC, CZ Biohub and nearby institutes."
+      "description": "Every academic talk, conference and workshop collected from Stanford, SLAC, CZ Biohub and nearby institutes."
     },
     "picks": {
       "name": "Seminars - Picks",
@@ -44,6 +44,10 @@
     "med": {
       "name": "Seminars - Medicine",
       "description": "Talks in medicine and biomedical research."
+    },
+    "conferences": {
+      "name": "Seminars - Conferences and workshops",
+      "description": "Conferences and symposia, and workshops that run over several days or for at least three hours."
     }
   },
   "digest": {

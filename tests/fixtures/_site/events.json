@@ -47,6 +47,10 @@
     {
       "id": "med",
       "path": "feeds/med.ics"
+    },
+    {
+      "id": "conferences",
+      "path": "feeds/conferences.ics"
     }
   ],
   "events": [

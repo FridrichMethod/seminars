@@ -138,6 +138,7 @@ class TestLocaleFiles:
         assert english.t("digest.sections.health") == "Source health"
         for field in FIELD_IDS:
             assert english.t(f"feeds.{field}.name") == f"Seminars - {english.t(f'fields.{field}')}"
+        assert english.t("feeds.conferences.name") == "Seminars - Conferences and workshops"
 
     @pytest.mark.parametrize("lang", LOCALES)
     def test_files_use_two_space_indentation_and_end_with_newline(self, lang: str) -> None:

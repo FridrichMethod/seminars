@@ -269,7 +269,10 @@ replaced by an empty placeholder.
 
 ## Outputs
 
-- **Feeds** (`outputs/ics.py`): nine calendars, `all`, `picks` and one per field. A timed
+- **Feeds** (`outputs/ics.py`): ten calendars, `all`, `picks`, one per field and
+  `conferences`. `conferences` holds the meetings (`Event.is_meeting`: a conference, or a
+  workshop over several days or of at least three hours), which are in `all` and in their
+  field feeds as well, so the download of selected talks reads `all` alone. A timed
   event is written in the zone of the settings with one VTIMEZONE sub-component per change
   of the offset; a cancelled talk stays with `STATUS:CANCELLED`. The bytes depend only on
   the events, so a calendar sees a change only when an event changed. `seminars validate`

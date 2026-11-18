@@ -229,6 +229,7 @@ NUMBER_WORDS: Final = {
 def test_the_readme_quotes_the_numbers_of_the_configuration(path: str) -> None:
     settings, llm, health = CONFIG.settings, CONFIG.llm, CONFIG.settings.health
     days_back, days_ahead = settings.window.days_back, settings.window.days_ahead
+    meetings_ahead = settings.meetings.days_ahead
     calls, move = llm.max_calls_per_run, MAX_MOVE.days
     failures = NUMBER_WORDS[path][health.source_failure_threshold]
     # A source is broken after that many failed or empty runs, or a mix of both.
@@ -241,8 +242,10 @@ def test_the_readme_quotes_the_numbers_of_the_configuration(path: str) -> None:
             f"and {failures} in a row open a `source-broken` issue",
             f"those of the last {days_back} days and of the next {days_ahead}.",
             f"After {bad_runs} bad runs in a row an issue with the label `source-broken`",
-            f"keeps a talk until {days_back} days after it took place",
+            f"keeps a talk until {days_back} days after it ended",
             f"moves by more than {move} days",
+            f"keeps its conferences and workshops up to {meetings_ahead} days ahead; every "
+            f"talk, and the meetings of the other sources, up to {days_ahead} days ahead.",
         ],
         "README.zh-CN.md": [
             f"\u4e00\u6b21\u8fd0\u884c\u6700\u591a\u7ed9 LLM \u53d1 {calls} \u4e2a\u8bf7\u6c42",
@@ -253,6 +256,9 @@ def test_the_readme_quotes_the_numbers_of_the_configuration(path: str) -> None:
             f"\u62a5\u544a\u7ed3\u675f {days_back} \u5929\u540e\uff0cfeed "
             "\u4f1a\u628a\u5b83\u5220\u6389",
             f"\u65f6\u95f4\u79fb\u52a8\u8d85\u8fc7 {move} \u5929",
+            f"\u4f1a\u4fdd\u7559\u672a\u6765 {meetings_ahead} \u5929\u5185\u7684"
+            "\u4f1a\u8bae\u548c\u7814\u8ba8\u4f1a",
+            f"\u53ea\u4fdd\u7559\u672a\u6765 {days_ahead} \u5929\u5185\u7684",
         ],
     }
     document = prose(path)

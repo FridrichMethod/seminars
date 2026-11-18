@@ -19,12 +19,16 @@ kept in this repository (`data/`), and every daily update is one commit.
 
 ### Calendar feeds
 
-Nine feeds. A talk can be in several field feeds; `all` holds every talk that belongs
-to at least one field.
+Ten feeds. A talk can be in several field feeds; `all` holds every talk that belongs
+to at least one field. `conferences` holds the conferences and symposia, and the
+workshops that run over several days or for at least three hours; they are in `all` and
+in the feeds of their fields as well. A source marked with `meeting_horizon` keeps its
+conferences and workshops up to 365 days ahead; every talk, and the meetings of the
+other sources, up to 120 days ahead.
 
 | Feed | Contents | Subscribe |
 |---|---|---|
-| `all` | Every talk collected from Stanford, SLAC, CZ Biohub and nearby institutes | [all.ics](https://fridrichmethod.github.io/seminars/feeds/all.ics) |
+| `all` | Every talk, conference and workshop collected from Stanford, SLAC, CZ Biohub and nearby institutes | [all.ics](https://fridrichmethod.github.io/seminars/feeds/all.ics) |
 | `picks` | Talks that match the personal interest rules (`config/interests.yaml`) | [picks.ics](https://fridrichmethod.github.io/seminars/feeds/picks.ics) |
 | `math` | Pure mathematics, applied mathematics and statistics | [math.ics](https://fridrichmethod.github.io/seminars/feeds/math.ics) |
 | `cs` | Computer science | [cs.ics](https://fridrichmethod.github.io/seminars/feeds/cs.ics) |
@@ -33,6 +37,7 @@ to at least one field.
 | `bio` | Biology, bioengineering, structural biology and genetics | [bio.ics](https://fridrichmethod.github.io/seminars/feeds/bio.ics) |
 | `physics` | Physics and applied physics | [physics.ics](https://fridrichmethod.github.io/seminars/feeds/physics.ics) |
 | `med` | Medicine and biomedical research | [med.ics](https://fridrichmethod.github.io/seminars/feeds/med.ics) |
+| `conferences` | Conferences and symposia, and workshops of several days or of at least three hours | [conferences.ics](https://fridrichmethod.github.io/seminars/feeds/conferences.ics) |
 
 Each feed is the file `feeds/<feed>.ics` of the web site; the table links its
 `https://` address, and the section Subscribe lists its `webcal://` address. Every
@@ -76,13 +81,15 @@ webcal://fridrichmethod.github.io/seminars/feeds/chem.ics
 webcal://fridrichmethod.github.io/seminars/feeds/bio.ics
 webcal://fridrichmethod.github.io/seminars/feeds/physics.ics
 webcal://fridrichmethod.github.io/seminars/feeds/med.ics
+webcal://fridrichmethod.github.io/seminars/feeds/conferences.ics
 ```
 
 A talk that belongs to several fields is in the feed of each of them, and a calendar
 app shows a talk once per feed: subscribed to two of those feeds, it shows the talk
-twice. To see every talk once, subscribe to `all` alone (or to `picks` alone). A feed
-keeps a talk until 14 days after it took place and then drops it, so the talk also
-leaves your calendar.
+twice. To see every talk once, subscribe to `all` alone (or to `picks` alone). The
+meetings of `conferences` are in `all` and in their field feeds too: subscribed to
+`conferences` and `all`, a calendar shows each of them twice. A feed keeps a talk until
+14 days after it ended and then drops it, so the talk also leaves your calendar.
 
 ### Apple Calendar
 
@@ -250,7 +257,7 @@ day. The schedule follows daylight saving time.
    two sources) and drop what is not an academic talk.
 3. Tag each event with its fields, by rules and, when a credential is configured, with
    the help of an LLM; score the picks.
-4. Write `data/`, the nine feeds and the data of the web site, then check the output:
+4. Write `data/`, the ten feeds and the data of the web site, then check the output:
    a secret scan and the charset rule of `data/`. When a check fails, the run ends
    with exit status 3 and nothing is committed or deployed.
 5. Validate the data and the feeds (`seminars validate`), commit `data/` as

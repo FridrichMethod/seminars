@@ -1,12 +1,15 @@
 """ICS calendar feeds (RFC 5545) and the validator behind ``seminars validate``.
 
 ``write_ics_feeds`` writes one calendar per feed id: ``all`` holds every
-event it is given, ``picks`` the events at or above the picks threshold and
-each field feed the events tagged with that field. The files are a pure
-function of the arguments. Events are ordered by start and uid, every time
-stamp comes from the event (``DTSTAMP`` and ``LAST-MODIFIED`` are its
-``last_changed``) and nothing reads the clock, so the same events give the
-same bytes and a subscriber only sees a change when an event changed.
+event it is given, ``picks`` the events at or above the picks threshold,
+each field feed the events tagged with that field and ``conferences`` the
+meetings (``Event.is_meeting``: a conference, or a workshop over several
+days or of at least three hours), which are in ``all`` and in their field
+feeds as well. The files are a pure function of the arguments. Events are
+ordered by start and uid, every time stamp comes from the event
+(``DTSTAMP`` and ``LAST-MODIFIED`` are its ``last_changed``) and nothing
+reads the clock, so the same events give the same bytes and a subscriber
+only sees a change when an event changed.
 
 A calendar holds
 
@@ -71,6 +74,9 @@ ZONE_MAX_YEARS: Final = 10
 
 EMPTY_RUN_YEAR: Final = 1970
 """Year of the time zone definition when a run has no event at all."""
+
+MEETINGS_FEED: Final = "conferences"
+"""The feed of the meetings (``Event.is_meeting``), one of FEED_IDS."""
 
 _LABEL_SPEAKER: Final = "digest.table.speaker"
 _LABEL_REASONS: Final = "digest.table.reasons"
@@ -410,11 +416,13 @@ def _in_feed(event: Event, feed_id: str, ctx: _Context) -> bool:
         return True
     if feed_id == "picks":
         return event.is_pick(ctx.picks_threshold)
+    if feed_id == MEETINGS_FEED:
+        return event.is_meeting
     return feed_id in event.fields
 
 
 def write_ics_feeds(events: Sequence[Event], out_dir: Path, *, config: AppConfig) -> list[Path]:
-    """Write ``<out_dir>/<feed id>.ics`` for all nine FEED_IDS; return the paths.
+    """Write ``<out_dir>/<feed id>.ics`` for all ten FEED_IDS; return the paths.
 
     The contract is ``seminars.contracts.IcsFeedWriter``. Every event given
     is written, cancelled and past ones included; choosing the events is the

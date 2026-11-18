@@ -102,9 +102,12 @@ class TestVocabularies:
         assert FIELD_IDS == ("math", "cs", "ai-ml", "chem", "bio", "physics", "med")
         assert get_args(FieldId) == FIELD_IDS
 
-    def test_nine_feeds(self) -> None:
-        assert FEED_IDS == ("all", "picks", "math", "cs", "ai-ml", "chem", "bio", "physics", "med")
+    def test_ten_feeds(self) -> None:
+        assert FEED_IDS[:2] == ("all", "picks")
+        assert FEED_IDS[2:-1] == ("math", "cs", "ai-ml", "chem", "bio", "physics", "med")
+        assert FEED_IDS[-1] == "conferences"
         assert feed_path("ai-ml") == "feeds/ai-ml.ics"
+        assert feed_path("conferences") == "feeds/conferences.ics"
 
     def test_out_of_scope_is_an_exclusion_reason(self) -> None:
         assert "out_of_scope" in get_args(ExclusionReason)

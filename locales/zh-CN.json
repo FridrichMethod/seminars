@@ -11,7 +11,7 @@
   "feeds": {
     "all": {
       "name": "学术报告 - 全部",
-      "description": "从 Stanford、SLAC、CZ Biohub 及周边研究机构收集到的全部学术报告。"
+      "description": "从 Stanford、SLAC、CZ Biohub 及周边研究机构收集到的全部学术报告、会议和研讨会。"
     },
     "picks": {
       "name": "学术报告 - 精选",
@@ -44,6 +44,10 @@
     "med": {
       "name": "学术报告 - 医学",
       "description": "医学和生物医学研究方向的报告。"
+    },
+    "conferences": {
+      "name": "学术报告 - 会议和研讨会",
+      "description": "学术会议和专题研讨会，以及持续多天或至少三小时的研讨会（workshop）。"
     }
   },
   "digest": {
