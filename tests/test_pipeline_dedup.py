@@ -264,18 +264,61 @@ class TestMeetings:
         assert uids(result) == ["a"]
         assert result.absorbed == {"b": "a"}
 
-    def test_a_symposium_and_its_opening_keynote_stay_apart(self) -> None:
-        symposium = timed_listing("a", "AIMI Symposium 2027")
+    @pytest.mark.parametrize(
+        ("symposium_source", "keynote_source"),
+        [("sites-a", "sites-b"), ("sites-b", "sites-a"), ("localist-stanford", "sites-aimi")],
+    )
+    def test_a_symposium_and_its_opening_keynote_stay_apart(
+        self, symposium_source: str, keynote_source: str
+    ) -> None:
+        # Both link the page of the symposium, and the calendar names the keynote speaker
+        # too; either source may lead, the aggregator calendar or the host of the keynote.
+        jane = [Speaker(name="Jane Doe")]
+        symposium = timed_listing(
+            "a", "AIMI Symposium 2027", sources=(symposium_source,), url=MEETING_PAGE
+        )
         keynote = timed_listing(
             "b",
-            "AIMI Symposium 2027: Opening keynote",
+            "Opening keynote: Jane Doe",
+            sources=(keynote_source,),
             event_type="seminar",
+            url=MEETING_PAGE,
             end=MORNING + timedelta(hours=1),
         )
+        titled = timed_listing(
+            "c",
+            "AIMI Symposium 2027: Opening keynote",
+            sources=(keynote_source,),
+            event_type="seminar",
+            speakers=jane,
+            url=MEETING_PAGE,
+            end=MORNING + timedelta(hours=1),
+        )
+        named = symposium.evolve(event=symposium.event.evolve(speakers=jane))
         assert symposium.event.is_meeting
         assert not keynote.event.is_meeting
-        for order in ((symposium, keynote), (keynote, symposium)):
-            assert uids(run(*order)) == ["a", "b"]
+        for meeting, part in ((symposium, keynote), (symposium, titled), (named, titled)):
+            for order in ((meeting, part), (part, meeting)):
+                result = run(*order)
+                assert uids(result) == sorted(("a", part.event.uid))
+                assert [c.event.event_type for c in result.candidates] == [
+                    "conference",
+                    "seminar",
+                ]
+
+    def test_a_talk_that_lasts_as_long_as_the_meeting_is_linked_by_its_page(self) -> None:
+        # The host lists the symposium as a talk with another title, the calendar as a
+        # conference; both give the same hours and the same page.
+        symposium = timed_listing("a", "AIMI Symposium 2027", url=MEETING_PAGE)
+        host = timed_listing(
+            "b", "AI in Medicine 2027", sources=("sites-aimi",), event_type="seminar"
+        )
+        host = host.evolve(event=host.event.evolve(url=MEETING_PAGE))
+        later = host.evolve(event=host.event.evolve(end=MORNING + timedelta(hours=9)))
+        for listing in (host, later):
+            for order in ((symposium, listing), (listing, symposium)):
+                (merged,) = run(*order).candidates
+                assert (merged.event.uid, merged.event.event_type) == ("a", "conference")
 
     @pytest.mark.parametrize(
         ("meeting_source", "talk_source"),

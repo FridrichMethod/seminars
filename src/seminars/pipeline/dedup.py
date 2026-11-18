@@ -38,7 +38,12 @@ similar to "AIMI Symposium" as well, and the keynote is not the
 symposium. The same title at about the same time is one listing, though,
 even when only one of them is a meeting: a calendar that gives the hours
 of a symposium makes it a conference by the title rule, while a host that
-gives only its start leaves it a talk.
+gives only its start leaves it a talk. And a listing with hours that ends
+before a meeting does is a part of it, such as its opening keynote at the
+start of the symposium: the page of the meeting that it links, or a
+speaker of the meeting that it names, does not make it the meeting. Such
+a link joins a meeting and a talk only when the talk has no end or ends
+no earlier than the meeting.
 
 Four guards keep unrelated talks apart. "TBA" is never similar to "TBA",
 and a title of a single word ("Seminar") is not compared at all, because
@@ -369,6 +374,34 @@ def _days_and_hours(first: _Profile, second: _Profile) -> bool:
     return whole.start.date() <= timed.start.date() <= last
 
 
+def _ends_before(part: _Profile, meeting: _Profile) -> bool:
+    """Whether ``part``, a listing with hours, ends before the end of ``meeting``."""
+    if part.all_day or part.end is None:
+        return False
+    end = meeting.end
+    if end is None and meeting.all_day:
+        end = meeting.start + _ONE_DAY
+    return end is not None and part.end < end
+
+
+def _part_of_meeting(first: _Profile, second: _Profile) -> bool:
+    """Whether one of two listings is a meeting and the other a part of it (see the module).
+
+    The other is no meeting, gives its hours and ends before the meeting
+    does: the opening keynote of a symposium, which links the page of the
+    symposium and names one of its speakers.
+    """
+    if first.meeting == second.meeting:
+        return False
+    meeting, part = (first, second) if first.meeting else (second, first)
+    return _ends_before(part, meeting)
+
+
+def _strong_link(first: _Profile, second: _Profile) -> bool:
+    """A strong reason (``_linked``) that does not join a meeting and a part of it."""
+    return _linked(first, second) and not _part_of_meeting(first, second)
+
+
 def _distinct(first: _Profile, second: _Profile) -> bool:
     """Whether two listings are two talks whatever else they share.
 
@@ -487,7 +520,7 @@ def _group(
     def titles(first: _Profile, second: _Profile) -> bool:
         return _similar_titles(first, second, settings.title_similarity)
 
-    rounds = ((_linked, close_pairs), (_same_page, day_pairs), (titles, close_pairs))
+    rounds = ((_strong_link, close_pairs), (_same_page, day_pairs), (titles, close_pairs))
     for matches, pairs in rounds:
         for first, second in pairs():
             if matches(profiles[first], profiles[second]) and not (
