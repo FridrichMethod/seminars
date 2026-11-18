@@ -21,14 +21,13 @@ department that hosts them. Two candidates are the same talk when
   title alone on "/events/breakthroughs/Mehnert.html", while the campus
   calendar announces "Breakthroughs in Cancer: Janice Mehnert, MD", a
   title that shares no word with the host's, or
-* one of them is all day, the other gives its hours, and they point at
-  the same detail page: a meeting that a curated list or its host gives as
-  whole days and a calendar lists with its hours. The listing with hours
-  starts on the first of those days, ends on the last and lasts at least
-  ``seminars.models.MEETING_MIN_TIMED_HOURS`` hours: the opening keynote
-  of a symposium links the page of the symposium too, and a listing of
-  only the first day of a meeting of a week would hand its hours to the
-  whole meeting when its source leads the merge.
+* one of them is all day, the other gives its hours, one of them is a
+  meeting, and they point at the same detail page: a meeting that a
+  curated list or its host gives as whole days and a calendar lists with
+  its hours, once or day by day. The listing with hours starts on one of
+  those days and lasts at least ``seminars.models.MEETING_MIN_TIMED_HOURS``
+  hours: the opening keynote of a symposium links the page of the
+  symposium too.
 
 Meetings (conferences and long workshops, ``Event.is_meeting``) are
 compared by title more strictly than talks: a meeting is one with another
@@ -117,7 +116,11 @@ becomes one event:
 * a group with a meeting is a meeting. Its type is that of the first
   meeting in the order above, and when the lead is no meeting, the times
   are that meeting's as well: a calendar gives the hours of a symposium,
-  and the host that leads gives only its start;
+  and the host that leads gives only its start. When a listing is all day
+  and covers more days than those times, the all-day listing with the
+  most days gives the times instead, so a meeting of a week that a
+  curated list gives keeps its days against a calendar's listing of its
+  first day, whichever leads;
 * a cancellation that any listing reports is kept.
 
 The result does not depend on the order of the input, and running it over
@@ -343,22 +346,27 @@ def _same_page(first: _Profile, second: _Profile) -> bool:
     return first.page is not None and first.page == second.page
 
 
-def _last_day(profile: _Profile) -> date | None:
-    """The local day an event ends on (its end is exclusive); ``None`` without an end."""
-    if profile.all_day:
-        return profile.start.date() if profile.end is None else profile.end.date() - _ONE_DAY
-    return None if profile.end is None else (profile.end - _JUST_BEFORE).date()
+def _last_day(start: datetime, end: datetime | None, *, all_day: bool) -> date:
+    """The local day an event ends on (its end is exclusive); its first day without an end."""
+    if end is None:
+        return start.date()
+    return end.date() - _ONE_DAY if all_day else (end - _JUST_BEFORE).date()
 
 
 def _days_and_hours(first: _Profile, second: _Profile) -> bool:
-    """Whether one of two listings is all day and the other gives the hours of its days."""
-    if first.all_day == second.all_day:
+    """Whether one of two listings is all day and the other gives the hours of one of its days.
+
+    One of the two is a meeting, either one; the listing with hours starts
+    on one of the days of the other and lasts at least
+    ``MEETING_MIN_TIMED_HOURS`` hours.
+    """
+    if first.all_day == second.all_day or not (first.meeting or second.meeting):
         return False
     whole, timed = (first, second) if first.all_day else (second, first)
-    if timed.end is None or timed.start.date() != whole.start.date():
+    if timed.end is None or timed.end - timed.start < timedelta(hours=MEETING_MIN_TIMED_HOURS):
         return False
-    long_enough = timed.end - timed.start >= timedelta(hours=MEETING_MIN_TIMED_HOURS)
-    return long_enough and _last_day(timed) == _last_day(whole)
+    last = _last_day(whole.start, whole.end, all_day=True)
+    return whole.start.date() <= timed.start.date() <= last
 
 
 def _distinct(first: _Profile, second: _Profile) -> bool:
@@ -464,12 +472,16 @@ def _group(
                 yield first, second
 
     def day_pairs() -> Iterator[tuple[int, int]]:
-        """Pairs of an all-day listing and one that gives its hours: a meeting twice."""
+        """Pairs of an all-day listing and one that gives the hours of one of its days."""
         for index, first in enumerate(order):
+            whole = profiles[first]
+            if not whole.all_day:
+                continue
+            last = _last_day(whole.start, whole.end, all_day=True)
             for second in order[index + 1 :]:
-                if profiles[second].start.date() != profiles[first].start.date():
+                if profiles[second].start.date() > last:
                     break
-                if _days_and_hours(profiles[first], profiles[second]):
+                if _days_and_hours(whole, profiles[second]):
                     yield first, second
 
     def titles(first: _Profile, second: _Profile) -> bool:
@@ -561,14 +573,23 @@ def _title(events: Sequence[Event], speakers: Sequence[Speaker]) -> str:
     return titled[kept[0]].title  # unreachable: one with the most words is never beaten
 
 
+def _days(event: Event) -> int:
+    """The number of local days that ``event`` covers, by their dates."""
+    last = _last_day(event.start, event.end, all_day=event.all_day)
+    return (last - event.start.date()).days + 1
+
+
 def _timing(events: Sequence[Event]) -> Event:
     """The member of a group, in merge order, whose times the merged event takes.
 
-    That is the lead, or the first meeting when the lead is none (see the
-    module docstring).
+    That is the lead, or the first meeting when the lead is none; but an
+    all-day member that covers more days gives them instead, the one with
+    the most days (see the module docstring).
     """
     meetings = [event for event in events if event.is_meeting]
-    return meetings[0] if meetings and not events[0].is_meeting else events[0]
+    timing = meetings[0] if meetings and not events[0].is_meeting else events[0]
+    longer = [event for event in events if event.all_day and _days(event) > _days(timing)]
+    return max(longer, key=_days) if longer else timing
 
 
 def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidate:
