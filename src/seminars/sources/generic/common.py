@@ -17,9 +17,9 @@ and the custom adapters read pages the same way, so the pieces live here:
   (``speakers_after_label``);
 * dates and times: times of day and their ranges (``parse_clock``,
   ``split_range``, ``time_range``), days without a year (``parse_day``,
-  closest to the fetch; ``parse_first_day``, the first day of a range, in
-  the year of its last day), ISO 8601 moments, English month names
-  (``month_number``) and the window test (``outside_window``);
+  closest to the fetch; ``parse_first_day`` and ``parse_last_day``, one end
+  of a range, in the year the other end states), ISO 8601 moments, English
+  month names (``month_number``) and the window test (``outside_window``);
 * fetching that stays on the source's hosts (``get_document``,
   ``fetch_optional``).
 
@@ -502,14 +502,42 @@ def parse_first_day(
     "Jan. 3, 2027" on 2026-12-28; the closest year could put the start a
     year before its end.
     """
+    return _range_day(text, last_text, fmt, reference, step=-1)
+
+
+def parse_last_day(
+    text: str | None, first_text: str | None, fmt: str | None, reference: date
+) -> date | None:
+    """The last day of a range from ``first_text``, its first day, to ``text``.
+
+    As ``parse_day``, except that a ``text`` without a year takes the year of
+    a ``first_text`` that states one, or the year after when its month comes
+    before the month of the first day. Read on any day, "Dec. 28, 2026" to
+    "Jan. 3" ends on 2027-01-03 and "Aug. 30, 2027" to "Sept. 3" on
+    2027-09-03; the closest year could put the end before its start.
+    """
+    return _range_day(text, first_text, fmt, reference, step=1)
+
+
+def _range_day(
+    text: str | None, other_text: str | None, fmt: str | None, reference: date, *, step: int
+) -> date | None:
+    """One end of a range, in the year that the other end states.
+
+    ``step`` is -1 for the first day (the year before when its month comes
+    after the other's) and 1 for the last (the year after when its month
+    comes before). Without a stated year at the other end, or with one of
+    its own, ``text`` reads as ``parse_day`` reads it.
+    """
     read = day_reader(text, fmt)
     if read is None:
         return None
-    last = _stated_day(day_reader(last_text, fmt))
-    if last is not None and _stated_day(read) is None:
+    other = _stated_day(day_reader(other_text, fmt))
+    if other is not None and _stated_day(read) is None:
         with contextlib.suppress(ValueError, OverflowError):
-            day = read(last.year)
-            return day if day.month <= last.month else read(last.year - 1)
+            day = read(other.year)
+            in_order = day.month <= other.month if step < 0 else day.month >= other.month
+            return day if in_order else read(other.year + step)
     return closest_day(read, reference)
 
 

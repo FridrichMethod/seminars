@@ -42,10 +42,15 @@ Keys of ``params`` (an unknown key is an error that names it;
 * ``date_format``: ``strptime`` format of ``date`` and ``end_date``. Without
   it a date is ISO 8601 or anything ``dateutil`` reads. A date without a
   year (in either case) gets the year that puts it closest to the fetch,
-  except a ``date`` whose ``end_date`` states the year: it takes that year,
-  or the year before when its month comes later ("Monday, Aug. 30 - Friday,
-  Sept. 3, 2027" starts on 2027-08-30 whenever it is read; ``parse_first_day``
-  in ``seminars.sources.generic.common``).
+  except in a range whose other end states the year, which only ``dateutil``
+  reads (one ``date_format`` serves both ends, so with it either both state
+  the year or neither does). There a ``date`` takes the year of its
+  ``end_date``, or the year before when its month comes later ("Monday, Aug.
+  30 - Friday, Sept. 3, 2027" starts on 2027-08-30 whenever it is read), and
+  an ``end_date`` the year of its ``date``, or the year after when its month
+  comes earlier ("Dec. 28, 2026 - Jan. 3" ends on 2027-01-03);
+  ``parse_first_day`` and ``parse_last_day`` in
+  ``seminars.sources.generic.common``.
 * ``time_format``: ``strptime`` format of ``start`` and ``end``. Without it,
   "4:30", "4:30pm", "4:30 PM", "16:30", "4 p.m.", "noon", "12:00 noon" work. A
   ``time`` value without ``start`` / ``end`` groups is read as a range ("4:30
@@ -151,8 +156,8 @@ from seminars.sources.generic.common import (
     node_text,
     node_value,
     outside_window,
-    parse_day,
     parse_first_day,
+    parse_last_day,
     parse_moment,
     search,
     split_range,
@@ -379,7 +384,7 @@ def row_times(
     day = parse_first_day(row.get("date"), row.get("end_date"), params.date_format, reference)
     if day is None:
         return None, None
-    last = parse_day(row.get("end_date"), params.date_format, reference)
+    last = parse_last_day(row.get("end_date"), row.get("date"), params.date_format, reference)
     start_text, end_text = row.groups.get("start"), row.groups.get("end")
     if start_text is None and end_text is None:
         start_text, end_text = split_range(row.values.get("time"))
