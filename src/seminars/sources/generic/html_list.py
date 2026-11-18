@@ -41,7 +41,11 @@ Keys of ``params`` (an unknown key is an error that names it;
   times). The first pattern in field order that sets a group wins.
 * ``date_format``: ``strptime`` format of ``date`` and ``end_date``. Without
   it a date is ISO 8601 or anything ``dateutil`` reads. A date without a
-  year (in either case) gets the year that puts it closest to the fetch.
+  year (in either case) gets the year that puts it closest to the fetch,
+  except a ``date`` whose ``end_date`` states the year: it takes that year,
+  or the year before when its month comes later ("Monday, Aug. 30 - Friday,
+  Sept. 3, 2027" starts on 2027-08-30 whenever it is read; ``parse_first_day``
+  in ``seminars.sources.generic.common``).
 * ``time_format``: ``strptime`` format of ``start`` and ``end``. Without it,
   "4:30", "4:30pm", "4:30 PM", "16:30", "4 p.m.", "noon", "12:00 noon" work. A
   ``time`` value without ``start`` / ``end`` groups is read as a range ("4:30
@@ -148,6 +152,7 @@ from seminars.sources.generic.common import (
     node_value,
     outside_window,
     parse_day,
+    parse_first_day,
     parse_moment,
     search,
     split_range,
@@ -371,7 +376,7 @@ def row_times(
     params: HtmlListParams, row: Row, reference: date
 ) -> tuple[datetime | date | None, datetime | date | None]:
     """Start and end of a row from its date, time and the default times."""
-    day = parse_day(row.get("date"), params.date_format, reference)
+    day = parse_first_day(row.get("date"), row.get("end_date"), params.date_format, reference)
     if day is None:
         return None, None
     last = parse_day(row.get("end_date"), params.date_format, reference)

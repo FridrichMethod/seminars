@@ -17,7 +17,8 @@ and the custom adapters read pages the same way, so the pieces live here:
   (``speakers_after_label``);
 * dates and times: times of day and their ranges (``parse_clock``,
   ``split_range``, ``time_range``), days without a year (``parse_day``,
-  closest to the fetch), ISO 8601 moments, English month names
+  closest to the fetch; ``parse_first_day``, the first day of a range, in
+  the year of its last day), ISO 8601 moments, English month names
   (``month_number``) and the window test (``outside_window``);
 * fetching that stays on the source's hosts (``get_document``,
   ``fetch_optional``).
@@ -462,26 +463,68 @@ def time_range(
     return start_time, end_time
 
 
-def parse_day(text: str | None, fmt: str | None, reference: date) -> date | None:
-    """A calendar date from ``text``; see the module docstring for the rules."""
+def day_reader(text: str | None, fmt: str | None) -> Callable[[int], date] | None:
+    """How ``text`` reads as a date in a given year; ``None`` for no text and "TBA".
+
+    The reader raises ``ValueError`` for a text that is no date (in that
+    year). A text with a year of its own gives the same date for every year.
+    """
     value = collapse(text)
     if value is None or is_tba(value):
         return None
     if fmt is None:
         if len(value) == 10:
             with contextlib.suppress(ValueError):
-                return date.fromisoformat(value)
+                day = date.fromisoformat(value)
+                return lambda _year: day
         text = value[:PATTERN_INPUT_LIMIT]
-        return closest_day(
-            lambda year: date_parser.parse(text, default=datetime(year, 1, 1)).date(), reference
-        )
+        return lambda year: date_parser.parse(text, default=datetime(year, 1, 1)).date()
     if "%Y" in fmt or "%y" in fmt:
-        with contextlib.suppress(ValueError):
-            return datetime.strptime(value, fmt).date()
+        return lambda _year: datetime.strptime(value, fmt).date()
+    return lambda year: datetime.strptime(f"{value} {year}", f"{fmt} %Y").date()
+
+
+def parse_day(text: str | None, fmt: str | None, reference: date) -> date | None:
+    """A calendar date from ``text``; see the module docstring for the rules."""
+    read = day_reader(text, fmt)
+    return None if read is None else closest_day(read, reference)
+
+
+def parse_first_day(
+    text: str | None, last_text: str | None, fmt: str | None, reference: date
+) -> date | None:
+    """The first day of a range from ``text`` to ``last_text``, its last day.
+
+    As ``parse_day``, except that a ``text`` without a year takes the year of
+    a ``last_text`` that states one, or the year before when its month comes
+    after the month of the last day. Read on any day, "Monday, Aug. 30" to
+    "Friday, Sept. 3, 2027" starts on 2027-08-30 and "Dec. 28" to
+    "Jan. 3, 2027" on 2026-12-28; the closest year could put the start a
+    year before its end.
+    """
+    read = day_reader(text, fmt)
+    if read is None:
         return None
-    return closest_day(
-        lambda year: datetime.strptime(f"{value} {year}", f"{fmt} %Y").date(), reference
-    )
+    last = _stated_day(day_reader(last_text, fmt))
+    if last is not None and _stated_day(read) is None:
+        with contextlib.suppress(ValueError, OverflowError):
+            day = read(last.year)
+            return day if day.month <= last.month else read(last.year - 1)
+    return closest_day(read, reference)
+
+
+def _stated_day(read: Callable[[int], date] | None) -> date | None:
+    """The date of ``read`` when its text states the year (it reads the same in any year).
+
+    The two years are leap years, so that a February 29 without a year
+    reads in both and differs.
+    """
+    if read is None:
+        return None
+    with contextlib.suppress(ValueError, OverflowError):
+        if (day := read(2000)) == read(2004):
+            return day
+    return None
 
 
 def closest_day(read: Callable[[int], date], reference: date) -> date | None:
