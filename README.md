@@ -7,7 +7,8 @@ nearby institutes, and the conferences and workshops of the Bay Area, collected
 every day from public web pages and published in three forms:
 
 - **calendar feeds** (ICS) that calendar apps subscribe to: one per field, one of
-  personal picks, one of conferences and workshops and one with everything;
+  personal picks, one of conferences and workshops and one with everything, and a
+  calendar of the deadlines of conferences and workshops;
 - a **static web site** with the upcoming talks, conferences and workshops, filters
   by field, source and kind, and full-text search;
 - a **weekly digest**, a GitHub issue opened every Monday morning (Pacific time).
@@ -289,9 +290,9 @@ day. The schedule follows daylight saving time.
    two sources) and drop what is not an academic talk.
 3. Tag each event with its fields, by rules and, when a credential is configured, with
    the help of an LLM; score the picks.
-4. Write `data/`, the ten feeds and the data of the web site, then check the output:
-   a secret scan and the charset rule of `data/`. When a check fails, the run ends
-   with exit status 3 and nothing is committed or deployed.
+4. Write `data/`, the ten feeds, `deadlines.ics` and the data of the web site, then
+   check the output: a secret scan and the charset rule of `data/`. When a check
+   fails, the run ends with exit status 3 and nothing is committed or deployed.
 5. Validate the data and the feeds (`seminars validate`), commit `data/` as
    `github-actions[bot]` with the message `chore(data): daily update YYYY-MM-DD`,
    build the site (`seminars build-site`) and deploy it to GitHub Pages.
@@ -392,7 +393,8 @@ record test fixtures with the polite client, and the charset rule.
 
 ```
 config/            settings, LLM settings, fields, interests, sources.d/ (one file per group)
-data/              the committed data: events, stable ids, health, last run, LLM cache, archive
+data/              the committed data: events, deadlines, stable ids, health, last run, LLM
+                   cache, archive
 docs/              documentation in English and Chinese
 locales/           every text of the web site and the digest (en, zh-CN)
 scripts/           check_ascii.py, set-llm-credential.sh

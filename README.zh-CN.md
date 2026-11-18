@@ -5,7 +5,7 @@
 每天从公开网页收集 Stanford、SLAC、CZ Biohub 及周边其他研究机构的学术
 seminar、talk 和 colloquium，以及湾区的会议和研讨会，以三种形式发布：
 
-- **日历订阅**（ICS），可以在日历应用里订阅：每个领域一个、个人精选一个、会议和研讨会一个、全部一个；
+- **日历订阅**（ICS），可以在日历应用里订阅：每个领域一个、个人精选一个、会议和研讨会一个、全部一个，另有一个会议和研讨会截止日期的日历；
 - 一个**静态网站**，列出即将举行的报告、会议和研讨会，可以按领域、来源和类型过滤，支持全文搜索；
 - **每周摘要**：每周一早上（太平洋时间）开一个 GitHub issue。
 
@@ -233,7 +233,7 @@ workflow `.github/workflows/update.yml` 每天太平洋时间 04:23 运行，10:
    规则（indico.slac.stanford.edu 上的三个 SLAC 数据源：理论 seminar、实验 seminar 和 workshop；以及 calendar.google.com 上 Chemical and Systems Biology 的日历）；其他规则照旧。
 2. 把每个数据源的内容转成事件，去掉重复（同一个报告被两个来源列出），去掉不是学术报告的条目。
 3. 给每个事件标注领域，靠规则；配置了凭证时再借助 LLM；然后计算精选分数。
-4. 写出 `data/`、10 个 feed 和网站数据，然后检查输出：secret 扫描和 `data/` 的字符集规则。
+4. 写出 `data/`、10 个 feed、`deadlines.ics` 和网站数据，然后检查输出：secret 扫描和 `data/` 的字符集规则。
    有任何一项不通过，这次运行以 exit status 3 结束，什么都不提交、不部署。
 5. 校验数据和 feed（`seminars validate`），以 `github-actions[bot]` 的身份提交 `data/`，
    提交信息是 `chore(data): daily update YYYY-MM-DD`，构建网站（`seminars build-site`），
@@ -323,7 +323,8 @@ uv run --extra browser pytest -m browser
 
 ```
 config/            settings, LLM settings, fields, interests, sources.d/ (one file per group)
-data/              the committed data: events, stable ids, health, last run, LLM cache, archive
+data/              the committed data: events, deadlines, stable ids, health, last run, LLM
+                   cache, archive
 docs/              documentation in English and Chinese
 locales/           every text of the web site and the digest (en, zh-CN)
 scripts/           check_ascii.py, set-llm-credential.sh
