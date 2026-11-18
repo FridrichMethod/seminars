@@ -25,7 +25,9 @@ The stored events and the events of the run are compared by uid:
 * a stored event that the run did not deliver is handled by what is known
   about it:
 
-  - it starts before the window: it moves to the archive;
+  - it ended before the window starts (an event without an end: it
+    started before the window): it moves to the archive. A meeting of
+    several weeks that is still running stays;
   - every source it came from is disabled or no longer configured, and it
     has started already: it moves to the archive as well, now;
   - the run itself excluded it (a filter rule, out of scope): it is
@@ -60,6 +62,7 @@ from datetime import UTC, datetime
 from typing import Any, Final
 
 from seminars.models import Event, TimeWindow
+from seminars.pipeline.meetings import has_not_ended_before
 
 UNTRACKED_FIELDS: Final = frozenset(
     {
@@ -226,7 +229,9 @@ def reconcile(
             continue
         keys = sources.live_keys(stored)
         current = stored if keys in (stored.source_ids, []) else stored.evolve(source_ids=keys)
-        if stored.start < window.start or (not keys and stored.start < moment):
+        if not has_not_ended_before(stored.start, stored.end, window.start) or (
+            not keys and stored.start < moment
+        ):
             archived.append(stored)
         elif stored.uid in excluded_uids or not keys:
             removed += 1

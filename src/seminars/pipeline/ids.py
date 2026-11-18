@@ -12,8 +12,10 @@ that hold:
    * the address of its own detail page: ``<source id>:url:<address>``. A
      page counts as the detail page of an event only when no other draft
      of the same source and run points at it and it is not one of the
-     addresses the source itself is fetched from. A page that lists a
-     whole series would otherwise make all its talks one event;
+     addresses the source itself is fetched from or the front page of a
+     site. A page that lists a whole series would otherwise make all its
+     talks one event, and the front page of a conference site is that of
+     every edition;
    * the local day of the start plus the first speaker, or else the title,
      or else the time of day: ``<source id>:day:<date>:<words>``. The
      words are ASCII (``slug``): accents are folded, a Latin letter without
@@ -171,6 +173,16 @@ def shared_urls(drafts: Iterable[EventDraft], source: SourceConfig) -> frozenset
     return frozenset(repeated | {canonical_url(url) for url in own})
 
 
+def is_site_root(url: str) -> bool:
+    """Whether ``url`` is the front page of a site (no path), which is no event's own page.
+
+    A conference site of one edition ("https://iclr.cc/") is the address
+    of every later edition as well; as a key it would hand the uid of one
+    edition on to the next.
+    """
+    return not urlsplit(url).path.strip("/")
+
+
 def draft_key(
     draft: EventDraft,
     *,
@@ -189,8 +201,9 @@ def draft_key(
     native = safe_native_id(draft.native_id or "", is_secret)
     if native:
         return source_key(draft.source_id, native)
-    if draft.url and canonical_url(draft.url) not in shared and not is_secret(draft.url):
-        return source_key(draft.source_id, URL_KEY_PREFIX + canonical_url(draft.url))
+    page = canonical_url(draft.url) if draft.url else None
+    if page and page not in shared and not is_site_root(page) and not is_secret(draft.url or ""):
+        return source_key(draft.source_id, URL_KEY_PREFIX + page)
     words = slug(speaker or "") or slug(title or "") or start.strftime(TIME_OF_DAY_FORMAT)
     return source_key(draft.source_id, f"{DAY_KEY_PREFIX}{start.date().isoformat()}:{words}")
 

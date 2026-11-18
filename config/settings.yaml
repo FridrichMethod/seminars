@@ -15,6 +15,11 @@ window:
   days_back: 14
   days_ahead: 120
 
+# Conferences and long workshops of the sources with meeting_horizon: true are
+# kept up to this many local days ahead; their talks keep the window above.
+meetings:
+  days_ahead: 365
+
 # Polite fetching. Interval per host = max(min_interval_seconds, robots.txt Crawl-delay).
 http:
   user_agent: seminars-bot/1.0 (+https://fridrichmethod.github.io/seminars/)

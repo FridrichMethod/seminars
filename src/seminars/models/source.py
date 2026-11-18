@@ -114,6 +114,12 @@ class SourceConfig(Model):
     * ``llm_fallback``: allow the LLM page extractor when rule-based parsing
       yields nothing or fails. Always on for ``adapter: llm_page``, whose
       adapter never yields anything itself.
+    * ``meeting_horizon``: keep the meetings of this source (conferences and
+      long workshops, ``seminars.models.is_meeting_span``) that start up to
+      ``meetings.days_ahead`` of config/settings.yaml ahead instead of only
+      ``window.days_ahead``; its talks keep the usual window. Such a source
+      is also fetched with the longer window. Meant for the few sources
+      that announce meetings months ahead.
     * ``ignore_robots``: hosts of this source whose robots.txt ``Disallow``
       rules are not followed when this source is fetched (see
       ``PoliteClient.ignoring_robots_on``). Each one is a host of ``url`` /
@@ -147,6 +153,7 @@ class SourceConfig(Model):
     timezone: TimezoneName = DEFAULT_TIMEZONE
     aggregator: bool = False
     llm_fallback: bool = False
+    meeting_horizon: bool = False
     ignore_robots: list[HostName] = []
     params: dict[str, Any] = {}
     research: ResearchInfo | None = None

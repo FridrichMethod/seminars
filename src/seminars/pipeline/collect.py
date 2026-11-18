@@ -290,13 +290,19 @@ def fetch_sources(
     timer: Timer,
     limit: float = SOURCE_FETCH_LIMIT_SECONDS,
     workers: int = MAX_FETCH_WORKERS,
+    meeting_window: TimeWindow | None = None,
 ) -> list[Fetched]:
-    """Fetch every source, several at a time; the result is in the order of ``sources``."""
+    """Fetch every source, several at a time; the result is in the order of ``sources``.
+
+    A source with ``meeting_horizon`` is fetched with ``meeting_window`` when
+    one is given, every other source with ``window``.
+    """
     if not sources:
         return []
 
     def fetch(source: SourceConfig) -> Fetched:
-        return _fetch(source, http_for, window, timer, limit)
+        chosen = meeting_window if source.meeting_horizon and meeting_window else window
+        return _fetch(source, http_for, chosen, timer, limit)
 
     with ThreadPoolExecutor(
         max_workers=max(1, min(workers, len(sources))), thread_name_prefix="fetch"
@@ -490,7 +496,14 @@ def collect_sources(
     limit: float = SOURCE_FETCH_LIMIT_SECONDS,
 ) -> list[SourceOutcome]:
     """Run the whole stage for ``sources``; one outcome per source, in their order."""
-    fetched = fetch_sources(sources, http_for, window=context.window, timer=timer, limit=limit)
+    fetched = fetch_sources(
+        sources,
+        http_for,
+        window=context.window,
+        timer=timer,
+        limit=limit,
+        meeting_window=context.settings.meeting_window_at(context.now),
+    )
     return [
         digest_source(item, context=context, extractor=extractor, timer=timer) for item in fetched
     ]

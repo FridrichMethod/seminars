@@ -9,7 +9,7 @@ from typing import Annotated, Self
 from pydantic import AfterValidator, Field, StringConstraints, model_validator
 
 from seminars.httpurl import DEFAULT_FORBIDDEN_NETWORKS
-from seminars.models import Model, TimeWindow
+from seminars.models import Model, SourceConfig, TimeWindow
 from seminars.models.base import HttpUrlStr, NonEmptyStr, TimezoneName
 
 PositiveInt = Annotated[int, Field(ge=1)]
@@ -33,6 +33,18 @@ class WindowSettings(Model):
 
     days_back: NonNegativeInt = 14
     days_ahead: NonNegativeInt = 120
+
+
+class MeetingSettings(Model):
+    """How far ahead the meetings of a source with ``meeting_horizon`` are kept.
+
+    Conferences and long workshops are announced months before they take
+    place; a source that sets ``meeting_horizon`` keeps them from the start
+    of the window to ``days_ahead`` local days after today (never less than
+    ``window.days_ahead``). Its talks keep the usual window.
+    """
+
+    days_ahead: NonNegativeInt = 365
 
 
 class SiteSettings(Model):
@@ -139,6 +151,7 @@ class Settings(Model):
     site: SiteSettings
     http: HttpSettings
     window: WindowSettings = WindowSettings()
+    meetings: MeetingSettings = MeetingSettings()
     events: EventSettings = EventSettings()
     dedup: DedupSettings = DedupSettings()
     health: HealthSettings = HealthSettings()
@@ -152,3 +165,20 @@ class Settings(Model):
             days_ahead=self.window.days_ahead,
             timezone=self.timezone,
         )
+
+    def meeting_window_at(self, now: datetime) -> TimeWindow:
+        """The window of the meetings of a ``meeting_horizon`` source in a run at ``now``.
+
+        It starts where ``window_at`` starts and ends ``meetings.days_ahead``
+        local days after today, or where ``window_at`` ends if that is later.
+        """
+        return TimeWindow.around(
+            now,
+            days_back=self.window.days_back,
+            days_ahead=max(self.window.days_ahead, self.meetings.days_ahead),
+            timezone=self.timezone,
+        )
+
+    def fetch_window_at(self, now: datetime, source: SourceConfig) -> TimeWindow:
+        """The window ``source`` is fetched with: the meeting window when it has a horizon."""
+        return self.meeting_window_at(now) if source.meeting_horizon else self.window_at(now)

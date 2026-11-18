@@ -35,6 +35,7 @@ def test_schema_has_all_common_keys() -> None:
         "homepage",
         "aggregator",
         "llm_fallback",
+        "meeting_horizon",
         "ignore_robots",
     }
 

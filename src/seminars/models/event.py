@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Annotated, Final, Self
 
 from pydantic import AfterValidator, Field, FiniteFloat, HttpUrl, model_validator
@@ -30,6 +31,31 @@ SortedUrlList = Annotated[list[HttpUrl], AfterValidator(_sorted_unique_urls)]
 
 TBA_TITLE: Final = "TBA"
 """Title of an event whose real title has not been announced yet."""
+
+MEETING_MIN_TIMED_HOURS: Final = 3
+"""The shortest a timed workshop may last and still count as a meeting (``is_meeting_span``)."""
+
+
+def is_meeting_span(
+    event_type: EventType, start: datetime, end: datetime | None, *, all_day: bool
+) -> bool:
+    """Whether an event of this type and these times is a meeting, not a talk.
+
+    A meeting is a conference (a symposium, a summit, a convening), or a
+    workshop that runs over several days or for at least
+    ``MEETING_MIN_TIMED_HOURS`` hours. A one-day all-day workshop (one day
+    of a hackathon or a course that a calendar lists per day) and a
+    workshop of an hour or two (a skills session) are not. ``start`` and
+    ``end`` are those of ``Event``: an all-day event ends at local
+    midnight after its last day, or has no end when it is one day long.
+    """
+    if event_type == "conference":
+        return True
+    if event_type != "workshop" or end is None:
+        return False
+    if all_day:
+        return end - start > timedelta(days=1)
+    return end - start >= timedelta(hours=MEETING_MIN_TIMED_HOURS)
 
 
 class Speaker(Model):
@@ -105,6 +131,11 @@ class Event(Model):
         if self.stream_url is not None and url_has_credential(self.stream_url):
             raise ValueError("stream_url carries a credential; drop it and set is_online instead")
         return self
+
+    @property
+    def is_meeting(self) -> bool:
+        """True for a conference or a long workshop (``is_meeting_span``)."""
+        return is_meeting_span(self.event_type, self.start, self.end, all_day=self.all_day)
 
     @property
     def is_tba(self) -> bool:

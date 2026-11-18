@@ -20,7 +20,17 @@ department that hosts them. Two candidates are the same talk when
   holds the speaker's surname as a word. A host can list a talk by its
   title alone on "/events/breakthroughs/Mehnert.html", while the campus
   calendar announces "Breakthroughs in Cancer: Janice Mehnert, MD", a
-  title that shares no word with the host's.
+  title that shares no word with the host's, or
+* one of them is all day, both start on the same local day, and they
+  point at the same detail page: a meeting that a curated list or its host
+  gives as a whole day and a calendar lists with its hours.
+
+Meetings (conferences and long workshops, ``Event.is_meeting``) are
+compared by title more strictly than talks: two meetings are one by their
+titles only when the folded titles are equal, and a meeting is never one
+with a talk by its title alone. All-day meetings of one day all start at
+midnight, and "ICML 2027" is similar to "ICLR 2027" by any fuzzy measure;
+the opening keynote of a symposium is not the symposium.
 
 Four guards keep unrelated talks apart. "TBA" is never similar to "TBA",
 and a title of a single word ("Seminar") is not compared at all, because
@@ -197,6 +207,8 @@ class _Profile:
     page_words: frozenset[str]  # the folded words of the last part of the address of ``page``
     sources: frozenset[str]  # ids of the sources whose keys the event holds
     native: frozenset[str]  # ids of the sources whose native id the event holds
+    meeting: bool = False  # a conference or a long workshop (``Event.is_meeting``)
+    all_day: bool = False
 
 
 def _detail_page(event: Event, not_pages: Collection[str]) -> str | None:
@@ -266,6 +278,8 @@ def _profile(candidate: Candidate, not_pages: Collection[str]) -> _Profile:
         page_words=_page_words(page),
         sources=_sources_of(event),
         native=frozenset(key.partition(":")[0] for key in event.source_ids if is_native_key(key)),
+        meeting=event.is_meeting,
+        all_day=event.all_day,
     )
 
 
@@ -292,9 +306,23 @@ def _names_one_of(profile: _Profile, names: Collection[str]) -> bool:
 
 
 def _similar_titles(first: _Profile, second: _Profile, threshold: int) -> bool:
+    """Whether two titles are similar enough to make one talk (see the module docstring).
+
+    A meeting is compared strictly: it is the same meeting as another one
+    only by an equal folded title, and never the same as a talk by its
+    title alone. All-day meetings of one day all start at midnight, and
+    "ICML 2027" against "ICLR 2027", or "RECOMB 2027" against
+    "RECOMB-Seq 2027", are similar by any fuzzy measure.
+    """
     if first.title is None or second.title is None:
         return False
+    if first.meeting or second.meeting:
+        return first.meeting and second.meeting and first.title == second.title
     return fuzz.token_set_ratio(first.title, second.title) >= threshold
+
+
+def _same_page(first: _Profile, second: _Profile) -> bool:
+    return first.page is not None and first.page == second.page
 
 
 def _distinct(first: _Profile, second: _Profile) -> bool:
@@ -399,11 +427,21 @@ def _group(
                     break
                 yield first, second
 
+    def day_pairs() -> Iterator[tuple[int, int]]:
+        """Pairs of one local day of which one is all day: a meeting and its timed listing."""
+        for index, first in enumerate(order):
+            for second in order[index + 1 :]:
+                if profiles[second].start.date() != profiles[first].start.date():
+                    break
+                if profiles[first].all_day != profiles[second].all_day:
+                    yield first, second
+
     def titles(first: _Profile, second: _Profile) -> bool:
         return _similar_titles(first, second, settings.title_similarity)
 
-    for matches in (_linked, titles):
-        for first, second in close_pairs():
+    rounds = ((_linked, close_pairs), (_same_page, day_pairs), (titles, close_pairs))
+    for matches, pairs in rounds:
+        for first, second in pairs():
             if matches(profiles[first], profiles[second]) and not (
                 groups.find(first) == groups.find(second) or apart(first, second)
             ):

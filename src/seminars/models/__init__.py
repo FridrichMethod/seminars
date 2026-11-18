@@ -73,7 +73,13 @@ from seminars.models.draft import (
     SpeakerDraft,
     TimeWindow,
 )
-from seminars.models.event import TBA_TITLE, Event, Speaker
+from seminars.models.event import (
+    MEETING_MIN_TIMED_HOURS,
+    TBA_TITLE,
+    Event,
+    Speaker,
+    is_meeting_span,
+)
 from seminars.models.health import (
     HEALTH_HISTORY_LIMIT,
     HealthFile,
@@ -168,6 +174,7 @@ __all__ = [
     "MAX_DRAFT_TIME",
     "MAX_DRAFT_URL",
     "MAX_ROLLOVER",
+    "MEETING_MIN_TIMED_HOURS",
     "PUBLIC_SCHEMA_VERSION",
     "SOURCE_GROUP_PREFIXES",
     "SOURCE_ID_PATTERN",
@@ -248,6 +255,7 @@ __all__ = [
     "event_from_line",
     "event_to_line",
     "feed_path",
+    "is_meeting_span",
     "load_event_lines",
     "load_events",
     "load_json",
