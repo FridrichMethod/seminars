@@ -2,14 +2,21 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+import shutil
+from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
+
+import pytest
+from typer.testing import CliRunner
 
 from deadline_samples import SYMPOSIUM_DATES_URL, make_deadline
 from factories import make_event
 from fakes import FakeIssueClient
-from seminars.config import AppConfig
-from seminars.models import Deadline, HealthFile
+from seminars import cli
+from seminars.config import AppConfig, load_config
+from seminars.models import Deadline, HealthFile, dump_deadlines
 from seminars.outputs.digest import DEADLINE_DAYS, DEADLINE_ROWS, publish_digest, render_digest
 from test_digest import (
     MONDAY_NOON,
@@ -154,6 +161,43 @@ class TestPublish:
         )
         assert outcome.action == "dry_run"
         assert HEADING in outcome.document.body
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture
+def project_with_a_deadline_today(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A scratch project whose data/ holds one deadline, on the local day of the test."""
+    root = tmp_path / "project"
+    (root / "config" / "sources.d").mkdir(parents=True)
+    shutil.copy(REPO_ROOT / "config" / "settings.yaml", root / "config" / "settings.yaml")
+    shutil.copytree(REPO_ROOT / "locales", root / "locales")
+    for name in ("GITHUB_TOKEN", "GITHUB_REPOSITORY", "GITHUB_REPOSITORY_OWNER"):
+        monkeypatch.delenv(name, raising=False)
+    zone = ZoneInfo(load_config(root, env={}).settings.timezone)
+    today = datetime.now(zone).date()
+    deadline = make_deadline(
+        date=today, edition_start=today, edition_end=today + timedelta(days=30)
+    )
+    (root / "data").mkdir()
+    (root / "data" / "deadlines.json").write_text(dump_deadlines([deadline]), encoding="utf-8")
+    monkeypatch.chdir(root)
+    return root
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "seminars digest (src/seminars/cli.py) does not hand state.deadlines to the "
+        "publisher yet; the integrator adds deadlines=state.deadlines to that call"
+    ),
+)
+@pytest.mark.usefixtures("project_with_a_deadline_today")
+def test_the_digest_command_lists_the_stored_deadlines() -> None:
+    result = CliRunner().invoke(cli.app, ["digest", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    assert f"\n## {HEADING}\n" in result.stdout_bytes.decode("utf-8")
 
 
 LOCALE_NOTE = (
