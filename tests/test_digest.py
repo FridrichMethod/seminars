@@ -659,6 +659,32 @@ class TestMeetings:
         first_issue = render(app_config, events)
         assert listed_meetings(first_issue)[-1] == "Meeting last-day"
 
+    def test_a_meeting_with_hours_lasts_until_its_end(self, app_config: AppConfig) -> None:
+        def timed(uid: str, start: datetime, end: datetime, event_type: str) -> Event:
+            title = f"Meeting {uid}"
+            return make_event(uid=uid, title=title, event_type=event_type, start=start, end=end)
+
+        indico = (datetime(2026, 12, 9, 16, 30, tzinfo=UTC), datetime(2026, 12, 11, 1, tzinfo=UTC))
+        events = [
+            timed("over", at(11, 13, 9), at(11, 15, 17), "conference"),
+            timed("weekend", at(11, 14, 9), at(11, 17, 17), "conference"),
+            timed("midweek", at(11, 18, 9), at(11, 20, 17), "workshop"),
+            timed("evening", at(11, 21, 18), at(11, 22, 0), "conference"),
+            timed("indico", *indico, "workshop"),
+        ]
+        late_talk = make_event(
+            uid="late", title="Late talk", start=at(11, 15, 22), end=at(11, 16, 1)
+        )
+        body = render(app_config, [*events, late_talk])
+        (table,) = section(body, MEETINGS)
+        assert [cells[:3] for cells in rows(table)] == [
+            ["2026-11-14 - 2026-11-17", "09:00-17:00", "Meeting weekend<br>Bioengineering Seminar"],
+            ["2026-11-18 - 2026-11-20", "09:00-17:00", "Meeting midweek<br>Bioengineering Seminar"],
+            ["2026-11-21", "18:00-00:00", "Meeting evening<br>Bioengineering Seminar"],
+            ["2026-12-09 - 2026-12-10", "08:30-17:00", "Meeting indico<br>Bioengineering Seminar"],
+        ]
+        assert "Late talk" not in body  # a talk counts for the day it starts
+
     def test_no_meeting(self, app_config: AppConfig) -> None:
         body = render(app_config, [make_event()], week_start=date(2026, 11, 30))
         assert listed_meetings(body) == [

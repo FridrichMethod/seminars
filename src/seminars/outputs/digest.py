@@ -230,9 +230,14 @@ def _speaker(speaker: Speaker) -> str:
 
 
 def _days(event: Event, zone: ZoneInfo) -> tuple[date, date]:
-    """First and last local day of an event; a timed event counts for the day it starts."""
+    """First and last local day of an event.
+
+    An all-day event and a meeting, with hours or without, last until their end, which
+    is exclusive: an end at local midnight closes the day before. Any other timed event
+    counts for the day it starts.
+    """
     first = event.start.astimezone(zone).date()
-    if not event.all_day or event.end is None:
+    if event.end is None or not (event.all_day or event.is_meeting):
         return first, first
     end = event.end.astimezone(zone)
     last = end.date() - _ONE_DAY if end.time() == time.min else end.date()
