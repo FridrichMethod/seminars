@@ -15,35 +15,35 @@
     },
     "picks": {
       "name": "学术报告 - 精选",
-      "description": "符合个人兴趣规则的报告。"
+      "description": "符合个人兴趣规则的报告、会议和研讨会。"
     },
     "math": {
       "name": "学术报告 - 数学",
-      "description": "纯数学、应用数学和统计方向的报告。"
+      "description": "纯数学、应用数学和统计方向的报告、会议和研讨会。"
     },
     "cs": {
       "name": "学术报告 - 计算机科学",
-      "description": "计算机科学方向的报告。"
+      "description": "计算机科学方向的报告、会议和研讨会。"
     },
     "ai-ml": {
       "name": "学术报告 - AI/机器学习",
-      "description": "人工智能和机器学习方向的报告。"
+      "description": "人工智能和机器学习方向的报告、会议和研讨会。"
     },
     "chem": {
       "name": "学术报告 - 化学",
-      "description": "化学和化学工程方向的报告。"
+      "description": "化学和化学工程方向的报告、会议和研讨会。"
     },
     "bio": {
       "name": "学术报告 - 生物",
-      "description": "生物、生物工程、结构生物学和遗传学方向的报告。"
+      "description": "生物、生物工程、结构生物学和遗传学方向的报告、会议和研讨会。"
     },
     "physics": {
       "name": "学术报告 - 物理",
-      "description": "物理和应用物理方向的报告。"
+      "description": "物理和应用物理方向的报告、会议和研讨会。"
     },
     "med": {
       "name": "学术报告 - 医学",
-      "description": "医学和生物医学研究方向的报告。"
+      "description": "医学和生物医学研究方向的报告、会议和研讨会。"
     },
     "conferences": {
       "name": "学术报告 - 会议和研讨会",

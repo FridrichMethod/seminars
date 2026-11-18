@@ -24,7 +24,7 @@ seminar、talk 和 colloquium，以三种形式发布：
 | Feed | 内容 | 订阅 |
 |---|---|---|
 | `all` | 从 Stanford、SLAC、CZ Biohub 及周边研究机构收集到的全部报告、会议和研讨会 | [all.ics](https://fridrichmethod.github.io/seminars/feeds/all.ics) |
-| `picks` | 符合个人兴趣规则（`config/interests.yaml`）的报告 | [picks.ics](https://fridrichmethod.github.io/seminars/feeds/picks.ics) |
+| `picks` | 符合个人兴趣规则（`config/interests.yaml`）的报告、会议和研讨会 | [picks.ics](https://fridrichmethod.github.io/seminars/feeds/picks.ics) |
 | `math` | 纯数学、应用数学和统计 | [math.ics](https://fridrichmethod.github.io/seminars/feeds/math.ics) |
 | `cs` | 计算机科学 | [cs.ics](https://fridrichmethod.github.io/seminars/feeds/cs.ics) |
 | `ai-ml` | 人工智能和机器学习 | [ai-ml.ics](https://fridrichmethod.github.io/seminars/feeds/ai-ml.ics) |

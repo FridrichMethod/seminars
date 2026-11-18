@@ -29,7 +29,7 @@ other sources, up to 120 days ahead.
 | Feed | Contents | Subscribe |
 |---|---|---|
 | `all` | Every talk, conference and workshop collected from Stanford, SLAC, CZ Biohub and nearby institutes | [all.ics](https://fridrichmethod.github.io/seminars/feeds/all.ics) |
-| `picks` | Talks that match the personal interest rules (`config/interests.yaml`) | [picks.ics](https://fridrichmethod.github.io/seminars/feeds/picks.ics) |
+| `picks` | Talks, conferences and workshops that match the personal interest rules (`config/interests.yaml`) | [picks.ics](https://fridrichmethod.github.io/seminars/feeds/picks.ics) |
 | `math` | Pure mathematics, applied mathematics and statistics | [math.ics](https://fridrichmethod.github.io/seminars/feeds/math.ics) |
 | `cs` | Computer science | [cs.ics](https://fridrichmethod.github.io/seminars/feeds/cs.ics) |
 | `ai-ml` | Artificial intelligence and machine learning | [ai-ml.ics](https://fridrichmethod.github.io/seminars/feeds/ai-ml.ics) |
