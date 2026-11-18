@@ -62,6 +62,7 @@ class TestParseMoment:
         ["2027-01-29 23:59 UTC-12", "2027-01-29T23:59:00 AoE", "Jan 29, 2027 23:59 AoE"],
     )
     def test_a_zone_in_words_is_left_to_normalization(self, text: str) -> None:
-        # No ISO 8601: jsonld keeps the text, rss too when it is no RFC 822 date either,
-        # and normalization reads it (seminars.pipeline.times.parse_moment).
+        # No ISO 8601: jsonld keeps the text for normalization to read
+        # (seminars.pipeline.times.parse_moment). rss tries RFC 822 first, and
+        # email.utils reads a zone it does not know as wall time of the source.
         assert parse_moment(text) is None
