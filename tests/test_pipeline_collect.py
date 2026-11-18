@@ -219,7 +219,7 @@ class TestIsolation:
         window = TimeWindow.around(
             REFERENCE_NOW, days_back=1, days_ahead=1, timezone="America/Los_Angeles"
         )
-        assert fetch_sources([], no_http, window=window, timer=FakeClock()) == []
+        assert fetch_sources([], no_http, window_for=lambda _: window, timer=FakeClock()) == []
 
     def test_a_fetch_without_payload_or_error_is_a_failure(self, context: NormalizeContext) -> None:
         outcome = digest_source(
@@ -247,20 +247,22 @@ class TestMeetingHorizon:
             )
             assert fake_adapter.windows == [expected]
 
-    def test_fetch_sources_chooses_the_window_per_source(self, fake_adapter: FakeAdapter) -> None:
+    def test_fetch_sources_fetches_each_source_with_its_window(
+        self, fake_adapter: FakeAdapter
+    ) -> None:
         window = make_window()
         meetings = make_window(days_ahead=365)
         sources = [source("sites-a"), source("sites-b", meeting_horizon=True), source("sites-c")]
-        fetched = fetch_sources(
-            sources, no_http, window=window, timer=FakeClock(), meeting_window=meetings
-        )
+
+        def window_for(chosen: SourceConfig) -> TimeWindow:
+            return meetings if chosen.meeting_horizon else window
+
+        fetched = fetch_sources(sources, no_http, window_for=window_for, timer=FakeClock())
         assert [item.payload.window for item in fetched if item.payload] == [
             window,
             meetings,
             window,
         ]
-        alone = fetch_sources(sources[1:2], no_http, window=window, timer=FakeClock())
-        assert [item.payload.window for item in alone if item.payload] == [window]
 
     def test_a_flagged_source_keeps_a_meeting_far_ahead_and_is_ok_with_it(
         self, fake_adapter: FakeAdapter, context: NormalizeContext

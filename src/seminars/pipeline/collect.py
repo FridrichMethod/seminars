@@ -86,6 +86,7 @@ from collections import Counter
 from collections.abc import Callable, Collection, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from functools import partial
 from statistics import median
 from typing import Final
 
@@ -286,23 +287,21 @@ def fetch_sources(
     sources: Sequence[SourceConfig],
     http_for: HttpFactory,
     *,
-    window: TimeWindow,
+    window_for: Callable[[SourceConfig], TimeWindow],
     timer: Timer,
     limit: float = SOURCE_FETCH_LIMIT_SECONDS,
     workers: int = MAX_FETCH_WORKERS,
-    meeting_window: TimeWindow | None = None,
 ) -> list[Fetched]:
     """Fetch every source, several at a time; the result is in the order of ``sources``.
 
-    A source with ``meeting_horizon`` is fetched with ``meeting_window`` when
-    one is given, every other source with ``window``.
+    ``window_for`` gives the window each source is fetched with
+    (``Settings.fetch_window_at`` in a run).
     """
     if not sources:
         return []
 
     def fetch(source: SourceConfig) -> Fetched:
-        chosen = meeting_window if source.meeting_horizon and meeting_window else window
-        return _fetch(source, http_for, chosen, timer, limit)
+        return _fetch(source, http_for, window_for(source), timer, limit)
 
     with ThreadPoolExecutor(
         max_workers=max(1, min(workers, len(sources))), thread_name_prefix="fetch"
@@ -495,14 +494,18 @@ def collect_sources(
     timer: Timer,
     limit: float = SOURCE_FETCH_LIMIT_SECONDS,
 ) -> list[SourceOutcome]:
-    """Run the whole stage for ``sources``; one outcome per source, in their order."""
+    """Run the whole stage for ``sources``; one outcome per source, in their order.
+
+    Each source is fetched with the window of ``Settings.fetch_window_at``
+    at ``context.now``: the meeting window for a source with
+    ``meeting_horizon``, the window of the run for every other one.
+    """
     fetched = fetch_sources(
         sources,
         http_for,
-        window=context.window,
+        window_for=partial(context.settings.fetch_window_at, context.now),
         timer=timer,
         limit=limit,
-        meeting_window=context.settings.meeting_window_at(context.now),
     )
     return [
         digest_source(item, context=context, extractor=extractor, timer=timer) for item in fetched
