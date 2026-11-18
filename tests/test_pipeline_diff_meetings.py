@@ -205,6 +205,16 @@ class TestTheSourceOfTheWholeDaysNoLongerListsIt:
         assert times(found) == (DAY, DAY + timedelta(days=2), True)
         assert result.changed == 1
 
+    def test_whole_days_fewer_than_the_hours_that_are_gone_replace_them(self) -> None:
+        # The host listed the meeting with its hours over three days, the registry entry
+        # that is left gives its first day: the stored hours are no days to keep.
+        span = {"start": MORNING, "end": MORNING + timedelta(days=2, hours=8), "all_day": False}
+        whole = entry(end=None)
+        result = reconciled([meeting(**span)], [whole])
+        (found,) = result.events
+        assert times(found) == (DAY, None, True)
+        assert result.changed == 1
+
     def test_an_all_day_event_that_is_no_meeting_takes_the_listing(self) -> None:
         # An exhibition of three days and a conference of a day on its page.
         before = meeting(event_type="other")
