@@ -51,13 +51,7 @@ to ccfddl, as a word of the series or the id of an edition names them (in lower 
 MAIN_TRACK_KINDS: Final = frozenset({"abstract", "paper"})
 """Kinds of a milestone that would be a main-track submission; a workshop has its own."""
 
-AWAITING_THE_OWNER: Final = {
-    "naacl-2027": (
-        "its system demonstration and commitment deadlines (kind paper) are deadlines of "
-        "the main conference; the owner decides whether they leave "
-        "config/sources.d/conferences.yaml"
-    ),
-}
+AWAITING_THE_OWNER: Final[dict[str, str]] = {}
 """Editions of the committed registry that break the rule of the main tracks until the
 owner decides; the test of such an edition is expected to fail (strictly, so the entry
 here goes once the edition follows the rule)."""

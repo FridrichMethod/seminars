@@ -92,25 +92,9 @@ sources:
           event_type: conference
           status: confirmed
           verified: {date: 2026-11-18, url: "https://2027.naacl.org/"}
-          milestones:
-            - kind: paper
-              date: 2026-12-04
-              time: "23:59"
-              zone: AoE
-              label: System demonstration deadline
-            - kind: paper
-              date: 2026-12-23
-              time: "23:59"
-              zone: AoE
-              label: Commitment deadline
-            - {kind: notification, date: 2027-02-10, label: Notification of acceptance}
-            - kind: other
-              date: 2027-03-03
-              time: "23:59"
-              zone: AoE
-              label: Camera-ready deadline
           notes:
             - The page names no venue.
+            - No milestones - the deadlines of the main conference are left to ccfddl (README).
             - The url is the front page of the edition's site, so no listing joins the entry.
 
         - id: kdd-2027
