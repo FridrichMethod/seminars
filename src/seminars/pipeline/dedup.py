@@ -909,7 +909,7 @@ def adopt_stored_uids(
     First, a talk that shared its day key with a later talk of its day
     gets its uid back (``seminars.pipeline.ids.reclaim_timed_keys``).
     Then a candidate whose uid is not stored takes the uid of a stored
-    event that no candidate of this run claims (an orphan), in five steps:
+    event that no candidate of this run claims (an orphan), in six steps:
 
     1. an orphan that is the same talk by the rules of de-duplication
        (start within the limit and a similar title, a shared speaker or the
