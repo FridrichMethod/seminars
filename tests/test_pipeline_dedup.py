@@ -306,6 +306,76 @@ class TestMeetings:
                     "seminar",
                 ]
 
+    def test_a_third_listing_does_not_join_the_keynote_to_the_symposium(self) -> None:
+        # A listing of the keynote without an end links the page of the symposium and
+        # names the keynote speaker: by itself it is one with either of them, but the
+        # keynote is a part of the symposium, and a group that holds the one never takes in
+        # the other. Whether the third listing goes with the symposium or with the keynote
+        # depends on their values alone.
+        jane = [Speaker(name="Jane Doe")]
+        symposium = timed_listing(
+            "a", "AIMI Symposium 2027", sources=("localist-stanford",), url=MEETING_PAGE
+        )
+        keynote = timed_listing(
+            "b",
+            "Opening keynote: Foundation models for medicine",
+            sources=("sites-aimi",),
+            event_type="seminar",
+            speakers=jane,
+            url=MEETING_PAGE,
+            end=MORNING + timedelta(hours=1),
+        )
+        listing = timed_listing(
+            "c",
+            "Foundation models for medicine",
+            sources=("custom-sail",),
+            event_type="seminar",
+            speakers=jane,
+            url=MEETING_PAGE,
+            end=None,
+        )
+        assert uids(run(symposium, listing)) == ["a"]
+        assert uids(run(keynote, listing)) == ["b"]
+        result = run(symposium, keynote, listing)
+        for order in itertools.permutations((symposium, keynote, listing)):
+            assert run(*order) == result
+        assert len(result.candidates) == 2
+        (meeting, part) = sorted(result.candidates, key=lambda c: c.event.event_type)
+        assert (meeting.event.event_type, part.event.event_type) == ("conference", "seminar")
+        assert "sites-aimi:b" in part.event.source_ids
+        assert "localist-stanford:a" in meeting.event.source_ids
+
+    def test_a_listing_of_the_hours_of_a_day_is_no_part_that_keeps_its_copy_out(self) -> None:
+        # The calendar lists the first day of a meeting of two days on the meeting's page
+        # and joins it by the day rule; a host lists the same day under the same title on
+        # a page of its own. That copy ends before the meeting, but it gives the hours of
+        # one of its days, so it is that day, not a part of the meeting.
+        title = "QBI Symposium 2027 - Day 1"
+        whole = meeting("a", "QBI Symposium 2027", days=2, url=MEETING_PAGE)
+        day = timed_listing(
+            "b", title, sources=("localist-stanford",), event_type="seminar", url=MEETING_PAGE
+        )
+        copy = timed_listing(
+            "c", title, sources=("sites-c",), event_type="seminar", url=f"{MEETING_PAGE}/day-1"
+        )
+        assert uids(run(whole, copy)) == ["a", "c"]
+        for order in itertools.permutations((whole, day, copy)):
+            result = run(*order)
+            (merged,) = result.candidates
+            assert (merged.event.uid, merged.event.all_day) == ("a", True)
+            assert result.absorbed == {"b": "a", "c": "a"}
+
+    def test_the_title_of_the_meeting_makes_a_listing_that_ends_first_the_meeting(self) -> None:
+        # A host gives the symposium a default hour; its title is that of the meeting.
+        title = "Knight Initiative Winter 2027 Symposium"
+        symposium = timed_listing("a", title, sources=("localist-stanford",))
+        hour = timed_listing(
+            "b", title, sources=("sites-b",), event_type="seminar", end=MORNING + timedelta(hours=1)
+        )
+        for order in ((symposium, hour), (hour, symposium)):
+            (merged,) = run(*order).candidates
+            assert (merged.event.uid, merged.event.event_type) == ("a", "conference")
+
     def test_a_talk_that_lasts_as_long_as_the_meeting_is_linked_by_its_page(self) -> None:
         # The host lists the symposium as a talk with another title, the calendar as a
         # conference; both give the same hours and the same page.

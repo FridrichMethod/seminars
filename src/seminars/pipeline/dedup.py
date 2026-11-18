@@ -38,12 +38,19 @@ similar to "AIMI Symposium" as well, and the keynote is not the
 symposium. The same title at about the same time is one listing, though,
 even when only one of them is a meeting: a calendar that gives the hours
 of a symposium makes it a conference by the title rule, while a host that
-gives only its start leaves it a talk. And a listing with hours that ends
-before a meeting does is a part of it, such as its opening keynote at the
-start of the symposium: the page of the meeting that it links, or a
-speaker of the meeting that it names, does not make it the meeting. Such
-a link joins a meeting and a talk only when the talk has no end or ends
-no earlier than the meeting.
+gives only its start leaves it a talk. And within the time limit, a
+listing with hours that is no meeting and ends before a meeting does is a
+part of it, such as its opening keynote at the start of the symposium:
+the page of the meeting that it links, or a speaker of the meeting that
+it names, does not make it the meeting. Such a link joins a meeting and
+a talk only when the talk has no end or ends no earlier than the meeting.
+Nor are a group with a meeting and a group with a part of it joined
+when a third listing is one with both (the keynote without an end on
+another calendar, which links the page and names the speaker). A part
+with the title of the meeting is the meeting all the same, and a listing
+that gives the hours of one of the days of an all-day meeting is no part
+of it: on the days of a meeting the day rule above joins whole days and
+their hours, whatever parts the two groups hold.
 
 Four guards keep unrelated talks apart. "TBA" is never similar to "TBA",
 and a title of a single word ("Seminar") is not compared at all, because
@@ -511,11 +518,12 @@ def _group(
     of the talks so formed point at, from one source and about the same
     time, is no detail page (``_shared_pages``). A similar pair joins unless a
     member of one group and a member of the other are distinct talks
-    (``_distinct``). Pairs linked by a page or a speaker are joined before
-    pairs that only have similar titles, so that a listing goes with the
-    talk of its speaker; within each round, pairs are taken in an order
-    fixed by their values, so which pair is refused does not depend on the
-    order of the input.
+    (``_distinct``) or, outside the round of whole days and their hours, one
+    of them is a part of the other, a meeting (``part_apart``). Pairs linked
+    by a page or a speaker are joined before pairs that only have similar
+    titles, so that a listing goes with the talk of its speaker; within
+    each round, pairs are taken in an order fixed by their values, so which
+    pair is refused does not depend on the order of the input.
     """
     groups = _Groups(len(candidates))
     seen: dict[str, int] = {}
@@ -529,9 +537,27 @@ def _group(
     profiles = [_profile(candidate, not_pages) for candidate in candidates]
     order = _canonical_order(candidates, profiles)
 
-    def apart(first: int, second: int) -> bool:
+    def titles(first: _Profile, second: _Profile) -> bool:
+        return _similar_titles(first, second, settings.title_similarity)
+
+    def part_apart(one: _Profile, other: _Profile) -> bool:
+        """Whether one of two members is a part of the other, a meeting (see the module).
+
+        A listing with the title of the meeting is none, and neither is one
+        that gives the hours of one of the days of an all-day meeting
+        (``_days_and_hours``): a copy of a listing of a day that the meeting
+        took in by its page is that day too, with or without the page.
+        """
+        return (
+            _part_of_meeting(one, other)
+            and not titles(one, other)
+            and not _days_and_hours(one, other)
+        )
+
+    def apart(first: int, second: int, *, parts: bool) -> bool:
         return any(
             _distinct(profiles[one], profiles[other])
+            or (parts and part_apart(profiles[one], profiles[other]))
             for one in groups.group_of(first)
             for other in groups.group_of(second)
         )
@@ -556,14 +582,15 @@ def _group(
                 if _days_and_hours(whole, profiles[second]):
                     yield first, second
 
-    def titles(first: _Profile, second: _Profile) -> bool:
-        return _similar_titles(first, second, settings.title_similarity)
-
-    rounds = ((_strong_link, close_pairs), (_same_page, day_pairs), (titles, close_pairs))
-    for matches, pairs in rounds:
+    rounds = (
+        (_strong_link, close_pairs, True),
+        (_same_page, day_pairs, False),
+        (titles, close_pairs, True),
+    )
+    for matches, pairs, parts in rounds:
         for first, second in pairs():
             if matches(profiles[first], profiles[second]) and not (
-                groups.find(first) == groups.find(second) or apart(first, second)
+                groups.find(first) == groups.find(second) or apart(first, second, parts=parts)
             ):
                 groups.union(first, second)
     return [[candidates[position] for position in group] for group in groups.members()]
