@@ -98,11 +98,13 @@ time, and none reads the clock.
    ahead; its talks keep the window. A seminar, lecture or other event that is all day or
    at least 3 hours long and whose title names a meeting (a symposium, conference, summit,
    workshop, boot camp or summer school, among others) becomes a conference or a workshop
-   first, and a meeting with times of day over more than a week keeps its days as an
-   all-day event. Every text is cleaned (markup, the charset rule, length), loses meeting
-   credentials, e-mail addresses and telephone numbers (`pipeline/privacy.py`) and
-   credential-shaped strings (`pipeline/secret_scan.py`). The speaker line is split into
-   people (`pipeline/speakers.py`); a draft without speakers gets the people its title
+   first. A meeting with times of day over more than a week keeps its days as an all-day
+   event when its hours are those of a meeting: its end lies at least 3 hours after its
+   start in the day, or both are midnight; a weekly talk of an hour listed from its first
+   to its last week stays a talk. Every text is cleaned (markup, the charset rule, length),
+   loses meeting credentials, e-mail addresses and telephone numbers (`pipeline/privacy.py`)
+   and credential-shaped strings (`pipeline/secret_scan.py`). The speaker line is split
+   into people (`pipeline/speakers.py`); a draft without speakers gets the people its title
    names in a common form (`pipeline/title_speakers.py`). The event gets its source key and
    its uid (`pipeline/ids.py`).
 4. **Filter** (`classify/filters.py`). Phrases of `config/taxonomy.yaml` exclude what is no
@@ -189,10 +191,12 @@ source offers:
    `<source id>:<native id>`;
 2. the address of its own detail page, when no other draft of its source points at it in
    the run and it is not the front page of a site, which a conference site shares among
-   all its editions:
+   all its editions; the page of a meeting counts only when its address names the year
+   the meeting starts in, since the page of a series of meetings serves one edition after
+   the other:
    `<source id>:url:<address>`;
 3. the local day of the start plus the first speaker, or else the title, or else the time of
-   day: `<source id>:day:<date>:<words>`.
+   day: `<source id>:day:<date>:<words>`. A meeting names its title first.
 
 `data/uid_map.json` binds every key ever seen to its uid. A known key gives the same uid in
 every run; a new key gets a uid derived from the key alone. When a key changes while the
@@ -204,17 +208,23 @@ Two listings are one talk (`pipeline/dedup.py`) when they share a uid or a key, 
 their starts are at most 15 minutes apart and their titles are similar (a token set ratio
 of at least 85), they share a speaker, the title of one names a speaker of the other, or
 they point at the same detail page. An all-day listing and a listing with hours are one
-when they point at the same detail page and the one with hours starts on the first day,
-ends on the last and lasts at least 3 hours: a meeting that one source gives as whole days
-and a calendar with its hours. A meeting is one with another listing by its title only
-when the folded titles are equal: "ICML 2027" and "ICLR 2027" are similar by any fuzzy
-measure, and the opening keynote of a symposium is not the symposium. Guards keep
-unrelated talks apart: "TBA" never matches "TBA", a one-word title is not compared, a page
-that a source is fetched from or that lists a whole series is no detail page, and two
-listings of one source that name different speakers are never one talk. A merged event keeps the uid seen first, the best title (not "TBA", not the
-bare name of the series), the longest abstract, all speakers and keys, and the details of
-the host's own listing over those of an aggregator (the campus calendar,
-researchseminars.org). The result does not depend on the order of the input.
+when one of them is a meeting, they point at the same detail page, and the one with hours
+starts on one of the days of the other and lasts at least 3 hours: a meeting that one
+source gives as whole days and a calendar with its hours, once or day by day. A meeting is
+one with another listing by its title only when the folded titles are equal: "ICML 2027"
+and "ICLR 2027" are similar by any fuzzy measure, and the opening keynote of a symposium
+is not the symposium. A listing with hours that ends before a meeting does is a part of
+it, such as that keynote, and the page or a speaker it shares with the meeting does not
+join them. Guards keep unrelated talks apart: "TBA" never matches "TBA", a one-word title
+is not compared, a page that a source is fetched from or that lists a whole series is no
+detail page, and two listings of one source that name different speakers are never one
+talk. A merged event keeps the uid seen first, the best title (not "TBA", not the bare
+name of the series), the longest abstract, all speakers and keys, and the details of the
+host's own listing over those of an aggregator (the campus calendar,
+researchseminars.org). A merged event with a meeting among its listings is a meeting: it
+takes the type of that meeting and, when the leading listing is no meeting, its times; an
+all-day listing with more days gives its days, so a meeting keeps them against a
+calendar's listing of its first day. The result does not depend on the order of the input.
 
 ## Stored events
 
