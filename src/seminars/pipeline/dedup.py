@@ -361,6 +361,25 @@ def _last_day(start: datetime, end: datetime | None, *, all_day: bool) -> date:
     return end.date() - _ONE_DAY if all_day else (end - _JUST_BEFORE).date()
 
 
+def day_span(event: Event) -> tuple[date, date]:
+    """The first and the last local day of ``event`` (its end is exclusive)."""
+    return event.start.date(), _last_day(event.start, event.end, all_day=event.all_day)
+
+
+def _hours_of_a_day(
+    whole: tuple[datetime, datetime | None], timed: tuple[datetime, datetime | None]
+) -> bool:
+    """Whether ``timed`` (start, end) gives the hours of a day of the all-day ``whole``.
+
+    It starts on one of the days of ``whole`` and lasts at least
+    ``MEETING_MIN_TIMED_HOURS`` hours.
+    """
+    (whole_start, whole_end), (start, end) = whole, timed
+    if end is None or end - start < timedelta(hours=MEETING_MIN_TIMED_HOURS):
+        return False
+    return whole_start.date() <= start.date() <= _last_day(whole_start, whole_end, all_day=True)
+
+
 def _days_and_hours(first: _Profile, second: _Profile) -> bool:
     """Whether one of two listings is all day and the other gives the hours of one of its days.
 
@@ -371,10 +390,27 @@ def _days_and_hours(first: _Profile, second: _Profile) -> bool:
     if first.all_day == second.all_day or not (first.meeting or second.meeting):
         return False
     whole, timed = (first, second) if first.all_day else (second, first)
-    if timed.end is None or timed.end - timed.start < timedelta(hours=MEETING_MIN_TIMED_HOURS):
+    return _hours_of_a_day((whole.start, whole.end), (timed.start, timed.end))
+
+
+def within_meeting_days(listing: Event, meeting: Event) -> bool:
+    """Whether ``listing`` gives the whole days or the hours of ``meeting`` and no other day.
+
+    The two are one by the day rule (``_days_and_hours``): one of them is
+    all day, the other gives hours for at least ``MEETING_MIN_TIMED_HOURS``
+    hours and starts on one of the days of the all-day one, and one of
+    them is a meeting. And every local day of ``listing`` is a day of
+    ``meeting``. That is a listing which a merged meeting took in, or the
+    whole days it took its hours from, as it comes without the other
+    (``seminars.pipeline.diff``).
+    """
+    if listing.all_day == meeting.all_day or not (listing.is_meeting or meeting.is_meeting):
         return False
-    last = _last_day(whole.start, whole.end, all_day=True)
-    return whole.start.date() <= timed.start.date() <= last
+    whole, timed = (listing, meeting) if listing.all_day else (meeting, listing)
+    if not _hours_of_a_day((whole.start, whole.end), (timed.start, timed.end)):
+        return False
+    (first, last), (start, end) = day_span(listing), day_span(meeting)
+    return start <= first and last <= end
 
 
 def _ends_before(part: _Profile, meeting: _Profile) -> bool:
@@ -611,8 +647,8 @@ def _title(events: Sequence[Event], speakers: Sequence[Speaker]) -> str:
 
 def _days(event: Event) -> int:
     """The number of local days that ``event`` covers, by their dates."""
-    last = _last_day(event.start, event.end, all_day=event.all_day)
-    return (last - event.start.date()).days + 1
+    first, last = day_span(event)
+    return (last - first).days + 1
 
 
 def _timing(events: Sequence[Event]) -> Event:
