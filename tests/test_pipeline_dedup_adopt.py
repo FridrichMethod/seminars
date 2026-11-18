@@ -375,3 +375,22 @@ class TestMeetings:
         old = self.listing("old", "conf-a", "ICML 2027", **talk)
         new = self.listing("new", "conf-b", "ICLR 2027", **talk)
         assert self.adopt_across(old, new) == ["old"]
+
+    def test_a_meeting_whose_page_key_gives_way_to_its_day_key_keeps_its_uid(self) -> None:
+        # A meeting stored under the page of its series (a key that a meeting no longer
+        # gets) comes back under its day key; its source and its title say it is the same.
+        page = "https://qfarm.example.edu/events/conference-workshop/geoflow-workshop"
+        timed: dict[str, Any] = {
+            "event_type": "workshop",
+            "all_day": False,
+            "start": self.DAY + timedelta(hours=9),
+            "end": self.DAY + timedelta(hours=17),
+            "url": page,
+            "source_urls": [page],
+        }
+        old = self.listing("old", "bayarea-qfarm", "Geoflow Workshop", **timed)
+        old["source_ids"] = [f"bayarea-qfarm:url:{page}"]
+        new = {**old, "source_ids": ["bayarea-qfarm:day:2027-07-12:geoflow-workshop"]}
+        orphan = stored("old", **old)
+        candidate = fresh("new", **new).evolve(hints=EventHints(source_ids=["bayarea-qfarm"]))
+        assert adopt([candidate], [orphan]) == ["old"]

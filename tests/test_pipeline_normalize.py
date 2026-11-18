@@ -341,6 +341,26 @@ class TestMeetings:
         event = one(draft).event
         assert (event.event_type, event.all_day, event.end) == ("seminar", False, None)
 
+    def test_a_meeting_on_the_page_of_its_series_is_known_by_its_day(self) -> None:
+        # The page of a series serves every edition: as a key it would hand the uid of this
+        # symposium on to the next one. The page of an edition, or of a talk, is a key.
+        series = "https://www.proteinsociety.org/annualsymposium"
+        edition = "https://www.proteinsociety.org/annualsymposium-2026"
+        symposium = {
+            "native_id": None,
+            "title": "Protein Society Symposium",
+            "speaker_text": None,
+            "start": datetime(2026, 11, 20, 9, 0, tzinfo=PACIFIC),
+            "end": datetime(2026, 11, 20, 17, 0, tzinfo=PACIFIC),
+        }
+        keys = [one(make_draft(url=url, **symposium)).event.source_ids for url in (series, edition)]
+        assert keys == [
+            ["sites-bioengineering:day:2026-11-20:protein-society-symposium"],
+            [f"sites-bioengineering:url:{edition}"],
+        ]
+        talk = one(make_draft(native_id=None, url=series)).event
+        assert talk.source_ids == [f"sites-bioengineering:url:{series}"]
+
     def test_an_ongoing_meeting_is_kept_by_its_end(self) -> None:
         # A workshop of three weeks that began twenty days before the run, all day.
         first = (REFERENCE_NOW - timedelta(days=20)).date()

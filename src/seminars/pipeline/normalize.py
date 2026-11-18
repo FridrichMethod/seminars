@@ -371,6 +371,7 @@ def _event(
     source: SourceConfig,
     times: EventTimes,
     event_type: EventType,
+    meeting: bool,
     shared: frozenset[str],
     cleaner: _Cleaner,
 ) -> Event:
@@ -391,6 +392,7 @@ def _event(
         title=None if title == TBA_TITLE else title,
         shared=shared,
         is_secret=context.is_secret,
+        meeting=meeting,
     )
     seen = context.now.astimezone(UTC)
     return Event(
@@ -488,7 +490,7 @@ def normalize_drafts(
             ):
                 outside += 1
                 continue
-            event = _event(draft, source, times, event_type, shared, cleaner)
+            event = _event(draft, source, times, event_type, meeting, shared, cleaner)
         except _Invalid as error:
             invalid.append(_invalid(draft, source, str(error), cleaner))
             continue
