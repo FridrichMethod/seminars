@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import dataclasses
 from collections.abc import Sequence
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -373,6 +373,25 @@ class TestRun:
             LATER,
             1,
         )
+
+    def test_the_window_starts_on_the_local_day_of_the_run(self, config: AppConfig) -> None:
+        """06:00 UTC on 2026-11-10 is 22:00 on 2026-11-09 in the zone of the settings."""
+        assert (config.settings.timezone, config.settings.window.days_back) == (
+            "America/Los_Angeles",
+            14,
+        )
+        late_evening = datetime(2026, 11, 10, 6, 0, tzinfo=UTC)
+        edge = {
+            **SCHOOL,
+            "milestones": [
+                {"kind": "other", "date": date(2026, 10, 25), "label": "Fifteen days before"},
+                {"kind": "application", "date": date(2026, 10, 26), "label": "Fourteen days"},
+                {"kind": "notification", "date": date(2026, 10, 27), "label": "Thirteen days"},
+            ],
+        }
+        run(with_sources(config, edge), FakeEmitters(), now=late_evening)
+        stored = read_deadlines_file(config.paths.deadlines_file)
+        assert [item.label for item in stored] == ["Fourteen days", "Thirteen days"]
 
     def test_deadlines_need_no_source_of_the_run(self, config: AppConfig) -> None:
         events_only = dataclasses.replace(
