@@ -327,12 +327,16 @@ GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；�
   status: confirmed
   verified: {date: 2026-11-18, url: "https://iclr.cc/Conferences/2027"}
   milestones:
-    - {kind: workshop_paper, date: 2027-02-01, label: Suggested workshop paper deadline}
+    - kind: workshop_paper
+      date: 2027-02-01
+      label: Suggested workshop paper deadline
+      url: https://iclr.cc/Conferences/2027/CallForWorkshops
     - kind: notification
       date: 2027-02-26
       time: "23:59"
       zone: AoE
       label: Workshop paper notification deadline
+      url: https://iclr.cc/Conferences/2027/CallForWorkshops
 ```
 
 - `id` 写成 `<series slug>-<year>`，以这一届开始的年份结尾。它就是事件的 uid
@@ -360,7 +364,8 @@ GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；�
   页面给出的时间和时区（`AoE`、`PT`、`MT`、`ET`、`UTC` 或 IANA 时区名）。只有时区没有时间时，时区
   说的是那一天，比如 1 月 22 日 `AoE` 截止。label 用我们自己的几个词。事件的描述按日期列出这些
   milestone；过去的 milestone 等运行窗口（向前 14 天）越过它之后才会从描述里去掉。每个 milestone
-  也是 `deadlines.ics` 里的一个截止日期（见下文）。
+  也是 `deadlines.ics` 里的一个截止日期（见下文）。它的 `url`（可选）是写明它的页面，在这个页面不是
+  `verified` 的页面时填写。
 - YAML 把不加引号的 `on`、`off`、`yes`、`no` 读成布尔值，把不加引号的 `23:59` 读成数字：所以核对日期的键叫
   `date`，qualifier 写 `exact` 或 `by`，时间要加引号。
 
@@ -368,9 +373,10 @@ GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；�
 和摘要里的一个截止日期（`seminars.pipeline.deadlines`）。每次运行都从配置里读取它们，所以改动会出现在
 下一次运行里，不管那次运行抓取哪些数据源。整理它们的规则：
 
-- 每个 milestone 都取自这一届组织方的页面，也就是 `verified` 写的那个页面，带上页面写明的时间和时区，
-  别的都不写：页面没写的日期不录，按往届推算出来的日期也不录。feed 和摘要都链接这个页面，并提醒读者先查看它。
-  每学期开始时和其他事实一起核对 milestone。
+- 每个 milestone 都取自这一届组织方的某个页面，带上页面写明的时间和时区，别的都不写：页面没写的日期
+  不录，按往届推算出来的日期也不录。这个页面就是 `verified` 写的那个页面，除非 milestone 在 `url` 里
+  写了它自己的页面（征稿通知、摘要页面、合办方的页面）。feed 和摘要都链接这个页面，并提醒读者先查看它。
+  每学期开始时在各自的页面上和其他事实一起核对 milestone。
 - 不录机器学习和计算机科学会议主会（NeurIPS、ICML、ICLR、ACL、KDD 等）的投稿截止日期：README 把这些留给
   ccfddl 的日历。这类会议的 workshop 如果有自己的页面和截止日期，可以登记（`event_type: workshop`），会议
   本身的 workshop 截止日期也可以录（`workshop_paper`）。一届不是 workshop、`series` 或 `id` 里有这类会议
@@ -382,9 +388,9 @@ GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；�
   留在记录里：在同类型的另一个 milestone 之前插入或删除一个 milestone，会让它后面每一个的 uid 都变，
   日历里看到的就是删掉了一个截止日期、又新增了一个。
 - feed 显示的事实（日期、时间、时区、qualifier、label，这一届的名字、标题、日期、地点或页面，核对的日期或
-  页面）有改动，订阅的日历里的截止日期就会更新：它的 `SEQUENCE` 加一。只改 `series`（有 `short_title`
-  时）、`region` 或 `fields`，改动会存下来，但哪里都不显示。删掉的 milestone 在下一次运行时离开
-  `deadlines.ics`，过去的 milestone 在它的日期之后 14 天离开。
+  页面，milestone 的 `url`）有改动，订阅的日历里的截止日期就会更新：它的 `SEQUENCE` 加一。只改
+  `series`（有 `short_title` 时）、`region` 或 `fields`，改动会存下来，但哪里都不显示。删掉的 milestone
+  在下一次运行时离开 `deadlines.ics`，过去的 milestone 在它的日期之后 14 天离开。
 
 结束了的会议会自己离开登记表的列表，所以删掉它的记录不会改变什么。还没开始的会议的记录删掉后，在第三次
 没有它的运行时从 feed 里移除，和数据源不再列出的报告一样；已经开始的一届会议会一直保留到结束。有两种情况

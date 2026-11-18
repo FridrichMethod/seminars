@@ -374,12 +374,16 @@ contact, no address of a person, and never a date projected from an earlier edit
   status: confirmed
   verified: {date: 2026-11-18, url: "https://iclr.cc/Conferences/2027"}
   milestones:
-    - {kind: workshop_paper, date: 2027-02-01, label: Suggested workshop paper deadline}
+    - kind: workshop_paper
+      date: 2027-02-01
+      label: Suggested workshop paper deadline
+      url: https://iclr.cc/Conferences/2027/CallForWorkshops
     - kind: notification
       date: 2027-02-26
       time: "23:59"
       zone: AoE
       label: Workshop paper notification deadline
+      url: https://iclr.cc/Conferences/2027/CallForWorkshops
 ```
 
 - `id` is `<series slug>-<year>`, ending in the year the edition starts in. It is the
@@ -420,7 +424,8 @@ contact, no address of a person, and never a date projected from an earlier edit
   day, as in a deadline of January 22 `AoE`. The label is a few words of our own. The
   description of the event lists them by date; one that has passed leaves it once the
   window of the run (14 days back) has moved past it. Every milestone is a deadline of
-  `deadlines.ics` as well (below).
+  `deadlines.ics` as well (below). Its `url` (optional) is the page that states it, when
+  that is not the page of `verified`.
 - YAML reads an unquoted `on`, `off`, `yes` or `no` as true or false and an unquoted
   `23:59` as a number: the day of a check is `date`, a qualifier is `exact` or `by`,
   and a time is written in quotes.
@@ -430,11 +435,13 @@ one deadline of the feed `deadlines.ics` and of the digest (`seminars.pipeline.d
 Each run reads them from the configuration, so a change shows in the next run, whatever
 sources that run fetches. The rules of curation for them:
 
-- Every milestone comes from the organizer's page of the edition, the one `verified` names,
-  with the time and the zone that page states, and nothing else: a date that the page does
-  not state is not entered, and neither is one projected from an earlier edition. The feed
-  and the digest link that page with the advice to check it. Check the milestones with the
-  other facts at the start of each term.
+- Every milestone comes from an organizer's page of the edition, with the time and the zone
+  that page states, and nothing else: a date that the page does not state is not entered,
+  and neither is one projected from an earlier edition. That page is the one `verified`
+  names, unless the milestone names its own in `url` (a call for papers, a page of the
+  abstracts, the page of a co-organizer). The feed and the digest link that page with the
+  advice to check it. Check the milestones on their pages with the other facts at the start
+  of each term.
 - No submission deadline of the main track of a machine-learning or computer-science
   conference (NeurIPS, ICML, ICLR, ACL, KDD and the like) is entered: the README leaves those
   to the calendar of ccfddl. A workshop of such a conference with a page and deadlines of its
@@ -450,11 +457,11 @@ sources that run fetches. The rules of curation for them:
   milestone that is inserted or deleted before another one of its kind moves the uid of
   every later one, which a calendar shows as one deadline removed and another added.
 - A change of a fact that the feed shows (a date, a time, a zone, a qualifier, a label, the
-  name, title, days, place or page of the edition, the day or the page of the check) updates
-  the deadline in subscribed calendars: its `SEQUENCE` goes up. A change of the `series`
-  alone (beside a `short_title`), of the `region` or of the `fields` is stored and shows
-  nowhere. A deleted milestone leaves `deadlines.ics` at the next run, and one that has
-  passed 14 days after its date.
+  name, title, days, place or page of the edition, the day or the page of the check, the
+  `url` of the milestone) updates the deadline in subscribed calendars: its `SEQUENCE` goes
+  up. A change of the `series` alone (beside a `short_title`), of the `region` or of the
+  `fields` is stored and shows nowhere. A deleted milestone leaves `deadlines.ics` at the
+  next run, and one that has passed 14 days after its date.
 
 A meeting that is over leaves the registry's listing by itself, so deleting its entry
 changes nothing. The deleted entry of a meeting ahead is removed from the feeds at the

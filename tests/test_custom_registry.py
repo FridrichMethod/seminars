@@ -63,6 +63,8 @@ SETTINGS = load_settings(ROOT / "config" / "settings.yaml")
 MEETING_WINDOW = SETTINGS.meeting_window_at(REFERENCE_NOW)
 """The window a run on 2026-11-10 fetches the registry with: 2026-10-27 to 2027-11-11."""
 PAGE = "https://qbi.example.org/events/symposium-2027"
+CALL = "https://qbi.example.org/events/symposium-2027/call-for-posters"
+"""A page of the symposium that states a milestone, beside the page of its check."""
 
 
 def production() -> SourceConfig:
@@ -173,6 +175,7 @@ class TestSchema:
                     "time": "23:59",
                     "zone": "PT",
                     "label": "Poster deadline",
+                    "url": CALL,
                 },
                 {
                     "kind": "registration_open",
@@ -189,6 +192,7 @@ class TestSchema:
             "Poster deadline: 2026-12-01 23:59 PT",
             "Registration opens: by 2026-12-02",
         ]
+        assert [milestone.url for milestone in parsed.milestones] == [CALL, None]
 
     def test_the_milestone_kinds_are_a_closed_vocabulary(self) -> None:
         assert "workshop_paper" in MILESTONE_KINDS
@@ -236,6 +240,8 @@ class TestSchema:
             ({"qualifier": True}, "write exact or by (YAML reads an unquoted on"),
             ({"qualifier": "on"}, "params.meetings.0.milestones.0.qualifier"),
             ({"label": ""}, "params.meetings.0.milestones.0.label"),
+            ({"url": "http://qbi.example.org/events/call"}, "https address"),
+            ({"url": "https://qbi.example.org/call?token=abc"}, "credential"),
         ],
     )
     def test_a_milestone_that_breaks_a_rule_is_a_config_error(

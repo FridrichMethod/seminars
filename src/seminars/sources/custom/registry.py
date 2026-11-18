@@ -41,8 +41,12 @@ Keys of ``params`` (an unknown key is an error that names it):
     ``time`` (``"HH:MM"`` in quotes, or none), ``zone`` (``ZONE_NAMES`` or
     an IANA name, or none; without a time it is the zone of the day, as in
     "January 22 AoE"), ``qualifier`` (``exact``, the default, or ``by``: at
-    the latest on that day, as in "opens by February 1") and ``label``, a
-    few words of our own ("Poster deadline");
+    the latest on that day, as in "opens by February 1"), ``label``, a few
+    words of our own ("Poster deadline"), and ``url`` (optional, https):
+    the organizer's page that states the milestone, when it is not the
+    page that ``verified`` names (a call for papers, a page of abstracts).
+    The feed of the deadlines links that page, ``url`` or else the page of
+    ``verified``, for a reader to check the date;
   - ``notes`` (optional): lines for the curator; they are never published.
 
 Every text is printable ASCII on one line, without white space at either
@@ -254,6 +258,7 @@ class Milestone(Model):
     zone: ZoneName | None = None
     qualifier: Qualifier = "exact"
     label: Label
+    url: HttpsUrl | None = None  # the page that states it, when not the page of ``verified``
 
     @property
     def line(self) -> str:
