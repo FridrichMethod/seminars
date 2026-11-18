@@ -49,6 +49,7 @@ from typing import Final
 from zoneinfo import ZoneInfo
 
 from dateutil import parser as date_parser
+from dateutil import tz as date_zones
 
 from seminars.models import MAX_ROLLOVER
 
@@ -75,6 +76,11 @@ _ZONE_ABBREVIATIONS: Final[dict[str, str]] = {
     "EST": "America/New_York",
     "EDT": "America/New_York",
     "ET": "America/New_York",
+    "CET": "Europe/Berlin",
+    "CEST": "Europe/Berlin",
+    "BST": "Europe/London",
+    "EET": "Europe/Athens",
+    "EEST": "Europe/Athens",
     "UTC": "UTC",
     "GMT": "UTC",
     "Z": "UTC",
@@ -132,7 +138,10 @@ class EventTimes:
 def _parse(text: str, default: datetime) -> datetime:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        return date_parser.parse(text, default=default, tzinfos=_TZINFOS)
+        moment = date_parser.parse(text, default=default, tzinfos=_TZINFOS)
+    # dateutil takes a name it does not know as local time of the machine when the
+    # machine's own zone uses it ("IST" in Kolkata): such a name is ignored on every machine.
+    return moment.replace(tzinfo=None) if isinstance(moment.tzinfo, date_zones.tzlocal) else moment
 
 
 def _offset(zone: str) -> timedelta:
@@ -197,9 +206,10 @@ def parse_moment(text: str, *, reference: datetime) -> datetime | date:
     (the year before, of, or after it); a text without month and day, such
     as "4pm" or "Thursday", is an error. The time zone a text names:
 
-    * a North American abbreviation ("PST", "ET", the keys of
-      ``_ZONE_ABBREVIATIONS``) is the time zone of its region in every
-      season, so "PST" in July is Pacific daylight time;
+    * a North American or European abbreviation ("PST", "ET", "CET",
+      "BST", the keys of ``_ZONE_ABBREVIATIONS``) is the time zone of its
+      region in every season, so "PST" in July is Pacific daylight time and
+      "CET" in July is Central European summer time;
     * an offset from UTC is read as people write it, from UTC-12 to UTC+14:
       "UTC-8", "UTC -8" and "GMT-08:00" are eight hours behind UTC,
       "UTC+5:30" and "GMT+0530" five and a half hours ahead. One that

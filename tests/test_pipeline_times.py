@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time as clock
 from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
@@ -563,6 +564,9 @@ class TestTwoZones:
             ("Jan 29, 2027 23:59 AoE (UTC-12)", -12),
             ("Jan 29, 2027 23:59 UTC-8 (PST)", -8),
             ("Jan 29, 2027 23:59 UTC-8 ( PT )", -8),
+            ("Jan 29, 2027 23:59 GMT+1 (CET)", 1),
+            ("Jul 1, 2027 23:59 UTC+2 (CEST)", 2),
+            ("Jan 29, 2027 23:59 CET (UTC+1)", 1),
         ],
     )
     def test_two_zones_that_agree(self, text: str, offset: int) -> None:
@@ -586,6 +590,7 @@ class TestTwoZones:
             "Jan 29, 2027 23:59 UTC-8 (UTC-7)",
             "Jul 1, 2027 4:00 PM PST (UTC-8)",  # PST in July is the time of Los Angeles, UTC-7
             "Jul 1, 2027 4:00 PM UTC-8 (PST)",
+            "Jul 1, 2027 23:59 CET (UTC+1)",  # CET in July is the time of Berlin, UTC+2
             "Jan 29, 2027 23:59 AoE (UTC)",
             "Jan 29, 2027 23:59 -0800 (UTC-12)",
         ],
@@ -593,3 +598,47 @@ class TestTwoZones:
     def test_two_zones_that_differ_are_an_error(self, text: str) -> None:
         with pytest.raises(TimeError, match="different"):
             parse_moment(text, reference=REFERENCE_NOW)
+
+
+class TestEuropeanAbbreviations:
+    """Like "PST", each is the zone of its region in every season."""
+
+    @pytest.mark.parametrize(
+        ("text", "offset"),
+        [
+            ("Jan 29, 2027 23:59 CET", 1),
+            ("Jul 1, 2027 23:59 CEST", 2),
+            ("Jul 1, 2027 23:59 CET", 2),
+            ("Jan 29, 2027 23:59 CEST", 1),
+            ("Jul 1, 2027 18:00 BST", 1),
+            ("Jan 29, 2027 18:00 BST", 0),
+            ("Jan 29, 2027 18:00 EET", 2),
+            ("Jul 1, 2027 18:00 EEST", 3),
+        ],
+    )
+    def test_the_zone_of_the_region(self, text: str, offset: int) -> None:
+        moment = parse_moment(text, reference=REFERENCE_NOW)
+        assert isinstance(moment, datetime)
+        assert moment.utcoffset() == timedelta(hours=offset)
+
+    def test_through_the_rules_of_normalization(self) -> None:
+        assert iso(resolve("Jan 29, 2027 17:00 CET").start) == "2027-01-29T08:00:00-08:00"
+        # Europe changes its clocks on 2027-03-28, two weeks after America.
+        assert iso(resolve("Mar 20, 2027 17:00 CET").start) == "2027-03-20T09:00:00-07:00"
+        assert iso(resolve("Mar 30, 2027 17:00 CEST").start) == "2027-03-30T08:00:00-07:00"
+
+
+class TestUnknownAbbreviations:
+    def test_an_unknown_abbreviation_is_wall_time_of_the_source(self) -> None:
+        assert parse_moment("Jan 29, 2027 23:59 IST", reference=REFERENCE_NOW) == datetime(
+            2027, 1, 29, 23, 59
+        )
+        assert iso(resolve("Jan 29, 2027 9:00 IST").start) == "2027-01-29T09:00:00-08:00"
+
+    def test_on_a_machine_whose_zone_uses_it_too(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # dateutil takes a name of the machine's own zone as the machine's local time.
+        monkeypatch.setattr(clock, "tzname", ("IST", "IST"))
+        moment = parse_moment("Jan 29, 2027 23:59 IST", reference=REFERENCE_NOW)
+        assert moment == datetime(2027, 1, 29, 23, 59)
+        assert isinstance(moment, datetime)
+        assert moment.tzinfo is None
