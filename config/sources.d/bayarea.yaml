@@ -377,11 +377,14 @@ sources:
       # line of a workshop lists its organisers and speakers, which a pattern cannot
       # split (it sets one speaker), and its names would count as keywords of a field
       # ("Dula Parkinson" for med). An event with a speaker line and no description has
-      # no abstract.
+      # no abstract. The second pattern takes the description to its end when the first
+      # finds no address at the end: a description without it, or one longer than the
+      # adapter reads (MAX_PATTERN_INPUT).
       property_fields: {DESCRIPTION: null}
       patterns:
         DESCRIPTION:
           - '\A(?:Speakers: [^\n]*\n\s*)?(?P<abstract>(?!Speakers: )\S[\s\S]*?)\s*\nhttps://indico\.slac\.stanford\.edu/event/\d+/\s*\Z'
+          - '\A(?:Speakers: [^\n]*\n\s*)?(?P<abstract>(?!Speakers: |https://indico\.slac\.stanford\.edu/event/)\S[\s\S]*)'
     research:
       verified: 2026-11-18
       sample_events: 3
@@ -400,6 +403,7 @@ sources:
         - The other public subcategories of 5 (AD, Astronomy, HEP, ICALEPCS, LCLS, NP and TID workshops, SLAC Colloquium, Faculty Retreat, SLACmass, Snowmass, Graduate Student Orientation, US-Japan Meeting) were not looked at and are not collected.
         - The feeds give no event type, CATEGORIES, registration or abstract deadline. DTSTART and DTEND are in UTC; LOCATION is "<room> (<venue>)" or "SLAC"; CONTACT holds an e-mail address, which the adapter does not read.
         - DESCRIPTION is free text. A Zoom link of a hybrid workshop in it loses its password in normalization (pipeline/privacy.py); none of the recorded events has one.
+        - The categories list workshops now and then (16 and 19 none, 170, 171 and 20 one each), and a feed drops an event four weeks after its end. A run in which no category lists an event parses no draft and counts as empty, and three such runs in a row open a source-broken issue; the ics adapter has no allow_empty. With the recorded events that happens after 2027-05-21, unless SLAC lists another workshop by then.
 
   - <<: *bayarea
     id: bayarea-slac-ais

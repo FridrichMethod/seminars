@@ -12,6 +12,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import icalendar
+import pytest
+
 from factories import make_document, make_payload
 from seminars.classify.filters import build_event_filter
 from seminars.classify.rules import build_field_tagger
@@ -19,7 +22,7 @@ from seminars.config import Settings, load_settings, load_sources, load_taxonomy
 from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig
 from seminars.pipeline.normalize import NormalizeContext, Normalized, normalize_drafts
-from seminars.sources.generic.ics import IcsAdapter
+from seminars.sources.generic.ics import MAX_PATTERN_INPUT, IcsAdapter
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG = REPO_ROOT / "config"
@@ -234,3 +237,71 @@ def test_the_zoom_meeting_of_a_hybrid_workshop_loses_its_credentials() -> None:
     assert "731946" not in abstract
     assert "https://stanford.zoom.us/j/99887766554" in abstract
     assert "Meeting ID: 998 8776 6554" in abstract
+
+
+def one_workshop(description: str) -> EventDraft:
+    """The draft of an Indico export of one workshop whose DESCRIPTION is ``description``."""
+    event = icalendar.Event()
+    event.add("summary", "Workshop on Detectors")
+    event.add("dtstart", datetime(2027, 2, 10, 16, 30, tzinfo=UTC))
+    event.add("dtend", datetime(2027, 2, 12, 1, 0, tzinfo=UTC))
+    event.add("uid", "indico-event-99998@indico.slac.stanford.edu")
+    event.add("description", description)
+    event.add("url", f"{INDICO}/event/99998/")
+    calendar = icalendar.Calendar()
+    calendar.add("version", "2.0")
+    calendar.add("prodid", "-//CERN//INDICO//EN")
+    calendar.add_component(event)
+    text = calendar.to_ical().decode()
+    source = sources()[SOURCE_ID]
+    document = make_document(FEEDS[0], text, content_type="text/calendar")
+    payload = make_payload(document, source_id=SOURCE_ID, fetched_at=RECORDED)
+    (draft,) = IcsAdapter().parse(payload, source)
+    return draft
+
+
+SPEAKERS = "Speakers: Jane Doe (SLAC), John Roe (Stanford University)"
+TEXT = "Two days of talks on detectors.\n\nRegistration is free."
+ADDRESS = f"{INDICO}/event/99998/"
+
+
+@pytest.mark.parametrize(
+    ("description", "abstract"),
+    [
+        (f"{SPEAKERS}\n\n{TEXT}\n\n{ADDRESS}", TEXT),
+        (f"{TEXT}\n\n{ADDRESS}\n", TEXT),
+        (f"{SPEAKERS}\n\n{TEXT}", TEXT),
+        (TEXT, TEXT),
+        (f"{SPEAKERS}\n\n{ADDRESS}", None),
+        (ADDRESS, None),
+        (SPEAKERS, None),
+    ],
+    ids=[
+        "speakers-text-address",
+        "text-address",
+        "speakers-text",
+        "text",
+        "speakers-address",
+        "address",
+        "speakers",
+    ],
+)
+def test_the_abstract_is_the_description_without_the_speaker_line_and_the_address(
+    description: str, abstract: str | None
+) -> None:
+    assert one_workshop(description).abstract == abstract
+
+
+def test_a_description_longer_than_the_adapter_reads_keeps_its_beginning() -> None:
+    sentence = "A workshop on the detectors of the next collider. "
+    text = sentence * (MAX_PATTERN_INPUT // len(sentence) + 10)
+    assert len(text) > MAX_PATTERN_INPUT
+    draft = one_workshop(f"{SPEAKERS}\n\n{text}\n\n{ADDRESS}")
+    assert draft.abstract is not None
+    assert draft.abstract.startswith(sentence)
+    assert "Speakers:" not in draft.abstract
+    (candidate,) = normalized(sources()[SOURCE_ID], (draft,)).candidates
+    abstract = candidate.event.abstract
+    assert abstract is not None
+    assert abstract.startswith(sentence)
+    assert len(abstract) <= settings().events.abstract_max_chars
