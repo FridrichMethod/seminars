@@ -21,8 +21,9 @@ from seminars.classify.rules import build_field_tagger
 from seminars.config import Settings, load_settings, load_sources, load_taxonomy
 from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig
+from seminars.outputs.health import allows_empty
 from seminars.pipeline.normalize import NormalizeContext, Normalized, normalize_drafts
-from seminars.sources.generic.ics import MAX_PATTERN_INPUT, IcsAdapter
+from seminars.sources.generic.ics import MAX_PATTERN_INPUT, IcsAdapter, ics_params
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG = REPO_ROOT / "config"
@@ -101,6 +102,11 @@ class TestConfiguration:
         # 5 takes in the weekly CIDeR-ML General Meetings of 110, with their Zoom links.
         for category in (5, 110):
             assert f"{INDICO}/category/{category}/events.ics" not in on_host
+
+    def test_a_run_in_which_no_category_lists_a_workshop_is_healthy(self) -> None:
+        source = sources()[SOURCE_ID]
+        assert allows_empty(source)
+        assert ics_params(source).allow_empty
 
     def test_the_host_stays_within_its_request_budget(self) -> None:
         on_host = sum(
