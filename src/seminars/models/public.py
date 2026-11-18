@@ -214,10 +214,11 @@ class PublicEvent(Model):
 class PublicEventsPayload(Model):
     """Content of public/events.json.
 
-    ``events`` holds every stored event of the current window (past ones
-    included, cancelled ones included) sorted by ``start`` and then ``uid``;
-    the site decides what to show. ``generated_at`` is the "last updated"
-    time shown on the page.
+    ``events`` holds every stored event: those of the current window (past
+    ones included, cancelled ones included) and the meetings ahead of it of
+    the sources with ``meeting_horizon``, sorted by ``start`` and then
+    ``uid``; the site decides what to show. ``generated_at`` is the "last
+    updated" time shown on the page.
     """
 
     schema_version: Literal[1] = 1

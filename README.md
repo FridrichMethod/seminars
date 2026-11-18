@@ -406,7 +406,8 @@ locales/           every text of the web site and the digest (en, zh-CN)
 scripts/           check_ascii.py, set-llm-credential.sh
 site/              the static web site (no build step)
 src/seminars/      the package: sources/, pipeline/, classify/, llm/, outputs/, cli.py
-tests/             tests, and fixtures/ with recorded pages of every source
+tests/             tests, and fixtures/ with recorded pages of every source that sends
+                   requests
 .github/workflows/ ci.yml, update.yml, digest.yml
 ```
 
