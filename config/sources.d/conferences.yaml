@@ -1,8 +1,9 @@
-# The registry: Bay Area conferences and workshops that no enabled source delivers,
-# kept by hand. Schema of the source entry: seminars.models.SourceConfig; every key of
-# a meeting is described in the docstring of seminars.sources.custom.registry, and
-# how to add or update one in docs/ADDING_A_SOURCE.md ("Conferences and workshops
-# without a source").
+# The registry, kept by hand: Bay Area conferences and workshops that no enabled
+# source delivers, and meetings elsewhere whose deadlines are kept (region world).
+# Schema of the source entry: seminars.models.SourceConfig; every key of a meeting is
+# described in the docstring of seminars.sources.custom.registry, and how to add or
+# update one in docs/ADDING_A_SOURCE.md ("Conferences and workshops without a
+# source").
 #
 # The adapter requests nothing. "url" is the page of this file on GitHub: the status
 # page links it, so a reader sees where these meetings come from. It is a placeholder
@@ -354,7 +355,7 @@ sources:
           fields: [math]
           event_type: workshop
           status: confirmed
-          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools/1163"}
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools"}
           milestones:
             - kind: other
               date: 2026-12-01
@@ -362,8 +363,9 @@ sources:
               zone: PT
               label: Summer 2027 nominations open
           notes:
-            - The opening of the nominations is on https://www.slmath.org/summer-schools,
-              which the page of the school links for how to apply.
+            - Title, dates and venue are on the page of the school (url); the opening of
+              the nominations is on the page of the summer schools (verified), which the
+              page of the school links for how to apply.
 
         - id: slmath-sgs-geometric-topology-complex-surfaces-2027
           title: "Summer Graduate School: Geometric Topology of Complex Surfaces"
@@ -377,7 +379,7 @@ sources:
           fields: [math]
           event_type: workshop
           status: confirmed
-          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools/1178"}
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools"}
           milestones:
             - kind: other
               date: 2026-12-01
@@ -385,7 +387,8 @@ sources:
               zone: PT
               label: Summer 2027 nominations open
           notes:
-            - The opening of the nominations is on https://www.slmath.org/summer-schools.
+            - Title, dates and venue are on the page of the school (url); the opening of
+              the nominations is on the page of the summer schools (verified).
 
         - id: slmath-sgs-classification-fusion-categories-2027
           title: "Summer Graduate School: Classification of Fusion Categories"
@@ -399,7 +402,7 @@ sources:
           fields: [math]
           event_type: workshop
           status: confirmed
-          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools/1155"}
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools"}
           milestones:
             - kind: other
               date: 2026-12-01
@@ -407,7 +410,8 @@ sources:
               zone: PT
               label: Summer 2027 nominations open
           notes:
-            - The opening of the nominations is on https://www.slmath.org/summer-schools.
+            - Title, dates and venue are on the page of the school (url); the opening of
+              the nominations is on the page of the summer schools (verified).
 
         - id: slmath-pathways-algcomb-tropical-2027
           title: "Pathways Workshop: Algebraic Combinatorics & New Trends in Tropical Geometry"
@@ -546,9 +550,6 @@ sources:
               label: Poster abstract deadline
           notes:
             - Joint with the Keystone meeting "Antibodies as Drugs" (K7).
-            - The digital toolkit page of the meeting still says November 11, 2026 for the
-              scholarship and short talk deadlines; the meeting and deadlines pages say
-              November 24, 2026.
 
         - id: keystone-computational-design-modeling-biomolecules-2027
           title: Computational Design and Modeling of Biomolecules
@@ -612,7 +613,10 @@ sources:
           milestones:
             - {kind: other, date: 2026-12-21, label: Workshop and tutorial programme announced}
             - {kind: abstract, date: 2027-02-02, label: Abstract deadline (on-site participants)}
-            - {kind: funding, date: 2027-02-02, label: Financial assistance deadline}
+            - kind: funding
+              date: 2027-02-02
+              qualifier: by
+              label: Financial assistance deadline
             - kind: notification
               date: 2027-03-15
               label: Workshop and tutorial participant results
@@ -719,6 +723,7 @@ sources:
               date: 2027-01-14
               time: "23:59"
               zone: AoE
+              qualifier: by
               label: Proceedings paper deadline
           notes:
             - The paper deadline is on
@@ -810,7 +815,7 @@ sources:
           start: 2027-08-09
           end: 2027-08-13
           region: world
-          location: Husky Union Building, University of Washington, Seattle, WA
+          location: University of Washington, Seattle, WA
           url: https://rosettacommons.org/events/src/conferenceguide/
           fields: [ai-ml, chem, bio]
           event_type: conference
@@ -833,7 +838,8 @@ sources:
             - The opening of abstracts and travel grants is not entered; it is January 1 in
               the guide but "around mid-November 2026" on
               https://rosettacommons.org/events/src/grants/.
-            - The venue paragraph of the guide still names Summer RosettaCon 2026.
+            - The venue paragraph of the guide names Summer RosettaCon 2026 and the Husky
+              Union Building; enter the building once the paragraph names 2027.
     research:
       verified: 2026-11-18
       sample_events: 20
@@ -845,3 +851,10 @@ sources:
           Engineering XXIX (ECI), MLBio 2027 (MLCB and MLSB), PSB 2028, the Keystone
           meeting "AI and Gene Regulation Across Scales" and the workshops of ICLR 2027,
           whose list is announced on 2026-11-29.
+        - Not entered for want of a page the tools could read on 2026-11-18, as grc.org
+          answers a plain fetch with a captcha. The Bioinorganic Chemistry GRS 2027 and
+          the Metals in Biology GRC 2027, both in Ventura, CA, are at
+          https://www.grc.org/bioinorganic-chemistry-grs-conference/2027/ and
+          https://www.grc.org/metals-in-biology-conference/2027/. A web search of these
+          pages gives application deadlines of December 25 and December 27, 2026, but
+          not the dates of the meetings; add both once their pages are read.
