@@ -3,13 +3,13 @@ English | [&#20013;&#25991;](README.zh-CN.md)
 # seminars
 
 Academic seminars, talks and colloquia at Stanford, SLAC, CZ Biohub and other
-nearby institutes, collected every day from public web pages and published in
-three forms:
+nearby institutes, and the conferences and workshops of the Bay Area, collected
+every day from public web pages and published in three forms:
 
 - **calendar feeds** (ICS) that calendar apps subscribe to: one per field, one of
-  personal picks and one with everything;
-- a **static web site** with the upcoming talks, filters by field and source, and
-  full-text search;
+  personal picks, one of conferences and workshops and one with everything;
+- a **static web site** with the upcoming talks, conferences and workshops, filters
+  by field, source and kind, and full-text search;
 - a **weekly digest**, a GitHub issue opened every Monday morning (Pacific time).
 
 Everything runs on GitHub Actions and GitHub Pages; there is no server. The data is
@@ -263,8 +263,9 @@ day. The schedule follows daylight saving time.
 1. Fetch every source politely: robots.txt is honoured, including `Crawl-delay`, each
    host is asked one request at a time, and the number of requests per host is
    capped. A source may list hosts under `ignore_robots`, whose `Disallow` rules it
-   does not follow (the two SLAC series on indico.slac.stanford.edu and the calendar of
-   Chemical and Systems Biology on calendar.google.com); everything else holds there too.
+   does not follow (the SLAC theory and experimental seminars and the SLAC workshops on
+   indico.slac.stanford.edu, and the calendar of Chemical and Systems Biology on
+   calendar.google.com); everything else holds there too.
 2. Turn what each source says into events, remove duplicates (the same talk listed by
    two sources) and drop what is not an academic talk.
 3. Tag each event with its fields, by rules and, when a credential is configured, with

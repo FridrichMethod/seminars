@@ -92,7 +92,7 @@ fixture 的参考时间。每个阶段都拿到这个时间，没有一个阶段
    拆开（`pipeline/speakers.py`）；没有讲者的 draft，从标题里按几种常见写法读出讲者
    （`pipeline/title_speakers.py`）。事件得到它的 source key 和 uid（`pipeline/ids.py`）。
 4. **过滤**（`classify/filters.py`）。`config/taxonomy.yaml` 里的短语排除不是学术报告的条目（招待会、
-   office hour、课程之类），有些院系标签一律不在范围内。
+   office hour、课程之类），会议上带编号的展位也不算报告，有些院系标签一律不在范围内。
 5. **合并**（`pipeline/dedup.py`）。已经存储的 uid 交接给变了的 key，同一个报告的几个条目合并成一个事件。
 6. **分类**（`pipeline/tagging.py`）。领域来自数据源和规则（`classify/rules.py`）；规则判断不了的，
    有 LLM 时交给 LLM 打标签（`classify/llm_tagger.py`）。

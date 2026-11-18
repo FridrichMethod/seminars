@@ -108,8 +108,9 @@ time, and none reads the clock.
    names in a common form (`pipeline/title_speakers.py`). The event gets its source key and
    its uid (`pipeline/ids.py`).
 4. **Filter** (`classify/filters.py`). Phrases of `config/taxonomy.yaml` exclude what is no
-   academic talk (receptions, office hours, courses and the like), and some department
-   labels are always out of scope.
+   academic talk (receptions, office hours, courses and the like), a numbered exhibitor's
+   booth at a meeting is no talk either, and some department labels are always out of
+   scope.
 5. **Merge** (`pipeline/dedup.py`). Stored uids are handed on to keys that changed, and the
    listings of one talk become one event.
 6. **Classify** (`pipeline/tagging.py`). Fields come from the source and from the rules

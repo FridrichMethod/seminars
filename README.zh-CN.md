@@ -3,10 +3,10 @@
 # seminars
 
 每天从公开网页收集 Stanford、SLAC、CZ Biohub 及周边其他研究机构的学术
-seminar、talk 和 colloquium，以三种形式发布：
+seminar、talk 和 colloquium，以及湾区的会议和研讨会，以三种形式发布：
 
-- **日历订阅**（ICS），可以在日历应用里订阅：每个领域一个、个人精选一个、全部一个；
-- 一个**静态网站**，列出即将举行的报告，可以按领域和来源过滤，支持全文搜索；
+- **日历订阅**（ICS），可以在日历应用里订阅：每个领域一个、个人精选一个、会议和研讨会一个、全部一个；
+- 一个**静态网站**，列出即将举行的报告、会议和研讨会，可以按领域、来源和类型过滤，支持全文搜索；
 - **每周摘要**：每周一早上（太平洋时间）开一个 GitHub issue。
 
 全部运行在 GitHub Actions 和 GitHub Pages 上，没有服务器。数据就存在本仓库里
@@ -217,7 +217,7 @@ workflow `.github/workflows/update.yml` 每天太平洋时间 04:23 运行，10:
 
 1. 礼貌地抓取每个数据源：遵守 robots.txt（包括 `Crawl-delay`），对每个 host 一次只发一个请求，
    每个 host 的请求数有上限。数据源可以在 `ignore_robots` 里列出 host，不遵守这些 host 的 `Disallow`
-   规则（indico.slac.stanford.edu 上的两个 SLAC 系列和 calendar.google.com 上 Chemical and Systems Biology 的日历）；其他规则照旧。
+   规则（indico.slac.stanford.edu 上的三个 SLAC 数据源：理论 seminar、实验 seminar 和 workshop；以及 calendar.google.com 上 Chemical and Systems Biology 的日历）；其他规则照旧。
 2. 把每个数据源的内容转成事件，去掉重复（同一个报告被两个来源列出），去掉不是学术报告的条目。
 3. 给每个事件标注领域，靠规则；配置了凭证时再借助 LLM；然后计算精选分数。
 4. 写出 `data/`、10 个 feed 和网站数据，然后检查输出：secret 扫描和 `data/` 的字符集规则。

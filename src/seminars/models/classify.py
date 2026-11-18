@@ -31,13 +31,14 @@ RuleExclusionReason = Literal[
 ExclusionReason = Literal[
     RuleExclusionReason,
     "defense",  # a PhD defense while settings.events.include_defenses is false
-    "not_a_talk",  # the LLM judged an ambiguous item not to be an academic talk
+    "not_a_talk",  # an exhibitor's numbered booth, or an item the LLM judged not a talk
     "out_of_scope",  # no field matched, or a category the taxonomy marks out of scope
     "invalid",  # the draft could not be normalized (for example no usable start)
 ]
 """Why an event was left out; written to the run report.
 
-Who assigns what: the event filter assigns the rule reasons, ``defense`` and
+Who assigns what: the event filter assigns the rule reasons, ``defense``,
+``not_a_talk`` for an exhibitor's numbered booth at a meeting and
 ``out_of_scope`` for a category listed in ``Taxonomy.out_of_scope_categories``
 (``EventFilter.filter``, before classification), and ``out_of_scope`` for an
 event that no field matched (``EventFilter.drop_out_of_scope``); the pipeline
