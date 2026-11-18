@@ -23,6 +23,9 @@ Keys of ``params`` (an unknown key is an error that names it):
     good: an id is never renamed or used for another edition;
   - ``title``, ``series``, ``host_org`` and ``location`` (venue and city),
     one line each;
+  - ``short_title`` (optional): the name of the edition in the feed of the
+    deadlines, at most ``MAX_SHORT_TITLE`` characters ("GEM at ICLR
+    2027"); without it the name is ``Meeting.display_name``;
   - ``start`` and ``end``: local dates, ``end`` inclusive and at most
     ``MAX_MEETING_DAYS`` days after ``start``;
   - ``region``: ``bay-area`` (an event) or ``world`` (never an event; such
@@ -66,6 +69,11 @@ milestone from the first day of the window on, by date:
 feeds keep a talk after it took place), so a milestone stays listed for
 those days after it passed; nothing in an adapter knows the run itself.
 
+Every milestone of an edition, ``bay-area`` and ``world`` alike, is also a
+deadline of the feed ``deadlines.ics``: ``seminars.pipeline.deadlines``
+reads the editions with ``registry_editions`` on every run, so no request
+and no run of the adapter is needed for them.
+
 ``curation_problems`` says what a curator has to look at on a given day: an
 edition that starts within ``RECHECK_WITHIN_DAYS`` and was verified more
 than ``RECHECK_AFTER_DAYS`` before, a check dated in the future, and a
@@ -77,6 +85,7 @@ the committed registry on the day the tests run.
 from __future__ import annotations
 
 import datetime as dt
+import re
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Annotated, Any, Final, Literal, Self, get_args
@@ -99,17 +108,25 @@ from seminars.models.base import FieldList
 from seminars.sources.base import register_adapter
 from seminars.sources.generic.common import load_params
 
+ADAPTER: Final = "registry"
+"""The name of the adapter, which a registry source names under ``adapter``."""
+
 MAX_MEETING_DAYS: Final = 31
 """The longest an edition may run: its last day is at most this many days after its first."""
 
 MAX_ID_LENGTH: Final = 63
 """The longest id that still gives a readable uid (``seminars.pipeline.ids.uid_for_key``)."""
 
+MAX_SHORT_TITLE: Final = 40
+"""The longest ``short_title``: the name of an edition at the head of a summary line."""
+
 RECHECK_WITHIN_DAYS: Final = 120
 """An edition that starts within this many days needs a recent check (``curation_problems``)."""
 
 RECHECK_AFTER_DAYS: Final = 90
 """A check older than this many days is stale for such an edition."""
+
+_YEAR: Final = re.compile(r"(?<![0-9])[0-9]{4}(?![0-9])")
 
 ZONE_NAMES: Final = ("AoE", "PT", "MT", "ET", "UTC")
 """Zones a milestone may name besides an IANA time zone, as organizers write them."""
@@ -189,6 +206,11 @@ def _some_fields(value: list[str]) -> list[str]:
 
 Title = Annotated[str, StringConstraints(min_length=1, max_length=300), AfterValidator(_ascii_line)]
 Name = Annotated[str, StringConstraints(min_length=1, max_length=200), AfterValidator(_ascii_line)]
+ShortTitle = Annotated[
+    str,
+    StringConstraints(min_length=1, max_length=MAX_SHORT_TITLE),
+    AfterValidator(_ascii_line),
+]
 Label = Annotated[str, StringConstraints(min_length=1, max_length=120), AfterValidator(_ascii_line)]
 Note = Annotated[str, StringConstraints(min_length=1, max_length=500), AfterValidator(_ascii_line)]
 HttpsUrl = Annotated[str, StringConstraints(max_length=500), AfterValidator(_https_url)]
@@ -240,6 +262,7 @@ class Meeting(Model):
 
     id: MeetingId
     title: Title
+    short_title: ShortTitle | None = None
     series: Name
     host_org: Name
     start: dt.date
@@ -269,6 +292,19 @@ class Meeting(Model):
             raise ValueError(f"milestone(s) after the end of the edition: {', '.join(late)}")
         return self
 
+    @property
+    def display_name(self) -> str:
+        """The name of the edition in a feed of deadlines.
+
+        ``short_title``, else ``<series> <year of start>``, or the series alone
+        when it holds a year of four digits already ("ISMB 2027").
+        """
+        if self.short_title is not None:
+            return self.short_title
+        if _YEAR.search(self.series):
+            return self.series
+        return f"{self.series} {self.start.year}"
+
     def abstract(self, since: dt.date) -> str | None:
         """The lines of the milestones on or after ``since``, by date; ``None`` without any."""
         ahead = sorted(
@@ -291,6 +327,15 @@ class RegistryParams(Model):
         if repeated:
             raise ValueError(f"meeting id(s) used more than once: {', '.join(repeated)}")
         return self
+
+
+def registry_editions(source: SourceConfig) -> list[Meeting]:
+    """Every edition of the registry ``source``, ``bay-area`` and ``world``, in order.
+
+    Raises ``AdapterConfigError`` (a ``ValueError``) when the ``params`` of the
+    source do not fit, as ``fetch`` and ``parse`` do.
+    """
+    return list(load_params(RegistryParams, source).meetings)
 
 
 def first_day(window: TimeWindow, source: SourceConfig) -> dt.date:
@@ -346,7 +391,7 @@ def curation_problems(meetings: Sequence[Meeting], today: dt.date) -> list[str]:
     return problems
 
 
-@register_adapter("registry")
+@register_adapter(ADAPTER)
 class RegistryAdapter:
     """Meetings kept by hand in the source entry; see the module docstring."""
 

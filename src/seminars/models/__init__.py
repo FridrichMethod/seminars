@@ -5,6 +5,7 @@ implementation detail. All models are frozen pydantic models that reject
 unknown keys; use ``model.evolve(...)`` to derive a changed copy.
 
 * event.py      Event, Speaker: the record stored in data/events.json
+* deadline.py   Deadline: a milestone of a registered meeting, stored in data/deadlines.json
 * draft.py      EventDraft, RawPayload, FetchedDocument, TimeWindow: adapter I/O
 * source.py     SourceConfig, ResearchInfo: one entry of config/sources.d/*.yaml
 * classify.py   Candidate, EventHints, TagDecision, FilterResult, ...: classification I/O
@@ -54,6 +55,20 @@ from seminars.models.classify import (
     RuleTagMethod,
     ScopeResult,
     TagDecision,
+)
+from seminars.models.deadline import (
+    DEADLINE_BOOKKEEPING,
+    DEADLINE_UID_PREFIX,
+    DEADLINES_FEED,
+    DEADLINES_SCHEMA_VERSION,
+    Deadline,
+    DeadlineQualifier,
+    DeadlineRegion,
+    deadline_to_line,
+    deadline_uid,
+    dump_deadlines,
+    load_deadlines,
+    ordered_deadlines,
 )
 from seminars.models.draft import (
     DRAFT_TEXT_LIMITS,
@@ -156,6 +171,10 @@ from seminars.models.source import (
 
 __all__ = [
     "CREDENTIAL_QUERY_PARAMS",
+    "DEADLINES_FEED",
+    "DEADLINES_SCHEMA_VERSION",
+    "DEADLINE_BOOKKEEPING",
+    "DEADLINE_UID_PREFIX",
     "DEFAULT_TIMEZONE",
     "DRAFT_TEXT_LIMITS",
     "EVENTS_SCHEMA_VERSION",
@@ -181,6 +200,9 @@ __all__ = [
     "TBA_TITLE",
     "UID_PATTERN",
     "Candidate",
+    "Deadline",
+    "DeadlineQualifier",
+    "DeadlineRegion",
     "DigestDocument",
     "DigestOutcome",
     "Event",
@@ -248,7 +270,10 @@ __all__ = [
     "canonical_fields",
     "check_http_url",
     "check_timezone",
+    "deadline_to_line",
+    "deadline_uid",
     "dump_ascii_json",
+    "dump_deadlines",
     "dump_event_lines",
     "dump_events",
     "dump_json",
@@ -256,9 +281,11 @@ __all__ = [
     "event_to_line",
     "feed_path",
     "is_meeting_span",
+    "load_deadlines",
     "load_event_lines",
     "load_events",
     "load_json",
+    "ordered_deadlines",
     "read_events",
     "read_model",
     "signed_points",
