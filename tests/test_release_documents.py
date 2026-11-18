@@ -26,7 +26,7 @@ import yaml
 
 from seminars.config import load_config
 from seminars.contracts import llm_cache_refresh_days
-from seminars.models import FEED_IDS, ExtractionMethod
+from seminars.models import FEED_IDS, MEETING_MIN_TIMED_HOURS, ExtractionMethod
 from seminars.models.health import HEALTH_HISTORY_LIMIT
 from seminars.pipeline.collect import MAX_FETCH_WORKERS, SOURCE_FETCH_LIMIT_SECONDS
 from seminars.pipeline.ids import MAX_MOVE
@@ -180,6 +180,8 @@ class TestTrueToTheProject:
         english = [
             f"the window of {settings.window.days_back} days back and "
             f"{settings.window.days_ahead} ahead",
+            f"`meeting_horizon` up to {settings.meetings.days_ahead} days ahead",
+            f"of at least {MEETING_MIN_TIMED_HOURS} hours (`pipeline/meetings.py`)",
             f"at most {MAX_FETCH_WORKERS} at a time",
             f"may take {minutes} minutes in all",
             f"at most {settings.http.max_requests_per_host} requests per run",
@@ -197,6 +199,9 @@ class TestTrueToTheProject:
         chinese = [
             f"\u5f80\u524d {settings.window.days_back} \u5929\u5f80\u540e "
             f"{settings.window.days_ahead} \u5929",
+            f"\u5f80\u540e\u6700\u591a {settings.meetings.days_ahead} \u5929",
+            f"\u81f3\u5c11 {MEETING_MIN_TIMED_HOURS} \u5c0f\u65f6\u7684 workshop "
+            "\uff08`pipeline/meetings.py`\uff09",
             f"\u540c\u65f6\u6700\u591a {MAX_FETCH_WORKERS} \u4e2a",
             f"\u6700\u591a\u7528 {minutes} \u5206\u949f",
             f"\u6700\u591a {settings.http.max_requests_per_host} \u4e2a\u8bf7\u6c42",
