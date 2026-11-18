@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import shutil
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import pytest
 from typer.testing import CliRunner
@@ -15,7 +14,7 @@ from deadline_samples import SYMPOSIUM_DATES_URL, make_deadline
 from factories import make_event
 from fakes import FakeIssueClient
 from seminars import cli
-from seminars.config import AppConfig, load_config
+from seminars.config import AppConfig
 from seminars.models import Deadline, HealthFile, dump_deadlines
 from seminars.outputs.digest import DEADLINE_DAYS, DEADLINE_ROWS, publish_digest, render_digest
 from test_digest import (
@@ -167,30 +166,35 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
-def project_with_a_deadline_today(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A scratch project whose data/ holds one deadline, on the local day of the test."""
+def project_with_a_deadline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A scratch project whose data/ holds one deadline of WEEK, with the clock at MONDAY_NOON.
+
+    The command reads the clock once and lists the deadlines from the Monday of that
+    week; a clock of its own keeps a Sunday midnight from falling between the day of
+    the deadline and the week of the digest.
+    """
     root = tmp_path / "project"
     (root / "config" / "sources.d").mkdir(parents=True)
     shutil.copy(REPO_ROOT / "config" / "settings.yaml", root / "config" / "settings.yaml")
     shutil.copytree(REPO_ROOT / "locales", root / "locales")
     for name in ("GITHUB_TOKEN", "GITHUB_REPOSITORY", "GITHUB_REPOSITORY_OWNER"):
         monkeypatch.delenv(name, raising=False)
-    zone = ZoneInfo(load_config(root, env={}).settings.timezone)
-    today = datetime.now(zone).date()
-    deadline = make_deadline(
-        date=today, edition_start=today, edition_end=today + timedelta(days=30)
-    )
+    monkeypatch.setattr(cli, "current_time", lambda: MONDAY_NOON)
     (root / "data").mkdir()
-    (root / "data" / "deadlines.json").write_text(dump_deadlines([deadline]), encoding="utf-8")
+    (root / "data" / "deadlines.json").write_text(
+        dump_deadlines([make_deadline()]), encoding="utf-8"
+    )
     monkeypatch.chdir(root)
     return root
 
 
-@pytest.mark.usefixtures("project_with_a_deadline_today")
+@pytest.mark.usefixtures("project_with_a_deadline")
 def test_the_digest_command_lists_the_stored_deadlines() -> None:
     result = CliRunner().invoke(cli.app, ["digest", "--dry-run"])
     assert result.exit_code == 0, result.output
-    assert f"\n## {HEADING}\n" in result.stdout_bytes.decode("utf-8")
+    body = result.stdout_bytes.decode("utf-8")
+    assert body.startswith(f"Issue title: Seminars - week of {WEEK.isoformat()}\n")
+    assert f"\n## {HEADING}\n" in body
 
 
 LOCALE_NOTE = (
