@@ -21,14 +21,14 @@ before it and writes new ones, and the daily commit holds only what changed.
 config/            sources, fields, interests, settings, LLM settings
    |
 seminars run       fetch -> parse -> normalize -> filter -> merge -> classify
-   |               -> scope -> picks -> persist -> health -> write -> check
+   |               -> scope -> picks -> persist -> deadlines -> health -> write -> check
    v
-data/              events.json, uid_map.json, health.json, archive/, llm_cache/,
-   |               last_run.json, run_report.json  (committed)
+data/              events.json, uid_map.json, health.json, deadlines.json, archive/,
+   |               llm_cache/, last_run.json, run_report.json  (committed)
 seminars build-site
    v
-public/            index.html, status.html, events.json, status.json, feeds/<id>.ics
-                   (deployed to GitHub Pages)
+public/            index.html, status.html, events.json, status.json, feeds/<id>.ics,
+                   feeds/deadlines.ics  (deployed to GitHub Pages)
 ```
 
 ## Module map
@@ -43,6 +43,8 @@ modules (`http*.py`, `robots.py`), `fixtures.py` and the text modules (`textrule
 
 - `pipeline/collect.py` takes the adapter registry and its errors from `sources/base.py`,
   and `detail_pages_optional` from `sources/generic/common.py`;
+- `pipeline/deadlines.py` reads the editions of the registry of meetings with
+  `registry_editions` of `sources/custom/registry.py`;
 - `sources/generic/common.py` takes `MAX_SPEAKERS` from `pipeline/normalize.py`;
 - the LLM page extractor (`sources/generic/llm_page.py`) and the LLM tagger
   (`classify/llm_tagger.py`) take `record_skipped_too_long` from `llm/base.py`, and the
@@ -121,12 +123,25 @@ time, and none reads the clock.
    add up to a score; an event at or above the threshold is a pick, with its reasons.
 9. **Persist** (`pipeline/diff.py`). The events of the run are compared with the stored ones:
    see "Stored events" below.
-10. **Health** (`outputs/health.py`). The outcome of each source and LLM provider is added to
+10. **Deadlines** (`pipeline/deadlines.py`). Every milestone of an enabled registry source,
+    of `bay-area` and `world` editions alike, becomes a deadline; it is read from the
+    configuration and nothing is fetched for it. The deadlines are compared with
+    `data/deadlines.json` by uid, `dl.<edition id>.<kind>` with `-<n>` for the n-th
+    milestone of one kind counted by date: a new one starts at `sequence` 0, a change of a
+    fact that the feed or the digest shows (`DEADLINE_SHOWN`) raises its `sequence` and sets
+    `last_changed` to the time of the run, a change of another fact (`series`, `region`,
+    `fields`) is stored with the stamps as they were, and one that the configuration no
+    longer holds, or whose day lies before the window, leaves the file; there is no archive
+    of deadlines. A registry whose `params` cannot be read keeps its
+    stored deadlines, and the run report says so in a warning.
+11. **Health** (`outputs/health.py`). The outcome of each source and LLM provider is added to
     the history, and the issues `source-broken` and `llm-auth` are opened, updated or
     closed.
-11. **Write** (`pipeline/store.py`). The data files first, then the feeds and the site data,
-    and the two records of the run (`data/run_report.json`, `data/last_run.json`) last.
-12. **Check** (`pipeline/checks.py`). The secret scan and the charset rule of `data/` look at
+12. **Write** (`pipeline/store.py`). The data files first (`data/deadlines.json` among them,
+    one deadline per line by date and uid), then the feeds with `deadlines.ics` and the site
+    data, and the two records of the run (`data/run_report.json`, `data/last_run.json`)
+    last.
+13. **Check** (`pipeline/checks.py`). The secret scan and the charset rule of `data/` look at
     the files before they are written and at `data/` and `public/` on disk afterwards.
 
 Exit status of `seminars run`, which the update workflow acts on:
@@ -309,6 +324,21 @@ replaced by an empty placeholder.
   with busy days; no event has an alarm. A cancelled talk stays with `STATUS:CANCELLED`.
   The bytes depend only on the events, so a calendar sees a change only when an event
   changed. `seminars validate` checks every feed with a validator of its own.
+- **Feed of the deadlines** (`outputs/deadlines.py`, written by `outputs/ics.py` with the
+  feeds): `deadlines.ics` holds the deadlines of `data/deadlines.json` and is no feed id, so
+  neither the event feeds nor the download of selected talks know it. Each deadline is one
+  all-day event of free time on its day (`DTEND` the day after), without an alarm; its
+  `SUMMARY` is the name of the edition and the label, followed by the time and the zone as
+  the organizer's page states them (`(23:59 AoE)`, `(AoE)`, `(by this day)`), its
+  `DESCRIPTION` names the edition, its days and its place, the advice to check the
+  organizer's page that states the date (the page of the last check) and the day of that
+  check, and its `URL` is the organizer's page of the edition. The name of an edition is its
+  `short_title`, or the series and the year, or its title when another edition of the
+  registry would get the same name (`display_names`). The bytes depend only on the
+  deadlines. `seminars validate` checks the feed with the rules of every feed and its own:
+  only VTIMEZONE and VEVENT components, a calendar name and description, and per VEVENT the
+  uid of a deadline, a summary that is not empty, a DATE value as `DTSTART` and the day
+  after as `DTEND` with no rule or date of repetition, free time and no alarm.
 - **Site** (`site/`, `outputs/site_data.py`): static HTML and JavaScript without a build
   step, reading `events.json` and `status.json`; English and Chinese from `locales/`. All
   text from the web is escaped. `seminars build-site` assembles `public/` from the committed
@@ -316,7 +346,12 @@ replaced by an empty placeholder.
   the search of titles, people, series, places and abstracts) are part of the address.
   The kind tells the talks from the meetings by the flag `meeting` of `events.json`, and
   an event that began before today and has not ended is listed once, under Ongoing above
-  today.
+  today. The subscription panel lists the feeds of `events.json` and, below them,
+  `deadlines.ics` (`site/subscribe.js`), with the sentence that it is kept by hand and that
+  the submission deadlines of the main tracks of machine-learning and computer-science
+  conferences are not collected, and a link to the calendar of ccfddl for the AI ones; the
+  address of that calendar is a message of the locale files, since no file of the site
+  holds the address of another host.
 - **Download of selected talks** (`site/calendar.js`): the talks a reader ticks in the list
   are page state held in memory, never written to the address or to storage. The selection
   bar above the list is a region landmark; while talks are selected and the bar is
@@ -347,13 +382,16 @@ replaced by an empty placeholder.
   nor `events.json` has anything of its own for the download: the file is made from the
   feed that `outputs/ics.py` writes.
 - **Digest** (`outputs/digest.py`): the talks of the week (Monday to Sunday), the picks first,
-  then one table per field, the conferences and workshops, the talks new since the previous
-  issue and the state of the sources, with every label in English and Chinese. The meetings
-  (`Event.is_meeting`) are in their own table only: those with a day in the eight weeks from
-  the Monday and the later ones new since the previous issue, each marked when it is new or a
-  pick. That table has a row limit of its own, which shrinks only once the other tables are
-  down to one row. No state is kept: "new" is measured from the time the previous digest
-  issue was opened, and an issue with the title of this week is looked for first.
+  then one table per field, the conferences and workshops, the deadlines of the next days,
+  the talks new since the previous issue and the state of the sources, with every label in
+  English and Chinese. The meetings (`Event.is_meeting`) are in their own table only: those
+  with a day in the eight weeks from the Monday and the later ones new since the previous
+  issue, each marked when it is new or a pick. That table has a row limit of its own, which
+  shrinks only once the other tables are down to one row. The deadlines (`data/deadlines.json`) of the 21 days from the Monday
+  follow, each with the time and the zone that the organizer's page states and a link to
+  that page, in a table with a fixed limit of 25 rows; without such a deadline the section is
+  left out. No state is kept: "new" is measured from the time the previous digest issue was
+  opened, and an issue with the title of this week is looked for first.
 - **Health** (`outputs/health.py`): the last 30 runs of each source and provider in
   `data/health.json`. A source that failed 3 runs in a row, that delivered talks and then
   came back empty 3 runs in a row, or that was not read in full 3 runs in a row gets a

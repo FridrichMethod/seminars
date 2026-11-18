@@ -63,9 +63,13 @@ def people(*names: str) -> list[dict[str, str]]:
 
 
 def write_feeds(events: list[Event], config: AppConfig, out_dir: Path) -> dict[str, str]:
-    """Write the feeds and return ``{feed id: text}`` with the line endings as written."""
+    """Write the feeds and return ``{feed id: text}`` with the line endings as written.
+
+    The feed of the deadlines, which is no feed id, is left out; tests/test_ics_deadlines.py
+    looks at it.
+    """
     paths = write_ics_feeds(events, out_dir, config=config)
-    return {path.stem: read_text(path) for path in paths}
+    return {path.stem: read_text(path) for path in paths if path.stem in FEED_IDS}
 
 
 def vevents(text: str) -> list[Any]:
@@ -208,7 +212,7 @@ class TestFeedFiles:
     def test_ten_feeds_are_written_in_feed_order(self, app_config: AppConfig) -> None:
         out_dir = app_config.paths.public_feeds_dir
         paths = write_ics_feeds(golden_events(), out_dir, config=app_config)
-        assert paths == [out_dir / f"{feed}.ics" for feed in FEED_IDS]
+        assert paths == [out_dir / f"{feed}.ics" for feed in (*FEED_IDS, "deadlines")]
         assert sorted(out_dir.iterdir()) == sorted(paths)
 
     def test_each_feed_holds_its_events_ordered_by_start_and_uid(

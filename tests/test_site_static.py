@@ -75,8 +75,8 @@ RAW_HTML_SINKS = re.compile(
     re.IGNORECASE,
 )
 ABSOLUTE_HTTP_URL = re.compile(r"https?://", re.IGNORECASE)
-KEY_LITERAL = re.compile(r'"((?:site|fields|feeds)\.[A-Za-z0-9_.-]*)"')
-OTHER_QUOTED_KEY = re.compile(r"['`](?:site|fields|feeds)\.")
+KEY_LITERAL = re.compile(r'"((?:site|fields|feeds|deadlines)\.[A-Za-z0-9_.-]*)"')
+OTHER_QUOTED_KEY = re.compile(r"['`](?:site|fields|feeds|deadlines)\.")
 JS_IMPORT = re.compile(r'^\s*import\s[^;]*?from\s+"([^"]+)";', re.MULTILINE)
 FEED_PATH = re.compile(r"^const FEED_PATH = (/.+/);$", re.MULTILINE)
 

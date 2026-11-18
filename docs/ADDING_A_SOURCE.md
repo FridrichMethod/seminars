@@ -385,6 +385,14 @@ contact, no address of a person, and never a date projected from an earlier edit
 - `id` is `<series slug>-<year>`, ending in the year the edition starts in. It is the
   uid of the event (`conf-registry.<id>`), so it is never renamed: a renamed entry is a
   new event, and the old one stays until the third run without it.
+- `short_title` (optional) is the name of the edition in `deadlines.ics` and in the digest,
+  one line of at most 40 characters, such as `GEM at ICLR 2027` for a workshop whose title
+  is long. Without it the name is the `series` and the year the edition starts in
+  (`ICLR 2027`), or the `series` alone when it holds a year of four digits already.
+  Editions that would share that name, such as the workshops of one institute in one year,
+  are named by their `title` instead; give such an edition a `short_title` when its title
+  is long. `tests/test_custom_registry_deadlines.py` fails when two editions with milestones
+  still share a name, two equal `short_title` values say.
 - `start` and `end` are local dates, `end` inclusive. Only `region: bay-area` entries
   become events; `world` entries carry their milestones and nothing else.
 - `url` is the organizer's page of the edition: the site of the edition, or the page of
@@ -411,10 +419,42 @@ contact, no address of a person, and never a date projected from an earlier edit
   `PT`, `MT`, `ET`, `UTC` or an IANA name). A zone without a time is the zone of the
   day, as in a deadline of January 22 `AoE`. The label is a few words of our own. The
   description of the event lists them by date; one that has passed leaves it once the
-  window of the run (14 days back) has moved past it.
+  window of the run (14 days back) has moved past it. Every milestone is a deadline of
+  `deadlines.ics` as well (below).
 - YAML reads an unquoted `on`, `off`, `yes` or `no` as true or false and an unquoted
   `23:59` as a number: the day of a check is `date`, a qualifier is `exact` or `by`,
   and a time is written in quotes.
+
+Every milestone of an enabled registry source, of `bay-area` and `world` entries alike, is
+one deadline of the feed `deadlines.ics` and of the digest (`seminars.pipeline.deadlines`).
+Each run reads them from the configuration, so a change shows in the next run, whatever
+sources that run fetches. The rules of curation for them:
+
+- Every milestone comes from the organizer's page of the edition, the one `verified` names,
+  with the time and the zone that page states, and nothing else: a date that the page does
+  not state is not entered, and neither is one projected from an earlier edition. The feed
+  and the digest link that page with the advice to check it. Check the milestones with the
+  other facts at the start of each term.
+- No submission deadline of the main track of a machine-learning or computer-science
+  conference (NeurIPS, ICML, ICLR, ACL, KDD and the like) is entered: the README leaves those
+  to the calendar of ccfddl. A workshop of such a conference with a page and deadlines of its
+  own may be registered (`event_type: workshop`), and so may the workshop deadlines of the
+  conference itself (`workshop_paper`). `tests/test_custom_registry_deadlines.py` fails when
+  an edition that is no workshop, and whose `series` or `id` names such a conference, has a
+  milestone of the kind `paper` or `abstract`.
+- A `world` entry exists only for its milestones and never becomes an event: register a
+  meeting outside the Bay Area only for a deadline that a reader here acts on.
+- The uid of a deadline is `dl.<id>.<kind>`, and `-<n>` follows for the n-th milestone of
+  one kind in an edition (`-2`, `-3`), counted by date. Add a later round of a kind after
+  the earlier ones, and keep an earlier round in the entry while a later one is listed: a
+  milestone that is inserted or deleted before another one of its kind moves the uid of
+  every later one, which a calendar shows as one deadline removed and another added.
+- A change of a fact that the feed shows (a date, a time, a zone, a qualifier, a label, the
+  name, title, days, place or page of the edition, the day or the page of the check) updates
+  the deadline in subscribed calendars: its `SEQUENCE` goes up. A change of the `series`
+  alone (beside a `short_title`), of the `region` or of the `fields` is stored and shows
+  nowhere. A deleted milestone leaves `deadlines.ics` at the next run, and one that has
+  passed 14 days after its date.
 
 A meeting that is over leaves the registry's listing by itself, so deleting its entry
 changes nothing. The deleted entry of a meeting ahead is removed from the feeds at the

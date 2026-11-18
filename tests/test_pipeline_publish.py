@@ -39,7 +39,8 @@ class TestAssemble:
         assert "link.txt" not in built.files
         assert not (paths.public_dir / "link.txt").exists()
         assert built.missing == ()
-        assert len([name for name in built.files if name.startswith("feeds/")]) == len(FEED_IDS)
+        feeds = [name for name in built.files if name.startswith("feeds/")]
+        assert sorted(feeds) == sorted(f"feeds/{feed}.ics" for feed in (*FEED_IDS, "deadlines"))
 
 
 def feed_problems(problems: tuple[str, ...]) -> list[str]:
@@ -58,7 +59,9 @@ class TestValidate:
             "public/events.json: missing (made by seminars build-site)",
             "public/status.json: missing (made by seminars build-site)",
         ]
-        assert feed_problems(problems) == [f"public/feeds/{feed}.ics: missing" for feed in FEED_IDS]
+        assert feed_problems(problems) == [
+            f"public/feeds/{feed}.ics: missing" for feed in (*FEED_IDS, "deadlines")
+        ]
 
     def test_damaged_files_are_named_without_their_content(self, tmp_path: Path) -> None:
         paths = ProjectPaths(tmp_path)
@@ -89,8 +92,9 @@ class TestValidate:
         paths.public_feeds_dir.mkdir(parents=True)
         (paths.public_feeds_dir / "all.ics").write_text("BEGIN:VCALENDAR\n", encoding="utf-8")
         problems = feed_problems(validate(paths))
-        assert len(problems) == len(FEED_IDS) - 1
+        assert len(problems) == len(FEED_IDS)  # nine feed ids and the feed of the deadlines
         assert "public/feeds/picks.ics: missing" in problems
+        assert "public/feeds/deadlines.ics: missing" in problems
 
     def test_the_files_that_were_looked_at_are_listed(self, tmp_path: Path) -> None:
         paths = ProjectPaths(tmp_path)

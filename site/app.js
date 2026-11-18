@@ -65,6 +65,7 @@ const ui = {
   subscribeHeading: byId("subscribe-heading"),
   steps: byId("apple-steps"),
   feeds: byId("feeds"),
+  deadlineFeeds: byId("deadline-feeds"),
 };
 
 // The message of each kind of picks reason and of each place a keyword is found in
@@ -961,7 +962,11 @@ function render() {
   renderList();
   renderNote();
   renderOneTimeCopy();
-  renderSubscribe(view.model?.feeds ?? [], { steps: ui.steps, list: ui.feeds });
+  renderSubscribe(view.model?.feeds ?? [], {
+    steps: ui.steps,
+    list: ui.feeds,
+    deadlines: ui.deadlineFeeds,
+  });
 }
 
 async function main() {

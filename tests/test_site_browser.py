@@ -102,7 +102,7 @@ document.addEventListener("securitypolicyviolation", (event) => {
 
 CJK = re.compile(r"[\u3400-\u9fff]")
 LATIN = re.compile(r"[A-Za-z]")
-KEY_LIKE = re.compile(r"\b(?:site|fields|feeds)\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*")
+KEY_LIKE = re.compile(r"\b(?:site|fields|feeds|deadlines)\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*")
 WEB_PROTOCOLS = {"http", "https"}
 
 
@@ -716,6 +716,44 @@ class TestPanels:
         )
         steps = page.locator("#apple-steps li").all_text_contents()
         assert len(steps) == 5
+        current.assert_clean()
+
+    def test_the_feed_of_the_deadlines_comes_below_the_event_feeds(
+        self, session: Callable[..., Session]
+    ) -> None:
+        current = session().open("index.html")
+        page = current.page
+        messages = catalog("en")
+        order = page.eval_on_selector_all(
+            "#subscribe h3, #subscribe ul", "es => es.map((e) => e.id || e.dataset.i18n)"
+        )
+        assert order[-4:] == [
+            "site.subscribe.feeds",
+            "feeds",
+            "site.subscribe.deadlines",
+            "deadline-feeds",
+        ]
+        items = page.eval_on_selector_all(
+            "#deadline-feeds li", "es => es.map((e) => e.dataset.feed)"
+        )
+        assert items == ["deadlines"]
+        item = page.locator('#deadline-feeds li[data-feed="deadlines"]')
+        host = urlsplit(current.base_url).netloc
+        hrefs = item.locator(".feed-row a").evaluate_all("es => es.map((e) => e.href)")
+        assert hrefs == [
+            f"webcal://{host}/feeds/deadlines.ics",
+            f"{current.base_url}feeds/deadlines.ics",
+        ]
+        assert item.locator(".feed-name").text_content() == messages["deadlines.feed.name"]
+        note = item.locator(".feed-note")
+        name = messages["deadlines.ccfddl.name"]
+        assert note.text_content() == messages["site.subscribe.deadlines_note"].replace(
+            "{ccfddl}", name
+        )
+        ccfddl = note.locator("a")
+        assert ccfddl.text_content() == name
+        assert ccfddl.get_attribute("href") == messages["deadlines.ccfddl.url"]
+        assert ccfddl.get_attribute("rel") == "noopener noreferrer"
         current.assert_clean()
 
     def test_without_a_clipboard_the_copy_button_says_so(

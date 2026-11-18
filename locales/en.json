@@ -50,6 +50,26 @@
       "description": "Conferences and symposia, and workshops that run over several days or for at least three hours."
     }
   },
+  "deadlines": {
+    "feed": {
+      "name": "Seminars - Deadlines",
+      "description": "Deadlines, openings and notifications of conferences and workshops, kept by hand from the organizers' pages. The submission deadlines of the main tracks of machine-learning and computer-science conferences are not in it."
+    },
+    "when": {
+      "by": "by {when}",
+      "by_day": "by this day"
+    },
+    "event": {
+      "day": "{day}, {location}",
+      "days": "{start} to {end}, {location}",
+      "check": "Check the organizer's page before you rely on it: {url}",
+      "verified": "Verified {date}"
+    },
+    "ccfddl": {
+      "name": "ccfddl",
+      "url": "https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics"
+    }
+  },
   "digest": {
     "issue_title": "Seminars - week of {date}",
     "heading": "Seminars - week of {date}",
@@ -58,6 +78,7 @@
     "sections": {
       "picks": "Picks",
       "meetings": "Conferences and workshops",
+      "deadlines": "Deadlines in the next {days} days",
       "new": "New since last issue",
       "health": "Source health"
     },
@@ -70,7 +91,8 @@
       "link": "Link",
       "field": "Field",
       "reasons": "Why picked",
-      "note": "Note"
+      "note": "Note",
+      "deadline": "Deadline"
     },
     "labels": {
       "all_day": "All day",
@@ -80,8 +102,11 @@
       "tba": "TBA",
       "details": "Details",
       "more": "{count} more",
+      "more_deadlines": "{count} more deadlines",
       "new": "New",
-      "pick": "Pick"
+      "pick": "Pick",
+      "organizer": "Organizer's page",
+      "deadlines_note": "Kept by hand from the organizers' pages; check the page before you rely on a date. Times and zones are as the page states them."
     },
     "reasons": {
       "keyword": "\"{term}\" in {place} ({points})",
@@ -253,6 +278,8 @@
       "title": "Subscribe to a calendar",
       "intro": "Each calendar is an ICS feed that refreshes itself every few hours. Subscribe once and new talks appear on their own. A talk in several fields is in each of their calendars, and a conference or workshop is in the calendar of conferences and workshops as well, so it appears once per calendar you subscribe to.",
       "feeds": "Calendars",
+      "deadlines": "Deadlines",
+      "deadlines_note": "Kept by hand from the organizers' pages; check a page before you rely on its date. The submission deadlines of the main tracks of machine-learning and computer-science conferences are not collected; {ccfddl} publishes those of the AI conferences as a calendar.",
       "calendar_link": "Calendar app link",
       "web_link": "Web link",
       "copy": "Copy",

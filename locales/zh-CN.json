@@ -50,6 +50,26 @@
       "description": "学术会议和专题研讨会，以及持续多天或至少三小时的研讨会（workshop）。"
     }
   },
+  "deadlines": {
+    "feed": {
+      "name": "学术报告 - 截止日期",
+      "description": "学术会议和研讨会的截止日期、开放日期和通知日期，按组织方的页面手工维护。不含机器学习和计算机科学会议主会的投稿截止日期。"
+    },
+    "when": {
+      "by": "不晚于 {when}",
+      "by_day": "不晚于当天"
+    },
+    "event": {
+      "day": "{day}，{location}",
+      "days": "{start} 至 {end}，{location}",
+      "check": "依赖这个日期之前，请先查看组织方的页面：{url}",
+      "verified": "核实于 {date}"
+    },
+    "ccfddl": {
+      "name": "ccfddl",
+      "url": "https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics"
+    }
+  },
   "digest": {
     "issue_title": "学术报告 - {date} 当周",
     "heading": "学术报告 - {date} 当周",
@@ -58,6 +78,7 @@
     "sections": {
       "picks": "精选",
       "meetings": "会议和研讨会",
+      "deadlines": "未来 {days} 天内的截止日期",
       "new": "上一期以来新增",
       "health": "数据源健康状况"
     },
@@ -70,7 +91,8 @@
       "link": "链接",
       "field": "领域",
       "reasons": "入选理由",
-      "note": "备注"
+      "note": "备注",
+      "deadline": "截止事项"
     },
     "labels": {
       "all_day": "全天",
@@ -80,8 +102,11 @@
       "tba": "待公布",
       "details": "详情",
       "more": "另有 {count} 场",
+      "more_deadlines": "另有 {count} 个截止日期",
       "new": "新增",
-      "pick": "精选"
+      "pick": "精选",
+      "organizer": "组织方页面",
+      "deadlines_note": "按组织方的页面手工维护；依赖某个日期之前，请先查看页面。时间和时区照页面原样给出。"
     },
     "reasons": {
       "keyword": "{place}含\"{term}\"（{points}）",
@@ -253,6 +278,8 @@
       "title": "订阅日历",
       "intro": "每个日历都是一个 ICS 订阅源，每隔几小时自动刷新。订阅一次，之后新的报告会自动出现。属于几个领域的报告会出现在这几个领域的日历里，会议和研讨会还会出现在会议和研讨会的日历里，所以你订阅了几个这样的日历，它就会显示几次。",
       "feeds": "日历",
+      "deadlines": "截止日期",
+      "deadlines_note": "按组织方的页面手工维护；依赖某个日期之前，请先查看该页面。不收集机器学习和计算机科学会议主会的投稿截止日期；{ccfddl} 把 AI 类会议的截止日期发布成了日历。",
       "calendar_link": "日历应用链接",
       "web_link": "网页链接",
       "copy": "复制",

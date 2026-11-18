@@ -18,7 +18,9 @@ from seminars.config import AppConfig
 from seminars.contracts import LABEL_DIGEST, IssueClient
 from seminars.http import HttpClient
 from seminars.models import (
+    DEADLINES_FEED,
     FEED_IDS,
+    Deadline,
     DigestDocument,
     DigestOutcome,
     Event,
@@ -44,10 +46,23 @@ class FakeEmitters:
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
     def write_ics_feeds(
-        self, events: Sequence[Event], out_dir: Path, *, config: AppConfig
+        self,
+        events: Sequence[Event],
+        out_dir: Path,
+        *,
+        config: AppConfig,
+        deadlines: Sequence[Deadline] = (),
     ) -> list[Path]:
-        """Write ten placeholder calendars that state how many events each feed has."""
-        self.calls.append(("write_ics_feeds", {"events": len(events), "out_dir": out_dir}))
+        """Write ten placeholder calendars that state how many events each feed has.
+
+        The feed of the deadlines comes last and states how many deadlines it has.
+        """
+        self.calls.append(
+            (
+                "write_ics_feeds",
+                {"events": len(events), "out_dir": out_dir, "deadlines": len(deadlines)},
+            )
+        )
         threshold = config.interests.threshold
         paths = []
         for feed in FEED_IDS:
@@ -62,10 +77,17 @@ class FakeEmitters:
                 path, f"BEGIN:VCALENDAR\nX-FAKE-FEED:{feed}\nX-FAKE-EVENTS:{count}\nEND:VCALENDAR\n"
             )
             paths.append(path)
+        path = out_dir / f"{DEADLINES_FEED}.ics"
+        write_text_atomic(
+            path,
+            f"BEGIN:VCALENDAR\nX-FAKE-FEED:{DEADLINES_FEED}\n"
+            f"X-FAKE-DEADLINES:{len(deadlines)}\nEND:VCALENDAR\n",
+        )
+        paths.append(path)
         return paths
 
-    def validate_ics(self, text: str) -> list[str]:
-        self.calls.append(("validate_ics", {"length": len(text)}))
+    def validate_ics(self, text: str, *, deadlines: bool = False) -> list[str]:
+        self.calls.append(("validate_ics", {"length": len(text), "deadlines": deadlines}))
         return [] if text.startswith("BEGIN:VCALENDAR") else ["does not start with BEGIN:VCALENDAR"]
 
     def write_site_data(
@@ -126,9 +148,17 @@ class FakeEmitters:
         week_start: date,
         previous_issue_at: datetime | None,
         owner: str | None = None,
+        deadlines: Sequence[Deadline] = (),
     ) -> DigestDocument:
         self.calls.append(
-            ("render_digest", {"events": len(events), "previous_issue_at": previous_issue_at})
+            (
+                "render_digest",
+                {
+                    "events": len(events),
+                    "previous_issue_at": previous_issue_at,
+                    "deadlines": len(deadlines),
+                },
+            )
         )
         new = [
             event
@@ -136,6 +166,8 @@ class FakeEmitters:
             if previous_issue_at is not None and event.first_seen > previous_issue_at
         ]
         body = f"events: {len(events)}\nnew: {len(new) if previous_issue_at else 'first issue'}\n"
+        if deadlines:
+            body += f"deadlines: {len(deadlines)}\n"
         if owner:
             body += f"cc @{owner}\n"
         return DigestDocument(
@@ -152,6 +184,7 @@ class FakeEmitters:
         now: datetime,
         owner: str | None = None,
         dry_run: bool = False,
+        deadlines: Sequence[Deadline] = (),
     ) -> DigestOutcome:
         """Idempotent per week, closes the previous digest, like the real publisher."""
         self.calls.append(("publish_digest", {"dry_run": dry_run, "owner": owner}))
@@ -165,6 +198,7 @@ class FakeEmitters:
             week_start=week_start,
             previous_issue_at=previous[0].created_at if previous else None,
             owner=owner,
+            deadlines=deadlines,
         )
         if dry_run or issues is None:
             return DigestOutcome(action="dry_run", document=document)
