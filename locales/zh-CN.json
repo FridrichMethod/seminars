@@ -50,6 +50,26 @@
       "description": "学术会议和专题研讨会，以及持续多天或至少三小时的研讨会（workshop）。"
     }
   },
+  "deadlines": {
+    "feed": {
+      "name": "学术报告 - 截止日期",
+      "description": "学术会议和研讨会的截止日期、开放日期和通知日期，按组织方的页面手工维护。不含机器学习会议主会的截止日期。"
+    },
+    "when": {
+      "by": "不晚于 {when}",
+      "by_day": "不晚于当天"
+    },
+    "event": {
+      "day": "{day}，{location}",
+      "days": "{start} 至 {end}，{location}",
+      "check": "依赖这个日期之前，请先查看组织方的页面：{url}",
+      "verified": "核实于 {date}"
+    },
+    "ccfddl": {
+      "name": "ccfddl",
+      "url": "https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics"
+    }
+  },
   "digest": {
     "issue_title": "学术报告 - {date} 当周",
     "heading": "学术报告 - {date} 当周",

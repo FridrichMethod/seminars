@@ -1,0 +1,128 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//seminars.fridrichmethod.github.io//seminars//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALDESC:Deadlines\, openings and notifications of conferences and wor
+ kshops\, kept by hand from the organizers' pages. The deadlines of the mai
+ n tracks of machine learning conferences are not in it.
+X-WR-CALNAME:Seminars - Deadlines
+REFRESH-INTERVAL;VALUE=DURATION:PT6H
+X-PUBLISHED-TTL:PT6H
+X-WR-TIMEZONE:America/Los_Angeles
+BEGIN:VTIMEZONE
+TZID:America/Los_Angeles
+BEGIN:STANDARD
+DTSTART:20260101T000000
+TZNAME:PST
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0800
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:20260308T020000
+TZNAME:PDT
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0700
+END:DAYLIGHT
+BEGIN:STANDARD
+DTSTART:20261101T020000
+TZNAME:PST
+TZOFFSETFROM:-0700
+TZOFFSETTO:-0800
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:20270314T020000
+TZNAME:PDT
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0700
+END:DAYLIGHT
+BEGIN:STANDARD
+DTSTART:20271107T020000
+TZNAME:PST
+TZOFFSETFROM:-0700
+TZOFFSETTO:-0800
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+SUMMARY:Example Symposium 2027: Scholarship deadline (AoE)
+DTSTART;VALUE=DATE:20261120
+DTEND;VALUE=DATE:20261121
+DTSTAMP:20261110T200000Z
+UID:dl.example-symposium-2027.scholarship@seminars.fridrichmethod.github.i
+ o
+SEQUENCE:0
+DESCRIPTION:Example Symposium 2027: Design of Molecules\n2027-03-29 to 202
+ 7-04-01\, Example Hall\, San Francisco\, CA\n\nScholarship deadline: 2026-
+ 11-20 AoE\n\nCheck the organizer's page before you rely on it: https://sym
+ posium.example.org/2027/\nVerified 2026-11-09
+LAST-MODIFIED:20261110T200000Z
+TRANSP:TRANSPARENT
+URL:https://symposium.example.org/2027/
+X-MICROSOFT-CDO-BUSYSTATUS:FREE
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Example Symposium 2027: Short talk abstract deadline (23:59 MT)
+DTSTART;VALUE=DATE:20261203
+DTEND;VALUE=DATE:20261204
+DTSTAMP:20261110T200000Z
+UID:dl.example-symposium-2027.abstract@seminars.fridrichmethod.github.io
+SEQUENCE:0
+DESCRIPTION:Example Symposium 2027: Design of Molecules\n2027-03-29 to 202
+ 7-04-01\, Example Hall\, San Francisco\, CA\n\nShort talk abstract deadlin
+ e: 2026-12-03 23:59 MT\n\nCheck the organizer's page before you rely on it
+ : https://symposium.example.org/2027/\nVerified 2026-11-09
+LAST-MODIFIED:20261110T200000Z
+TRANSP:TRANSPARENT
+URL:https://symposium.example.org/2027/
+X-MICROSOFT-CDO-BUSYSTATUS:FREE
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Example School: Application deadline (by 12:00 Europe/Zurich)
+DTSTART;VALUE=DATE:20270115
+DTEND;VALUE=DATE:20270116
+DTSTAMP:20261110T200000Z
+UID:dl.example-school-2027.application@seminars.fridrichmethod.github.io
+SEQUENCE:0
+DESCRIPTION:Example Summer School 2027\n2027-07-05\, Example Institute\, B
+ asel\, Switzerland\n\nApplication deadline: by 2027-01-15 12:00 Europe/Zur
+ ich\n\nCheck the organizer's page before you rely on it: https://school.ex
+ ample.org/2027/\nVerified 2026-11-02
+LAST-MODIFIED:20261110T200000Z
+TRANSP:TRANSPARENT
+URL:https://school.example.org/2027/
+X-MICROSOFT-CDO-BUSYSTATUS:FREE
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Example Symposium 2027: Registration opens (by this day)
+DTSTART;VALUE=DATE:20270201
+DTEND;VALUE=DATE:20270202
+DTSTAMP:20261110T200000Z
+UID:dl.example-symposium-2027.registration_open@seminars.fridrichmethod.gi
+ thub.io
+SEQUENCE:0
+DESCRIPTION:Example Symposium 2027: Design of Molecules\n2027-03-29 to 202
+ 7-04-01\, Example Hall\, San Francisco\, CA\n\nRegistration opens: by 2027
+ -02-01\n\nCheck the organizer's page before you rely on it: https://sympos
+ ium.example.org/2027/\nVerified 2026-11-09
+LAST-MODIFIED:20261110T200000Z
+TRANSP:TRANSPARENT
+URL:https://symposium.example.org/2027/
+X-MICROSOFT-CDO-BUSYSTATUS:FREE
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Example Symposium 2027: Poster abstract deadline
+DTSTART;VALUE=DATE:20270308
+DTEND;VALUE=DATE:20270309
+DTSTAMP:20261112T183000Z
+UID:dl.example-symposium-2027.abstract-2@seminars.fridrichmethod.github.io
+SEQUENCE:2
+DESCRIPTION:Example Symposium 2027: Design of Molecules\n2027-03-29 to 202
+ 7-04-01\, Example Hall\, San Francisco\, CA\n\nPoster abstract deadline: 2
+ 027-03-08\n\nCheck the organizer's page before you rely on it: https://sym
+ posium.example.org/2027/\nVerified 2026-11-09
+LAST-MODIFIED:20261112T183000Z
+TRANSP:TRANSPARENT
+URL:https://symposium.example.org/2027/
+X-MICROSOFT-CDO-BUSYSTATUS:FREE
+END:VEVENT
+END:VCALENDAR

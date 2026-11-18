@@ -38,6 +38,8 @@ protocol 相互衔接，那里也写明了每个 protocol 由哪个模块实现�
 
 - `pipeline/collect.py` 从 `sources/base.py` 取 adapter 注册表和它的错误类型，从
   `sources/generic/common.py` 取 `detail_pages_optional`；
+- `pipeline/deadlines.py` 用 `sources/custom/registry.py` 的 `registry_editions` 读取手工维护的
+  会议登记表里的各届会议；
 - `sources/generic/common.py` 从 `pipeline/normalize.py` 取 `MAX_SPEAKERS`；
 - LLM 页面抽取器（`sources/generic/llm_page.py`）和 LLM 打标签模块（`classify/llm_tagger.py`）从
   `llm/base.py` 取 `record_skipped_too_long`，页面抽取器还用 `llm/extraction.py`、`llm/grounding.py`、

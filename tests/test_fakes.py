@@ -409,7 +409,10 @@ class TestFakeEmitters:
         events = [make_event(uid="a", picks_score=9.0), make_event(uid="b", fields=["math", "cs"])]
         out_dir = app_config.paths.public_feeds_dir
         paths = fake_emitters.write_ics_feeds(events, out_dir, config=app_config)
-        assert [path.name for path in paths] == [f"{feed}.ics" for feed in FEED_IDS]
+        assert [path.name for path in paths] == [f"{feed}.ics" for feed in FEED_IDS] + [
+            "deadlines.ics"
+        ]
+        assert "X-FAKE-DEADLINES:0" in (out_dir / "deadlines.ics").read_text(encoding="utf-8")
         assert "X-FAKE-EVENTS:2" in (out_dir / "all.ics").read_text(encoding="utf-8")
         assert "X-FAKE-EVENTS:1" in (out_dir / "picks.ics").read_text(encoding="utf-8")
         assert "X-FAKE-EVENTS:1" in (out_dir / "math.ics").read_text(encoding="utf-8")

@@ -43,6 +43,8 @@ modules (`http*.py`, `robots.py`), `fixtures.py` and the text modules (`textrule
 
 - `pipeline/collect.py` takes the adapter registry and its errors from `sources/base.py`,
   and `detail_pages_optional` from `sources/generic/common.py`;
+- `pipeline/deadlines.py` reads the editions of the registry of meetings with
+  `registry_editions` of `sources/custom/registry.py`;
 - `sources/generic/common.py` takes `MAX_SPEAKERS` from `pipeline/normalize.py`;
 - the LLM page extractor (`sources/generic/llm_page.py`) and the LLM tagger
   (`classify/llm_tagger.py`) take `record_skipped_too_long` from `llm/base.py`, and the

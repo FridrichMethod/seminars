@@ -115,7 +115,8 @@ class TestArchive:
     def test_nothing_to_archive_touches_no_file(self, paths: ProjectPaths) -> None:
         assert archive_files(paths, []) == {}
         files = data_files(paths, events=[], uid_map=UidMap(), health=HealthFile())
-        assert sorted(path.name for path in files) == ["events.json", "health.json", "uid_map.json"]
+        names = sorted(path.name for path in files)
+        assert names == ["deadlines.json", "events.json", "health.json", "uid_map.json"]
 
     def test_a_damaged_archive_is_an_error(self, paths: ProjectPaths) -> None:
         paths.archive_dir.mkdir(parents=True)

@@ -17,6 +17,24 @@ LOCALES_DIR = REPO_ROOT / "locales"
 DISABLED_REASONS = "site.status.disabled_reasons."
 """Prefix of the messages that say why a source is disabled, one per source id."""
 
+DEADLINE_KEYS = {
+    "deadlines.feed.name",
+    "deadlines.feed.description",
+    "deadlines.when.by",
+    "deadlines.when.by_day",
+    "deadlines.event.day",
+    "deadlines.event.days",
+    "deadlines.event.check",
+    "deadlines.event.verified",
+    "deadlines.ccfddl.name",
+    "deadlines.ccfddl.url",
+}
+"""The texts of the feed of the deadlines (English inside the feed) and the name and
+address of the calendar of ML main-track deadlines that the site points to."""
+
+SAME_IN_BOTH_LANGUAGES = {"deadlines.ccfddl.name", "deadlines.ccfddl.url"}
+CCFDDL_FEED = "https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics"
+
 DIGEST_KEYS = {
     "digest.issue_title",
     "digest.heading",
@@ -106,11 +124,20 @@ class TestLocaleFiles:
     @pytest.mark.parametrize("lang", LOCALES)
     def test_namespaces(self, lang: str) -> None:
         tree = raw(lang)
-        assert list(tree) == ["fields", "feeds", "digest", "site"]
+        assert list(tree) == ["fields", "feeds", "deadlines", "digest", "site"]
         assert isinstance(tree["site"], dict)
         assert list(tree["fields"]) == list(FIELD_IDS)
         assert list(tree["feeds"]) == list(FEED_IDS)
         assert all(set(feed) == {"name", "description"} for feed in tree["feeds"].values())
+
+    @pytest.mark.parametrize("lang", LOCALES)
+    def test_deadline_keys_are_complete(self, lang: str) -> None:
+        keys = {key for key in flatten(raw(lang)) if key.startswith("deadlines.")}
+        assert keys == DEADLINE_KEYS
+
+    def test_the_calendar_of_ml_deadlines_is_the_one_the_readme_names(self) -> None:
+        for lang in LOCALES:
+            assert flatten(raw(lang))["deadlines.ccfddl.url"] == CCFDDL_FEED
 
     @pytest.mark.parametrize("lang", LOCALES)
     def test_digest_keys_are_complete(self, lang: str) -> None:
@@ -128,8 +155,15 @@ class TestLocaleFiles:
 
     def test_chinese_is_translated(self) -> None:
         chinese = flatten(raw("zh-CN"))
-        owned = [key for key in chinese if key.split(".")[0] in ("fields", "feeds", "digest")]
+        namespaces = ("fields", "feeds", "deadlines", "digest")
+        owned = [
+            key
+            for key in chinese
+            if key.split(".")[0] in namespaces and key not in SAME_IN_BOTH_LANGUAGES
+        ]
         assert [key for key in owned if chinese[key].isascii()] == []
+        english = flatten(raw("en"))
+        assert [key for key in SAME_IN_BOTH_LANGUAGES if chinese[key] != english[key]] == []
 
     def test_english_names(self, locales: dict[str, Locale]) -> None:
         english = locales["en"]
@@ -144,6 +178,7 @@ class TestLocaleFiles:
         for field in FIELD_IDS:
             assert english.t(f"feeds.{field}.name") == f"Seminars - {english.t(f'fields.{field}')}"
         assert english.t("feeds.conferences.name") == "Seminars - Conferences and workshops"
+        assert english.t("deadlines.feed.name") == "Seminars - Deadlines"
 
     @pytest.mark.parametrize("lang", LOCALES)
     def test_files_use_two_space_indentation_and_end_with_newline(self, lang: str) -> None:

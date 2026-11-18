@@ -50,6 +50,26 @@
       "description": "Conferences and symposia, and workshops that run over several days or for at least three hours."
     }
   },
+  "deadlines": {
+    "feed": {
+      "name": "Seminars - Deadlines",
+      "description": "Deadlines, openings and notifications of conferences and workshops, kept by hand from the organizers' pages. The deadlines of the main tracks of machine learning conferences are not in it."
+    },
+    "when": {
+      "by": "by {when}",
+      "by_day": "by this day"
+    },
+    "event": {
+      "day": "{day}, {location}",
+      "days": "{start} to {end}, {location}",
+      "check": "Check the organizer's page before you rely on it: {url}",
+      "verified": "Verified {date}"
+    },
+    "ccfddl": {
+      "name": "ccfddl",
+      "url": "https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics"
+    }
+  },
   "digest": {
     "issue_title": "Seminars - week of {date}",
     "heading": "Seminars - week of {date}",
