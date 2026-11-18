@@ -1,8 +1,9 @@
-# The registry: Bay Area conferences and workshops that no enabled source delivers,
-# kept by hand. Schema of the source entry: seminars.models.SourceConfig; every key of
-# a meeting is described in the docstring of seminars.sources.custom.registry, and
-# how to add or update one in docs/ADDING_A_SOURCE.md ("Conferences and workshops
-# without a source").
+# The registry, kept by hand: Bay Area conferences and workshops that no enabled
+# source delivers, and meetings elsewhere whose deadlines are kept (region world).
+# Schema of the source entry: seminars.models.SourceConfig; every key of a meeting is
+# described in the docstring of seminars.sources.custom.registry, and how to add or
+# update one in docs/ADDING_A_SOURCE.md ("Conferences and workshops without a
+# source").
 #
 # The adapter requests nothing. "url" is the page of this file on GitHub: the status
 # page links it, so a reader sees where these meetings come from. It is a placeholder
@@ -270,7 +271,10 @@ sources:
 
         # --- Mathematics (SLMath, Berkeley) --------------------------------------------
         # slmath.org renders its pages in the browser, so no source reads them. Its
-        # workshops take place in Berkeley; the deadlines on the pages have no time of day.
+        # workshops take place in Berkeley; the deadlines on the workshop pages have no
+        # time of day. A summer graduate school takes a student nominated by the Director
+        # of Graduate Studies of a sponsoring institution or of a US department of
+        # mathematics, first come, first served, from the opening of the nominations.
 
         - id: slmath-old-problems-in-irrationality-2027
           title: "Revisiting Fundamental Problems Workshop: Old Problems in Irrationality"
@@ -339,6 +343,76 @@ sources:
             - {kind: funding, date: 2027-01-12, label: Registration deadline for funding}
             - {kind: registration, date: 2027-04-16, label: Registration deadline}
 
+        - id: slmath-sgs-min-max-methods-geometry-2027
+          title: "Summer Graduate School: Min-Max Methods in Geometry"
+          series: SLMath Summer Graduate Schools
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-06-21
+          end: 2027-07-02
+          region: bay-area
+          location: UC Berkeley, Berkeley, CA
+          url: https://www.slmath.org/summer-schools/1163
+          fields: [math]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools"}
+          milestones:
+            - kind: other
+              date: 2026-12-01
+              time: "10:00"
+              zone: PT
+              label: Summer 2027 nominations open
+          notes:
+            - Title, dates and venue are on the page of the school (url); the opening of
+              the nominations is on the page of the summer schools (verified), which the
+              page of the school links for how to apply.
+
+        - id: slmath-sgs-geometric-topology-complex-surfaces-2027
+          title: "Summer Graduate School: Geometric Topology of Complex Surfaces"
+          series: SLMath Summer Graduate Schools
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-06-28
+          end: 2027-07-09
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/summer-schools/1178
+          fields: [math]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools"}
+          milestones:
+            - kind: other
+              date: 2026-12-01
+              time: "10:00"
+              zone: PT
+              label: Summer 2027 nominations open
+          notes:
+            - Title, dates and venue are on the page of the school (url); the opening of
+              the nominations is on the page of the summer schools (verified).
+
+        - id: slmath-sgs-classification-fusion-categories-2027
+          title: "Summer Graduate School: Classification of Fusion Categories"
+          series: SLMath Summer Graduate Schools
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2027-07-12
+          end: 2027-07-23
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/summer-schools/1155
+          fields: [math]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/summer-schools"}
+          milestones:
+            - kind: other
+              date: 2026-12-01
+              time: "10:00"
+              zone: PT
+              label: Summer 2027 nominations open
+          notes:
+            - Title, dates and venue are on the page of the school (url); the opening of
+              the nominations is on the page of the summer schools (verified).
+
         - id: slmath-pathways-algcomb-tropical-2027
           title: "Pathways Workshop: Algebraic Combinatorics & New Trends in Tropical Geometry"
           series: SLMath workshops
@@ -389,10 +463,398 @@ sources:
           milestones:
             - {kind: funding, date: 2027-09-10, label: Registration deadline for funding}
             - {kind: registration, date: 2027-12-10, label: Registration deadline}
+
+        # --- Outside the Bay Area: deadlines only (region world) ----------------------
+        # Meetings in protein design, enzymes, computational biology and AI for biology
+        # and chemistry whose deadlines a student here acts on. They never become events.
+        # The deadlines of ML main tracks (NeurIPS, ICML, ICLR and the like) are left to
+        # the calendar of ccfddl, which the README links.
+        # Keystone states every deadline at 11:59 PM US Mountain Standard Time (MT). A
+        # Gordon Research Seminar (GRS) is the two-day meeting of students and postdocs
+        # just before its conference (GRC), with an application of its own.
+
+        - id: psb-2027
+          title: "PSB 2027: Pacific Symposium on Biocomputing"
+          series: Pacific Symposium on Biocomputing (PSB)
+          host_org: Pacific Symposium on Biocomputing
+          start: 2027-01-03
+          end: 2027-01-07
+          region: world
+          location: Fairmont Orchid, Big Island of Hawaii, HI
+          url: https://psb.stanford.edu/
+          fields: [cs, bio, med]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://psb.stanford.edu/keydates/"}
+          milestones:
+            - {kind: registration_open, date: 2026-07-22, label: Registration opens}
+            - {kind: paper, date: 2026-08-03, label: Paper deadline}
+            - {kind: other, date: 2026-08-03, label: Abstract and travel award submissions open}
+            - {kind: notification, date: 2026-09-08, label: Paper notification}
+            - kind: other
+              date: 2026-10-01
+              time: "23:59"
+              zone: PT
+              label: Camera-ready paper deadline
+            - kind: travel_award
+              date: 2026-10-15
+              time: "23:59"
+              zone: PT
+              label: Travel award deadline
+            - {kind: early_registration, date: 2026-10-31, label: Early registration deadline}
+            - kind: abstract
+              date: 2026-12-01
+              time: "23:59"
+              zone: PT
+              label: Abstract and poster deadline
+          notes:
+            - Travel award decisions are announced in "late October 2026", without a day.
+            - PSB 2028 posts only a call for workshop proposals; add it once its call
+              for papers is dated.
+
+        - id: keystone-computational-drug-discovery-2027
+          title: "Computational Drug Discovery: Tools Across the Translational Pipeline"
+          series: Keystone Symposia
+          host_org: Keystone Symposia on Molecular and Cellular Biology
+          start: 2027-02-22
+          end: 2027-02-25
+          region: world
+          location: Fairmont Banff Springs, Banff, AB, Canada
+          url: https://www.keystonesymposia.org/conferences/conference-listing/meeting/k82027
+          fields: [ai-ml, chem, med]
+          event_type: conference
+          status: confirmed
+          verified:
+            date: 2026-11-18
+            url: https://www.keystonesymposia.org/conferences/conference-listing/meeting/deadlines/k82027
+          milestones:
+            - kind: scholarship
+              date: 2026-11-24
+              time: "23:59"
+              zone: MT
+              label: Scholarship deadline
+            - kind: short_talk
+              date: 2026-11-24
+              time: "23:59"
+              zone: MT
+              label: Short talk abstract deadline
+            - kind: early_registration
+              date: 2026-12-28
+              time: "23:59"
+              zone: MT
+              label: Early registration deadline
+            - kind: poster
+              date: 2027-02-02
+              time: "23:59"
+              zone: MT
+              label: Poster abstract deadline
+          notes:
+            - Joint with the Keystone meeting "Antibodies as Drugs" (K7).
+
+        - id: keystone-computational-design-modeling-biomolecules-2027
+          title: Computational Design and Modeling of Biomolecules
+          series: Keystone Symposia
+          host_org: Keystone Symposia on Molecular and Cellular Biology, with Rosetta Commons
+          start: 2027-03-29
+          end: 2027-04-01
+          region: world
+          location: La Fonda on the Plaza, Santa Fe, NM
+          url: https://www.keystonesymposia.org/conferences/conference-listing/meeting/c52027
+          fields: [ai-ml, chem, bio]
+          event_type: conference
+          status: confirmed
+          verified:
+            date: 2026-11-18
+            url: https://www.keystonesymposia.org/conferences/conference-listing/meeting/deadlines/c52027
+          milestones:
+            - kind: scholarship
+              date: 2026-12-03
+              time: "23:59"
+              zone: MT
+              label: Scholarship deadline
+            - kind: short_talk
+              date: 2026-12-03
+              time: "23:59"
+              zone: MT
+              label: Short talk abstract deadline
+            - kind: early_registration
+              date: 2027-01-28
+              time: "23:59"
+              zone: MT
+              label: Early registration deadline
+            - kind: funding
+              date: 2027-01-28
+              label: Rosetta Commons member travel and lodging sign-up
+            - kind: poster
+              date: 2027-03-08
+              time: "23:59"
+              zone: MT
+              label: Poster abstract deadline
+          notes:
+            - Winter RosettaCon 2027 takes place in partnership with this meeting, says
+              https://rosettacommons.org/events/wrc/, which also gives the sign-up of its
+              members (no time of day); the Keystone pages do not name Winter RosettaCon.
+
+        - id: embo-embl-ai-and-biology-2027
+          title: "EMBO | EMBL Symposium: AI and biology"
+          series: EMBO | EMBL Symposia
+          host_org: EMBO and EMBL
+          start: 2027-05-11
+          end: 2027-05-14
+          region: world
+          location: EMBL Advanced Training Centre, Heidelberg, Germany, and virtual
+          url: https://www.embl.org/about/info/course-and-conference-office/events/ees27-12/
+          fields: [ai-ml, bio]
+          event_type: conference
+          status: confirmed
+          verified:
+            date: 2026-11-18
+            url: https://www.embl.org/about/info/course-and-conference-office/events/ees27-12/
+          milestones:
+            - {kind: other, date: 2026-12-21, label: Workshop and tutorial programme announced}
+            - {kind: abstract, date: 2027-02-02, label: Abstract deadline (on-site participants)}
+            - kind: funding
+              date: 2027-02-02
+              qualifier: by
+              label: Financial assistance deadline
+            - kind: notification
+              date: 2027-03-15
+              label: Workshop and tutorial participant results
+            - {kind: registration, date: 2027-03-30, label: On-site registration deadline}
+            - {kind: registration, date: 2027-05-05, label: Virtual registration deadline}
+          notes:
+            - Financial assistance is applied for with the abstract (on-site) or in the
+              submission portal by the abstract deadline (virtual).
+            - The application period for workshop and tutorial participants is "tbd".
+            - The call for workshop and tutorial facilitators, closed on November 16, 2026,
+              is not entered; its later dates concern only its applicants.
+
+        - id: recomb-2027
+          title: "RECOMB 2027: Research in Computational Molecular Biology"
+          series: RECOMB
+          host_org: RECOMB
+          start: 2027-05-17
+          end: 2027-05-20
+          region: world
+          location: Toronto, Canada
+          url: https://recomb.org/recomb2027/
+          fields: [cs, bio]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://recomb.org/recomb2027/keydates_and_deadlines.html"}
+          milestones:
+            - kind: paper
+              date: 2026-10-28
+              time: "23:59"
+              zone: AoE
+              label: Paper abstract deadline
+            - kind: paper
+              date: 2026-11-04
+              time: "23:59"
+              zone: AoE
+              label: Full paper deadline
+            - {kind: notification, date: 2026-12-22, label: Author notification}
+            - kind: other
+              date: 2027-02-15
+              time: "23:59"
+              zone: AoE
+              label: Final version deadline (accepted papers)
+          notes:
+            - The venue page says TBA; satellite meetings are on May 15-16, 2027.
+            - Posters, travel fellowships and early registration are TBA on the key dates
+              page; add them once it dates them.
+
+        - id: grs-computer-aided-drug-design-2027
+          title: "Computer Aided Drug Design GRS: Optimizing Computer Aided Drug Design Cycles Through Prospective Testing"
+          series: Computer Aided Drug Design Gordon Research Seminar
+          host_org: Gordon Research Conferences
+          start: 2027-07-17
+          end: 2027-07-18
+          region: world
+          location: University of Southern Maine, Portland, ME
+          url: https://www.grc.org/computer-aided-drug-design-grs-conference/2027/
+          fields: [ai-ml, chem, med]
+          event_type: conference
+          status: confirmed
+          verified:
+            date: 2026-11-18
+            url: https://www.grc.org/computer-aided-drug-design-grs-conference/2027/
+          milestones:
+            - kind: short_talk
+              date: 2027-04-11
+              qualifier: by
+              label: Speaker abstract deadline
+            - {kind: application, date: 2027-06-19, qualifier: by, label: Application deadline}
+
+        - id: grc-computer-aided-drug-design-2027
+          title: "Computer Aided Drug Design GRC: The Convergence of Models, Molecules, and Evidence on Molecular Design"
+          series: Computer Aided Drug Design Gordon Research Conference
+          host_org: Gordon Research Conferences
+          start: 2027-07-18
+          end: 2027-07-23
+          region: world
+          location: University of Southern Maine, Portland, ME
+          url: https://www.grc.org/computer-aided-drug-design-conference/2027/
+          fields: [ai-ml, chem, med]
+          event_type: conference
+          status: confirmed
+          verified:
+            date: 2026-11-18
+            url: https://www.grc.org/computer-aided-drug-design-conference/2027/
+          milestones:
+            - {kind: application, date: 2027-06-20, qualifier: by, label: Application deadline}
+
+        - id: ismb-eccb-2027
+          title: ISMB/ECCB 2027
+          series: ISMB
+          host_org: International Society for Computational Biology (ISCB)
+          start: 2027-07-18
+          end: 2027-07-22
+          region: world
+          location: Bella Center Copenhagen, Copenhagen, Denmark, and virtual
+          url: https://www.iscb.org/ismbeccb2027/home
+          fields: [cs, ai-ml, bio]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.iscb.org/ismbeccb2027/home"}
+          milestones:
+            - {kind: other, date: 2026-12-17, label: Tutorial proposal deadline}
+            - kind: paper
+              date: 2027-01-14
+              time: "23:59"
+              zone: AoE
+              qualifier: by
+              label: Proceedings paper deadline
+          notes:
+            - The paper deadline is on
+              https://www.iscb.org/ismbeccb2027/call-for-submissions/proceedings, the
+              tutorial deadline on the ISCB announcement of October 27, 2026.
+            - The key dates page renders its dates in the browser, so abstract, poster and
+              registration dates are not entered; the fellowships page offers none.
+
+        - id: grs-protein-engineering-2027
+          title: "Protein Engineering GRS: Design and Engineering of Proteins for Healthcare and Industrial Applications"
+          series: Protein Engineering Gordon Research Seminar
+          host_org: Gordon Research Conferences
+          start: 2027-07-24
+          end: 2027-07-25
+          region: world
+          location: Bates College, Lewiston, ME
+          url: https://www.grc.org/protein-engineering-grs-conference/2027/
+          fields: [chem, bio]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.grc.org/protein-engineering-grs-conference/2027/"}
+          milestones:
+            - kind: short_talk
+              date: 2027-04-18
+              qualifier: by
+              label: Speaker abstract deadline
+            - {kind: application, date: 2027-06-26, qualifier: by, label: Application deadline}
+
+        - id: grc-protein-engineering-2027
+          title: "Protein Engineering GRC: Integrating Design and Empirical Approaches for Protein Engineering"
+          series: Protein Engineering Gordon Research Conference
+          host_org: Gordon Research Conferences
+          start: 2027-07-25
+          end: 2027-07-30
+          region: world
+          location: Bates College, Lewiston, ME
+          url: https://www.grc.org/protein-engineering-conference/2027/
+          fields: [chem, bio]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.grc.org/protein-engineering-conference/2027/"}
+          milestones:
+            - {kind: application, date: 2027-06-27, qualifier: by, label: Application deadline}
+
+        - id: grs-enzymes-coenzymes-metabolic-pathways-2027
+          title: "Enzymes, Coenzymes and Metabolic Pathways GRS: Nature's Diversity and Designer Enzymes for a New Frontier in Catalysis"
+          series: Enzymes, Coenzymes and Metabolic Pathways Gordon Research Seminar
+          host_org: Gordon Research Conferences
+          start: 2027-07-24
+          end: 2027-07-25
+          region: world
+          location: Grand Summit Hotel at Sunday River, Newry, ME
+          url: https://www.grc.org/enzymes-coenzymes-and-metabolic-pathways-grs-conference/2027/
+          fields: [chem, bio]
+          event_type: conference
+          status: confirmed
+          verified:
+            date: 2026-11-18
+            url: https://www.grc.org/enzymes-coenzymes-and-metabolic-pathways-grs-conference/2027/
+          milestones:
+            - kind: short_talk
+              date: 2027-04-18
+              qualifier: by
+              label: Speaker abstract deadline
+            - {kind: application, date: 2027-06-26, qualifier: by, label: Application deadline}
+
+        - id: grc-enzymes-coenzymes-metabolic-pathways-2027
+          title: "Enzymes, Coenzymes and Metabolic Pathways GRC: Innovation in Enzyme Molecular Mechanism and Biological Function"
+          series: Enzymes, Coenzymes and Metabolic Pathways Gordon Research Conference
+          host_org: Gordon Research Conferences
+          start: 2027-07-25
+          end: 2027-07-30
+          region: world
+          location: Grand Summit Hotel at Sunday River, Newry, ME
+          url: https://www.grc.org/enzymes-coenzymes-and-metabolic-pathways-conference/2027/
+          fields: [chem, bio]
+          event_type: conference
+          status: confirmed
+          verified:
+            date: 2026-11-18
+            url: https://www.grc.org/enzymes-coenzymes-and-metabolic-pathways-conference/2027/
+          milestones:
+            - {kind: application, date: 2027-06-27, qualifier: by, label: Application deadline}
+
+        - id: summer-rosettacon-2027
+          title: Summer RosettaCon 2027
+          series: RosettaCon
+          host_org: Rosetta Commons
+          start: 2027-08-09
+          end: 2027-08-13
+          region: world
+          location: University of Washington, Seattle, WA
+          url: https://rosettacommons.org/events/src/conferenceguide/
+          fields: [ai-ml, chem, bio]
+          event_type: conference
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://rosettacommons.org/events/src/conferenceguide/"}
+          milestones:
+            - {kind: abstract, date: 2027-02-15, label: Talk abstract deadline}
+            - {kind: travel_award, date: 2027-02-15, label: Travel grant application deadline}
+            - {kind: registration_open, date: 2027-02-16, label: Early-bird registration opens}
+            - kind: registration
+              date: 2027-03-15
+              label: Registration deadline for accepted presenters
+            - {kind: early_registration, date: 2027-04-01, label: Early-bird registration closes}
+            - {kind: registration_open, date: 2027-04-01, label: General registration opens}
+            - {kind: registration, date: 2027-05-17, label: In-person registration closes}
+            - {kind: registration, date: 2027-08-12, label: Virtual registration closes}
+          notes:
+            - The key dates table gives no year; the heading (August 9 - 13, 2027), "will
+              open in early 2027" and the weekdays of the program place them in 2027.
+            - The opening of abstracts and travel grants is not entered; it is January 1 in
+              the guide but "around mid-November 2026" on
+              https://rosettacommons.org/events/src/grants/.
+            - The venue paragraph of the guide names Summer RosettaCon 2026 and the Husky
+              Union Building; enter the building once the paragraph names 2027.
     research:
       verified: 2026-11-18
-      sample_events: 17
+      sample_events: 20
       notes:
         - Every meeting was checked on the page of its organizer on 2026-11-18.
         - Left out on purpose. SynBioBeta 2027 (an industry summit with paid passes) and
           Critical Issues in Mathematics Education 2027 at SLMath (education, not research).
+        - Not entered for want of a dated deadline on the organizer's page. Enzyme
+          Engineering XXIX (ECI), MLBio 2027 (MLCB and MLSB), PSB 2028, the Keystone
+          meeting "AI and Gene Regulation Across Scales" and the workshops of ICLR 2027,
+          whose list is announced on 2026-11-29.
+        - Not entered for want of a page the tools could read on 2026-11-18, as grc.org
+          answers a plain fetch with a captcha. The Bioinorganic Chemistry GRS 2027 and
+          the Metals in Biology GRC 2027, both in Ventura, CA, are at
+          https://www.grc.org/bioinorganic-chemistry-grs-conference/2027/ and
+          https://www.grc.org/metals-in-biology-conference/2027/. A web search of these
+          pages gives application deadlines of December 25 and December 27, 2026, but
+          not the dates of the meetings; add both once their pages are read.
