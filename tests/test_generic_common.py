@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta
 
 import pytest
 
-from seminars.sources.generic.common import MONTHS, month_number, require_groups
+from seminars.sources.generic.common import MONTHS, month_number, parse_moment, require_groups
 
 
 class TestRequireGroups:
@@ -34,3 +35,33 @@ class TestMonthNumber:
     def test_there_are_twelve(self) -> None:
         assert len(MONTHS) == 12
         assert [month_number(name) for name in MONTHS] == list(range(1, 13))
+
+
+class TestParseMoment:
+    """The ISO 8601 reader of the adapters keeps the sign of an offset as it is written."""
+
+    @pytest.mark.parametrize(
+        ("text", "hours", "minutes"),
+        [
+            ("2027-01-29T23:59:00-12:00", -12, 0),
+            ("2027-01-29T23:59-12", -12, 0),
+            ("20270129T235900-1200", -12, 0),
+            ("2027-01-29T23:59:00+05:30", 5, 30),
+            ("2027-01-29T23:59:00+14:00", 14, 0),
+            ("2027-01-29T23:59:00Z", 0, 0),
+        ],
+    )
+    def test_an_offset_is_read_as_written(self, text: str, hours: int, minutes: int) -> None:
+        moment = parse_moment(text)
+        assert isinstance(moment, datetime)
+        assert (moment.hour, moment.minute) == (23, 59)
+        assert moment.utcoffset() == timedelta(hours=hours, minutes=minutes)
+
+    @pytest.mark.parametrize(
+        "text",
+        ["2027-01-29 23:59 UTC-12", "2027-01-29T23:59:00 AoE", "Jan 29, 2027 23:59 AoE"],
+    )
+    def test_a_zone_in_words_is_left_to_normalization(self, text: str) -> None:
+        # No ISO 8601: jsonld keeps the text, rss too when it is no RFC 822 date either,
+        # and normalization reads it (seminars.pipeline.times.parse_moment).
+        assert parse_moment(text) is None
