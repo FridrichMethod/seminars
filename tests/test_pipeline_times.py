@@ -481,6 +481,23 @@ class TestOffsetsFromUtc:
         moment = parse_moment("11:59 PM UTC-12, January 29, 2027", reference=REFERENCE_NOW)
         assert moment == datetime(2027, 1, 29, 23, 59, tzinfo=AOE)
 
+    @pytest.mark.parametrize(
+        ("text", "offset"),
+        [
+            ("Fri, 29 Jan 2027 23:59:00 AoE", -12),
+            ("Fri, 29 Jan 2027 23:59:00 UTC-12", -12),
+            ("Fri, 29 Jan 2027 23:59:00 GMT-8", -8),
+            ("Fri, 29 Jan 2027 23:59:00 GMT+0100", 1),
+            ("Fri, 29 Jan 2027 23:59:00 CET", 1),
+        ],
+    )
+    def test_the_date_of_a_feed_with_a_zone_in_words(self, text: str, offset: int) -> None:
+        # The form of RFC 822 with a zone that RFC 822 does not have.
+        moment = parse_moment(text, reference=REFERENCE_NOW)
+        assert isinstance(moment, datetime)
+        assert (moment.hour, moment.minute) == (23, 59)
+        assert moment.utcoffset() == timedelta(hours=offset)
+
     def test_the_time_that_javascript_writes(self) -> None:
         # Date.prototype.toString, without the name of the zone in parentheses
         moment = parse_moment("Fri Jan 29 2027 16:00:00 GMT-0800", reference=REFERENCE_NOW)
@@ -505,6 +522,11 @@ class TestOffsetsFromUtc:
     def test_an_offset_that_no_time_zone_has_is_an_error(self, zone: str) -> None:
         with pytest.raises(TimeError, match="no time zone has"):
             parse_moment(f"Jan 29, 2027 23:59 {zone}", reference=REFERENCE_NOW)
+
+    def test_a_numeric_offset_of_a_day_next_to_aoe_is_an_error(self) -> None:
+        # dateutil reads "+2500" as an offset that datetime cannot use.
+        with pytest.raises(TimeError, match="no time zone has"):
+            parse_moment("Jan 29, 2027 10:00 +2500 AoE", reference=REFERENCE_NOW)
 
     @pytest.mark.parametrize(
         "zone",
@@ -583,14 +605,58 @@ class TestTwoZones:
             parse_moment("Jan 29, 2027 23:59 (PST)", reference=REFERENCE_NOW)
 
     @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            # PST in July is the time of Los Angeles, UTC-7, written or not next to UTC-8.
+            ("Jul 1, 2027 4:00 PM UTC-8 (PST)", "2027-07-01T16:00:00-07:00"),
+            ("Jul 1, 2027 4:00 PM PST (UTC-8)", "2027-07-01T16:00:00-07:00"),
+            ("Jul 1, 2027 4:00 PM UTC-8 PST", "2027-07-01T16:00:00-07:00"),
+            ("Jan 29, 2027 4:00 PM PDT (UTC-7)", "2027-01-29T16:00:00-08:00"),
+            ("Jan 29, 2027 4:00 PM UTC-7 (PT)", "2027-01-29T16:00:00-08:00"),
+            # CET in July is the time of Berlin, UTC+2; BST in January that of London, UTC.
+            ("Jul 1, 2027 23:59 CET (UTC+1)", "2027-07-01T23:59:00+02:00"),
+            ("Jan 29, 2027 23:59 UTC+2 (CET)", "2027-01-29T23:59:00+01:00"),
+            ("Jan 29, 2027 23:59 BST (UTC+1)", "2027-01-29T23:59:00+00:00"),
+        ],
+    )
+    def test_an_offset_of_the_other_season_keeps_the_region(self, text: str, expected: str) -> None:
+        moment = parse_moment(text, reference=REFERENCE_NOW)
+        assert isinstance(moment, datetime)
+        assert moment.isoformat() == expected
+
+    def test_the_region_through_the_rules_of_normalization(self) -> None:
+        assert iso(resolve("Jul 1, 2027 4:00 PM UTC-8 (PST)").start) == "2027-07-01T16:00:00-07:00"
+        assert iso(resolve("Jul 1, 2027 23:59 CET (UTC+1)").start) == "2027-07-01T14:59:00-07:00"
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            # 01:00 to 02:00 comes twice on 2027-11-07 in Los Angeles: the offset says which.
+            ("Nov 7, 2027 1:30 AM UTC-7 (PT)", "2027-11-07T01:30:00-07:00"),
+            ("Nov 7, 2027 1:30 AM UTC-8 (PT)", "2027-11-07T01:30:00-08:00"),
+            ("Nov 7, 2027 1:30 AM UTC-8 (PDT)", "2027-11-07T01:30:00-08:00"),
+            ("Nov 7, 2027 1:30 AM PST (UTC-7)", "2027-11-07T01:30:00-07:00"),
+            # 02:00 to 03:00 does not exist on 2027-03-14: the offset says which instant.
+            ("Mar 14, 2027 2:30 AM UTC-8 (PT)", "2027-03-14T03:30:00-07:00"),
+            ("Mar 14, 2027 2:30 AM UTC-7 (PT)", "2027-03-14T01:30:00-08:00"),
+        ],
+    )
+    def test_the_offset_settles_the_hour_that_the_clocks_change(
+        self, text: str, expected: str
+    ) -> None:
+        assert iso(resolve(text).start) == expected
+
+    @pytest.mark.parametrize(
         "text",
         [
             "Jan 29, 2027 23:59 PST AoE",
             "Jan 29, 2027 23:59 AoE (UTC+8)",
             "Jan 29, 2027 23:59 UTC-8 (UTC-7)",
-            "Jul 1, 2027 4:00 PM PST (UTC-8)",  # PST in July is the time of Los Angeles, UTC-7
-            "Jul 1, 2027 4:00 PM UTC-8 (PST)",
-            "Jul 1, 2027 23:59 CET (UTC+1)",  # CET in July is the time of Berlin, UTC+2
+            "Jan 29, 2027 23:59 UTC+8 (CST)",  # China, not Chicago: Chicago is never UTC+8
+            "Jan 29, 2027 23:59 UTC-6 (PST)",
+            "Jul 1, 2027 23:59 UTC-12 (PT)",
+            "Jan 29, 2027 10:00 UTC+1 (GMT)",
+            "Jan 29, 2027 10:00 GMT (UTC+1)",
             "Jan 29, 2027 23:59 AoE (UTC)",
             "Jan 29, 2027 23:59 -0800 (UTC-12)",
         ],

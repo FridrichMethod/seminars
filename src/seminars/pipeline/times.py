@@ -174,15 +174,32 @@ def _written_offset(text: str) -> tuple[str, timedelta | None]:
     return rest, next(iter(offsets), None)
 
 
+def _seasons(zone: ZoneInfo, year: int) -> set[timedelta | None]:
+    """The offsets from UTC that ``zone`` has in winter and in summer of ``year``."""
+    return {datetime(year, month, 1, 12, tzinfo=zone).utcoffset() for month in (1, 7)}
+
+
 def _at_offset(moment: datetime, offset: timedelta) -> datetime:
-    """``moment`` at ``offset`` from UTC; an error when its text names another zone too."""
+    """``moment`` at ``offset`` from UTC; an error when its text names another zone too.
+
+    The offset settles which of the two times is meant in the hour that the
+    clocks repeat or skip. A region that the text names as well keeps
+    ``moment`` in its zone when ``offset`` is the region's offset of the
+    other season: "4 PM UTC-8 (PST)" in July is Pacific daylight time, as
+    "4 PM PST" is.
+    """
+    zone = moment.tzinfo
+    if zone is None:
+        return moment.replace(tzinfo=timezone(offset))
     try:
-        named = moment.utcoffset()
+        named = {moment.replace(fold=fold).utcoffset() for fold in (0, 1)}
     except ValueError as error:  # an offset of dateutil of a day or more
         raise TimeError("time text has an offset from UTC that no time zone has") from error
-    if named is not None and named != offset:
-        raise TimeError("time text names two different time zones")
-    return moment.replace(tzinfo=timezone(offset))
+    if offset in named:
+        return moment.replace(tzinfo=timezone(offset))
+    if isinstance(zone, ZoneInfo) and offset in _seasons(zone, moment.year):
+        return moment
+    raise TimeError("time text names two different time zones")
 
 
 def _nearest_year(moment: datetime, reference: datetime) -> datetime:
@@ -219,10 +236,14 @@ def parse_moment(text: str, *, reference: datetime) -> datetime | date:
       are UTC-12.
 
     A zone written twice must say the same ("23:59 AoE (UTC-12)", "4 PM PST
-    (UTC-8)", "4 PM UTC-8 (PST)"); two different ones are an error. An unknown abbreviation is
-    ignored and the time is then taken as wall time of the source. A text
-    without a time of day is a date in any zone: "Jan 29, 2027 AoE" is
-    January 29.
+    (UTC-8)", "4 PM UTC-8 (PST)"); two different ones are an error ("AoE
+    (UTC+8)", "UTC+8 (CST)"). An abbreviation next to an offset that its
+    region has in summer or in winter stays the zone of its region, as it is
+    alone: "4 PM UTC-8 (PST)" in July is 4 PM Pacific daylight time, and "4
+    PM PDT (UTC-7)" in January is 4 PM Pacific standard time. An unknown
+    abbreviation is ignored and the time is then taken as wall time of the
+    source. A text without a time of day is a date in any zone: "Jan 29,
+    2027 AoE" is January 29.
     """
     if len(text) > MAX_TEXT_LENGTH:
         raise TimeError("time text is too long")
