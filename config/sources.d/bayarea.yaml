@@ -904,3 +904,86 @@ sources:
           upcoming block, so the list is fetched unfiltered.
         - Region labels are San Francisco Bay Area, Chicago, New York, Other Locations
           (online webinars and outside conferences such as NeurIPS booths).
+
+  - <<: *bayarea
+    id: bayarea-simons-workshops
+    name: Simons Institute workshops
+    adapter: html_list
+    # Workshops, boot camps and symposia of the Simons Institute for the Theory of
+    # Computing (Calvin Lab, UC Berkeley). The list runs about a year ahead (the Fall
+    # 2027 Diffusion Generative Modeling workshops were listed in November 2026), so
+    # the source keeps its meetings up to meetings.days_ahead (meeting_horizon).
+    url: https://simons.berkeley.edu/programs-events/workshop-symposia
+    urls:
+      - https://simons.berkeley.edu/programs-events/workshop-symposia?page=1
+      - https://simons.berkeley.edu/programs-events/workshop-symposia?page=2
+    homepage: https://simons.berkeley.edu/programs-events/workshop-symposia
+    institution: other
+    host_org: Simons Institute for the Theory of Computing
+    # Theoretical computer science. A card has only a title and dates, and titles
+    # such as "Random CSPs" match no term of config/taxonomy.yaml; the rules add
+    # ai-ml (or math) where a title names it.
+    default_fields: [cs]
+    default_event_type: workshop
+    meeting_horizon: true
+    params:
+      # The page holds both tabs, "Upcoming" (#nav-upcoming) and "Past" (#nav-past),
+      # in one HTML; the item selector takes the upcoming cards only. The two pagers
+      # share the parameter ?page=N: page 0 lists 10 upcoming cards, page 1 the other
+      # 5, page 2 none. Page 2 is read so that a list that grows past 20 cards is
+      # still complete. A page past the end keeps the empty upcoming view (no
+      # clamping to the last page) and the past cards, which run to ?page=45: that
+      # is a page without items (allow_empty). A page without the upcoming view was
+      # redesigned or replaced, and that is a parse error.
+      allow_empty: true
+      empty_marker: '#nav-upcoming .view-pattern--block_upcoming_all_workshops'
+      selectors:
+        item: '#nav-upcoming .event-card'
+        title: '.event-card__title a'
+        link: '.event-card__title a'
+        date: '.event-card__date'
+      link_attribute: href
+      # Several days: "Monday, Nov. 30 - Friday, Dec. 4, 2026", the year only at the
+      # end (an en dash in the page; html_list gives the first day the year of the
+      # last). One day: "Wednesday, Nov. 18, 2026 | 9 a.m. - 5 p.m.". A range is an
+      # all-day event, as the page prints it; the datetime attributes of its <time>
+      # elements (9 a.m. of the first day and 5 p.m. of the last, in UTC) are not
+      # read. The list names no place; the six detail pages that were checked say
+      # "Calvin Lab auditorium", and no detail page is fetched.
+      date_pattern: '^(?P<date>[A-Z][a-z]+, [A-Z][a-z]+\.? \d{1,2}(?:, \d{4})?)(?: ?[-\u2013] ?(?P<end_date>[A-Z][a-z]+, [A-Z][a-z]+\.? \d{1,2}, \d{4}))?(?: ?\| ?(?P<start>[^|\u2013]+?) ?[-\u2013] ?(?P<end>[^|\u2013]+))?$'
+      default_location: Calvin Lab, UC Berkeley
+      require: [title, date]
+      # Not open to the public, as their detail pages say:
+      # - a reunion workshop is for the long-term participants of a past program,
+      #   "Participation in the workshop is by invitation only" (Complexity and Linear
+      #   Algebra Reunion, 2026-12-07);
+      # - the partner Industry Day ("Twelfth Annual Industry Day") "is open to the
+      #   Simons Institute's Industry partners and sponsors, organizers, research
+      #   fellows, and scientists in Institute programs, and members of the Berkeley
+      #   community". The Quantum Industry Day ("5th Annual Quantum Industry Day
+      #   2026") asks for registration because space is limited and restricts nobody,
+      #   so it is kept.
+      # The detail page of "Experimental Focus Fortnight" (A Quantum Sprint, 2027-03-15
+      # to 03-25) names no audience. The program page says "The program will start
+      # with a boot camp and experimental focus fortnight", and the institute's page
+      # "Participating in a Workshop" (/participating-workshop) says "Everyone is
+      # welcome to attend the boot camp and workshops that are part of the program",
+      # so it is kept.
+      skip_title_patterns:
+        - '(?i)\breunion\b'
+        - '(?i)^\w+ Annual Industry Day$'
+    research:
+      verified: 2026-11-18
+      sample_events: 15
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: html
+      crawl_delay: 0
+      robots: "Drupal's stock robots.txt: nothing under /programs-events/ or /workshops/ is disallowed"
+      requests_per_run: 3  # the three list pages; no detail page
+      notes:
+        - Drupal 10, server-rendered. /jsonapi and /rss.xml answer 404, the pages hold no JSON-LD and link no feed. A detail page (/workshops/<slug>) names the room and has Google, iCal, Yahoo and Outlook links with times (9 a.m. on the first day to 5 p.m. on the last), but the list has what the feeds need, so no detail page is fetched.
+        - "15 upcoming cards on 2026-11-18, from 2026-11-18 to 2027-11-19: TCS workshops and boot camps of the programs of spring 2027, two Industry Days, AI Risk, Evaluation and Governance (2027-03-31) and the Fall 2027 Diffusion Generative Modeling boot camp and workshops (2027-08-30 to 2027-11-19). A card has a program label on some items, no speaker, no place and no abstract."
+        - The footer says "All Rights Reserved" and the pages link no terms of use; only the facts of a card (title, dates, link) are used.
