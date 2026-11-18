@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import get_args
 
 import pytest
@@ -60,6 +60,16 @@ class TestIsMeetingSpan:
     def test_a_workshop_of_one_whole_day_is_not(self) -> None:
         # One day of a hackathon that a calendar lists day by day (Big Earth Hackathon).
         assert not span("workshop", all_day(1))
+
+    def test_whole_days_are_counted_by_their_dates_across_a_change_of_the_clocks(self) -> None:
+        # Stored times have fixed offsets: the day the clocks go back lasts 25 hours.
+        pdt, pst = timezone(timedelta(hours=-7)), timezone(timedelta(hours=-8))
+        fall_back = datetime(2026, 11, 1, tzinfo=pdt), datetime(2026, 11, 2, tzinfo=pst)
+        spring_forward = datetime(2027, 3, 14, tzinfo=pst), datetime(2027, 3, 15, tzinfo=pdt)
+        two_days = datetime(2027, 3, 14, tzinfo=pst), datetime(2027, 3, 16, tzinfo=pdt)
+        for start, end in (fall_back, spring_forward):
+            assert not is_meeting_span("workshop", start, end, all_day=True)
+        assert is_meeting_span("workshop", *two_days, all_day=True)
 
     @pytest.mark.parametrize(
         ("hours", "meeting"),
