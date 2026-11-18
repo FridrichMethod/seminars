@@ -104,13 +104,14 @@ sources:
   `meetings.days_ahead` days ahead (365, in `config/settings.yaml`) instead of the 120 of
   `window.days_ahead`; its talks keep the usual window. A seminar, lecture or other event
   whose title names a meeting (a symposium, conference, summit, workshop, boot camp or
-  summer school, among others) and that is all day or at least 3 hours long counts as a
-  meeting too. Set it on a source that announces its meetings months ahead, not on a
-  calendar of talks: the source is fetched with the longer window, so an adapter that asks
-  for a date range, follows pages of a listing or reads a detail page per event makes more
-  requests, all within the same request budget per host and the same 15 minutes per
-  source. Compare the requests and the time that `seminars sources check <id>` reports
-  with and without the key before you commit it.
+  summer school, among others) and that is all day or at least 3 hours long becomes a
+  conference or a workshop, and so a meeting by the rule above; a workshop of one day that
+  is all day, such as one day of a hackathon, is none. Set it on a source that announces
+  its meetings months ahead, not on a calendar of talks: the source is fetched with the
+  longer window, so an adapter that asks for a date range, follows pages of a listing or
+  reads a detail page per event makes more requests, all within the same request budget
+  per host and the same 15 minutes per source. Compare the requests and the time that
+  `seminars sources check <id>` reports with and without the key before you commit it.
 - `ignore_robots` lists hosts of the source (of `url`, `urls`, `homepage` or
   `params.extra_hosts`) whose robots.txt `Disallow` rules this source does not follow;
   see "Before you start". A host of another site is an error.
@@ -351,8 +352,9 @@ adapter `registry` (`src/seminars/sources/custom/registry.py`, whose docstring
 describes every key). Its adapter requests nothing: each meeting is an entry of
 `params.meetings`, and its `url` is the page of that file on GitHub, which the status
 page links and nothing fetches; there is no fixture to record either. The source has
-`meeting_horizon: true`, so a meeting is kept up to a year ahead, and `allow_empty: true`,
-so a registry whose meetings are all over is no broken source.
+`meeting_horizon: true`, so its meetings are kept up to a year ahead (a workshop of one day
+is none, see `event_type` below), and `allow_empty: true`, so a registry whose meetings are
+all over is no broken source.
 
 Register a meeting only when no enabled source delivers it: search `data/events.json`
 and the site for its title first. An entry holds the facts of one edition, each from
@@ -402,6 +404,12 @@ contact, no address of a person, and never a date projected from an earlier edit
   still share a name, two equal `short_title` values say.
 - `start` and `end` are local dates, `end` inclusive. Only `region: bay-area` entries
   become events; `world` entries carry their milestones and nothing else.
+- `event_type` is `conference` or `workshop`. A `workshop` of one day (`start` equal to
+  `end`) is no meeting (`Event.is_meeting`), as one day of a hackathon is not: a run keeps
+  it as a talk of the type workshop, only once it lies within the 120 days of
+  `window.days_ahead`, in `all.ics` and the feeds of its fields but not in
+  `conferences.ics`, and among the talks of the site and of the digest. A `conference` of
+  one day is a meeting. Either way its milestones are deadlines of `deadlines.ics`.
 - `url` is the organizer's page of the edition: the site of the edition, or the page of
   the series or program that announces it (the notes of the entry say so). A listing of
   the same meeting by another source becomes one event with the entry

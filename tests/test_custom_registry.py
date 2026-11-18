@@ -403,6 +403,28 @@ class TestNormalized:
             True,
         )
 
+    def test_a_workshop_of_one_day_is_a_talk_of_the_window_of_the_run(self) -> None:
+        # A workshop of one day is no meeting (seminars.models.is_meeting_span): it is kept
+        # once the window of talks reaches it, typed workshop, and never in conferences.ics.
+        one_day = {"event_type": "workshop", "start": date(2027, 1, 14), "end": date(2027, 1, 14)}
+        later = {"start": date(2027, 6, 14), "end": date(2027, 6, 14)}
+        entries = [
+            meeting(id="soon-workshop-2027", **one_day),
+            meeting(id="later-workshop-2027", **{**one_day, **later}),
+            meeting(id="later-conference-2027", **later),
+        ]
+        source = registry(*entries)
+        result = normalize_drafts(drafts(source), source, self.context())
+        assert result.outside_window == 1
+        kept = {
+            c.event.uid: (c.event.event_type, c.event.all_day, c.event.is_meeting)
+            for c in result.candidates
+        }
+        assert kept == {
+            "conf-registry.soon-workshop-2027": ("workshop", True, False),
+            "conf-registry.later-conference-2027": ("conference", True, True),
+        }
+
     def test_a_venue_to_be_announced_is_no_location(self) -> None:
         source = registry(meeting(location="To be announced", status="tentative"))
         (candidate,) = normalize_drafts(drafts(source), source, self.context()).candidates

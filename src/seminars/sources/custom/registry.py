@@ -34,8 +34,10 @@ Keys of ``params`` (an unknown key is an error that names it):
     an entry only carries its milestones);
   - ``url``: the https address of the organizer's page of the edition;
   - ``fields``: one or more field ids;
-  - ``event_type``: ``conference`` or ``workshop``; ``status``:
-    ``confirmed`` or ``tentative`` (a date that is only saved, say);
+  - ``event_type``: ``conference`` or ``workshop`` (a workshop of one day
+    is no meeting, ``seminars.models.is_meeting_span``: normalization keeps
+    it as a talk, in the window of talks only); ``status``: ``confirmed``
+    or ``tentative`` (a date that is only saved, say);
   - ``verified``: ``date`` and ``url`` (https) of the last check of the
     facts on the organizer's page;
   - ``milestones`` (optional): dates of the edition (``Milestone``), each

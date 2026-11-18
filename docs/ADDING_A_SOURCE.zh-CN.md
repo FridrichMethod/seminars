@@ -89,7 +89,8 @@ sources:
   workshop，即 `Event.is_meeting`）保留到往后 `meetings.days_ahead` 天（365 天，在
   `config/settings.yaml` 里），而不是 `window.days_ahead` 的 120 天；它的报告仍然用平常的窗口。
   标题里写着会议（symposium、conference、summit、workshop、boot camp、summer school 等）、并且是
-  全天或者至少 3 小时的 seminar、lecture 或 other 类型事件也算会议。只给提前几个月公布会议的
+  全天或者至少 3 小时的 seminar、lecture 或 other 类型事件会变成 conference 或 workshop，因而按上面的
+  规则算会议；只有一天的全天 workshop（比如黑客松的某一天）不算。只给提前几个月公布会议的
   数据源设置它，不要给报告日历设置：这个数据源会用更长的窗口抓取，所以按日期范围查询、翻列表页
   或者每个事件读一个详情页的 adapter 会发出更多请求，而每个 host 的请求预算和每个数据源 15 分钟的
   上限都不变。提交之前，对比加和不加这个 key 时 `seminars sources check <id>` 报告的请求数和用时。
@@ -305,8 +306,8 @@ uv run pytest
 adapter 是 `registry`（`src/seminars/sources/custom/registry.py`，它的 docstring 说明每个键）。
 这个 adapter 不发任何请求：每个会议是 `params.meetings` 里的一条记录；数据源的 `url` 是这个文件在
 GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；也没有 fixture 可录。这个数据源设了
-`meeting_horizon: true`，所以会议最多提前一年保留；还设了 `allow_empty: true`，所以会议全部结束的
-登记表不算坏掉的数据源。
+`meeting_horizon: true`，所以它的会议最多提前一年保留（只有一天的 workshop 不算会议，见下面的
+`event_type`）；还设了 `allow_empty: true`，所以会议全部结束的登记表不算坏掉的数据源。
 
 只登记没有任何已启用数据源提供的会议：先在 `data/events.json` 和网站上搜它的标题。一条记录只写
 一届会议的事实，每一项都取自组织方这一届的页面，别的都不写：不写简介、不写联系方式、不写任何人的
@@ -350,6 +351,11 @@ GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；�
   `short_title`），`tests/test_custom_registry_deadlines.py` 会失败。
 - `start` 和 `end` 是当地日期，`end` 包含在内。只有 `region: bay-area` 的记录会成为事件；
   `world` 的记录只带它的 milestone。
+- `event_type` 写 `conference` 或 `workshop`。只有一天（`start` 等于 `end`）的 `workshop` 不算会议
+  （`Event.is_meeting`），就像黑客松的某一天不算一样：运行把它当作类型为 workshop 的报告，等它进入
+  `window.days_ahead` 的 120 天之内才保留；它在 `all.ics` 和它的领域的 feed 里，不在 `conferences.ics`
+  里，在网站和摘要里列在报告当中。只有一天的 `conference` 算会议。不论哪种，它的 milestone 都是
+  `deadlines.ics` 里的截止日期。
 - `url` 是组织方这一届的页面：这一届自己的网站，或者公布它的系列或项目的页面（记录的 notes 会
   说明）。另一个数据源列出同一个会议时，它的条目只要指向同一个页面、在这条记录的某一天开始、并且
   至少 3 小时长，就和这条记录合并成一个事件（`pipeline/dedup.py`），不必覆盖整个会议。在这条记录
