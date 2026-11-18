@@ -99,12 +99,15 @@ class DigestRenderer(Protocol):
         week_start: date,
         previous_issue_at: datetime | None,
         owner: str | None = None,
+        deadlines: Sequence[Deadline] = (),
     ) -> DigestDocument:
         """Render the digest for the week starting on ``week_start`` (a Monday).
 
         Events first seen after ``previous_issue_at`` form the "new" section;
         ``None`` means this is the first issue. ``owner`` (a GitHub login) is
-        mentioned in the body so that GitHub sends a notification.
+        mentioned in the body so that GitHub sends a notification. The
+        ``deadlines`` (data/deadlines.json) of the next days have a section of
+        their own.
         """
         ...
 
@@ -122,6 +125,7 @@ class DigestPublisher(Protocol):
         now: datetime,
         owner: str | None = None,
         dry_run: bool = False,
+        deadlines: Sequence[Deadline] = (),
     ) -> DigestOutcome:
         """Open this week's digest issue and close the previous one.
 
@@ -129,9 +133,9 @@ class DigestPublisher(Protocol):
         configured time zone; its Monday is the ``week_start`` of the renderer.
         Idempotent per week: if an issue with this week's title exists,
         nothing is changed. The creation time of the previous digest issue
-        becomes ``previous_issue_at`` of the renderer and ``owner`` is passed
-        on to it. With ``dry_run`` (or without an issue client) nothing is
-        written.
+        becomes ``previous_issue_at`` of the renderer, and ``owner`` and
+        ``deadlines`` are passed on to it. With ``dry_run`` (or without an
+        issue client) nothing is written.
         """
         ...
 

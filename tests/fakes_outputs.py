@@ -148,9 +148,17 @@ class FakeEmitters:
         week_start: date,
         previous_issue_at: datetime | None,
         owner: str | None = None,
+        deadlines: Sequence[Deadline] = (),
     ) -> DigestDocument:
         self.calls.append(
-            ("render_digest", {"events": len(events), "previous_issue_at": previous_issue_at})
+            (
+                "render_digest",
+                {
+                    "events": len(events),
+                    "previous_issue_at": previous_issue_at,
+                    "deadlines": len(deadlines),
+                },
+            )
         )
         new = [
             event
@@ -158,6 +166,8 @@ class FakeEmitters:
             if previous_issue_at is not None and event.first_seen > previous_issue_at
         ]
         body = f"events: {len(events)}\nnew: {len(new) if previous_issue_at else 'first issue'}\n"
+        if deadlines:
+            body += f"deadlines: {len(deadlines)}\n"
         if owner:
             body += f"cc @{owner}\n"
         return DigestDocument(
@@ -174,6 +184,7 @@ class FakeEmitters:
         now: datetime,
         owner: str | None = None,
         dry_run: bool = False,
+        deadlines: Sequence[Deadline] = (),
     ) -> DigestOutcome:
         """Idempotent per week, closes the previous digest, like the real publisher."""
         self.calls.append(("publish_digest", {"dry_run": dry_run, "owner": owner}))
@@ -187,6 +198,7 @@ class FakeEmitters:
             week_start=week_start,
             previous_issue_at=previous[0].created_at if previous else None,
             owner=owner,
+            deadlines=deadlines,
         )
         if dry_run or issues is None:
             return DigestOutcome(action="dry_run", document=document)

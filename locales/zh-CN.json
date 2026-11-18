@@ -78,6 +78,7 @@
     "sections": {
       "picks": "精选",
       "meetings": "会议和研讨会",
+      "deadlines": "未来 {days} 天内的截止日期",
       "new": "上一期以来新增",
       "health": "数据源健康状况"
     },
@@ -90,7 +91,8 @@
       "link": "链接",
       "field": "领域",
       "reasons": "入选理由",
-      "note": "备注"
+      "note": "备注",
+      "deadline": "截止事项"
     },
     "labels": {
       "all_day": "全天",
@@ -100,8 +102,11 @@
       "tba": "待公布",
       "details": "详情",
       "more": "另有 {count} 场",
+      "more_deadlines": "另有 {count} 个截止日期",
       "new": "新增",
-      "pick": "精选"
+      "pick": "精选",
+      "organizer": "组织方页面",
+      "deadlines_note": "按组织方的页面手工维护；依赖某个日期之前，请先查看页面。时间和时区照页面原样给出。"
     },
     "reasons": {
       "keyword": "{place}含\"{term}\"（{points}）",

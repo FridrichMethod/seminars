@@ -42,6 +42,7 @@ DIGEST_KEYS = {
     "digest.summary",
     "digest.sections.picks",
     "digest.sections.meetings",
+    "digest.sections.deadlines",
     "digest.sections.new",
     "digest.sections.health",
     "digest.table.date",
@@ -53,6 +54,7 @@ DIGEST_KEYS = {
     "digest.table.field",
     "digest.table.reasons",
     "digest.table.note",
+    "digest.table.deadline",
     "digest.labels.all_day",
     "digest.labels.online",
     "digest.labels.cancelled",
@@ -60,8 +62,11 @@ DIGEST_KEYS = {
     "digest.labels.tba",
     "digest.labels.details",
     "digest.labels.more",
+    "digest.labels.more_deadlines",
     "digest.labels.new",
     "digest.labels.pick",
+    "digest.labels.organizer",
+    "digest.labels.deadlines_note",
     "digest.reasons.keyword",
     "digest.reasons.series",
     "digest.reasons.speaker",
@@ -179,6 +184,7 @@ class TestLocaleFiles:
             assert english.t(f"feeds.{field}.name") == f"Seminars - {english.t(f'fields.{field}')}"
         assert english.t("feeds.conferences.name") == "Seminars - Conferences and workshops"
         assert english.t("deadlines.feed.name") == "Seminars - Deadlines"
+        assert english.t("digest.sections.deadlines", days=21) == "Deadlines in the next 21 days"
 
     @pytest.mark.parametrize("lang", LOCALES)
     def test_files_use_two_space_indentation_and_end_with_newline(self, lang: str) -> None:

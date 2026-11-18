@@ -2,9 +2,10 @@
 
 ``render_digest`` turns the stored events and the run history into a
 markdown document: the picks first, then one table per field, the
-conferences and workshops, the talks that were first seen since the previous
-issue, and the state of the sources. ``publish_digest`` opens the issue for
-the week that contains ``now`` and closes the earlier ones.
+conferences and workshops, the deadlines of the next days, the talks that
+were first seen since the previous issue, and the state of the sources.
+``publish_digest`` opens the issue for the week that contains ``now`` and
+closes the earlier ones.
 
 Meetings (``Event.is_meeting``: a conference, or a workshop over several days
 or of at least three hours) have a section of their own: every meeting with a
@@ -12,6 +13,14 @@ day in the MEETING_WEEKS weeks from the Monday of the digest, and every later
 one first seen since the previous issue, marked as new and as a pick where it
 is one. A meeting is in no other table, and the sentence that counts the
 talks of the week leaves it out, so nothing is listed twice.
+
+Deadlines (data/deadlines.json, the milestones of the registry of meetings)
+have a section of their own as well: every deadline whose date lies in the
+DEADLINE_DAYS days from the Monday of the digest (that Monday included), by
+date, with the name of its edition and its label, the time and the zone as
+the organizer's page states them, and a link to that page. Its row limit
+DEADLINE_ROWS is its own and never shrinks. There is no such section when no
+deadline falls in those days.
 
 No state is kept. "New since the last issue" is whatever was first seen
 after the previous digest issue was created, and a week is never posted
@@ -46,8 +55,10 @@ and nothing GitHub would act on. Every such text goes through ``_cell``:
 Untrusted text only ever stands inside a line that this module begins (a
 table cell, or the name of the LLM provider at the end of a sentence), never
 at the start of one, which is what makes these rules sufficient. Links are
-written by this module alone, to the detail page of an event, with the
-address percent-encoded inside angle brackets.
+written by this module alone, to the detail page of an event or the
+organizer's page of a deadline, with the address percent-encoded inside
+angle brackets. The texts of a deadline come from the registry, which is
+kept by hand, and go through ``_cell`` all the same.
 """
 
 from __future__ import annotations
@@ -66,6 +77,7 @@ from seminars.i18n import DEFAULT_LOCALE, LOCALES, Locale, bilingual, load_local
 from seminars.models import (
     FIELD_IDS,
     TBA_TITLE,
+    Deadline,
     DigestDocument,
     DigestOutcome,
     Event,
@@ -75,8 +87,10 @@ from seminars.models import (
     SourceHealthEntry,
     Speaker,
     ascii_url,
+    ordered_deadlines,
     signed_points,
 )
+from seminars.outputs.deadlines import stated
 from seminars.textrules import ascii_printable, clean_text
 
 ROW_LIMITS: Final = (40, 30, 20, 15, 10, 5, 2, 1)
@@ -88,6 +102,13 @@ until the other tables are down to the last of ROW_LIMITS, and only then the nex
 
 MEETING_WEEKS: Final = 8
 """Weeks from the Monday of the digest whose meetings are all listed."""
+
+DEADLINE_DAYS: Final = 21
+"""Days from the Monday of the digest (that day included) whose deadlines are listed."""
+
+DEADLINE_ROWS: Final = 25
+"""Rows of the table of deadlines: a limit of its own, outside ROW_LIMITS and
+MEETING_ROW_LIMITS, which never shrinks."""
 
 MAX_BODY_CHARS: Final = 60_000
 """GitHub refuses an issue body of more than 65536 characters."""
@@ -433,6 +454,44 @@ def _meetings(events: Sequence[Event], ctx: _Context, rows: int) -> list[str]:
     return [f"## {heading}", *_table(listed, _MEETING_COLUMNS, ctx, rows)]
 
 
+def _deadline_row(deadline: Deadline, ctx: _Context) -> str:
+    """Date, the time and zone the page states, edition and label, the organizer's page."""
+    hour = _lines([_cell(stated(deadline, locale), TITLE_MAX_CHARS) for locale in ctx.locales])
+    what = _cell(f"{deadline.edition_short}: {deadline.label}", TITLE_MAX_CHARS)
+    url = ascii_url(deadline.url)
+    page = EMPTY_CELL
+    if len(url) <= URL_MAX_CHARS:
+        page = f"[{ctx.both('digest.labels.organizer')}](<{url}>)"
+    return _row([deadline.date.isoformat(), hour or EMPTY_CELL, what or EMPTY_CELL, page])
+
+
+_DEADLINE_COLUMNS: Final = (
+    "digest.table.date",
+    "digest.table.time",
+    "digest.table.deadline",
+    "digest.table.link",
+)
+
+
+def _deadlines(deadlines: Sequence[Deadline], ctx: _Context) -> list[str]:
+    """The deadlines of the DEADLINE_DAYS days from the Monday; nothing when there is none."""
+    until = ctx.week_start + timedelta(days=DEADLINE_DAYS)
+    listed = [item for item in deadlines if ctx.week_start <= item.date < until]
+    if not listed:
+        return []
+    header = _row([ctx.both(key) for key in _DEADLINE_COLUMNS])
+    rows = [_deadline_row(item, ctx) for item in listed[:DEADLINE_ROWS]]
+    blocks = [
+        f"## {ctx.both('digest.sections.deadlines', days=DEADLINE_DAYS)}",
+        ctx.sentence("digest.labels.deadlines_note"),
+        "\n".join([header, _row(["---"] * len(_DEADLINE_COLUMNS)), *rows]),
+    ]
+    if len(listed) > DEADLINE_ROWS:
+        left = len(listed) - DEADLINE_ROWS
+        blocks.append(ctx.sentence("digest.labels.more_deadlines", count=left))
+    return blocks
+
+
 def _new(talks: Sequence[Event], ctx: _Context, rows: int) -> list[str]:
     """Talks (no meeting) first seen after the previous issue that have not taken place yet."""
     heading = ctx.both("digest.sections.new")
@@ -582,15 +641,16 @@ def render_digest(
     week_start: date,
     previous_issue_at: datetime | None,
     owner: str | None = None,
+    deadlines: Sequence[Deadline] = (),
 ) -> DigestDocument:
     """Render the digest for the week starting on ``week_start`` (a Monday).
 
     The contract is ``seminars.contracts.DigestRenderer``. The tables of
     talks hold the talks with a day in that week, by local days of the
-    configured zone; the table of meetings is described in the module
-    docstring. A table that is too long ends with a count of the events left
-    out, and the limits shrink until the body fits into a GitHub issue: first
-    ROW_LIMITS, then MEETING_ROW_LIMITS.
+    configured zone; the tables of meetings and of deadlines are described
+    in the module docstring. A table that is too long ends with a count of
+    the rows left out, and the limits shrink until the body fits into a
+    GitHub issue: first ROW_LIMITS, then MEETING_ROW_LIMITS.
     """
     if week_start.weekday() != 0:
         raise ValueError(f"week_start must be a Monday: {week_start.isoformat()}")
@@ -598,6 +658,7 @@ def render_digest(
         raise ValueError("previous_issue_at must be timezone-aware")
     ctx = _context(config, week_start, previous_issue_at)
     ordered = _ordered(events)
+    deadline_blocks = _deadlines(ordered_deadlines(deadlines), ctx)
     talks = [event for event in ordered if not event.is_meeting]
     week = [event for event in talks if _in_week(event, ctx)]
     fixed_start = _opening(week, ctx)
@@ -607,6 +668,7 @@ def render_digest(
         middle = [
             *_talks(week, ctx, rows),
             *_meetings(ordered, ctx, meeting_rows),
+            *deadline_blocks,
             *_new(talks, ctx, rows),
             *_health(health, config, ctx, rows),
         ]
@@ -634,6 +696,7 @@ def publish_digest(
     now: datetime,
     owner: str | None = None,
     dry_run: bool = False,
+    deadlines: Sequence[Deadline] = (),
 ) -> DigestOutcome:
     """Open this week's digest issue and close the earlier ones.
 
@@ -658,6 +721,7 @@ def publish_digest(
         week_start=week_start,
         previous_issue_at=earlier[0].created_at if earlier else None,
         owner=owner,
+        deadlines=deadlines,
     )
     if dry_run or issues is None:
         return DigestOutcome(action="dry_run", document=document)
