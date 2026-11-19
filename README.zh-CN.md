@@ -137,73 +137,76 @@ Google 按自己的节奏刷新订阅的日历，可能要几个小时。
 
 ## 覆盖范围
 
-下面的数字在太平洋时间 2026-11-16 22:23 开始的那次运行中测得。"未来四周"统计的是
-当时还没有结束、并且在之后 28 天内开始的报告。网站的状态页随时显示每个数据源的当前状态。
+下面的数字在太平洋时间 2026-11-18 18:25 开始的那次运行中测得。"未来四周"统计的是当时还没有结束、
+并且在之后 28 天内开始的事件（报告、学术会议和研讨会）。网站的状态页随时显示每个数据源的当前状态。
 
 ### 数据源及其状态
 
-配置的 47 个数据源里启用了 38 个。表里列的是那次运行抓取的 35 个：其中 32 个给出了报告，1 个为空，
-2 个失败，共存储了 438 个报告。Simons Institute 的 workshop（`bayarea-simons-workshops`）、
-SLAC 的 workshop 和 school（`bayarea-slac-workshops`）以及会议登记表（`conf-registry`）不在表里。
-一个报告被几个数据源列出，在这张表里就为每个数据源各算一次；失败的数据源仍然计入它之前几次运行存下的报告。
-"抽取方式"是这次运行读取一个数据源的方法：api 取自网站的 JSON 接口，feed 取自它的 RSS 或 iCalendar feed，
-html 按规则从页面本身读取；失败或为空的数据源写的是它的 adapter 所用的方法。
+配置的 47 个数据源里启用了 38 个。表里列的是那次运行抓取的 37 个：其中 32 个给出了事件，2 个为空，
+3 个失败，共存储了 468 个事件。会议登记表（`conf-registry`）不发请求，不在表里；存储的事件里有 20 个
+是它的会议，其中 1 个在未来四周内。一个事件被几个数据源列出，在这张表里就为每个数据源各算一次；失败的
+数据源仍然计入它之前几次运行存下的事件。"抽取方式"是这次运行读取一个数据源的方法：api 取自网站的
+JSON 接口，feed 取自它的 RSS 或 iCalendar feed，html 按规则从页面本身读取；失败或为空的数据源写的是
+它的 adapter 所用的方法。
 
 | 数据源 | 组 | 状态 | 未来四周 | 抽取方式 |
 |---|---|---|---:|---|
-| Stanford Events (`localist-stanford`) | `localist` | 正常 | 56 | api |
-| Stanford AIMI (`sites-aimi`) | `stanford-sites` | 正常 | 4 | feed |
-| Stanford Biochemistry (`sites-biochemistry`) | `stanford-sites` | 正常 | 3 | feed |
-| Stanford Biology (`sites-biology`) | `stanford-sites` | 正常 | 4 | api |
+| Stanford Events (`localist-stanford`) | `localist` | 正常 | 52 | api |
+| Stanford AIMI (`sites-aimi`) | `stanford-sites` | 正常 | 3 | feed |
+| Stanford Biochemistry (`sites-biochemistry`) | `stanford-sites` | 正常 | 2 | feed |
+| Stanford Biology (`sites-biology`) | `stanford-sites` | 正常 | 3 | api |
 | Stanford Chemical Engineering (`sites-cheme`) | `stanford-sites` | 正常 | 1 | feed |
 | Stanford ChEM-H (`sites-chemh`) | `stanford-sites` | 正常 | 3 | feed |
-| Stanford Chemistry (`sites-chemistry`) | `stanford-sites` | 正常 | 7 | api |
-| Stanford ICME (`sites-icme`) | `stanford-sites` | 正常 | 2 | feed |
-| Stanford Mathematics (`sites-mathematics`) | `stanford-sites` | 正常 | 16 | api |
+| Stanford Chemistry (`sites-chemistry`) | `stanford-sites` | 正常 | 4 | api |
+| Stanford ICME (`sites-icme`) | `stanford-sites` | 正常 | 1 | feed |
+| Stanford Mathematics (`sites-mathematics`) | `stanford-sites` | 正常 | 11 | api |
 | Stanford Mathematics Research Center (`sites-mrc`) | `stanford-sites` | 正常 | 0 | api |
-| Stanford Materials Science and Engineering (`sites-mse`) | `stanford-sites` | 正常 | 2 | feed |
-| Stanford Physics (`sites-physics`) | `stanford-sites` | 正常 | 3 | api |
-| Stanford Statistics (`sites-statistics`) | `stanford-sites` | 正常 | 5 | api |
+| Stanford Materials Science and Engineering (`sites-mse`) | `stanford-sites` | 正常 | 1 | feed |
+| Stanford Physics (`sites-physics`) | `stanford-sites` | 正常 | 2 | api |
+| Stanford Statistics (`sites-statistics`) | `stanford-sites` | 正常 | 4 | api |
 | Stanford SystemX Alliance (`sites-systemx`) | `stanford-sites` | 正常 | 2 | feed |
-| AI + Data for Science Seminar (`custom-ai4science`) | `stanford-custom` | 正常 | 2 | html |
-| Stanford Chemical and Systems Biology Calendar (`custom-csb-calendar`) | `stanford-custom` | 正常 | 3 | feed |
+| AI + Data for Science Seminar (`custom-ai4science`) | `stanford-custom` | 正常 | 1 | html |
+| Stanford Chemical and Systems Biology Calendar (`custom-csb-calendar`) | `stanford-custom` | 正常 | 2 | feed |
 | Stanford Chemical and Systems Biology Events (`custom-csb-events`) | `stanford-custom` | 正常 | 1 | html |
-| Stanford Workshop in Biomedical Data Science (`custom-dbds-workshop`) | `stanford-custom` | 失败：从 GitHub 访问 robots.txt 超时 | 2 | html |
+| Stanford Workshop in Biomedical Data Science (`custom-dbds-workshop`) | `stanford-custom` | 失败：从 GitHub 访问不到 robots.txt | 2 | html |
 | Stanford HAI Events (`custom-hai-events`) | `stanford-custom` | 正常 | 3 | html |
 | Stanford ISL Colloquium (`custom-isl-colloquium`) | `stanford-custom` | 正常 | 2 | html |
 | Stanford MLSys Seminar (`custom-mlsys-seminar`) | `stanford-custom` | 空：页面上的报告都已过去 | 0 | html |
-| Stanford NLP Seminar (`custom-nlp-seminar`) | `stanford-custom` | 失败：从 GitHub 访问 robots.txt 超时 | 0 | html |
-| Stanford RAIN/OR Seminar (`custom-rain-seminar`) | `stanford-custom` | 正常 | 3 | html |
+| Stanford NLP Seminar (`custom-nlp-seminar`) | `stanford-custom` | 失败：从 GitHub 访问不到 robots.txt | 0 | html |
+| Stanford RAIN/OR Seminar (`custom-rain-seminar`) | `stanford-custom` | 正常 | 2 | html |
 | Stanford Synthetic Biology Events (`custom-synbio-events`) | `stanford-custom` | 正常 | 1 | html |
 | Stanford CS Theory Lunch (`custom-theory-lunch`) | `stanford-custom` | 正常 | 3 | html |
-| Topos Institute Colloquium (`rsorg-topos-colloquium`) | `researchseminars` | 正常 | 3 | feed |
-| Biohub events (`bayarea-biohub`) | `bayarea` | 正常 | 2 | html |
+| Topos Institute Colloquium (`rsorg-topos-colloquium`) | `researchseminars` | 失败：从 GitHub 访问不到 robots.txt | 3 | feed |
+| Biohub events (`bayarea-biohub`) | `bayarea` | 正常 | 0 | html |
 | Condensed Matter Physics Seminars (GLAM) (`bayarea-glam`) | `bayarea` | 正常 | 2 | feed |
 | KIPAC Seminars and Events (`bayarea-kipac`) | `bayarea` | 正常 | 11 | feed |
 | Leinweber Institute for Theoretical Physics (LITP, formerly SITP) seminars (`bayarea-litp`) | `bayarea` | 正常 | 3 | api |
-| SLAC Photon Science Seminar Series (Stanford PULSE Institute) (`bayarea-pulse`) | `bayarea` | 正常 | 1 | feed |
-| Q-FARM Seminars and Events (`bayarea-qfarm`) | `bayarea` | 正常 | 5 | feed |
+| SLAC Photon Science Seminar Series (Stanford PULSE Institute) (`bayarea-pulse`) | `bayarea` | 空：它的 feed 里没有事件 | 0 | feed |
+| Q-FARM Seminars and Events (`bayarea-qfarm`) | `bayarea` | 正常 | 4 | feed |
+| Simons Institute workshops (`bayarea-simons-workshops`) | `bayarea` | 正常 | 1 | html |
 | SLAC Colloquium Series (`bayarea-slac-colloquium`) | `bayarea` | 正常 | 3 | html |
 | SLAC Experimental Seminar Series (`bayarea-slac-experimental`) | `bayarea` | 正常 | 1 | feed |
-| SLAC Theory Group seminars (EPP Theory) (`bayarea-slac-theory`) | `bayarea` | 正常 | 3 | feed |
+| SLAC Theory Group seminars (EPP Theory) (`bayarea-slac-theory`) | `bayarea` | 正常 | 2 | feed |
+| SLAC workshops and schools (`bayarea-slac-workshops`) | `bayarea` | 正常 | 1 | feed |
 
-### 每个 feed 的报告数
+### 每个 feed 的事件数
 
-"feed 里的总数"统计运行之后 feed 里的全部报告：过去 14 天的和未来 120 天的。
-那次运行里没有数据源标记 `meeting_horizon`（feed 会把这类数据源的会议保留得更久，见"日历订阅"一节），
-表里也没有 `conferences` 这个 feed。
+"feed 里的总数"统计运行之后 feed 里的全部事件。报告以及其他数据源的会议是过去 14 天的和未来 120 天的；
+标记了 `meeting_horizon` 的数据源的学术会议和研讨会最多保留到往后 365 天（见"日历订阅"一节）：`all` 里有
+24 个事件在运行之后 120 天以后才开始，全都是会议。`deadlines.ics` 里有 63 个截止日期。
 
 | Feed | 未来四周 | feed 里的总数 |
 |---|---:|---:|
-| `all` | 149 | 438 |
-| `picks` | 13 | 29 |
-| `math` | 35 | 91 |
-| `cs` | 27 | 66 |
-| `ai-ml` | 33 | 83 |
-| `chem` | 20 | 58 |
-| `bio` | 37 | 120 |
-| `physics` | 41 | 109 |
-| `med` | 33 | 117 |
+| `all` | 126 | 468 |
+| `picks` | 6 | 35 |
+| `math` | 28 | 97 |
+| `cs` | 25 | 82 |
+| `ai-ml` | 30 | 104 |
+| `chem` | 15 | 62 |
+| `bio` | 31 | 125 |
+| `physics` | 36 | 117 |
+| `med` | 31 | 116 |
+| `conferences` | 12 | 56 |
 
 ### 已知缺口
 
@@ -211,8 +214,8 @@ html 按规则从页面本身读取；失败或为空的数据源写的是它的
   列表里也没有年份）。SAIL 的活动日历自 2023 年起没有报告，Theory Seminar 目前不定期举办。
   Arc Institute 没有公开的 seminar 日历。状态页会写明每个停用的数据源为什么停用。七个领域以外的报告
   （比如地球与行星科学）不在范围内。
-- DBDS workshop 和 NLP seminar 从 GitHub 的 runner 上可能失败，因为那里不一定连得上它们的 robots.txt；
-  从 Stanford 的网络访问两者都正常。状态页会显示这样的失败，连续三次会开一个 `source-broken` issue。
+- DBDS workshop、NLP seminar 和 researchseminars.org 上的 Topos colloquium 从 GitHub 的 runner 上可能失败，
+  因为那里不一定连得上它们的 robots.txt；从 Stanford 的网络访问 DBDS workshop 和 NLP seminar 都正常。状态页会显示这样的失败，连续三次会开一个 `source-broken` issue。
 - MLSys seminar 的页面没有公布新的报告时，它返回空。
 - 从自由文本里读讲者和单位以精度优先：宁可缺一位讲者，也不给错的。
 - 没有 LLM 时，领域只靠规则标注：学校总日历上七个领域内的报告，规则能认出大约 75%，
