@@ -1,34 +1,31 @@
 {
   "schema_version": 1,
-  "started_at": "2026-11-18T20:42:53Z",
-  "finished_at": "2026-11-18T20:47:10Z",
+  "started_at": "2026-11-19T02:25:49Z",
+  "finished_at": "2026-11-19T02:30:31Z",
   "ok": true,
   "mode": "live",
   "counts": {
-    "sources": 35,
-    "sources_ok": 28,
-    "sources_empty": 1,
-    "sources_failed": 6,
-    "drafts": 2510,
-    "excluded": 397,
-    "merged": 16,
-    "events": 429,
-    "added": 5,
-    "changed": 10,
-    "missing": 23,
-    "removed": 0,
+    "sources": 38,
+    "sources_ok": 33,
+    "sources_empty": 2,
+    "sources_failed": 3,
+    "drafts": 2373,
+    "excluded": 400,
+    "merged": 26,
+    "events": 468,
+    "added": 40,
+    "changed": 6,
+    "missing": 14,
+    "removed": 1,
     "cancelled": 0,
-    "archived": 9,
-    "picks": 26
+    "archived": 0,
+    "picks": 35
   },
   "llm_provider": "claude-cli",
   "llm_stored_answers": null,
   "failed_sources": [
-    "bayarea-litp",
     "custom-dbds-workshop",
     "custom-nlp-seminar",
-    "sites-mathematics",
-    "sites-mrc",
-    "sites-physics"
+    "rsorg-topos-colloquium"
   ]
 }
