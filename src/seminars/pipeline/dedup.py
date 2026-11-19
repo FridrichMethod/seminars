@@ -143,10 +143,11 @@ becomes one event:
   curated list gives keeps its days against a calendar's listing of its
   first day, whichever leads. Its title is chosen by the rules above
   among the listings that cover at least as many days as the one that
-  gives the times, and only among the all-day ones when those times are
-  whole days: a listing of one day or one session of a meeting ("XYZ
-  Workshop 2027 - Day 1", "Poster session") never names it, not even a
-  meeting of one day;
+  gives the times, among the meetings of those when there are any, and
+  only among the all-day ones when those times are whole days: a listing
+  of one day of a meeting of several days ("XYZ Workshop 2027 - Day 1")
+  never names it, nor does a session that is no meeting ("Poster
+  session"), not even the session of a meeting of one day;
 * a cancellation that any listing reports is kept.
 
 The result does not depend on the order of the input, and running it over
@@ -602,11 +603,11 @@ def _group(
                 if _days_and_hours(whole, profiles[second]):
                     yield first, second
 
-    def strong_and_titles(first: _Profile, second: _Profile) -> bool:
-        return _strong_link(first, second) and titles(first, second)
+    def linked_and_titles(first: _Profile, second: _Profile) -> bool:
+        return _linked(first, second) and titles(first, second)
 
     rounds = (
-        (strong_and_titles, close_pairs, True),
+        (linked_and_titles, close_pairs, True),
         (_strong_link, close_pairs, True),
         (_same_page, day_pairs, False),
         (titles, close_pairs, True),
@@ -746,6 +747,7 @@ def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidat
         if meeting.is_meeting
         else events
     )
+    named = [event for event in named if event.is_meeting] or named
     merged = lead.evolve(
         uid=min(events, key=lambda event: (event.first_seen, event.uid)).uid,
         title=_title(named, speakers),

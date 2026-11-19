@@ -443,14 +443,15 @@ class TestMeetings:
         [("sites-aimi", "sites-b"), ("sites-aimi", "bayarea-k"), ("custom-h", "custom-k")],
     )
     @pytest.mark.parametrize("symposium_uid", ["a", "z"])
+    @pytest.mark.parametrize("host_hours", [None, 1])
     def test_the_host_listing_of_the_symposium_goes_with_it_not_with_its_keynote(
-        self, host_source: str, keynote_source: str, symposium_uid: str
+        self, host_source: str, keynote_source: str, symposium_uid: str, host_hours: int | None
     ) -> None:
-        # The host lists the symposium by its title and start on its page; the keynote
-        # links that page too. The host's listing is one with either, and it shares a page
-        # and a title with the symposium only: whichever source sorts first and whichever
-        # pair comes first by value, it goes with the symposium, and the keynote stays a
-        # talk of its own.
+        # The host lists the symposium by its title and start on its page, without an end
+        # or with a default hour; the keynote links that page too. The host's listing is
+        # one with either, and it shares a page and a title with the symposium only:
+        # whichever source sorts first and whichever pair comes first by value, it goes
+        # with the symposium, and the keynote stays a talk of its own.
         symposium = timed_listing(
             symposium_uid,
             "AIMI Symposium 2027",
@@ -463,7 +464,7 @@ class TestMeetings:
             sources=(host_source,),
             event_type="seminar",
             url=MEETING_PAGE,
-            end=None,
+            end=None if host_hours is None else MORNING + timedelta(hours=host_hours),
         )
         keynote = timed_listing(
             "k",
@@ -712,6 +713,30 @@ class TestMeetings:
             (merged,) = run(*order).candidates
             event = merged.event
             assert (event.title, event.all_day, event.end) == ("XYZ Workshop 2027", True, None)
+
+    @pytest.mark.parametrize("poster_source", ["sites-a", "sites-z"])
+    def test_a_session_without_an_end_does_not_name_a_meeting_given_with_its_hours(
+        self, poster_source: str
+    ) -> None:
+        # A symposium of one day with its hours, and a poster session at its start on its
+        # page without an end: the session joins by the page and covers the one day too,
+        # but it is no meeting, so the order of the sources does not make it the name.
+        symposium = timed_listing(
+            "m", "AIMI Symposium 2027", sources=("sites-m",), url=MEETING_PAGE
+        )
+        poster = timed_listing(
+            "p",
+            "Poster session",
+            sources=(poster_source,),
+            event_type="other",
+            url=MEETING_PAGE,
+            end=None,
+        )
+        for order in ((symposium, poster), (poster, symposium)):
+            (merged,) = run(*order).candidates
+            event = merged.event
+            assert (event.title, event.event_type) == ("AIMI Symposium 2027", "conference")
+            assert event.end == MORNING + timedelta(hours=8)
 
     def test_a_meeting_listed_over_all_its_days_takes_the_title_that_says_more(self) -> None:
         # Both listings cover the two days; of their titles the one with more words wins.

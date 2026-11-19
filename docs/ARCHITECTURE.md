@@ -253,9 +253,10 @@ researchseminars.org). A merged event with a meeting among its listings is a mee
 takes the type of that meeting and, when the leading listing is no meeting, its times; an
 all-day listing with more days gives its days, so a meeting keeps them against a
 calendar's listing of its first day. Its title comes from a listing that covers as many
-days as the one that gives the times, and from an all-day listing when those times are
-whole days, so a listing of one day or one session never names it. The result does not
-depend on the order of the input.
+days as the one that gives the times, from a meeting among those when there is one, and
+from an all-day listing when those times are whole days, so neither a listing of one day
+of a meeting of several days nor a session that is no meeting names it. The result does
+not depend on the order of the input.
 
 ## Stored events
 
