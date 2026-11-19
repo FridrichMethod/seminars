@@ -95,8 +95,8 @@ time, and none reads the clock.
 3. **Normalize** (`pipeline/normalize.py`). Times follow the zone of the source. An event
    is dropped when it starts after the window or ended before the window starts (one
    without an end: started before it), so a workshop of three weeks stays while it runs.
-   A meeting, that is a conference or a workshop over several days or of at least 3 hours
-   (`pipeline/meetings.py`), of a source with `meeting_horizon` may start up to 365 days
+   A meeting, that is a conference, an all-day workshop of two days or more or a workshop
+   with times of day of at least 3 hours (`pipeline/meetings.py`), of a source with `meeting_horizon` may start up to 365 days
    ahead; its talks keep the window. A seminar, lecture or other event that is all day or
    at least 3 hours long and whose title names a meeting (a symposium, conference, summit,
    workshop, boot camp or summer school, among others) becomes a conference or a workshop
@@ -332,11 +332,11 @@ replaced by an empty placeholder.
 ## Outputs
 
 - **Feeds** (`outputs/ics.py`): ten calendars, `all`, `picks`, one per field and
-  `conferences`. `conferences` holds the meetings (`Event.is_meeting`: a conference, or a
-  workshop over several days or of at least three hours), which are in `all` and in their
-  field feeds as well, so the download of selected talks reads `all` alone. A timed
-  event is written in the zone of the settings with one VTIMEZONE sub-component per change
-  of the offset. An all-day event is free time (`TRANSP:TRANSPARENT` and
+  `conferences`. `conferences` holds the meetings (`Event.is_meeting`: a conference, an
+  all-day workshop of two days or more, or a workshop with times of day of at least three
+  hours), which are in `all` and in their field feeds as well, so the download of
+  selected talks reads `all` alone. A timed event is written in the zone of the settings
+  with one VTIMEZONE sub-component per change of the offset. An all-day event is free time (`TRANSP:TRANSPARENT` and
   `X-MICROSOFT-CDO-BUSYSTATUS:FREE`), so a conference of a week does not fill a calendar
   with busy days; no event has an alarm. A cancelled talk stays with `STATUS:CANCELLED`.
   The bytes depend only on the events, so a calendar sees a change only when an event
@@ -348,8 +348,8 @@ replaced by an empty placeholder.
   `SUMMARY` is the name of the edition and the label, followed by the time and the zone as
   the organizer's page states them (`(23:59 AoE)`, `(AoE)`, `(by this day)`), its
   `DESCRIPTION` names the edition, its days and its place, the advice to check the
-  organizer's page that states the date (the page of the last check) and the day of that
-  check, and its `URL` is the organizer's page of the edition. The name of an edition is its
+  organizer's page that states the date (the page of the milestone, or else the page of the
+  last check) and the day of the last check, and its `URL` is the organizer's page of the edition. The name of an edition is its
   `short_title`, or the series and the year, or its title when another edition of the
   registry would get the same name (`display_names`). The bytes depend only on the
   deadlines. `seminars validate` checks the feed with the rules of every feed and its own:

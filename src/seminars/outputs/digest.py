@@ -7,19 +7,20 @@ were first seen since the previous issue, and the state of the sources.
 ``publish_digest`` opens the issue for the week that contains ``now`` and
 closes the earlier ones.
 
-Meetings (``Event.is_meeting``: a conference, or a workshop over several days
-or of at least three hours) have a section of their own: every meeting with a
-day in the MEETING_WEEKS weeks from the Monday of the digest, and every later
-one first seen since the previous issue, marked as new and as a pick where it
-is one. A meeting is in no other table, and the sentence that counts the
-talks of the week leaves it out, so nothing is listed twice.
+Meetings (``Event.is_meeting``: a conference, an all-day workshop of two days
+or more, or a workshop with times of day of at least three hours) have a
+section of their own: every meeting with a day in the MEETING_WEEKS weeks from
+the Monday of the digest, and every later one first seen since the previous
+issue, marked as new and as a pick where it is one. A meeting is in no other
+table, and the sentence that counts the talks of the week leaves it out, so
+nothing is listed twice.
 
 Deadlines (data/deadlines.json, the milestones of the registry of meetings)
 have a section of their own as well: every deadline whose date lies in the
 DEADLINE_DAYS days from the Monday of the digest (that Monday included), by
 date, with the name of its edition and its label, the time and the zone as
-the organizer's page states them, and a link to that page (the page of the
-last check, ``Deadline.verified_url``). Its row limit
+the organizer's page states them, and a link to that page (``Deadline.verified_url``:
+the page of the milestone, or else the page of the last check). Its row limit
 DEADLINE_ROWS is its own and never shrinks. There is no such section when no
 deadline falls in those days.
 

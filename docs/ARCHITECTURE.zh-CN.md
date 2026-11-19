@@ -82,7 +82,8 @@ fixture 的参考时间。每个阶段都拿到这个时间，没有一个阶段
    规则什么都读不出来时，由 LLM 页面抽取器来读。
 3. **规范化**（`pipeline/normalize.py`）。时间按数据源的时区解释。在窗口结束之后才开始的事件，
    以及在窗口开始之前就已经结束的事件（没有结束时间的：在窗口开始之前就开始了）被丢掉，所以一个三周的
-   workshop 在进行期间一直保留。会议，也就是 conference 或者跨好几天或至少 3 小时的 workshop
+   workshop 在进行期间一直保留。会议，也就是 conference、持续两天或以上的全天 workshop，
+   或者有具体时间、至少 3 小时的 workshop
    （`pipeline/meetings.py`），如果来自设置了 `meeting_horizon` 的数据源，开始时间最多可以在往后
    365 天；这个数据源的报告仍然用平常的窗口。全天或者至少 3 小时、标题里写着会议（symposium、
    conference、summit、workshop、boot camp、summer school 等）的 seminar、lecture 或 other 类型事件，
@@ -260,7 +261,8 @@ key 由 prompt 版本、任务和输入文字组成，模型和 provider 都不�
 ## 输出
 
 - **Feed**（`outputs/ics.py`）：十个日历，`all`、`picks`、每个领域一个，以及 `conferences`。`conferences`
-  收录会议（`Event.is_meeting`：学术会议，或者持续多天或至少三小时的 workshop），它们同时也在 `all` 和所属领域的
+  收录会议（`Event.is_meeting`：学术会议、持续两天或以上的全天 workshop，或者有具体时间、至少三小时的
+  workshop），它们同时也在 `all` 和所属领域的
   feed 里，所以下载选中的报告只需要读 `all`。有具体时间的事件按设置里的时区
   写出，VTIMEZONE 里每次 UTC 偏移的变化各占一个子组件。全天事件标为空闲时间（`TRANSP:TRANSPARENT` 和
   `X-MICROSOFT-CDO-BUSYSTATUS:FREE`），所以持续一周的会议不会把日历占满忙碌的日子；事件都不带提醒。
@@ -271,8 +273,8 @@ key 由 prompt 版本、任务和输入文字组成，模型和 provider 都不�
   收录 `data/deadlines.json` 里的截止日期，它不是 feed id，所以事件 feed 和选中报告的下载都不知道它。
   每个截止日期是它那一天的一个全天事件（`DTEND` 是第二天），标为空闲时间，不带提醒；它的 `SUMMARY`
   是届次的名字和 label，后面跟着组织方页面原样写的时间和时区（`(23:59 AoE)`、`(AoE)`、`(by this day)`），
-  `DESCRIPTION` 写出这一届、它的日期和地点、请先查看写明这个日期的组织方页面（最后一次核对的页面）的提醒，
-  以及那次核对的日期，`URL` 是组织方这一届的页面。届次的名字是它的 `short_title`，或者系列加年份；登记表里
+  `DESCRIPTION` 写出这一届、它的日期和地点、请先查看写明这个日期的组织方页面（这个 milestone 的页面，没有时是最后一次核对的页面）
+  的提醒，以及最后一次核对的日期，`URL` 是组织方这一届的页面。届次的名字是它的 `short_title`，或者系列加年份；登记表里
   另一届会得到同一个名字时，就用它的标题（`display_names`）。文件内容只取决于截止日期。`seminars validate`
   用所有 feed 都要遵守的规则和它自己的规则检查这个 feed：只有 VTIMEZONE 和 VEVENT 组件、有日历名和日历说明，
   每个 VEVENT 带截止日期的 uid、摘要不为空、`DTSTART` 是 DATE 值、`DTEND` 是第二天且没有重复规则或重复日期、

@@ -53,7 +53,9 @@ All notable changes of this project are recorded in this file. The format follow
   ML-bio, comp-bio, protein-design and enzyme meetings of 2027 (Keystone, Gordon, PSB,
   RECOMB, ISMB/ECCB, EMBO-EMBL, RosettaCon) and the SLMath summer graduate schools.
   `data/deadlines.json` keeps each deadline's `SEQUENCE`, which goes up when a fact the
-  feed shows changes; an edition may set a `short_title` for its name in the feed.
+  feed shows changes; an edition may set a `short_title` for its name in the feed. A
+  milestone may name the page that states it (`url`), which the feed and the digest link
+  for checking its date.
 - **Deadlines in the weekly digest**: a section of the deadlines of the 21 days from the
   Monday of the issue. The subscription panel of the site lists the deadlines feed.
 - `allow_empty` for sources of the `ics` adapter: a run in which every feed is a

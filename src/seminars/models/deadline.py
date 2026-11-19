@@ -95,15 +95,16 @@ class Deadline(Model):
     Every value but ``first_seen``, ``last_changed`` and ``sequence`` is a
     fact of the registry entry: ``edition_*``, ``series``, ``region``,
     ``location``, ``url`` (the organizer's page of the edition) and ``fields``
-    describe the edition, ``kind``, ``label``, ``date``, ``time``, ``zone`` and
-    ``qualifier`` the milestone, and ``verified_on`` and ``verified_url`` are
-    the day and the organizer's page of the last check of its facts (the
-    page that states the date). ``edition_short`` is the name of the edition
-    in a feed (``display_names`` of the registry). ``time`` and ``zone`` are
-    as the page writes them; a zone without a time is the zone of the day.
-    ``first_seen`` and ``last_changed`` are moments of runs, and ``sequence``
-    goes up with every change of a fact that the feed shows
-    (``DEADLINE_SHOWN``, ``seminars.pipeline.deadlines``).
+    describe the edition, ``kind``, ``label``, ``date``, ``time``, ``zone``
+    and ``qualifier`` the milestone, and ``verified_on`` is the day of the
+    last check of its facts and ``verified_url`` the organizer's page that
+    states the date (the page of the milestone, or else the page of the last
+    check). ``edition_short`` is the name of the edition in a feed
+    (``display_names`` of the registry). ``time`` and ``zone`` are as the page
+    writes them; a zone without a time is the zone of the day. ``first_seen``
+    and ``last_changed`` are moments of runs, and ``sequence`` goes up with
+    every change of a fact that the feed shows (``DEADLINE_SHOWN``,
+    ``seminars.pipeline.deadlines``).
     """
 
     uid: Uid

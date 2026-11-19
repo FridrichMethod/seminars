@@ -366,7 +366,8 @@ sources:
     host_org: SLAC National Accelerator Laboratory
     default_fields: [physics]
     # The feeds give no event type; the categories hold workshops and a school. One that
-    # runs over several days or for at least three hours is a meeting, and
+    # runs all day over two days or more, or for at least three hours of a day, is a
+    # meeting (one all-day day is not), and
     # meeting_horizon keeps it up to a year ahead.
     default_event_type: workshop
     meeting_horizon: true

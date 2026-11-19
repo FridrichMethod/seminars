@@ -20,7 +20,8 @@ One VEVENT per deadline, all day on the date the page states:
 * ``DESCRIPTION`` names the edition, its days and its place, the date
   with the time, the zone and the qualifier, the advice to check the
   organizer's page with the address of the page that states the date
-  (``verified_url``, the page of the last check), and the day the facts
+  (``verified_url``: the page of the milestone, or else the page of the
+  last check), and the day the facts
   were verified;
 * ``URL`` is the organizer's page of the edition (``url``), which can be
   another page than the one that states the date;

@@ -3,13 +3,13 @@
 ``write_ics_feeds`` writes one calendar per feed id: ``all`` holds every
 event it is given, ``picks`` the events at or above the picks threshold,
 each field feed the events tagged with that field and ``conferences`` the
-meetings (``Event.is_meeting``: a conference, or a workshop over several
-days or of at least three hours), which are in ``all`` and in their field
-feeds as well. The files are a pure function of the arguments. Events are
-ordered by start and uid, every time stamp comes from the event
-(``DTSTAMP`` and ``LAST-MODIFIED`` are its ``last_changed``) and nothing
-reads the clock, so the same events give the same bytes and a subscriber
-only sees a change when an event changed.
+meetings (``Event.is_meeting``: a conference, an all-day workshop of two
+days or more, or a workshop with times of day of at least three hours),
+which are in ``all`` and in their field feeds as well. The files are a
+pure function of the arguments. Events are ordered by start and uid, every
+time stamp comes from the event (``DTSTAMP`` and ``LAST-MODIFIED`` are its
+``last_changed``) and nothing reads the clock, so the same events give the
+same bytes and a subscriber only sees a change when an event changed.
 
 A calendar holds
 

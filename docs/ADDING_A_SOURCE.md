@@ -413,8 +413,8 @@ contact, no address of a person, and never a date projected from an earlier edit
 - `url` is the organizer's page of the edition: the site of the edition, or the page of
   the series or program that announces it (the notes of the entry say so). A listing of
   the same meeting by another source becomes one event with the entry
-  (`pipeline/dedup.py`) when it points at the same page, starts on one of the days of the
-  entry and lasts at least 3 hours; it need not span the meeting. A listing that starts
+  (`pipeline/dedup.py`) when it points at the same page, gives its hours, starts on one of
+  the days of the entry and lasts at least 3 hours; it need not span the meeting. A listing that starts
   within 15 minutes of the entry (`dedup.max_start_difference_minutes`), which starts at
   midnight of its first day, joins it as well, as an all-day listing of that day does: on
   the same page, or on any page when its title is the entry's (case, accents and
@@ -473,8 +473,8 @@ sources that run fetches. The rules of curation for them:
   milestone that is inserted or deleted before another one of its kind moves the uid of
   every later one, which a calendar shows as one deadline removed and another added.
 - A change of a fact that the feed shows (a date, a time, a zone, a qualifier, a label, the
-  name, title, days, place or page of the edition, the day or the page of the check, the
-  `url` of the milestone) updates the deadline in subscribed calendars: its `SEQUENCE` goes
+  name, title, days, place or page of the edition, the day of the check, the `url` of the
+  milestone, or else the page of the check) updates the deadline in subscribed calendars: its `SEQUENCE` goes
   up. A change of the `series` alone (beside a `short_title`), of the `region` or of the
   `fields` is stored and shows nowhere. A deleted milestone leaves `deadlines.ics` at the
   next run, and one that has passed 14 days after its date.

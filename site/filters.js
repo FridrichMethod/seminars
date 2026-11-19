@@ -13,8 +13,9 @@ export const RANGES = Object.freeze({ today: 1, week: 7, two_weeks: 14, all: 0 }
 export const DEFAULT_RANGE = "all";
 
 /**
- * Kinds of events: every event, the talks, or the meetings (conferences and workshops
- * over several days or of at least three hours: the flag ``meeting`` of events.json).
+ * Kinds of events: every event, the talks, or the meetings (conferences, all-day workshops
+ * of two days or more and workshops with times of day of at least three hours: the flag
+ * ``meeting`` of events.json).
  */
 export const KINDS = Object.freeze(["all", "talks", "meetings"]);
 export const DEFAULT_KIND = "all";

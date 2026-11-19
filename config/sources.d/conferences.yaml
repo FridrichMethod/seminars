@@ -14,8 +14,8 @@
 #   and the site for its title first. "url" is the organizer's page of the edition, or
 #   the page of the series or program that announces it (say so in the notes). A
 #   listing of the meeting by another source joins the entry when it points at the same
-#   page, starts on one of its days and lasts at least 3 hours, or when it starts within
-#   15 minutes of the entry (an all-day listing of its first day) on the same page or
+#   page, gives its hours, starts on one of its days and lasts at least 3 hours, or when
+#   it starts within 15 minutes of the entry (an all-day listing of its first day) on the same page or
 #   under the same title. Any other listing shows the meeting twice: one on a page of
 #   its own (a Localist calendar links its own) under another title or start, one
 #   shorter than 3 hours, an all-day listing of a later day. When "url" is the front
