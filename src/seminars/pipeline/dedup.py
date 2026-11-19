@@ -46,11 +46,14 @@ it names, does not make it the meeting. Such a link joins a meeting and
 a talk only when the talk has no end or ends no earlier than the meeting.
 Nor are a group with a meeting and a group with a part of it joined
 when a third listing is one with both (the keynote without an end on
-another calendar, which links the page and names the speaker). A part
-with the title of the meeting is the meeting all the same, and a listing
-that gives the hours of one of the days of an all-day meeting is no part
-of it: on the days of a meeting the day rule above joins whole days and
-their hours, whatever parts the two groups hold.
+another calendar, which links the page and names the speaker); only
+members whose starts are within the time limit count here, as for a
+pair. A part with the title of a meeting of either group is that
+meeting all the same (a copy of the listing of a day with a default
+hour), and a listing that gives the hours of one of the days of an
+all-day meeting is no part of it: on the days of a meeting the day rule
+above joins whole days and their hours, whatever parts the two groups
+hold.
 
 Four guards keep unrelated talks apart. "TBA" is never similar to "TBA",
 and a title of a single word ("Seminar") is not compared at all, because
@@ -540,26 +543,33 @@ def _group(
     def titles(first: _Profile, second: _Profile) -> bool:
         return _similar_titles(first, second, settings.title_similarity)
 
-    def part_apart(one: _Profile, other: _Profile) -> bool:
+    def part_apart(one: _Profile, other: _Profile, meetings: Collection[str]) -> bool:
         """Whether one of two members is a part of the other, a meeting (see the module).
 
-        A listing with the title of the meeting is none, and neither is one
-        that gives the hours of one of the days of an all-day meeting
-        (``_days_and_hours``): a copy of a listing of a day that the meeting
-        took in by its page is that day too, with or without the page.
+        Only members whose starts are within the time limit count, as for
+        a pair. A listing with the title of one of ``meetings`` (the folded
+        titles of the meetings of both groups) is that meeting, no part,
+        and neither is one that gives the hours of one of the days of an
+        all-day meeting (``_days_and_hours``): a copy of a listing of a day
+        that the meeting took in is that day too, with or without the page.
         """
-        return (
-            _part_of_meeting(one, other)
-            and not titles(one, other)
-            and not _days_and_hours(one, other)
-        )
+        if abs(one.start - other.start) > limit or not _part_of_meeting(one, other):
+            return False
+        part = other if one.meeting else one
+        return part.title not in meetings and not _days_and_hours(one, other)
 
     def apart(first: int, second: int, *, parts: bool) -> bool:
+        ones, others = groups.group_of(first), groups.group_of(second)
+        meetings = {
+            title
+            for position in (*ones, *others)
+            if profiles[position].meeting and (title := profiles[position].title) is not None
+        }
         return any(
             _distinct(profiles[one], profiles[other])
-            or (parts and part_apart(profiles[one], profiles[other]))
-            for one in groups.group_of(first)
-            for other in groups.group_of(second)
+            or (parts and part_apart(profiles[one], profiles[other], meetings))
+            for one in ones
+            for other in others
         )
 
     def close_pairs() -> Iterator[tuple[int, int]]:
