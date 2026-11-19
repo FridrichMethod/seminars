@@ -1,31 +1,29 @@
 {
   "schema_version": 1,
-  "started_at": "2026-11-19T02:25:49Z",
-  "finished_at": "2026-11-19T02:30:31Z",
+  "started_at": "2026-11-19T20:49:14Z",
+  "finished_at": "2026-11-19T20:55:45Z",
   "ok": true,
   "mode": "live",
   "counts": {
     "sources": 38,
-    "sources_ok": 33,
-    "sources_empty": 2,
-    "sources_failed": 3,
-    "drafts": 2373,
-    "excluded": 400,
-    "merged": 26,
-    "events": 468,
-    "added": 40,
-    "changed": 6,
-    "missing": 14,
-    "removed": 1,
+    "sources_ok": 34,
+    "sources_empty": 3,
+    "sources_failed": 1,
+    "drafts": 2588,
+    "excluded": 384,
+    "merged": 25,
+    "events": 455,
+    "added": 6,
+    "changed": 14,
+    "missing": 1,
+    "removed": 0,
     "cancelled": 0,
-    "archived": 0,
-    "picks": 35
+    "archived": 19,
+    "picks": 34
   },
   "llm_provider": "claude-cli",
   "llm_stored_answers": null,
   "failed_sources": [
-    "custom-dbds-workshop",
-    "custom-nlp-seminar",
-    "rsorg-topos-colloquium"
+    "custom-nlp-seminar"
   ]
 }
