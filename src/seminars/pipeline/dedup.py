@@ -143,8 +143,10 @@ becomes one event:
   curated list gives keeps its days against a calendar's listing of its
   first day, whichever leads. Its title is chosen by the rules above
   among the listings that cover at least as many days as the one that
-  gives the times: a listing of one day or one session of a meeting
-  ("XYZ Workshop 2027 - Day 1", "Poster session") never names it;
+  gives the times, and only among the all-day ones when those times are
+  whole days: a listing of one day or one session of a meeting ("XYZ
+  Workshop 2027 - Day 1", "Poster session") never names it, not even a
+  meeting of one day;
 * a cancellation that any listing reports is kept.
 
 The result does not depend on the order of the input, and running it over
@@ -736,7 +738,11 @@ def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidat
         hints = hints.merge(member.hints)
     speakers = merge_speakers([speaker for event in events for speaker in event.speakers])
     named = (
-        [event for event in events if _days(event) >= _days(timing)]
+        [
+            event
+            for event in events
+            if _days(event) >= _days(timing) and (event.all_day or not timing.all_day)
+        ]
         if meeting.is_meeting
         else events
     )

@@ -690,6 +690,29 @@ class TestMeetings:
                 assert (event.uid, event.title, event.all_day) == ("a", title, True)
                 assert event.end == MEETING_DAY + timedelta(days=3)
 
+    @pytest.mark.parametrize(
+        ("title", "hours"), [("Poster session (day 1)", 3), ("XYZ Workshop 2027 - Day 1", 8)]
+    )
+    def test_a_listing_with_hours_does_not_name_a_meeting_of_one_whole_day(
+        self, title: str, hours: int
+    ) -> None:
+        # A listing of the meeting's page covers its one day as well, but it gives hours
+        # and the whole day gives the times: the session would win by the order of the
+        # sources, the day by its words.
+        whole = meeting("a", "XYZ Workshop 2027", days=1, url=MEETING_PAGE)
+        listing = timed_listing(
+            "b",
+            title,
+            sources=("bayarea-b",),
+            event_type="seminar",
+            url=MEETING_PAGE,
+            end=MORNING + timedelta(hours=hours),
+        )
+        for order in ((whole, listing), (listing, whole)):
+            (merged,) = run(*order).candidates
+            event = merged.event
+            assert (event.title, event.all_day, event.end) == ("XYZ Workshop 2027", True, None)
+
     def test_a_meeting_listed_over_all_its_days_takes_the_title_that_says_more(self) -> None:
         # Both listings cover the two days; of their titles the one with more words wins.
         whole = meeting("a", "QBI Symposium 2027", days=2, url=MEETING_PAGE)
