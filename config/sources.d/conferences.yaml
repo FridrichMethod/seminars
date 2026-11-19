@@ -13,14 +13,18 @@
 # - Register a meeting only when no enabled source delivers it: search data/events.json
 #   and the site for its title first. "url" is the organizer's page of the edition, or
 #   the page of the series or program that announces it (say so in the notes). A
-#   listing of the meeting by a source joins the entry only when it points at the same
-#   page, starts on the first day, ends on the last and lasts at least 3 hours. A
-#   calendar that links its own page of the event (Localist) never joins, nor does any
-#   listing when "url" is the front page of a site: the meeting then shows twice.
+#   listing of the meeting by another source joins the entry when it points at the same
+#   page, starts on one of its days and lasts at least 3 hours, or when it starts within
+#   15 minutes of the entry (an all-day listing of its first day) on the same page or
+#   under the same title. Any other listing shows the meeting twice: one on a page of
+#   its own (a Localist calendar links its own) under another title or start, one
+#   shorter than 3 hours, an all-day listing of a later day. When "url" is the front
+#   page of a site, only an all-day listing of the first day with the same title joins.
 # - Facts only, each from the organizer's page of the edition: title, dates, venue and
 #   city, the dates of its deadlines. No description, no contact, no address of a
 #   person, no date projected from an earlier edition. Labels of milestones are a few
-#   words of our own.
+#   words of our own. A milestone stated on another page than "verified" names that
+#   page in its "url", which the feed of the deadlines links.
 # - "verified" says when and on which page the facts were last checked. Check every
 #   entry again at the start of each term, search data/events.json for it, and delete
 #   it once a source lists the meeting. A test fails when an edition that starts within
@@ -29,7 +33,8 @@
 # - Delete at most half of the listed editions, or fewer than five, in one change, and
 #   let six runs pass before the next. A listing that shrinks more at once is taken as
 #   incomplete for 28 runs: the deleted events stay, and a source-broken issue opens.
-# - An id is "<series slug>-<year>" and is never renamed: it is the uid of the event.
+# - An id is "<series slug>-<year>" and is never renamed: it is the key of the event,
+#   whose uid is conf-registry.<id> unless a listing of another source joins the entry.
 # - Only "region: bay-area" entries become events. "world" entries carry milestones only.
 
 sources:
@@ -63,18 +68,26 @@ sources:
           status: confirmed
           verified: {date: 2026-11-18, url: "https://iclr.cc/Conferences/2027"}
           milestones:
-            - {kind: other, date: 2026-11-29, label: Accepted workshops announced}
+            - kind: other
+              date: 2026-11-29
+              label: Accepted workshops announced
+              url: https://iclr.cc/Conferences/2027/CallForWorkshops
             - kind: registration_open
               date: 2026-12-23
               time: "10:00"
               zone: PT
               label: Registration opens
-            - {kind: workshop_paper, date: 2027-02-01, label: Suggested workshop paper deadline}
+              url: https://iclr.cc/Conferences/2027/Dates
+            - kind: workshop_paper
+              date: 2027-02-01
+              label: Suggested workshop paper deadline
+              url: https://iclr.cc/Conferences/2027/CallForWorkshops
             - kind: notification
               date: 2027-02-26
               time: "23:59"
               zone: AoE
               label: Workshop paper notification deadline
+              url: https://iclr.cc/Conferences/2027/CallForWorkshops
           notes:
             - Main conference April 26-28, workshops April 29-30 (Dates page).
             - The venue is named only in an image caption of the main page; check again.
@@ -95,7 +108,8 @@ sources:
           notes:
             - The page names no venue.
             - No milestones - the deadlines of the main conference are left to ccfddl (README).
-            - The url is the front page of the edition's site, so no listing joins the entry.
+            - The url is the front page of the edition's site, so only an all-day listing
+              of its first day with the same title joins the entry.
 
         - id: kdd-2027
           title: ACM KDD 2027 (SIGKDD Conference on Knowledge Discovery and Data Mining)
@@ -112,7 +126,8 @@ sources:
           verified: {date: 2026-11-18, url: "https://kdd2027.kdd.org/"}
           notes:
             - The research track lists only the dates of its first cycle, all past.
-            - The url is the front page of the edition's site, so no listing joins the entry.
+            - The url is the front page of the edition's site, so only an all-day listing
+              of its first day with the same title joins the entry.
 
         # --- Biology, chemistry and medicine -------------------------------------------
 
@@ -157,6 +172,7 @@ sources:
               time: "23:59"
               zone: PT
               label: Poster registration deadline
+              url: https://med.stanford.edu/cvi/events/sdds2027-stanford-drug-discovery-symposium.html
           notes:
             - The page of the institute names the venue but no dates; the dates are on its
               Eventbrite registration page, which the institute links.
@@ -228,14 +244,22 @@ sources:
           status: confirmed
           verified: {date: 2026-11-18, url: "https://www.isscr.org/upcoming-events/isscr-2027"}
           milestones:
-            - {kind: abstract, date: 2027-01-27, label: Oral and poster abstract deadline}
+            - kind: abstract
+              date: 2027-01-27
+              label: Oral and poster abstract deadline
+              url: https://www.isscr2027.org/abstracts
             - kind: travel_award
               date: 2027-01-27
               label: Travel and merit award deadline (with a poster abstract)
-            - {kind: abstract, date: 2027-03-31, label: Late-breaking abstract deadline}
+              url: https://www.isscr2027.org/abstracts
+            - kind: abstract
+              date: 2027-03-31
+              label: Late-breaking abstract deadline
+              url: https://www.isscr2027.org/abstracts
           notes:
-            - The deadlines are on https://www.isscr2027.org/abstracts, with no time of day.
-            - The url is the front page of the edition's site, so no listing joins the entry.
+            - The page of the abstracts gives the deadlines without a time of day.
+            - The url is the front page of the edition's site, so only an all-day listing
+              of its first day with the same title joins the entry.
 
         - id: protein-society-annual-symposium-2027
           title: The Protein Society 41st Annual Symposium (PS41)
@@ -262,6 +286,24 @@ sources:
         # time of day. A summer graduate school takes a student nominated by the Director
         # of Graduate Studies of a sponsoring institution or of a US department of
         # mathematics, first come, first served, from the opening of the nominations.
+
+        - id: slmath-pde-formalization-ai-2026
+          title: Frontier of PDE Formalization and Analysis with AI
+          short_title: "SLMath PDE Formalization and AI 2026"
+          series: SLMath workshops
+          host_org: Simons Laufer Mathematical Sciences Institute (SLMath)
+          start: 2026-12-07
+          end: 2026-12-08
+          region: bay-area
+          location: Simons Laufer Mathematical Sciences Institute, Berkeley, CA
+          url: https://www.slmath.org/workshops/1207
+          fields: [math, ai-ml]
+          event_type: workshop
+          status: confirmed
+          verified: {date: 2026-11-18, url: "https://www.slmath.org/workshops/1207"}
+          milestones:
+            - {kind: funding, date: 2026-10-15, label: Registration deadline for funding}
+            - {kind: registration, date: 2026-12-08, label: Registration deadline}
 
         - id: slmath-old-problems-in-irrationality-2027
           title: "Revisiting Fundamental Problems Workshop: Old Problems in Irrationality"
@@ -584,6 +626,7 @@ sources:
             - kind: funding
               date: 2027-01-28
               label: Rosetta Commons member travel and lodging sign-up
+              url: https://rosettacommons.org/events/wrc/
             - kind: poster
               date: 2027-03-08
               time: "23:59"
@@ -722,17 +765,19 @@ sources:
           status: confirmed
           verified: {date: 2026-11-18, url: "https://www.iscb.org/ismbeccb2027/home"}
           milestones:
-            - {kind: other, date: 2026-12-17, label: Tutorial proposal deadline}
+            - kind: other
+              date: 2026-12-17
+              label: Tutorial proposal deadline
+              url: https://www.iscb.org/about-iscb/society-communications/announcements/october-27-2026-ismb-eccb-proposal-and-proceedings-submissions-are-open
             - kind: paper
               date: 2027-01-14
               time: "23:59"
               zone: AoE
               qualifier: by
               label: Proceedings paper deadline
+              url: https://www.iscb.org/ismbeccb2027/call-for-submissions/proceedings
           notes:
-            - The paper deadline is on
-              https://www.iscb.org/ismbeccb2027/call-for-submissions/proceedings, the
-              tutorial deadline on the ISCB announcement of October 27, 2026.
+            - The tutorial deadline is on the ISCB announcement of October 27, 2026.
             - The key dates page renders its dates in the browser, so abstract, poster and
               registration dates are not entered; the fellowships page offers none.
 

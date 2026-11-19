@@ -4,9 +4,11 @@ Every run reads the milestones of every enabled source with the adapter
 ``registry`` (``seminars.sources.custom.registry.registry_editions``), of
 ``bay-area`` and ``world`` editions alike, and makes one ``Deadline`` of each
 (``configured_deadlines``), named by ``display_names`` of the editions of its
-source. Nothing is requested and no adapter runs for them, so the edit of a
-curator shows in the next run, whatever sources that run reads
-(``--source`` included).
+source. Its ``verified_url``, the page a reader checks the date on, is the
+``url`` of the milestone, or else the page of the check of the edition
+(``verified.url``). Nothing is requested and no adapter runs for them, so
+the edit of a curator shows in the next run, whatever sources that run
+reads (``--source`` included).
 
 The uid of a milestone is ``dl.<edition id>.<kind>``, and ``-<n>`` is added
 for the n-th milestone of the same kind in the edition (n >= 2), counted by
@@ -26,9 +28,10 @@ ones by uid:
 * a stored deadline with a fact that the feed or the digest shows
   (``DEADLINE_SHOWN``: the label, the day, the time, the zone, the
   qualifier, the name, title, days, place and page of the edition, the day
-  and the page of the check) that changed takes the facts of the
-  configuration, ``sequence`` goes up by one and ``last_changed`` becomes
-  the time of the run, so a subscribed calendar updates it;
+  of the check, the page that states the milestone) that changed takes the
+  facts of the configuration, ``sequence`` goes up by one and
+  ``last_changed`` becomes the time of the run, so a subscribed calendar
+  updates it;
 * a stored deadline of which only a fact that nothing shows changed
   (``series``, ``region``, ``fields``) takes the facts of the configuration
   and keeps its ``first_seen``, ``last_changed`` and ``sequence``, so the
@@ -113,7 +116,7 @@ def edition_deadlines(
                 zone=milestone.zone,
                 qualifier=milestone.qualifier,
                 verified_on=meeting.verified.date,
-                verified_url=meeting.verified.url,
+                verified_url=milestone.url or meeting.verified.url,
                 first_seen=stamp,
                 last_changed=stamp,
             )

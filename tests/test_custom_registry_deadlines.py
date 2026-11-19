@@ -33,6 +33,7 @@ from seminars.sources.custom.registry import (
     registry_editions,
 )
 from seminars.sources.generic.common import AdapterConfigError
+from test_source_denylist import denied
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -211,6 +212,18 @@ class TestCommittedRegistry:
 
     def test_every_edition_awaiting_the_owner_is_in_the_registry(self) -> None:
         assert set(AWAITING_THE_OWNER) <= {meeting.id for meeting in committed_editions()}
+
+    def test_no_page_of_a_milestone_is_on_a_denied_aggregator(self) -> None:
+        # The page that states a milestone is an organizer's page, as the pages of the edition
+        # and of its check are (tests/test_source_denylist.py).
+        pages = [
+            (meeting.id, milestone.label, milestone.url)
+            for meeting in committed_editions()
+            for milestone in meeting.milestones
+            if milestone.url is not None
+        ]
+        assert pages
+        assert [page for page in pages if denied(page[2])] == []
 
     def test_no_two_editions_with_milestones_share_a_name(self) -> None:
         shared = []

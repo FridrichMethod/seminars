@@ -104,13 +104,14 @@ sources:
   `meetings.days_ahead` days ahead (365, in `config/settings.yaml`) instead of the 120 of
   `window.days_ahead`; its talks keep the usual window. A seminar, lecture or other event
   whose title names a meeting (a symposium, conference, summit, workshop, boot camp or
-  summer school, among others) and that is all day or at least 3 hours long counts as a
-  meeting too. Set it on a source that announces its meetings months ahead, not on a
-  calendar of talks: the source is fetched with the longer window, so an adapter that asks
-  for a date range, follows pages of a listing or reads a detail page per event makes more
-  requests, all within the same request budget per host and the same 15 minutes per
-  source. Compare the requests and the time that `seminars sources check <id>` reports
-  with and without the key before you commit it.
+  summer school, among others) and that is all day or at least 3 hours long becomes a
+  conference or a workshop, and so a meeting by the rule above; a workshop of one day that
+  is all day, such as one day of a hackathon, is none. Set it on a source that announces
+  its meetings months ahead, not on a calendar of talks: the source is fetched with the
+  longer window, so an adapter that asks for a date range, follows pages of a listing or
+  reads a detail page per event makes more requests, all within the same request budget
+  per host and the same 15 minutes per source. Compare the requests and the time that
+  `seminars sources check <id>` reports with and without the key before you commit it.
 - `ignore_robots` lists hosts of the source (of `url`, `urls`, `homepage` or
   `params.extra_hosts`) whose robots.txt `Disallow` rules this source does not follow;
   see "Before you start". A host of another site is an error.
@@ -351,8 +352,9 @@ adapter `registry` (`src/seminars/sources/custom/registry.py`, whose docstring
 describes every key). Its adapter requests nothing: each meeting is an entry of
 `params.meetings`, and its `url` is the page of that file on GitHub, which the status
 page links and nothing fetches; there is no fixture to record either. The source has
-`meeting_horizon: true`, so a meeting is kept up to a year ahead, and `allow_empty: true`,
-so a registry whose meetings are all over is no broken source.
+`meeting_horizon: true`, so its meetings are kept up to a year ahead (a workshop of one day
+is none, see `event_type` below), and `allow_empty: true`, so a registry whose meetings are
+all over is no broken source.
 
 Register a meeting only when no enabled source delivers it: search `data/events.json`
 and the site for its title first. An entry holds the facts of one edition, each from
@@ -374,17 +376,24 @@ contact, no address of a person, and never a date projected from an earlier edit
   status: confirmed
   verified: {date: 2026-11-18, url: "https://iclr.cc/Conferences/2027"}
   milestones:
-    - {kind: workshop_paper, date: 2027-02-01, label: Suggested workshop paper deadline}
+    - kind: workshop_paper
+      date: 2027-02-01
+      label: Suggested workshop paper deadline
+      url: https://iclr.cc/Conferences/2027/CallForWorkshops
     - kind: notification
       date: 2027-02-26
       time: "23:59"
       zone: AoE
       label: Workshop paper notification deadline
+      url: https://iclr.cc/Conferences/2027/CallForWorkshops
 ```
 
 - `id` is `<series slug>-<year>`, ending in the year the edition starts in. It is the
-  uid of the event (`conf-registry.<id>`), so it is never renamed: a renamed entry is a
-  new event, and the old one stays until the third run without it.
+  key of the event (`conf-registry:<id>`), so it is never renamed: a renamed entry is a
+  new event, and the old one stays until the third run without it. The uid of the event
+  is `conf-registry.<id>`, unless a listing of another source joins the entry (see `url`):
+  the event keeps the uid that was seen first, the listing's when the listing was stored
+  before the entry, and of two uids that arrive in one run the one that sorts first.
 - `short_title` (optional) is the name of the edition in `deadlines.ics` and in the digest,
   one line of at most 40 characters, such as `GEM at ICLR 2027` for a workshop whose title
   is long. Without it the name is the `series` and the year the edition starts in
@@ -395,14 +404,25 @@ contact, no address of a person, and never a date projected from an earlier edit
   still share a name, two equal `short_title` values say.
 - `start` and `end` are local dates, `end` inclusive. Only `region: bay-area` entries
   become events; `world` entries carry their milestones and nothing else.
+- `event_type` is `conference` or `workshop`. A `workshop` of one day (`start` equal to
+  `end`) is no meeting (`Event.is_meeting`), as one day of a hackathon is not: a run keeps
+  it as a talk of the type workshop, only once it lies within the 120 days of
+  `window.days_ahead`, in `all.ics` and the feeds of its fields but not in
+  `conferences.ics`, and among the talks of the site and of the digest. A `conference` of
+  one day is a meeting. Either way its milestones are deadlines of `deadlines.ics`.
 - `url` is the organizer's page of the edition: the site of the edition, or the page of
   the series or program that announces it (the notes of the entry say so). A listing of
-  the same meeting by a source becomes one event with the entry only when it points at
-  the same page, starts on the first day, ends on the last and lasts at least 3 hours
-  (`pipeline/dedup.py`). Otherwise the meeting shows twice: a listing of one day of a
-  longer meeting, a listing of a calendar that links its own page of the event (Localist
-  does), and any listing of an entry whose `url` is the front page of a site
-  (`https://2027.naacl.org/`), which is no detail page.
+  the same meeting by another source becomes one event with the entry
+  (`pipeline/dedup.py`) when it points at the same page, starts on one of the days of the
+  entry and lasts at least 3 hours; it need not span the meeting. A listing that starts
+  within 15 minutes of the entry (`dedup.max_start_difference_minutes`), which starts at
+  midnight of its first day, joins it as well, as an all-day listing of that day does: on
+  the same page, or on any page when its title is the entry's (case, accents and
+  punctuation aside). Otherwise the meeting shows twice: a listing of another page (a
+  Localist calendar links its own page of the event) under another title or at another
+  start, a listing shorter than 3 hours, an all-day listing of a later day. When `url` is
+  the front page of a site (`https://2027.naacl.org/`), which is no detail page, only an
+  all-day listing of the first day under the entry's title joins it.
 - `fields` are the fields the meeting certainly belongs to. The field tagger keeps them
   and may add fields that the title names.
 - `location` is the venue and the city the page names. While it names none, write
@@ -420,7 +440,8 @@ contact, no address of a person, and never a date projected from an earlier edit
   day, as in a deadline of January 22 `AoE`. The label is a few words of our own. The
   description of the event lists them by date; one that has passed leaves it once the
   window of the run (14 days back) has moved past it. Every milestone is a deadline of
-  `deadlines.ics` as well (below).
+  `deadlines.ics` as well (below). Its `url` (optional) is the page that states it, when
+  that is not the page of `verified`.
 - YAML reads an unquoted `on`, `off`, `yes` or `no` as true or false and an unquoted
   `23:59` as a number: the day of a check is `date`, a qualifier is `exact` or `by`,
   and a time is written in quotes.
@@ -430,11 +451,13 @@ one deadline of the feed `deadlines.ics` and of the digest (`seminars.pipeline.d
 Each run reads them from the configuration, so a change shows in the next run, whatever
 sources that run fetches. The rules of curation for them:
 
-- Every milestone comes from the organizer's page of the edition, the one `verified` names,
-  with the time and the zone that page states, and nothing else: a date that the page does
-  not state is not entered, and neither is one projected from an earlier edition. The feed
-  and the digest link that page with the advice to check it. Check the milestones with the
-  other facts at the start of each term.
+- Every milestone comes from an organizer's page of the edition, with the time and the zone
+  that page states, and nothing else: a date that the page does not state is not entered,
+  and neither is one projected from an earlier edition. That page is the one `verified`
+  names, unless the milestone names its own in `url` (a call for papers, a page of the
+  abstracts, the page of a co-organizer). The feed and the digest link that page with the
+  advice to check it. Check the milestones on their pages with the other facts at the start
+  of each term.
 - No submission deadline of the main track of a machine-learning or computer-science
   conference (NeurIPS, ICML, ICLR, ACL, KDD and the like) is entered: the README leaves those
   to the calendar of ccfddl. A workshop of such a conference with a page and deadlines of its
@@ -450,11 +473,11 @@ sources that run fetches. The rules of curation for them:
   milestone that is inserted or deleted before another one of its kind moves the uid of
   every later one, which a calendar shows as one deadline removed and another added.
 - A change of a fact that the feed shows (a date, a time, a zone, a qualifier, a label, the
-  name, title, days, place or page of the edition, the day or the page of the check) updates
-  the deadline in subscribed calendars: its `SEQUENCE` goes up. A change of the `series`
-  alone (beside a `short_title`), of the `region` or of the `fields` is stored and shows
-  nowhere. A deleted milestone leaves `deadlines.ics` at the next run, and one that has
-  passed 14 days after its date.
+  name, title, days, place or page of the edition, the day or the page of the check, the
+  `url` of the milestone) updates the deadline in subscribed calendars: its `SEQUENCE` goes
+  up. A change of the `series` alone (beside a `short_title`), of the `region` or of the
+  `fields` is stored and shows nowhere. A deleted milestone leaves `deadlines.ics` at the
+  next run, and one that has passed 14 days after its date.
 
 A meeting that is over leaves the registry's listing by itself, so deleting its entry
 changes nothing. The deleted entry of a meeting ahead is removed from the feeds at the

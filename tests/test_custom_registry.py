@@ -63,6 +63,8 @@ SETTINGS = load_settings(ROOT / "config" / "settings.yaml")
 MEETING_WINDOW = SETTINGS.meeting_window_at(REFERENCE_NOW)
 """The window a run on 2026-11-10 fetches the registry with: 2026-10-27 to 2027-11-11."""
 PAGE = "https://qbi.example.org/events/symposium-2027"
+CALL = "https://qbi.example.org/events/symposium-2027/call-for-posters"
+"""A page of the symposium that states a milestone, beside the page of its check."""
 
 
 def production() -> SourceConfig:
@@ -173,6 +175,7 @@ class TestSchema:
                     "time": "23:59",
                     "zone": "PT",
                     "label": "Poster deadline",
+                    "url": CALL,
                 },
                 {
                     "kind": "registration_open",
@@ -189,6 +192,7 @@ class TestSchema:
             "Poster deadline: 2026-12-01 23:59 PT",
             "Registration opens: by 2026-12-02",
         ]
+        assert [milestone.url for milestone in parsed.milestones] == [CALL, None]
 
     def test_the_milestone_kinds_are_a_closed_vocabulary(self) -> None:
         assert "workshop_paper" in MILESTONE_KINDS
@@ -236,6 +240,8 @@ class TestSchema:
             ({"qualifier": True}, "write exact or by (YAML reads an unquoted on"),
             ({"qualifier": "on"}, "params.meetings.0.milestones.0.qualifier"),
             ({"label": ""}, "params.meetings.0.milestones.0.label"),
+            ({"url": "http://qbi.example.org/events/call"}, "https address"),
+            ({"url": "https://qbi.example.org/call?token=abc"}, "credential"),
         ],
     )
     def test_a_milestone_that_breaks_a_rule_is_a_config_error(
@@ -397,6 +403,28 @@ class TestNormalized:
             True,
         )
 
+    def test_a_workshop_of_one_day_is_a_talk_of_the_window_of_the_run(self) -> None:
+        # A workshop of one day is no meeting (seminars.models.is_meeting_span): it is kept
+        # once the window of talks reaches it, typed workshop, and never in conferences.ics.
+        one_day = {"event_type": "workshop", "start": date(2027, 1, 14), "end": date(2027, 1, 14)}
+        later = {"start": date(2027, 6, 14), "end": date(2027, 6, 14)}
+        entries = [
+            meeting(id="soon-workshop-2027", **one_day),
+            meeting(id="later-workshop-2027", **{**one_day, **later}),
+            meeting(id="later-conference-2027", **later),
+        ]
+        source = registry(*entries)
+        result = normalize_drafts(drafts(source), source, self.context())
+        assert result.outside_window == 1
+        kept = {
+            c.event.uid: (c.event.event_type, c.event.all_day, c.event.is_meeting)
+            for c in result.candidates
+        }
+        assert kept == {
+            "conf-registry.soon-workshop-2027": ("workshop", True, False),
+            "conf-registry.later-conference-2027": ("conference", True, True),
+        }
+
     def test_a_venue_to_be_announced_is_no_location(self) -> None:
         source = registry(meeting(location="To be announced", status="tentative"))
         (candidate,) = normalize_drafts(drafts(source), source, self.context()).candidates
@@ -436,6 +464,14 @@ def run(config: AppConfig, day: int, **overrides: Any) -> RunReport:
 
 def with_sources(config: AppConfig, *sources: SourceConfig) -> AppConfig:
     return dataclasses.replace(config, sources=sources)
+
+
+TITLE = "Computational Biology, Drug Discovery and AI"
+"""The title of the entry of ``meeting()``."""
+OWN_PAGE = "https://events.example.edu/event/777"
+"""The page of a calendar's own listing of the event, as a Localist calendar links."""
+FIRST_DAY: dict[str, Any] = {"start": date(2027, 1, 7), "end": None, "all_day": True}
+"""An all-day listing of the first day of the entry of ``meeting()``."""
 
 
 def calendar_listing(**overrides: Any) -> EventDraft:
@@ -525,11 +561,54 @@ class TestWithAListingOfTheSameMeeting:
         ]
         assert (event.all_day, event.start, event.end) == (all_day, start, end)
 
-    def test_a_listing_of_another_page_stays_an_event_of_its_own(
-        self, app_config: AppConfig, calendar: FakeAdapter
+    @pytest.mark.parametrize(
+        "listing",
+        [
+            pytest.param(
+                {
+                    "start": datetime(2027, 1, 8, 9, 0, tzinfo=PACIFIC),
+                    "end": datetime(2027, 1, 8, 12, 0, tzinfo=PACIFIC),
+                },
+                id="three-hours-of-its-last-day",
+            ),
+            pytest.param(FIRST_DAY, id="all-day-on-its-first-day"),
+            pytest.param(
+                {**FIRST_DAY, "url": OWN_PAGE, "title": TITLE},
+                id="all-day-on-its-first-day-under-its-title-on-another-page",
+            ),
+        ],
+    )
+    def test_a_listing_of_one_of_its_days_joins_the_entry(
+        self, app_config: AppConfig, calendar: FakeAdapter, listing: dict[str, Any]
     ) -> None:
         config = with_sources(app_config, registry(meeting()), calendar_source())
-        calendar.drafts = [calendar_listing(url="https://events.example.edu/event/777")]
+        run(config, 0)
+        calendar.drafts = [calendar_listing(**listing)]
+        run(config, 1)
+        (event,) = read_events_file(config.paths.events_file)
+        assert event.uid == "conf-registry.qbi-symposium-2027"
+        assert sorted(event.source_ids) == ["bayarea-qbi:777", "conf-registry:qbi-symposium-2027"]
+
+    @pytest.mark.parametrize(
+        "listing",
+        [
+            pytest.param({"url": OWN_PAGE}, id="its-hours-on-another-page"),
+            pytest.param({**FIRST_DAY, "url": OWN_PAGE}, id="all-day-under-another-title"),
+            pytest.param(
+                {
+                    "start": datetime(2027, 1, 7, 9, 0, tzinfo=PACIFIC),
+                    "end": datetime(2027, 1, 7, 11, 0, tzinfo=PACIFIC),
+                },
+                id="two-hours-of-its-first-day",
+            ),
+            pytest.param({**FIRST_DAY, "start": date(2027, 1, 8)}, id="all-day-on-a-later-day"),
+        ],
+    )
+    def test_any_other_listing_stays_an_event_of_its_own(
+        self, app_config: AppConfig, calendar: FakeAdapter, listing: dict[str, Any]
+    ) -> None:
+        config = with_sources(app_config, registry(meeting()), calendar_source())
+        calendar.drafts = [calendar_listing(**listing)]
         run(config, 0)
         events = read_events_file(config.paths.events_file)
         assert sorted(event.uid for event in events) == [
@@ -537,7 +616,7 @@ class TestWithAListingOfTheSameMeeting:
             "conf-registry.qbi-symposium-2027",
         ]
 
-    def test_an_entry_whose_url_is_a_front_page_joins_no_listing(
+    def test_an_entry_whose_url_is_a_front_page_joins_no_listing_by_that_page(
         self, app_config: AppConfig, calendar: FakeAdapter
     ) -> None:
         # A front page is no detail page: the edition sites of NAACL and KDD are such.
@@ -550,6 +629,33 @@ class TestWithAListingOfTheSameMeeting:
             "bayarea-qbi.777",
             "conf-registry.qbi-symposium-2027",
         ]
+
+    def test_an_entry_whose_url_is_a_front_page_joins_its_first_day_under_its_title(
+        self, app_config: AppConfig, calendar: FakeAdapter
+    ) -> None:
+        site = "https://2027.symposium.example.org/"
+        config = with_sources(app_config, registry(meeting(url=site)), calendar_source())
+        run(config, 0)
+        calendar.drafts = [calendar_listing(**FIRST_DAY, url=site, title=TITLE.upper())]
+        run(config, 1)
+        (event,) = read_events_file(config.paths.events_file)
+        assert event.uid == "conf-registry.qbi-symposium-2027"
+
+    def test_a_listing_that_arrives_with_the_entry_may_give_the_uid(
+        self, app_config: AppConfig, calendar: FakeAdapter
+    ) -> None:
+        # Both are new in the run, so the event keeps the uid that sorts first, and the
+        # next runs keep it as the uid seen first.
+        config = with_sources(app_config, registry(meeting()), calendar_source())
+        calendar.drafts = [calendar_listing()]
+        for day in (0, 1):
+            run(config, day)
+            (event,) = read_events_file(config.paths.events_file)
+            assert event.uid == "bayarea-qbi.777"
+            assert sorted(event.source_ids) == [
+                "bayarea-qbi:777",
+                "conf-registry:qbi-symposium-2027",
+            ]
 
 
 class TestRemovalAndHealth:
@@ -663,6 +769,20 @@ class TestCurationProblems:
             "soon-2027: starts on 2027-05-10 and was last verified on 2026-10-11; "
             "check the organizer's page again"
         ]
+
+    def test_an_old_check_of_a_meeting_that_is_running_is_stale(self) -> None:
+        start = self.TODAY - timedelta(days=2)
+        found = self.checked(365, id="running-2027", start=start, end=self.TODAY)
+        assert found == [
+            "running-2027: starts on 2027-01-08 and was last verified on 2026-01-10; "
+            "check the organizer's page again"
+        ]
+
+    def test_an_old_check_of_a_meeting_that_is_over_is_no_problem(self) -> None:
+        # Only the registry without a Bay Area meeting ahead is: an edition that is over
+        # leaves the listing, and checking its page again would change nothing.
+        found = self.checked(365, id="over-2026", start=date(2026, 12, 1), end=date(2026, 12, 2))
+        assert found == ["no bay-area meeting ends on or after today; curate the registry"]
 
     def test_an_old_check_of_a_meeting_further_ahead_can_wait(self) -> None:
         start = self.TODAY + timedelta(days=RECHECK_WITHIN_DAYS + 1)

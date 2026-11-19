@@ -39,7 +39,9 @@ from fakes import (
 )
 from fakes_outputs import FakeEmitters
 from seminars.config import AppConfig, load_sources
+from seminars.i18n import Locale
 from seminars.models import Deadline, LastRun, dump_deadlines, write_model
+from seminars.outputs.deadlines import description
 from seminars.pipeline.deadlines import (
     ConfiguredDeadlines,
     configured_deadlines,
@@ -64,6 +66,8 @@ from seminars.sources.custom.registry import ADAPTER, Meeting, RegistryAdapter, 
 ROOT = Path(__file__).resolve().parents[1]
 SINCE = date(2026, 10, 27)
 """The first day of the window of a run at REFERENCE_NOW (14 days back)."""
+SCHOLARSHIP_URL = "https://symposium.example.org/2027/scholarships/"
+"""A page of the symposium that states its scholarship deadline, beside the page of the check."""
 
 
 def symposium(**overrides: Any) -> dict[str, Any]:
@@ -137,6 +141,27 @@ class TestConfiguredDeadlines:
     def test_the_page_of_the_check_is_kept_beside_the_page_of_the_edition(self) -> None:
         pages = {(item.url, item.verified_url) for item in configured(SYMPOSIUM).deadlines}
         assert pages == {(SYMPOSIUM_URL, SYMPOSIUM_DATES_URL)}
+
+    def test_a_milestone_with_a_page_of_its_own_links_that_page(
+        self, app_config: AppConfig
+    ) -> None:
+        moved = [
+            {**item, "url": SCHOLARSHIP_URL} if item["kind"] == "scholarship" else item
+            for item in SYMPOSIUM["milestones"]
+        ]
+        result = configured(symposium(milestones=moved))
+        pages = {item.kind: (item.url, item.verified_url) for item in result.deadlines}
+        assert pages == {
+            "scholarship": (SYMPOSIUM_URL, SCHOLARSHIP_URL),
+            "abstract": (SYMPOSIUM_URL, SYMPOSIUM_DATES_URL),
+            "registration_open": (SYMPOSIUM_URL, SYMPOSIUM_DATES_URL),
+            "other": (SYMPOSIUM_URL, SYMPOSIUM_DATES_URL),
+        }
+        scholarship = next(item for item in result.deadlines if item.kind == "scholarship")
+        assert scholarship == make_deadline(verified_url=SCHOLARSHIP_URL)
+        english = Locale.load("en", app_config.paths.locales_dir)
+        advice = english.t("deadlines.event.check", url=SCHOLARSHIP_URL)
+        assert advice in description(scholarship, english).split("\n")
 
     def test_disabled_sources_and_other_adapters_give_nothing(self) -> None:
         off = registry_source(SYMPOSIUM, enabled=False)
@@ -220,6 +245,20 @@ class TestReconcile:
         assert (updated.sequence, updated.first_seen, updated.last_changed) == (
             3,
             REFERENCE_NOW,
+            LATER,
+        )
+
+    def test_a_page_of_the_milestone_is_a_new_sequence(self) -> None:
+        stored = make_deadline(sequence=2)
+        moved = [
+            {**item, "url": SCHOLARSHIP_URL} if item["kind"] == "scholarship" else item
+            for item in SYMPOSIUM["milestones"]
+        ]
+        result = {item.uid: item for item in self.run([stored], symposium(milestones=moved))}
+        updated = result[stored.uid]
+        assert (updated.verified_url, updated.sequence, updated.last_changed) == (
+            SCHOLARSHIP_URL,
+            3,
             LATER,
         )
 

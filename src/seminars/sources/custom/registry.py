@@ -19,8 +19,10 @@ Keys of ``params`` (an unknown key is an error that names it):
 
   - ``id``: ``<series slug>-<year>``, lower-case words joined by hyphens
     that end in the year the edition starts in, at most 63 characters. It
-    is the native id of the event, whose uid is ``<source id>.<id>`` for
-    good: an id is never renamed or used for another edition;
+    is the native id of the event, whose uid is ``<source id>.<id>`` unless
+    a listing of another source joins the edition (``seminars.pipeline.dedup``
+    keeps the uid that was seen first): an id is never renamed or used for
+    another edition;
   - ``title``, ``series``, ``host_org`` and ``location`` (venue and city),
     one line each;
   - ``short_title`` (optional): the name of the edition in the feed of the
@@ -32,8 +34,10 @@ Keys of ``params`` (an unknown key is an error that names it):
     an entry only carries its milestones);
   - ``url``: the https address of the organizer's page of the edition;
   - ``fields``: one or more field ids;
-  - ``event_type``: ``conference`` or ``workshop``; ``status``:
-    ``confirmed`` or ``tentative`` (a date that is only saved, say);
+  - ``event_type``: ``conference`` or ``workshop`` (a workshop of one day
+    is no meeting, ``seminars.models.is_meeting_span``: normalization keeps
+    it as a talk, in the window of talks only); ``status``: ``confirmed``
+    or ``tentative`` (a date that is only saved, say);
   - ``verified``: ``date`` and ``url`` (https) of the last check of the
     facts on the organizer's page;
   - ``milestones`` (optional): dates of the edition (``Milestone``), each
@@ -41,8 +45,12 @@ Keys of ``params`` (an unknown key is an error that names it):
     ``time`` (``"HH:MM"`` in quotes, or none), ``zone`` (``ZONE_NAMES`` or
     an IANA name, or none; without a time it is the zone of the day, as in
     "January 22 AoE"), ``qualifier`` (``exact``, the default, or ``by``: at
-    the latest on that day, as in "opens by February 1") and ``label``, a
-    few words of our own ("Poster deadline");
+    the latest on that day, as in "opens by February 1"), ``label``, a few
+    words of our own ("Poster deadline"), and ``url`` (optional, https):
+    the organizer's page that states the milestone, when it is not the
+    page that ``verified`` names (a call for papers, a page of abstracts).
+    The feed of the deadlines links that page, ``url`` or else the page of
+    ``verified``, for a reader to check the date;
   - ``notes`` (optional): lines for the curator; they are never published.
 
 Every text is printable ASCII on one line, without white space at either
@@ -254,6 +262,7 @@ class Milestone(Model):
     zone: ZoneName | None = None
     qualifier: Qualifier = "exact"
     label: Label
+    url: HttpsUrl | None = None  # the page that states it, when not the page of ``verified``
 
     @property
     def line(self) -> str:
