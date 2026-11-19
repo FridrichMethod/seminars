@@ -16,6 +16,12 @@ Namespaces:
 * ``fields.<field id>``: display name of each of the seven fields;
 * ``feeds.<feed id>.name`` / ``.description``: the ten ICS feeds. The
   English name is the calendar name inside the ICS file;
+* ``deadlines.*``: the feed of the deadlines, deadlines.ics:
+  ``deadlines.feed.name`` / ``.description`` as for ``feeds.*``, the texts
+  of its events in English (``deadlines.when.*`` also gives the time of a
+  deadline in the digest, in both languages), and ``deadlines.ccfddl.*``,
+  the name and address of the ccfddl calendar that the subscription panel
+  of the site links;
 * ``digest.*``: every string of the weekly digest. ``digest.issue_title`` is
   used in English only as the GitHub issue title (it must stay stable so
   that a week is never posted twice); headings inside the body are bilingual,

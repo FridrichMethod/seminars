@@ -645,6 +645,20 @@ class TestFilters:
         assert current.shown() == UPCOMING
         current.assert_clean()
 
+    @pytest.mark.parametrize("value", ["conferences", ""])
+    def test_an_unknown_kind_in_the_address_is_all_events(
+        self, session: Callable[..., Session], value: str
+    ) -> None:
+        current = session().open(f"index.html?kind={value}")
+        page = current.page
+        assert page.locator("#kind").input_value() == "all"
+        assert page.locator("#clear").is_disabled()
+        assert current.shown() == UPCOMING
+        page.locator("#range").select_option("week")
+        assert current.query() == {"range": ["week"]}  # the next address leaves the kind out
+        assert current.shown() == ["sample-xss", "sample-cancelled", "sample-online"]
+        current.assert_clean()
+
     def test_institution_chips_and_the_organizer_list_change_the_address(
         self, session: Callable[..., Session]
     ) -> None:

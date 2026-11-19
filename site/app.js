@@ -721,11 +721,16 @@ function selectBox(event, ids) {
   );
 }
 
-function when(event, tz, lang) {
+/**
+ * The time of a talk. A talk that began before today is listed under Ongoing, a heading
+ * without a day, so its start is shown with its date.
+ */
+function when(event, tz, lang, today) {
   if (event.allDay) {
     return t("site.event.all_day");
   }
-  const start = tz.formatTime(event.start, lang);
+  const ongoing = event.startDay < today;
+  const start = ongoing ? tz.formatMoment(event.start, lang) : tz.formatTime(event.start, lang);
   if (event.end === null) {
     return start;
   }
@@ -825,7 +830,7 @@ function renderEvent(event, tz, lang, today, ids) {
     h(
       "p",
       { class: "event-when", id: ids.when },
-      h("time", { datetime: event.start.toISOString() }, when(event, tz, lang)),
+      h("time", { datetime: event.start.toISOString() }, when(event, tz, lang, today)),
     ),
     h(
       "div",

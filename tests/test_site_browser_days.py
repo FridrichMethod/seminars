@@ -142,6 +142,31 @@ class TestOngoingEvents:
         assert current.shown() == []
         current.assert_clean()
 
+    def test_a_timed_event_under_ongoing_shows_the_day_it_began(
+        self, session: Callable[..., Session]
+    ) -> None:
+        payload = sample("events.json")
+        arc = next(event for event in payload["events"] if event["uid"] == "sample-arc")
+        meeting = {
+            **arc,
+            "uid": "meeting",
+            "title": "Two-day meeting on X-ray science",
+            "start": "2026-11-09T08:30:00-08:00",
+            "end": "2026-11-10T17:00:00-08:00",
+        }
+        payload["events"] = [meeting, *payload["events"]]
+        current = open_at(session, harness.NOW, payload)
+        assert days_shown(current)[:2] == ["ongoing", "2026-11-12"]
+        article = current.page.locator('#events section[data-day="ongoing"] article')
+        assert article.evaluate_all("es => es.map((e) => e.dataset.uid)") == ["meeting"]
+        span = "Nov 9, 2026, 8:30 AM PST - Nov 10, 2026, 5:00 PM PST"
+        assert article.locator(".event-when").text_content() == span
+        name = f"Select Two-day meeting on X-ray science Ongoing {span}"
+        assert current.page.get_by_role("checkbox", name=name, exact=True).count() == 1
+        later = current.page.locator('article[data-uid="sample-xss"] .event-when')
+        assert later.text_content() == "12:00 PM - 1:00 PM"  # a day of its own: times only
+        current.assert_clean()
+
     def test_the_heading_is_translated(self, session: Callable[..., Session]) -> None:
         current = session()
         serve_json(current, "events.json", retreat_payload())
