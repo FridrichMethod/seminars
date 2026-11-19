@@ -438,6 +438,51 @@ class TestMeetings:
             )
             assert result.absorbed == {"b": "a", "c": "a"}
 
+    @pytest.mark.parametrize(
+        ("host_source", "keynote_source"),
+        [("sites-aimi", "sites-b"), ("sites-aimi", "bayarea-k"), ("custom-h", "custom-k")],
+    )
+    @pytest.mark.parametrize("symposium_uid", ["a", "z"])
+    def test_the_host_listing_of_the_symposium_goes_with_it_not_with_its_keynote(
+        self, host_source: str, keynote_source: str, symposium_uid: str
+    ) -> None:
+        # The host lists the symposium by its title and start on its page; the keynote
+        # links that page too. The host's listing is one with either, and it shares a page
+        # and a title with the symposium only: whichever source sorts first and whichever
+        # pair comes first by value, it goes with the symposium, and the keynote stays a
+        # talk of its own.
+        symposium = timed_listing(
+            symposium_uid,
+            "AIMI Symposium 2027",
+            sources=("localist-stanford",),
+            url=MEETING_PAGE,
+        )
+        host = timed_listing(
+            "h",
+            "AIMI Symposium 2027",
+            sources=(host_source,),
+            event_type="seminar",
+            url=MEETING_PAGE,
+            end=None,
+        )
+        keynote = timed_listing(
+            "k",
+            "Opening keynote: Foundation models for medicine",
+            sources=(keynote_source,),
+            event_type="seminar",
+            speakers=[Speaker(name="Jane Doe")],
+            url=MEETING_PAGE,
+            end=MORNING + timedelta(hours=1),
+        )
+        assert uids(run(host, keynote)) == ["h"]
+        for order in itertools.permutations((symposium, host, keynote)):
+            result = run(*order)
+            found = {c.event.event_type: sorted(c.event.source_ids) for c in result.candidates}
+            assert found == {
+                "conference": sorted((f"localist-stanford:{symposium_uid}", f"{host_source}:h")),
+                "seminar": [f"{keynote_source}:k"],
+            }
+
     def test_the_title_of_the_meeting_makes_a_listing_that_ends_first_the_meeting(self) -> None:
         # A host gives the symposium a default hour; its title is that of the meeting.
         title = "Knight Initiative Winter 2027 Symposium"

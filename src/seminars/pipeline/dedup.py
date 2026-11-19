@@ -53,7 +53,13 @@ meeting all the same (a copy of the listing of a day with a default
 hour), and a listing that gives the hours of one of the days of an
 all-day meeting is no part of it: on the days of a meeting the day rule
 above joins whole days and their hours, whatever parts the two groups
-hold.
+hold. Pairs that share a page or a speaker and have similar titles are
+joined first, so the host's own listing of the symposium, by its title
+and start on its page, goes with the symposium and not with the keynote.
+The guard holds within one pass over the groups: when a third listing
+that joined the keynote gives the merged pair the title of the meeting,
+the pair is the meeting by that title in the next pass, as a host's
+listing of the symposium with a default hour is.
 
 Four guards keep unrelated talks apart. "TBA" is never similar to "TBA",
 and a title of a single word ("Seminar") is not compared at all, because
@@ -523,10 +529,12 @@ def _group(
     member of one group and a member of the other are distinct talks
     (``_distinct``) or, outside the round of whole days and their hours, one
     of them is a part of the other, a meeting (``part_apart``). Pairs linked
-    by a page or a speaker are joined before pairs that only have similar
-    titles, so that a listing goes with the talk of its speaker; within
-    each round, pairs are taken in an order fixed by their values, so which
-    pair is refused does not depend on the order of the input.
+    by a page or a speaker that also have similar titles are joined first,
+    then the other pairs linked so, then the whole days and their hours,
+    and last the pairs that only have similar titles, so that a listing
+    goes with the talk of its speaker and of its title; within each round,
+    pairs are taken in an order fixed by their values, so which pair is
+    refused does not depend on the order of the input.
     """
     groups = _Groups(len(candidates))
     seen: dict[str, int] = {}
@@ -592,7 +600,11 @@ def _group(
                 if _days_and_hours(whole, profiles[second]):
                     yield first, second
 
+    def strong_and_titles(first: _Profile, second: _Profile) -> bool:
+        return _strong_link(first, second) and titles(first, second)
+
     rounds = (
+        (strong_and_titles, close_pairs, True),
         (_strong_link, close_pairs, True),
         (_same_page, day_pairs, False),
         (titles, close_pairs, True),
