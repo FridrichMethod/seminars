@@ -46,7 +46,10 @@ one leaves (``reclaim_timed_keys``).
 Some keys change while the talk stays: a day key when the talk moves to
 another day, gains its title (without a speaker) or a speaker, or the
 speaker's name is spelled anew; the address of a page when the site
-renames it. ``seminars.pipeline.dedup.adopt_stored_uids`` then hands the
+renames it; and the key of a listing whose page names no year when it
+becomes or stops being a meeting, from its page to its day or back (a
+one-day workshop listed by its date that gets its hours).
+``seminars.pipeline.dedup.adopt_stored_uids`` then hands the
 stored uid on to the new key (with ``same_people`` and
 ``follow_changed_keys``), so the uid stays.
 
@@ -528,6 +531,40 @@ def _renamed(orphan: Event, event: Event) -> bool:
     )
 
 
+def _known_by_the_page_of(paged: Event, dated: Event) -> bool:
+    """Whether a source knows ``paged`` by the page of ``dated`` and ``dated`` only by its day.
+
+    That source knows ``paged`` only by url keys, one of which is the
+    address of ``dated`` (``Event.url``, which is the page of a talk
+    whatever its key), and ``dated`` only by day keys.
+    """
+    page = URL_KEY_PREFIX + canonical_url(str(dated.url))
+    known = sources_known_by(paged, is_url_key) & sources_known_by(dated, is_day_key)
+    return any(
+        source_id in known and native == page
+        for source_id, native in map(split_source_key, paged.source_ids)
+    )
+
+
+def _page_or_day(orphan: Event, event: Event, title_similarity: int) -> bool:
+    """Whether ``event`` is ``orphan`` known by its day instead of its page, or back (step 6).
+
+    The page of a meeting gives its key only when it names the year of
+    the meeting (``draft_key``), so a listing whose page names none
+    changes between its url key and its day key when it becomes or stops
+    being a meeting: a one-day workshop listed by its date that gets its
+    hours. Both start on one local day, their titles are similar, and when
+    both name speakers they name the same people.
+    """
+    if orphan.start.date() != event.start.date():
+        return False
+    if orphan.speakers and event.speakers and not same_people(_names(orphan), _names(event)):
+        return False
+    if not _similar_titles(orphan, event, title_similarity):
+        return False
+    return _known_by_the_page_of(orphan, event) or _known_by_the_page_of(event, orphan)
+
+
 def follow_changed_keys(
     events: Sequence[Event],
     orphans: Sequence[Event],
@@ -537,11 +574,13 @@ def follow_changed_keys(
 ) -> dict[int, str]:
     """Which of ``events`` (new keys) are ``orphans`` (stored, not delivered) under a new key.
 
-    Steps 2 to 5 of ``seminars.pipeline.dedup.adopt_stored_uids``, for keys
+    Steps 2 to 6 of ``seminars.pipeline.dedup.adopt_stored_uids``, for keys
     that change while the talk stays: a day key when the talk moves to
     another day, a day key without a speaker when the title changes, the
-    address of a TBA page when it is renamed, and a day key without a
-    speaker when the talk moves. That step comes last because its only
+    address of a TBA page when it is renamed, a day key without a
+    speaker when the talk moves, and the page of a listing that gives way
+    to its day or back (``_page_or_day``). Step 5 comes after the slots of
+    step 3 because its only
     evidence is the title: a TBA slot that gains its talk keeps its uid
     even when a new TBA slot appears in another week of the same run.
     ``orphans`` are in the order in which they were first seen, ``now`` is
@@ -581,4 +620,5 @@ def follow_changed_keys(
     pairs(_renamed)
     if now is not None:
         pairs(lambda orphan, event: _moved_without_speakers(orphan, event, now, title_similarity))
+    pairs(lambda orphan, event: _page_or_day(orphan, event, title_similarity))
     return adopted

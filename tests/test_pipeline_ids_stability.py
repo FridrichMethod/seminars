@@ -13,14 +13,17 @@ The helpers and the ``config`` fixture are those of tests/test_pipeline_run.py.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
-from factories import make_draft
+import pytest
+
+from factories import PACIFIC, make_draft
 from fakes import FakeAdapter
 from fakes_outputs import FakeEmitters
 from seminars.config import AppConfig
 from seminars.models import Event, EventDraft
 from seminars.outputs.ics import write_ics_feeds
+from seminars.pipeline.ids import is_url_key
 from test_pipeline_run import A_URL, MORNING, config, run, services, stored
 
 __all__ = ["config"]  # the fixture of test_pipeline_run
@@ -324,3 +327,68 @@ class TestTwoTalksOfOneDay:
         ]
         first, second = two_runs(config, fake_adapter, talks, list(reversed(talks)))
         assert first == second
+
+
+WORKSHOP_PAGE = "https://a.example.edu/workshops/geoflow-workshop"
+WORKSHOP_DAY = date(2026, 12, 2)
+
+
+def at(hour: int, minute: int = 0) -> datetime:
+    return datetime.combine(WORKSHOP_DAY, time(hour, minute), tzinfo=PACIFIC)
+
+
+WORKSHOP_TIMES: dict[str, dict[str, object]] = {
+    "whole day": {"start": WORKSHOP_DAY, "end": None, "all_day": True},
+    "9 to 17": {"start": at(9), "end": at(17)},
+    "9 without an end": {"start": at(9), "end": None},
+    "9:30 to 17": {"start": at(9, 30), "end": at(17)},
+    "a seminar of an hour": {"start": at(13), "end": at(14), "event_type_hint": "seminar"},
+    "3.5 hours": {"start": at(13, 30), "end": at(17), "event_type_hint": "seminar"},
+}
+"""Times of a one-day workshop: a meeting of 9 to 17 or of 3.5 hours, no meeting otherwise."""
+
+
+def workshop(times: str, title: str = "Geoflow Workshop") -> EventDraft:
+    """A one-day workshop on a page of its own whose address names no year."""
+    values: dict[str, object] = {
+        "source_id": "sites-a",
+        "native_id": None,
+        "url": WORKSHOP_PAGE,
+        "title": title,
+        "speaker_text": None,
+        "event_type_hint": "workshop",
+    }
+    return make_draft(**{**values, **WORKSHOP_TIMES[times]})
+
+
+class TestAMeetingWhosePageNamesNoYear:
+    """Its key is its page while it is no meeting and its day once it is one, or back."""
+
+    @pytest.mark.parametrize(
+        ("before", "after"),
+        [
+            ("whole day", "9 to 17"),
+            ("9 to 17", "whole day"),
+            ("9 without an end", "9:30 to 17"),
+            ("a seminar of an hour", "3.5 hours"),
+        ],
+    )
+    def test_a_listing_that_becomes_or_stops_being_a_meeting_keeps_its_uid(
+        self, config: AppConfig, fake_adapter: FakeAdapter, before: str, after: str
+    ) -> None:
+        first, second = two_runs(config, fake_adapter, [workshop(before)], [workshop(after)])
+        (old,), (new,) = first, second
+        assert [old.is_meeting, new.is_meeting].count(True) == 1
+        assert {is_url_key(key) for key in [*old.source_ids, *new.source_ids]} == {True, False}
+        assert new.uid == old.uid
+        assert new.sequence == 1
+
+    def test_another_title_on_that_page_is_another_event(
+        self, config: AppConfig, fake_adapter: FakeAdapter
+    ) -> None:
+        other = workshop("9 to 17", "Quantum sensing day")
+        first, second = two_runs(config, fake_adapter, [workshop("whole day")], [other])
+        assert {event.uid: event.title for event in second} == {
+            first[0].uid: "Geoflow Workshop",
+            next(event.uid for event in second if event.uid != first[0].uid): other.title,
+        }

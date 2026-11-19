@@ -8,7 +8,19 @@ The stored events and the events of the run are compared by uid:
   ``last_changed`` becomes the time of the run; both feed the calendar
   files, so a subscriber's client notices the update. Internal values (the
   source keys, how the fields were found, the score behind a pick) do not
-  count as a change;
+  count as a change. A stored all-day meeting that the run delivers only
+  as the hours of fewer of its days keeps its days, its type and its
+  title, as de-duplication merges the two: the source of the whole days
+  no longer lists it (a page drops a meeting once it has begun, and an
+  entry of the registry goes once a source lists the meeting), and the
+  hours are one of its days, not the meeting. For the same reason a
+  source that turns its own all-day meeting into the hours of some of
+  its days is not followed. This holds in every later run too, for as
+  long as the listing that is left gives hours within fewer of those
+  days: a new title or type of it, or hours moved or cut within the
+  days, are not followed, while hours over every day or beyond the days
+  are. Wrong days are corrected in the listing of the whole days, which
+  the run then delivers merged with the hours;
 * unless the stored event also came from a source that says nothing in
   this run (below) and whose listing the run did not deliver for it. The
   event of the run is then only part of the talk: one source of a merged
@@ -20,8 +32,12 @@ The stored events and the events of the run are compared by uid:
   end, all day), a cancellation, and a talk that is on again after it was
   cancelled. A listing that gives no end states none: with the same start
   and all day, the stored end stays; a new start or all day takes the time
-  of the listing as a whole, with or without an end. When the source is
-  back, its listing and the others make the event again;
+  of the listing as a whole, with or without an end. Nor does a listing
+  that gives the hours of one or more days of a stored all-day meeting,
+  or the whole days of a meeting stored with its hours, and adds no day
+  to it (``seminars.pipeline.dedup.within_meeting_days``): it is the
+  meeting as one of its sources lists it. When the source is back, its
+  listing and the others make the event again;
 * a stored event that the run did not deliver is handled by what is known
   about it:
 
@@ -62,6 +78,7 @@ from datetime import UTC, datetime
 from typing import Any, Final
 
 from seminars.models import Event, TimeWindow
+from seminars.pipeline.dedup import day_span, within_meeting_days
 from seminars.pipeline.meetings import has_not_ended_before
 
 UNTRACKED_FIELDS: Final = frozenset(
@@ -125,8 +142,34 @@ class _Sources:
         return [key for key in event.source_ids if not self.retired(key)]
 
 
+def _as_days_of(stored: Event, fresh: Event) -> Event:
+    """``fresh`` as a listing of some days of the stored all-day meeting (see the module).
+
+    When ``stored`` is an all-day meeting and ``fresh`` gives the hours of
+    fewer of its days (``within_meeting_days``), the result is ``fresh``
+    with the days, the type and the title of ``stored``; otherwise ``fresh``.
+    The result is stored, so the next run finds the same all-day meeting
+    and keeps its days against the same listing again.
+    """
+    if not (
+        stored.all_day
+        and stored.is_meeting
+        and within_meeting_days(fresh, stored)
+        and day_span(fresh) != day_span(stored)
+    ):
+        return fresh
+    return fresh.evolve(
+        start=stored.start,
+        end=stored.end,
+        all_day=True,
+        event_type=stored.event_type,
+        title=stored.title,
+    )
+
+
 def _bookkept(stored: Event, fresh: Event, now: datetime) -> tuple[Event, bool]:
     """``fresh`` with the bookkeeping of its stored self; True when it changed."""
+    fresh = _as_days_of(stored, fresh)
     changed = visible_content(stored) != visible_content(fresh)
     updated = fresh.evolve(
         first_seen=stored.first_seen,
@@ -141,8 +184,12 @@ def _new_time(stored: Event, fresh: Event) -> bool:
     """Whether a partial listing states a time other than the stored one.
 
     A new start or all day is a new time; so is an end the listing gives
-    that differs. A listing without an end says nothing about the end.
+    that differs. A listing without an end says nothing about the end, and
+    a listing of the whole days or the hours of the stored meeting that
+    adds no day to it (``within_meeting_days``) states no new time either.
     """
+    if within_meeting_days(fresh, stored):
+        return False
     if (stored.start, stored.all_day) != (fresh.start, fresh.all_day):
         return True
     return fresh.end is not None and fresh.end != stored.end

@@ -306,6 +306,194 @@ class TestMeetings:
                     "seminar",
                 ]
 
+    def test_a_third_listing_does_not_join_the_keynote_to_the_symposium(self) -> None:
+        # A listing of the keynote without an end links the page of the symposium and
+        # names the keynote speaker: by itself it is one with either of them, but the
+        # keynote is a part of the symposium, and a group that holds the one never takes in
+        # the other. Whether the third listing goes with the symposium or with the keynote
+        # depends on their values alone.
+        jane = [Speaker(name="Jane Doe")]
+        symposium = timed_listing(
+            "a", "AIMI Symposium 2027", sources=("localist-stanford",), url=MEETING_PAGE
+        )
+        keynote = timed_listing(
+            "b",
+            "Opening keynote: Foundation models for medicine",
+            sources=("sites-aimi",),
+            event_type="seminar",
+            speakers=jane,
+            url=MEETING_PAGE,
+            end=MORNING + timedelta(hours=1),
+        )
+        listing = timed_listing(
+            "c",
+            "Foundation models for medicine",
+            sources=("custom-sail",),
+            event_type="seminar",
+            speakers=jane,
+            url=MEETING_PAGE,
+            end=None,
+        )
+        assert uids(run(symposium, listing)) == ["a"]
+        assert uids(run(keynote, listing)) == ["b"]
+        result = run(symposium, keynote, listing)
+        for order in itertools.permutations((symposium, keynote, listing)):
+            assert run(*order) == result
+        assert len(result.candidates) == 2
+        (meeting, part) = sorted(result.candidates, key=lambda c: c.event.event_type)
+        assert (meeting.event.event_type, part.event.event_type) == ("conference", "seminar")
+        assert "sites-aimi:b" in part.event.source_ids
+        assert "localist-stanford:a" in meeting.event.source_ids
+
+    @pytest.mark.parametrize(
+        ("start", "end"),
+        [
+            (MORNING, MORNING + timedelta(hours=8)),
+            # A calendar that gives a whole day as 00:00 to 23:59 starts within the time
+            # limit of the meeting: only giving the hours of its day makes the copy no part.
+            (MEETING_DAY, MEETING_DAY + timedelta(hours=23, minutes=59)),
+        ],
+    )
+    def test_a_listing_of_the_hours_of_a_day_is_no_part_that_keeps_its_copy_out(
+        self, start: datetime, end: datetime
+    ) -> None:
+        # The calendar lists the first day of a meeting of two days on the meeting's page
+        # and joins it by the day rule; a host lists the same day under the same title on
+        # a page of its own. That copy ends before the meeting, but it gives the hours of
+        # one of its days, so it is that day, not a part of the meeting.
+        title = "QBI Symposium 2027 - Day 1"
+        whole = meeting("a", "QBI Symposium 2027", days=2, url=MEETING_PAGE)
+        times = {"start": start, "end": end, "event_type": "seminar"}
+        day = timed_listing("b", title, sources=("localist-stanford",), url=MEETING_PAGE, **times)
+        copy = timed_listing("c", title, sources=("sites-c",), url=f"{MEETING_PAGE}/1", **times)
+        assert uids(run(whole, copy)) == ["a", "c"]
+        for order in itertools.permutations((whole, day, copy)):
+            result = run(*order)
+            (merged,) = result.candidates
+            assert (merged.event.uid, merged.event.all_day) == ("a", True)
+            assert result.absorbed == {"b": "a", "c": "a"}
+
+    @pytest.mark.parametrize("day_type", ["conference", "seminar"])
+    @pytest.mark.parametrize("copy_page", [MEETING_PAGE, "https://x.example.edu/events/day-1"])
+    @pytest.mark.parametrize("bound", [False, True])
+    def test_a_short_copy_of_a_listing_of_a_day_goes_with_the_meeting(
+        self, day_type: str, copy_page: str, *, bound: bool
+    ) -> None:
+        # Another calendar copies the calendar's listing of the first day of an all-day
+        # meeting with a default end of one hour. It starts nine hours after the meeting,
+        # far outside the time limit, so it is no part of the meeting: it is the listing of
+        # the day whose title it has, in the run that brings all three and in a later run,
+        # once the meeting and its day share a uid. A conference by its title or a
+        # seminar, the day is one with the copy alone as well.
+        title = "QBI Symposium 2027 - Day 1"
+        whole = meeting("a", "QBI Symposium 2027", days=3, url=MEETING_PAGE)
+        day = timed_listing(
+            "b", title, sources=("localist-stanford",), event_type=day_type, url=MEETING_PAGE
+        )
+        if bound:
+            day = day.evolve(event=day.event.evolve(uid="a"))
+        copy = timed_listing(
+            "c",
+            title,
+            event_type="seminar",
+            url=copy_page,
+            end=MORNING + timedelta(hours=1),
+        )
+        assert len(run(day, copy).candidates) == 1
+        keys = {"conf-a:a", "localist-stanford:b", "sites-c:c"}
+        for order in itertools.permutations((whole, day, copy)):
+            (merged,) = run(*order).candidates
+            event = merged.event
+            assert (event.uid, event.title, event.all_day) == ("a", "QBI Symposium 2027", True)
+            assert set(event.source_ids) == keys
+
+    @pytest.mark.parametrize("copy_page", [MEETING_PAGE, "https://x.example.edu/events/day-1"])
+    def test_a_short_copy_of_a_day_goes_with_a_meeting_given_with_its_hours(
+        self, copy_page: str
+    ) -> None:
+        # A meeting of three days with its hours, and the calendar's listing of its first
+        # day, a conference by its title; a copy of that listing with a default hour starts
+        # with the meeting and ends before it. It has the title of a meeting of the group,
+        # the day, so it is that day, not a part of the meeting.
+        title = "QBI Symposium 2027 - Day 1"
+        whole = timed_listing(
+            "a",
+            "QBI Symposium 2027",
+            url=MEETING_PAGE,
+            end=MORNING + timedelta(days=2, hours=8),
+        )
+        day = timed_listing("b", title, sources=("localist-stanford",), url=MEETING_PAGE)
+        copy = timed_listing(
+            "c", title, event_type="seminar", url=copy_page, end=MORNING + timedelta(hours=1)
+        )
+        assert uids(run(whole, copy)) == ["a", "c"]
+        for order in itertools.permutations((whole, day, copy)):
+            result = run(*order)
+            (merged,) = result.candidates
+            event = merged.event
+            assert (event.title, event.event_type, event.end) == (
+                "QBI Symposium 2027",
+                "conference",
+                whole.event.end,
+            )
+            assert result.absorbed == {"b": "a", "c": "a"}
+
+    @pytest.mark.parametrize(
+        ("host_source", "keynote_source"),
+        [("sites-aimi", "sites-b"), ("sites-aimi", "bayarea-k"), ("custom-h", "custom-k")],
+    )
+    @pytest.mark.parametrize("symposium_uid", ["a", "z"])
+    def test_the_host_listing_of_the_symposium_goes_with_it_not_with_its_keynote(
+        self, host_source: str, keynote_source: str, symposium_uid: str
+    ) -> None:
+        # The host lists the symposium by its title and start on its page; the keynote
+        # links that page too. The host's listing is one with either, and it shares a page
+        # and a title with the symposium only: whichever source sorts first and whichever
+        # pair comes first by value, it goes with the symposium, and the keynote stays a
+        # talk of its own.
+        symposium = timed_listing(
+            symposium_uid,
+            "AIMI Symposium 2027",
+            sources=("localist-stanford",),
+            url=MEETING_PAGE,
+        )
+        host = timed_listing(
+            "h",
+            "AIMI Symposium 2027",
+            sources=(host_source,),
+            event_type="seminar",
+            url=MEETING_PAGE,
+            end=None,
+        )
+        keynote = timed_listing(
+            "k",
+            "Opening keynote: Foundation models for medicine",
+            sources=(keynote_source,),
+            event_type="seminar",
+            speakers=[Speaker(name="Jane Doe")],
+            url=MEETING_PAGE,
+            end=MORNING + timedelta(hours=1),
+        )
+        assert uids(run(host, keynote)) == ["h"]
+        for order in itertools.permutations((symposium, host, keynote)):
+            result = run(*order)
+            found = {c.event.event_type: sorted(c.event.source_ids) for c in result.candidates}
+            assert found == {
+                "conference": sorted((f"localist-stanford:{symposium_uid}", f"{host_source}:h")),
+                "seminar": [f"{keynote_source}:k"],
+            }
+
+    def test_the_title_of_the_meeting_makes_a_listing_that_ends_first_the_meeting(self) -> None:
+        # A host gives the symposium a default hour; its title is that of the meeting.
+        title = "Knight Initiative Winter 2027 Symposium"
+        symposium = timed_listing("a", title, sources=("localist-stanford",))
+        hour = timed_listing(
+            "b", title, sources=("sites-b",), event_type="seminar", end=MORNING + timedelta(hours=1)
+        )
+        for order in ((symposium, hour), (hour, symposium)):
+            (merged,) = run(*order).candidates
+            assert (merged.event.uid, merged.event.event_type) == ("a", "conference")
+
     def test_a_talk_that_lasts_as_long_as_the_meeting_is_linked_by_its_page(self) -> None:
         # The host lists the symposium as a talk with another title, the calendar as a
         # conference; both give the same hours and the same page.
@@ -365,23 +553,27 @@ class TestMeetings:
                 assert merged.event.source_ids == ["conf-a:a", "sites-b:b"]
                 assert (merged.event.all_day, merged.event.end) == (True, whole.event.end)
 
+    @pytest.mark.parametrize("listing_type", ["seminar", "conference"])
     @pytest.mark.parametrize(
         ("listing_source", "aggregators"),
         [("bayarea-c", frozenset()), ("localist-stanford", AGGREGATORS)],
     )
     def test_a_listing_of_its_first_day_does_not_shorten_the_meeting(
-        self, listing_source: str, aggregators: frozenset[str]
+        self, listing_source: str, aggregators: frozenset[str], listing_type: str
     ) -> None:
         # A curated list gives the meeting of two days; a calendar lists its first day,
         # 9:00 to 17:00, on the same page. "bayarea-c" sorts first and leads the merge,
-        # the aggregator does not; either way the meeting keeps its days.
+        # the aggregator does not; either way the meeting keeps its days. As a conference
+        # the listing of the first day is a meeting of its own that leads, and the all-day
+        # listing with more days still gives them.
         whole = meeting("a", "QBI Symposium 2027", days=2, url=MEETING_PAGE)
         first_day = timed_listing(
             "c", "QBI Symposium 2027", sources=(listing_source,), url=MEETING_PAGE
         )
         first_day = first_day.evolve(
-            event=first_day.event.evolve(location="Genentech Hall", event_type="seminar")
+            event=first_day.event.evolve(location="Genentech Hall", event_type=listing_type)
         )
+        assert first_day.event.is_meeting == (listing_type == "conference")
         for order in ((whole, first_day), (first_day, whole)):
             result = dedupe(list(order), settings=SETTINGS, aggregators=aggregators)
             (merged,) = result.candidates
@@ -390,6 +582,58 @@ class TestMeetings:
             assert (event.start, event.end) == (MEETING_DAY, MEETING_DAY + timedelta(days=2))
             assert result.absorbed == {"c": "a"}
             assert dedupe(list(result.candidates), settings=SETTINGS).candidates == (merged,)
+
+    def test_a_meeting_gives_the_times_when_the_lead_is_no_meeting(self) -> None:
+        # "sites-a" leads with the start alone, ten minutes late, as a talk; the calendar
+        # gives the hours of the conference.
+        title = "Knight Initiative Winter 2027 Symposium"
+        hours = timed_listing("b", title, sources=("sites-b",))
+        start_only = timed_listing(
+            "a",
+            title,
+            sources=("sites-a",),
+            event_type="seminar",
+            start=MORNING + timedelta(minutes=10),
+            end=None,
+        )
+        for order in ((hours, start_only), (start_only, hours)):
+            (merged,) = run(*order).candidates
+            assert merged.event.source_ids == ["sites-a:a", "sites-b:b"]
+            assert (merged.event.start, merged.event.end) == (MORNING, MORNING + timedelta(hours=8))
+
+    def test_a_meeting_of_one_day_keeps_it_against_a_talk_that_leads_with_hours(self) -> None:
+        # The listing with hours is a seminar of "bayarea-c", which sorts first: it leads the
+        # merge, but the meeting gives the times.
+        whole = meeting("a", "QBI Symposium 2027", days=1, url=MEETING_PAGE)
+        hours = timed_listing(
+            "c",
+            "QBI Symposium 2027",
+            sources=("bayarea-c",),
+            event_type="seminar",
+            url=MEETING_PAGE,
+        )
+        for order in ((whole, hours), (hours, whole)):
+            (merged,) = run(*order).candidates
+            event = merged.event
+            assert event.source_ids == ["bayarea-c:c", "conf-a:a"]
+            assert (event.all_day, event.start, event.end) == (True, MEETING_DAY, None)
+
+    def test_hours_that_end_at_midnight_do_not_cover_the_next_day(self) -> None:
+        # From 9:00 on the first day to midnight after the second: two days, so the all-day
+        # listing of three days gives them, though the listing with hours leads.
+        whole = meeting("a", "QBI Symposium 2027", days=3, url=MEETING_PAGE)
+        hours = timed_listing(
+            "c",
+            "QBI Symposium 2027",
+            sources=("bayarea-c",),
+            url=MEETING_PAGE,
+            end=MEETING_DAY + timedelta(days=2),
+        )
+        for order in ((whole, hours), (hours, whole)):
+            (merged,) = run(*order).candidates
+            event = merged.event
+            assert event.source_ids == ["bayarea-c:c", "conf-a:a"]
+            assert (event.all_day, event.end) == (True, MEETING_DAY + timedelta(days=3))
 
     def test_a_listing_of_each_day_joins_the_meeting(self) -> None:
         # A calendar lists every day of a meeting of three days as an instance of its own.
@@ -411,6 +655,77 @@ class TestMeetings:
         assert merged.event.uid == "a"
         assert (merged.event.all_day, merged.event.end) == (True, whole.event.end)
         assert result.absorbed == {"day0": "a", "day1": "a", "day2": "a"}
+
+    def test_a_listing_of_one_day_or_one_session_does_not_name_the_meeting(self) -> None:
+        # "XYZ Workshop 2027 - Day 1" holds every word of the meeting's title and one more,
+        # which would win among titles of one talk; the poster session of a source that
+        # sorts first and leads would win by the order.
+        title = "XYZ Workshop 2027"
+        whole = meeting("a", title, days=3, url=MEETING_PAGE)
+        days = [
+            candidate(
+                f"day{day}",
+                sources=("localist-stanford",),
+                title=f"{title} - Day {day + 1}",
+                event_type="workshop",
+                url=MEETING_PAGE,
+                start=MORNING + timedelta(days=day),
+                end=MORNING + timedelta(days=day, hours=8),
+            )
+            for day in range(3)
+        ]
+        posters = timed_listing(
+            "p",
+            "Poster session (day 2)",
+            sources=("bayarea-c",),
+            event_type="other",
+            url=MEETING_PAGE,
+            start=MORNING + timedelta(days=1),
+            end=MORNING + timedelta(days=1, hours=3),
+        )
+        for listings in ([whole, *days], [whole, posters], [whole, posters, *days]):
+            for order in (listings, listings[::-1]):
+                (merged,) = run(*order).candidates
+                event = merged.event
+                assert (event.uid, event.title, event.all_day) == ("a", title, True)
+                assert event.end == MEETING_DAY + timedelta(days=3)
+
+    @pytest.mark.parametrize(
+        ("title", "hours"), [("Poster session (day 1)", 3), ("XYZ Workshop 2027 - Day 1", 8)]
+    )
+    def test_a_listing_with_hours_does_not_name_a_meeting_of_one_whole_day(
+        self, title: str, hours: int
+    ) -> None:
+        # A listing of the meeting's page covers its one day as well, but it gives hours
+        # and the whole day gives the times: the session would win by the order of the
+        # sources, the day by its words.
+        whole = meeting("a", "XYZ Workshop 2027", days=1, url=MEETING_PAGE)
+        listing = timed_listing(
+            "b",
+            title,
+            sources=("bayarea-b",),
+            event_type="seminar",
+            url=MEETING_PAGE,
+            end=MORNING + timedelta(hours=hours),
+        )
+        for order in ((whole, listing), (listing, whole)):
+            (merged,) = run(*order).candidates
+            event = merged.event
+            assert (event.title, event.all_day, event.end) == ("XYZ Workshop 2027", True, None)
+
+    def test_a_meeting_listed_over_all_its_days_takes_the_title_that_says_more(self) -> None:
+        # Both listings cover the two days; of their titles the one with more words wins.
+        whole = meeting("a", "QBI Symposium 2027", days=2, url=MEETING_PAGE)
+        hours = timed_listing(
+            "c",
+            "QBI Symposium 2027: Quantitative biology at scale",
+            sources=("bayarea-c",),
+            url=MEETING_PAGE,
+            end=MORNING + timedelta(days=1, hours=8),
+        )
+        for order in ((whole, hours), (hours, whole)):
+            (merged,) = run(*order).candidates
+            assert merged.event.title == hours.event.title
 
     def test_a_talk_or_a_listing_without_an_end_stays_apart(self) -> None:
         # The opening keynote links the page of the symposium, an hour long; so does a

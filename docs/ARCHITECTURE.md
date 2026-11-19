@@ -219,7 +219,10 @@ source offers:
 `data/uid_map.json` binds every key ever seen to its uid. A known key gives the same uid in
 every run; a new key gets a uid derived from the key alone. When a key changes while the
 talk stays (a day key after a move or a new speaker spelling, a renamed page), the stored
-uid is handed on to the new key, so the uid stays. In the feeds the UID is
+uid is handed on to the new key, so the uid stays. The same holds when a listing whose page
+names no year becomes or stops being a meeting and its key moves between that page and its
+day, as for a one-day workshop listed by its date that gets its hours: the same source, the
+same local day and similar titles hand the uid on. In the feeds the UID is
 `<uid>@seminars.fridrichmethod.github.io`.
 
 Two listings are one talk (`pipeline/dedup.py`) when they share a uid or a key, or when
@@ -231,9 +234,16 @@ starts on one of the days of the other and lasts at least 3 hours: a meeting tha
 source gives as whole days and a calendar with its hours, once or day by day. A meeting is
 one with another listing by its title only when the folded titles are equal: "ICML 2027"
 and "ICLR 2027" are similar by any fuzzy measure, and the opening keynote of a symposium
-is not the symposium. A listing with hours that ends before a meeting does is a part of
-it, such as that keynote, and the page or a speaker it shares with the meeting does not
-join them. Guards keep unrelated talks apart: "TBA" never matches "TBA", a one-word title
+is not the symposium. Within those 15 minutes, a listing with hours that is no meeting
+and ends before a meeting does is a part of it, such as that keynote, unless it has the
+title of that meeting or of a meeting merged with it: the page or a speaker it shares with
+the meeting does not join them, nor does a third listing that is one with both, unless the
+part and the third listing merge under the title of the meeting. Listings that share a page
+or a speaker and have similar titles are joined first, so the host's own listing of the
+symposium goes with the symposium, not with the keynote. On the meeting's days only the day
+rule above joins them, so a listing of the meeting's page that lasts at least 3 hours is
+taken as the hours of that day. Guards keep
+unrelated talks apart: "TBA" never matches "TBA", a one-word title
 is not compared, a page that a source is fetched from or that lists a whole series is no
 detail page, and two listings of one source that name different speakers are never one
 talk. A merged event keeps the uid seen first, the best title (not "TBA", not the bare
@@ -242,7 +252,10 @@ host's own listing over those of an aggregator (the campus calendar,
 researchseminars.org). A merged event with a meeting among its listings is a meeting: it
 takes the type of that meeting and, when the leading listing is no meeting, its times; an
 all-day listing with more days gives its days, so a meeting keeps them against a
-calendar's listing of its first day. The result does not depend on the order of the input.
+calendar's listing of its first day. Its title comes from a listing that covers as many
+days as the one that gives the times, and from an all-day listing when those times are
+whole days, so a listing of one day or one session never names it. The result does not
+depend on the order of the input.
 
 ## Stored events
 
@@ -257,7 +270,11 @@ disabled or removed source leaves at once; one that has started or is cancelled 
 is; one whose sources were all read in full counts a missing run, and it is removed once it
 has missed 3 such runs without coming back. A source that failed, came back empty or was not read in full says nothing
 about its events, so a broken site never deletes talks. When one source of a merged event
-fails, the stored event stands in for its missing listing.
+fails, the stored event stands in for its missing listing. A meeting merged from its whole
+days and the hours of some of them keeps its stored times while either source fails, and
+its days, type and title for as long as the runs deliver only hours within fewer of its
+days: a new title of that listing, or hours moved within the days, are not followed, and
+wrong days are corrected in the listing of the whole days.
 
 ## Classification
 

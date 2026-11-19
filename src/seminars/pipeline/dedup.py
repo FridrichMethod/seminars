@@ -38,12 +38,28 @@ similar to "AIMI Symposium" as well, and the keynote is not the
 symposium. The same title at about the same time is one listing, though,
 even when only one of them is a meeting: a calendar that gives the hours
 of a symposium makes it a conference by the title rule, while a host that
-gives only its start leaves it a talk. And a listing with hours that ends
-before a meeting does is a part of it, such as its opening keynote at the
-start of the symposium: the page of the meeting that it links, or a
-speaker of the meeting that it names, does not make it the meeting. Such
-a link joins a meeting and a talk only when the talk has no end or ends
-no earlier than the meeting.
+gives only its start leaves it a talk. And within the time limit, a
+listing with hours that is no meeting and ends before a meeting does is a
+part of it, such as its opening keynote at the start of the symposium:
+the page of the meeting that it links, or a speaker of the meeting that
+it names, does not make it the meeting. Such a link joins a meeting and
+a talk only when the talk has no end or ends no earlier than the meeting.
+Nor are a group with a meeting and a group with a part of it joined
+when a third listing is one with both (the keynote without an end on
+another calendar, which links the page and names the speaker); only
+members whose starts are within the time limit count here, as for a
+pair. A part with the title of a meeting of either group is that
+meeting all the same (a copy of the listing of a day with a default
+hour), and a listing that gives the hours of one of the days of an
+all-day meeting is no part of it: on the days of a meeting the day rule
+above joins whole days and their hours, whatever parts the two groups
+hold. Pairs that share a page or a speaker and have similar titles are
+joined first, so the host's own listing of the symposium, by its title
+and start on its page, goes with the symposium and not with the keynote.
+The guard holds within one pass over the groups: when a third listing
+that joined the keynote gives the merged pair the title of the meeting,
+the pair is the meeting by that title in the next pass, as a host's
+listing of the symposium with a default hour is.
 
 Four guards keep unrelated talks apart. "TBA" is never similar to "TBA",
 and a title of a single word ("Seminar") is not compared at all, because
@@ -125,7 +141,12 @@ becomes one event:
   and covers more days than those times, the all-day listing with the
   most days gives the times instead, so a meeting of a week that a
   curated list gives keeps its days against a calendar's listing of its
-  first day, whichever leads;
+  first day, whichever leads. Its title is chosen by the rules above
+  among the listings that cover at least as many days as the one that
+  gives the times, and only among the all-day ones when those times are
+  whole days: a listing of one day or one session of a meeting ("XYZ
+  Workshop 2027 - Day 1", "Poster session") never names it, not even a
+  meeting of one day;
 * a cancellation that any listing reports is kept.
 
 The result does not depend on the order of the input, and running it over
@@ -358,6 +379,25 @@ def _last_day(start: datetime, end: datetime | None, *, all_day: bool) -> date:
     return end.date() - _ONE_DAY if all_day else (end - _JUST_BEFORE).date()
 
 
+def day_span(event: Event) -> tuple[date, date]:
+    """The first and the last local day of ``event`` (its end is exclusive)."""
+    return event.start.date(), _last_day(event.start, event.end, all_day=event.all_day)
+
+
+def _hours_of_a_day(
+    whole: tuple[datetime, datetime | None], timed: tuple[datetime, datetime | None]
+) -> bool:
+    """Whether ``timed`` (start, end) gives the hours of a day of the all-day ``whole``.
+
+    It starts on one of the days of ``whole`` and lasts at least
+    ``MEETING_MIN_TIMED_HOURS`` hours.
+    """
+    (whole_start, whole_end), (start, end) = whole, timed
+    if end is None or end - start < timedelta(hours=MEETING_MIN_TIMED_HOURS):
+        return False
+    return whole_start.date() <= start.date() <= _last_day(whole_start, whole_end, all_day=True)
+
+
 def _days_and_hours(first: _Profile, second: _Profile) -> bool:
     """Whether one of two listings is all day and the other gives the hours of one of its days.
 
@@ -368,10 +408,27 @@ def _days_and_hours(first: _Profile, second: _Profile) -> bool:
     if first.all_day == second.all_day or not (first.meeting or second.meeting):
         return False
     whole, timed = (first, second) if first.all_day else (second, first)
-    if timed.end is None or timed.end - timed.start < timedelta(hours=MEETING_MIN_TIMED_HOURS):
+    return _hours_of_a_day((whole.start, whole.end), (timed.start, timed.end))
+
+
+def within_meeting_days(listing: Event, meeting: Event) -> bool:
+    """Whether ``listing`` gives the whole days or the hours of ``meeting`` and no other day.
+
+    The two are one by the day rule (``_days_and_hours``): one of them is
+    all day, the other gives hours for at least ``MEETING_MIN_TIMED_HOURS``
+    hours and starts on one of the days of the all-day one, and one of
+    them is a meeting. And every local day of ``listing`` is a day of
+    ``meeting``. That is a listing which a merged meeting took in, or the
+    whole days it took its hours from, as it comes without the other
+    (``seminars.pipeline.diff``).
+    """
+    if listing.all_day == meeting.all_day or not (listing.is_meeting or meeting.is_meeting):
         return False
-    last = _last_day(whole.start, whole.end, all_day=True)
-    return whole.start.date() <= timed.start.date() <= last
+    whole, timed = (listing, meeting) if listing.all_day else (meeting, listing)
+    if not _hours_of_a_day((whole.start, whole.end), (timed.start, timed.end)):
+        return False
+    (first, last), (start, end) = day_span(listing), day_span(meeting)
+    return start <= first and last <= end
 
 
 def _ends_before(part: _Profile, meeting: _Profile) -> bool:
@@ -472,11 +529,14 @@ def _group(
     of the talks so formed point at, from one source and about the same
     time, is no detail page (``_shared_pages``). A similar pair joins unless a
     member of one group and a member of the other are distinct talks
-    (``_distinct``). Pairs linked by a page or a speaker are joined before
-    pairs that only have similar titles, so that a listing goes with the
-    talk of its speaker; within each round, pairs are taken in an order
-    fixed by their values, so which pair is refused does not depend on the
-    order of the input.
+    (``_distinct``) or, outside the round of whole days and their hours, one
+    of them is a part of the other, a meeting (``part_apart``). Pairs linked
+    by a page or a speaker that also have similar titles are joined first,
+    then the other pairs linked so, then the whole days and their hours,
+    and last the pairs that only have similar titles, so that a listing
+    goes with the talk of its speaker and of its title; within each round,
+    pairs are taken in an order fixed by their values, so which pair is
+    refused does not depend on the order of the input.
     """
     groups = _Groups(len(candidates))
     seen: dict[str, int] = {}
@@ -490,11 +550,36 @@ def _group(
     profiles = [_profile(candidate, not_pages) for candidate in candidates]
     order = _canonical_order(candidates, profiles)
 
-    def apart(first: int, second: int) -> bool:
+    def titles(first: _Profile, second: _Profile) -> bool:
+        return _similar_titles(first, second, settings.title_similarity)
+
+    def part_apart(one: _Profile, other: _Profile, meetings: Collection[str]) -> bool:
+        """Whether one of two members is a part of the other, a meeting (see the module).
+
+        Only members whose starts are within the time limit count, as for
+        a pair. A listing with the title of one of ``meetings`` (the folded
+        titles of the meetings of both groups) is that meeting, no part,
+        and neither is one that gives the hours of one of the days of an
+        all-day meeting (``_days_and_hours``): a copy of a listing of a day
+        that the meeting took in is that day too, with or without the page.
+        """
+        if abs(one.start - other.start) > limit or not _part_of_meeting(one, other):
+            return False
+        part = other if one.meeting else one
+        return part.title not in meetings and not _days_and_hours(one, other)
+
+    def apart(first: int, second: int, *, parts: bool) -> bool:
+        ones, others = groups.group_of(first), groups.group_of(second)
+        meetings = {
+            title
+            for position in (*ones, *others)
+            if profiles[position].meeting and (title := profiles[position].title) is not None
+        }
         return any(
             _distinct(profiles[one], profiles[other])
-            for one in groups.group_of(first)
-            for other in groups.group_of(second)
+            or (parts and part_apart(profiles[one], profiles[other], meetings))
+            for one in ones
+            for other in others
         )
 
     def close_pairs() -> Iterator[tuple[int, int]]:
@@ -517,14 +602,19 @@ def _group(
                 if _days_and_hours(whole, profiles[second]):
                     yield first, second
 
-    def titles(first: _Profile, second: _Profile) -> bool:
-        return _similar_titles(first, second, settings.title_similarity)
+    def strong_and_titles(first: _Profile, second: _Profile) -> bool:
+        return _strong_link(first, second) and titles(first, second)
 
-    rounds = ((_strong_link, close_pairs), (_same_page, day_pairs), (titles, close_pairs))
-    for matches, pairs in rounds:
+    rounds = (
+        (strong_and_titles, close_pairs, True),
+        (_strong_link, close_pairs, True),
+        (_same_page, day_pairs, False),
+        (titles, close_pairs, True),
+    )
+    for matches, pairs, parts in rounds:
         for first, second in pairs():
             if matches(profiles[first], profiles[second]) and not (
-                groups.find(first) == groups.find(second) or apart(first, second)
+                groups.find(first) == groups.find(second) or apart(first, second, parts=parts)
             ):
                 groups.union(first, second)
     return [[candidates[position] for position in group] for group in groups.members()]
@@ -608,8 +698,8 @@ def _title(events: Sequence[Event], speakers: Sequence[Speaker]) -> str:
 
 def _days(event: Event) -> int:
     """The number of local days that ``event`` covers, by their dates."""
-    last = _last_day(event.start, event.end, all_day=event.all_day)
-    return (last - event.start.date()).days + 1
+    first, last = day_span(event)
+    return (last - first).days + 1
 
 
 def _timing(events: Sequence[Event]) -> Event:
@@ -647,9 +737,18 @@ def _merge(group: Sequence[Candidate], aggregators: Collection[str]) -> Candidat
     for member in members[1:]:
         hints = hints.merge(member.hints)
     speakers = merge_speakers([speaker for event in events for speaker in event.speakers])
+    named = (
+        [
+            event
+            for event in events
+            if _days(event) >= _days(timing) and (event.all_day or not timing.all_day)
+        ]
+        if meeting.is_meeting
+        else events
+    )
     merged = lead.evolve(
         uid=min(events, key=lambda event: (event.first_seen, event.uid)).uid,
-        title=_title(events, speakers),
+        title=_title(named, speakers),
         speakers=speakers,
         series=_first([event.series for event in events]),
         event_type=meeting.event_type,
@@ -838,7 +937,7 @@ def adopt_stored_uids(
     First, a talk that shared its day key with a later talk of its day
     gets its uid back (``seminars.pipeline.ids.reclaim_timed_keys``).
     Then a candidate whose uid is not stored takes the uid of a stored
-    event that no candidate of this run claims (an orphan), in five steps:
+    event that no candidate of this run claims (an orphan), in six steps:
 
     1. an orphan that is the same talk by the rules of de-duplication
        (start within the limit and a similar title, a shared speaker or the
@@ -875,9 +974,17 @@ def adopt_stored_uids(
        own that gives way to another page is another talk;
     5. an orphan moved as in step 2 when neither names a speaker: both
        titles are "TBA", or neither is and they are similar. The title is
-       all there is to go by, so this comes after the slots of step 3.
+       all there is to go by, so this comes after the slots of step 3;
+    6. a listing known by its page in one run and by its day in the other:
+       one source knows one of the two only by the url key of the page
+       of the other (its ``url``) and the other only by day keys, both
+       start on one local day, their titles are similar, and if both name
+       speakers they name the same people; again only a pair that is
+       alone. The page of a meeting gives a key only when it names the
+       year, so a one-day workshop listed by its date that gets its hours
+       goes from its page to its day, and back.
 
-    Steps 2 to 5 are ``seminars.pipeline.ids.follow_changed_keys``. An
+    Steps 2 to 6 are ``seminars.pipeline.ids.follow_changed_keys``. An
     orphan with a native id is never taken there: its key does not change,
     so a new key is another talk. Should an orphan come
     back after its uid was taken, both listings arrive under one uid and
