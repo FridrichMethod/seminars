@@ -177,79 +177,83 @@ To import the file:
 
 ## Coverage
 
-The numbers below are measured on the run that started on 2026-11-16 at 22:23 Pacific
-time. "Next four weeks" counts the talks that had not ended by then and start within 28
-days of it. The status page of the web site always shows the current state of every
-source.
+The numbers below are measured on the run that started on 2026-11-18 at 18:25 Pacific
+time. "Next four weeks" counts the events (talks, conferences and workshops) that had not
+ended by then and start within 28 days of it. The status page of the web site always
+shows the current state of every source.
 
 ### Sources and their state
 
-38 of the 47 configured sources are enabled. The table lists the 35 that the run
-fetched: 32 of them delivered talks, 1 was empty and 2 failed, and 438 talks were stored.
-The workshops of the Simons Institute (`bayarea-simons-workshops`), the SLAC workshops
-and schools (`bayarea-slac-workshops`) and the registry of meetings (`conf-registry`)
-are not in it. A talk that several sources list counts once for each of them in this
-table, and a source that failed still counts the talks stored from its earlier runs.
-"Extraction" is how the run read a source: api from a JSON interface of the site, feed
-from its RSS or iCalendar feed, html from the page itself by rules; for a source that
-failed or was empty, it is the method of its adapter.
+38 of the 47 configured sources are enabled. The table lists the 37 that the run
+fetched: 32 of them delivered events, 2 were empty and 3 failed, and 468 events were
+stored. The registry of meetings (`conf-registry`), which sends no request, is not in it;
+20 of the stored events are its meetings, 1 of them in the next four weeks. An event that
+several sources list counts once for each of them in this table, and a source that failed
+still counts the events stored from its earlier runs. "Extraction" is how the run read a
+source: api from a JSON interface of the site, feed from its RSS or iCalendar feed, html
+from the page itself by rules; for a source that failed or was empty, it is the method of
+its adapter.
 
 | Source | Group | State | Next four weeks | Extraction |
 |---|---|---|---:|---|
-| Stanford Events (`localist-stanford`) | `localist` | ok | 56 | api |
-| Stanford AIMI (`sites-aimi`) | `stanford-sites` | ok | 4 | feed |
-| Stanford Biochemistry (`sites-biochemistry`) | `stanford-sites` | ok | 3 | feed |
-| Stanford Biology (`sites-biology`) | `stanford-sites` | ok | 4 | api |
+| Stanford Events (`localist-stanford`) | `localist` | ok | 52 | api |
+| Stanford AIMI (`sites-aimi`) | `stanford-sites` | ok | 3 | feed |
+| Stanford Biochemistry (`sites-biochemistry`) | `stanford-sites` | ok | 2 | feed |
+| Stanford Biology (`sites-biology`) | `stanford-sites` | ok | 3 | api |
 | Stanford Chemical Engineering (`sites-cheme`) | `stanford-sites` | ok | 1 | feed |
 | Stanford ChEM-H (`sites-chemh`) | `stanford-sites` | ok | 3 | feed |
-| Stanford Chemistry (`sites-chemistry`) | `stanford-sites` | ok | 7 | api |
-| Stanford ICME (`sites-icme`) | `stanford-sites` | ok | 2 | feed |
-| Stanford Mathematics (`sites-mathematics`) | `stanford-sites` | ok | 16 | api |
+| Stanford Chemistry (`sites-chemistry`) | `stanford-sites` | ok | 4 | api |
+| Stanford ICME (`sites-icme`) | `stanford-sites` | ok | 1 | feed |
+| Stanford Mathematics (`sites-mathematics`) | `stanford-sites` | ok | 11 | api |
 | Stanford Mathematics Research Center (`sites-mrc`) | `stanford-sites` | ok | 0 | api |
-| Stanford Materials Science and Engineering (`sites-mse`) | `stanford-sites` | ok | 2 | feed |
-| Stanford Physics (`sites-physics`) | `stanford-sites` | ok | 3 | api |
-| Stanford Statistics (`sites-statistics`) | `stanford-sites` | ok | 5 | api |
+| Stanford Materials Science and Engineering (`sites-mse`) | `stanford-sites` | ok | 1 | feed |
+| Stanford Physics (`sites-physics`) | `stanford-sites` | ok | 2 | api |
+| Stanford Statistics (`sites-statistics`) | `stanford-sites` | ok | 4 | api |
 | Stanford SystemX Alliance (`sites-systemx`) | `stanford-sites` | ok | 2 | feed |
-| AI + Data for Science Seminar (`custom-ai4science`) | `stanford-custom` | ok | 2 | html |
-| Stanford Chemical and Systems Biology Calendar (`custom-csb-calendar`) | `stanford-custom` | ok | 3 | feed |
+| AI + Data for Science Seminar (`custom-ai4science`) | `stanford-custom` | ok | 1 | html |
+| Stanford Chemical and Systems Biology Calendar (`custom-csb-calendar`) | `stanford-custom` | ok | 2 | feed |
 | Stanford Chemical and Systems Biology Events (`custom-csb-events`) | `stanford-custom` | ok | 1 | html |
-| Stanford Workshop in Biomedical Data Science (`custom-dbds-workshop`) | `stanford-custom` | failed: robots.txt timed out from GitHub | 2 | html |
+| Stanford Workshop in Biomedical Data Science (`custom-dbds-workshop`) | `stanford-custom` | failed: robots.txt unreachable from GitHub | 2 | html |
 | Stanford HAI Events (`custom-hai-events`) | `stanford-custom` | ok | 3 | html |
 | Stanford ISL Colloquium (`custom-isl-colloquium`) | `stanford-custom` | ok | 2 | html |
 | Stanford MLSys Seminar (`custom-mlsys-seminar`) | `stanford-custom` | empty: every talk on its page is past | 0 | html |
-| Stanford NLP Seminar (`custom-nlp-seminar`) | `stanford-custom` | failed: robots.txt timed out from GitHub | 0 | html |
-| Stanford RAIN/OR Seminar (`custom-rain-seminar`) | `stanford-custom` | ok | 3 | html |
+| Stanford NLP Seminar (`custom-nlp-seminar`) | `stanford-custom` | failed: robots.txt unreachable from GitHub | 0 | html |
+| Stanford RAIN/OR Seminar (`custom-rain-seminar`) | `stanford-custom` | ok | 2 | html |
 | Stanford Synthetic Biology Events (`custom-synbio-events`) | `stanford-custom` | ok | 1 | html |
 | Stanford CS Theory Lunch (`custom-theory-lunch`) | `stanford-custom` | ok | 3 | html |
-| Topos Institute Colloquium (`rsorg-topos-colloquium`) | `researchseminars` | ok | 3 | feed |
-| Biohub events (`bayarea-biohub`) | `bayarea` | ok | 2 | html |
+| Topos Institute Colloquium (`rsorg-topos-colloquium`) | `researchseminars` | failed: robots.txt unreachable from GitHub | 3 | feed |
+| Biohub events (`bayarea-biohub`) | `bayarea` | ok | 0 | html |
 | Condensed Matter Physics Seminars (GLAM) (`bayarea-glam`) | `bayarea` | ok | 2 | feed |
 | KIPAC Seminars and Events (`bayarea-kipac`) | `bayarea` | ok | 11 | feed |
 | Leinweber Institute for Theoretical Physics (LITP, formerly SITP) seminars (`bayarea-litp`) | `bayarea` | ok | 3 | api |
-| SLAC Photon Science Seminar Series (Stanford PULSE Institute) (`bayarea-pulse`) | `bayarea` | ok | 1 | feed |
-| Q-FARM Seminars and Events (`bayarea-qfarm`) | `bayarea` | ok | 5 | feed |
+| SLAC Photon Science Seminar Series (Stanford PULSE Institute) (`bayarea-pulse`) | `bayarea` | empty: its feed held no event | 0 | feed |
+| Q-FARM Seminars and Events (`bayarea-qfarm`) | `bayarea` | ok | 4 | feed |
+| Simons Institute workshops (`bayarea-simons-workshops`) | `bayarea` | ok | 1 | html |
 | SLAC Colloquium Series (`bayarea-slac-colloquium`) | `bayarea` | ok | 3 | html |
 | SLAC Experimental Seminar Series (`bayarea-slac-experimental`) | `bayarea` | ok | 1 | feed |
-| SLAC Theory Group seminars (EPP Theory) (`bayarea-slac-theory`) | `bayarea` | ok | 3 | feed |
+| SLAC Theory Group seminars (EPP Theory) (`bayarea-slac-theory`) | `bayarea` | ok | 2 | feed |
+| SLAC workshops and schools (`bayarea-slac-workshops`) | `bayarea` | ok | 1 | feed |
 
-### Talks per feed
+### Events per feed
 
-"In the feed" counts every talk that the feed held after the run: those of the last 14
-days and of the next 120. No source of that run had `meeting_horizon`, whose meetings a
-feed keeps further ahead (see the section Calendar feeds), and the feed `conferences` is
-not in the table.
+"In the feed" counts every event that the feed held after the run. Talks, and the
+meetings of the other sources, are those of the last 14 days and of the next 120. The
+conferences and workshops of a source with `meeting_horizon` stay up to 365 days ahead
+(see the section Calendar feeds): 24 events of `all` start more than 120 days after the
+run, all of them meetings. `deadlines.ics` held 63 deadlines.
 
 | Feed | Next four weeks | In the feed |
 |---|---:|---:|
-| `all` | 149 | 438 |
-| `picks` | 13 | 29 |
-| `math` | 35 | 91 |
-| `cs` | 27 | 66 |
-| `ai-ml` | 33 | 83 |
-| `chem` | 20 | 58 |
-| `bio` | 37 | 120 |
-| `physics` | 41 | 109 |
-| `med` | 33 | 117 |
+| `all` | 126 | 468 |
+| `picks` | 6 | 35 |
+| `math` | 28 | 97 |
+| `cs` | 25 | 82 |
+| `ai-ml` | 30 | 104 |
+| `chem` | 15 | 62 |
+| `bio` | 31 | 125 |
+| `physics` | 36 | 117 |
+| `med` | 31 | 116 |
+| `conferences` | 12 | 56 |
 
 ### Known gaps
 
@@ -259,8 +263,9 @@ not in the table.
   Arc Institute has no public seminar calendar. The status page says why each disabled
   source is off. Talks outside the seven fields (for example earth and planetary
   sciences) are out of scope.
-- The DBDS workshop and the NLP seminar may fail from GitHub's runners, which cannot
-  always reach their robots.txt; both work from Stanford's network. The status page
+- The DBDS workshop, the NLP seminar and the Topos colloquium of researchseminars.org
+  may fail from GitHub's runners, which cannot always reach their robots.txt; the DBDS
+  workshop and the NLP seminar work from Stanford's network. The status page
   shows such a failure, and three in a row open a `source-broken` issue.
 - The MLSys seminar comes back empty while its page announces no new talk.
 - Speakers and affiliations read from free text favour precision: a missing speaker is
