@@ -63,6 +63,6 @@ class TestParseMoment:
     )
     def test_a_zone_in_words_is_left_to_normalization(self, text: str) -> None:
         # No ISO 8601: jsonld keeps the text for normalization to read
-        # (seminars.pipeline.times.parse_moment). rss tries RFC 822 first, and
-        # email.utils reads a zone it does not know as wall time of the source.
+        # (seminars.pipeline.times.parse_moment), and so does rss once RFC 822
+        # does not know the zone (tests/test_generic_rss.py).
         assert parse_moment(text) is None

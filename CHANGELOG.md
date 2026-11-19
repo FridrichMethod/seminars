@@ -93,7 +93,9 @@ All notable changes of this project are recorded in this file. The format follow
 - Free-form times: "AoE" and "Anywhere on Earth" are read as UTC-12 instead of making
   the event invalid, "UTC-8" and "GMT+1" are read with the sign people write (dateutil
   read them the other way round, 24 hours off at UTC-12), and CET, CEST, BST, EET and
-  EEST are read as their regions.
+  EEST are read as their regions. A date of an RSS or Atom feed with such a zone is read
+  the same way; it had been read as the time of the source's zone, and "11:59 pm" as
+  11:59.
 - The booth of an exhibitor at a meeting ("Biohub at NeurIPS 2026", Booth 72) is left
   out as no talk; it had been listed in the bio feed.
 - `html_list` dates of a range (dates read without `date_format`): a first day without a

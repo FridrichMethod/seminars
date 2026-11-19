@@ -249,7 +249,15 @@ class FeedItem:
 
 
 def feed_moment(text: str | None) -> Moment | str | None:
-    """A feed date: ISO 8601 or RFC 822 with its offset (-0000 is UTC); other text stays text."""
+    """A feed date: ISO 8601, or RFC 822 with a zone it knows (-0000 is UTC); other text stays text.
+
+    ``parsedate_to_datetime`` reads many free-form texts too, and gives the
+    wall time of a zone it does not know ("23:59 AoE", "10:00 GMT+0100",
+    "10:00 CET") or of none, and drops a "pm" it does not expect. Such a
+    text stays text, which normalization reads
+    (``seminars.pipeline.times.parse_moment``): a text without a zone is a
+    time of the source's zone there as well.
+    """
     value = collapse(text)
     if value is None:
         return None
@@ -260,7 +268,9 @@ def feed_moment(text: str | None) -> Moment | str | None:
         moment = parsedate_to_datetime(value)
     except (TypeError, ValueError, IndexError):
         return value
-    return moment.replace(tzinfo=UTC) if value.endswith(" -0000") else moment
+    if value.endswith(" -0000"):
+        return moment.replace(tzinfo=UTC)
+    return value if moment.tzinfo is None else moment
 
 
 def markup_text(text: str | None) -> str | None:
