@@ -8,7 +8,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis import strategies as st
 
 from seminars import textrules
@@ -380,8 +380,13 @@ class TestCleanText:
         assert unicodedata.is_normalized("NFC", cleaned)
 
     @given(any_text)
-    def test_never_adds_characters_beyond_letters_spaces_and_newlines(self, text: str) -> None:
-        kept = set(unicodedata.normalize("NFC", text)) | set("filst \n")
+    @example("\u2011")
+    def test_never_adds_characters_beyond_letters_spaces_newlines_and_a_hyphen(
+        self, text: str
+    ) -> None:
+        # The letters of the ligatures, the space and the newline, and "-" for the
+        # non-breaking hyphen U+2011.
+        kept = set(unicodedata.normalize("NFC", text)) | set("filst \n-")
         composed = {char for char in clean_text(text) if char not in kept}
         assert all(unicodedata.decomposition(char) for char in composed)
 
