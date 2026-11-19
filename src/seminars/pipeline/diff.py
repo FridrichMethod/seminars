@@ -15,7 +15,12 @@ The stored events and the events of the run are compared by uid:
   entry of the registry goes once a source lists the meeting), and the
   hours are one of its days, not the meeting. For the same reason a
   source that turns its own all-day meeting into the hours of some of
-  its days is not followed;
+  its days is not followed. This holds in every later run too, for as
+  long as the listing that is left gives hours within fewer of those
+  days: a new title or type of it, or hours moved or cut within the
+  days, are not followed, while hours over every day or beyond the days
+  are. Wrong days are corrected in the listing of the whole days, which
+  the run then delivers merged with the hours;
 * unless the stored event also came from a source that says nothing in
   this run (below) and whose listing the run did not deliver for it. The
   event of the run is then only part of the talk: one source of a merged
@@ -143,6 +148,8 @@ def _as_days_of(stored: Event, fresh: Event) -> Event:
     When ``stored`` is an all-day meeting and ``fresh`` gives the hours of
     fewer of its days (``within_meeting_days``), the result is ``fresh``
     with the days, the type and the title of ``stored``; otherwise ``fresh``.
+    The result is stored, so the next run finds the same all-day meeting
+    and keeps its days against the same listing again.
     """
     if not (
         stored.all_day

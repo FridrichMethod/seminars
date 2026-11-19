@@ -172,6 +172,26 @@ class TestTheSourceOfTheWholeDaysNoLongerListsIt:
         assert changes == [0, 0, 0]
         assert events == [meeting(source_ids=[HOURS])]
 
+    def test_the_days_stay_until_a_listing_gives_other_days(self) -> None:
+        # Once the whole days are gone, the listing that is left names the meeting anew and
+        # gives its hours over two of the three days: the stored meeting stays, run after
+        # run. The listing of the whole days that comes back with two days corrects it.
+        gone = reconciled([meeting()], [hours()], runs=1)
+        two_days = hours(
+            title=f"{TITLE} (two days)",
+            event_type="workshop",
+            end=MORNING + timedelta(days=1, hours=8),
+        )
+        kept = reconciled(list(gone.events), [two_days], runs=2)
+        again = reconciled(list(kept.events), [two_days], runs=3)
+        assert (gone.changed, kept.changed, again.changed) == (0, 0, 0)
+        assert again.events == (meeting(source_ids=[HOURS]),)
+        corrected = entry(end=DAY + timedelta(days=2), source_ids=[ENTRY, HOURS])
+        back = reconciled(list(again.events), [corrected], runs=4)
+        (found,) = back.events
+        assert times(found) == (DAY, DAY + timedelta(days=2), True)
+        assert (found.sequence, back.changed) == (3, 1)
+
     def test_the_listing_that_returns_changes_nothing(self) -> None:
         gone = reconciled([meeting()], [hours()], runs=1)
         back = reconciled(list(gone.events), [meeting()], runs=2)
