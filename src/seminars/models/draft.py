@@ -271,12 +271,14 @@ class EventDraft(Model):
         source timezone);
       - a ``date`` has no time of day. As ``start`` it makes the draft an
         all-day event;
-      - a string is ISO 8601 or something ``dateutil`` can parse. ISO 8601
-        strings are converted when the draft is built: a date-only string
-        such as ``"2026-11-17"`` is the same as ``date(2026, 11, 17)``, so
-        it means an all-day event and never midnight, and
-        ``"2026-11-17T16:00"`` is the same as the naive ``datetime``. Other
-        strings stay strings.
+      - a string is ISO 8601 or a free-form time that
+        ``seminars.pipeline.times.parse_moment`` reads (what ``dateutil``
+        reads, plus AoE and UTC+-N or GMT+-N with the sign people write
+        them with). ISO 8601 strings are converted when the draft is
+        built: a date-only string such as ``"2026-11-17"`` is the same as
+        ``date(2026, 11, 17)``, so it means an all-day event and never
+        midnight, and ``"2026-11-17T16:00"`` is the same as the naive
+        ``datetime``. Other strings stay strings.
 
       A draft whose start cannot be understood is dropped and reported as
       ``invalid``.

@@ -264,6 +264,44 @@ class TestArchive:
         cancelled = stored(status="cancelled")
         assert run([cancelled], [], now=later(30)).archived == (cancelled,)
 
+    def test_a_meeting_that_is_still_running_stays(self) -> None:
+        # A workshop of three weeks that began twenty days before the window starts.
+        start = WINDOW.start - timedelta(days=20)
+        running = stored(
+            "running",
+            event_type="workshop",
+            all_day=True,
+            start=start,
+            end=start + timedelta(days=21),
+        )
+        result = run([running], [])
+        assert running.is_meeting
+        assert (result.archived, result.events, result.missing) == ((), (running,), 0)
+
+    def test_an_event_that_ended_before_the_window_starts_moves_to_the_archive(self) -> None:
+        start = WINDOW.start - timedelta(days=21)
+        ended = stored("ended", event_type="workshop", all_day=True, start=start, end=WINDOW.start)
+        late_talk = stored(
+            "late", start=WINDOW.start - timedelta(hours=2), end=WINDOW.start - timedelta(hours=1)
+        )
+        result = run([ended, late_talk], [])
+        assert result.archived == (ended, late_talk)  # sorted by uid
+        assert result.events == ()
+
+    def test_the_end_decides_for_a_talk_as_well(self) -> None:
+        # A talk that runs past the midnight at which the window starts.
+        night = stored(
+            "night", start=WINDOW.start - timedelta(hours=1), end=WINDOW.start + timedelta(hours=1)
+        )
+        assert run([night], []).events == (night,)
+
+    def test_an_event_without_an_end_is_judged_by_its_start(self) -> None:
+        day = WINDOW.start - timedelta(days=1)
+        before = stored("before", all_day=True, start=day, end=None)
+        first = stored("first", all_day=True, start=WINDOW.start, end=None)
+        result = run([before, first], [])
+        assert (result.archived, result.events) == ((before,), (first,))
+
 
 class TestResult:
     def test_events_are_sorted_by_uid(self) -> None:

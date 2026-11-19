@@ -19,6 +19,7 @@ from seminars.config import ConfigError
 from seminars.config.loader import load_sources
 from seminars.http import offline_client
 from seminars.models import EventDraft, SourceConfig, TimeWindow
+from seminars.outputs.health import allows_empty
 from seminars.sources import base
 from seminars.sources.base import ParseError
 from seminars.sources.generic import ics
@@ -952,6 +953,14 @@ class TestParams:
             )
         )
         assert params.embed_selector == "iframe"
+
+    def test_allow_empty_lets_a_run_without_events_be_healthy(self) -> None:
+        assert not ics_params(example_source()).allow_empty
+        source = example_source(allow_empty=True)
+        assert ics_params(source).allow_empty
+        assert allows_empty(source)
+        with pytest.raises(ConfigError, match=r"params\.allow_empty"):
+            ics_params(example_source(allow_empty="sometimes"))
 
     def test_a_single_pattern_is_a_list_of_one(self) -> None:
         params = ics_params(example_source(patterns={"SUMMARY": "^(?P<title>.+)$"}))

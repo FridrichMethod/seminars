@@ -757,6 +757,12 @@ sources:
     host_org: Stanford Center for Artificial Intelligence in Medicine and Imaging (AIMI)
     default_fields: [ai-ml, med]
     default_event_type: seminar
+    # The list announces the AIMI Symposium in May half a year ahead. Its title names a
+    # symposium and its card is all day, so it is a meeting, kept up to a year ahead.
+    # The longer fetch window asks for more detail pages, never more than
+    # detail_page.max_pages (6): with the feed and the list at most 8 requests, about 4
+    # minutes at Crawl-delay 30.
+    meeting_horizon: true
     params:
       <<: *su-event-params
       # Optional hints, match 5 of the 7 titles of the fixture (the other two, a course
@@ -783,17 +789,17 @@ sources:
       extraction: feed
       crawl_delay: 30
       template: B
-      requests_per_run: 5
+      requests_per_run: 7
       series_seen:
         - Computational Medicine Research Colloquium
         - AI4MH Seminar
         - IBIIS-AIMI Seminar
         - AIMI Grand Rounds
       notes:
-        - '7 upcoming events on 2026-11-12, 5 in the run window. The weekly Computational Medicine Research Colloquium (Thursdays at noon) is listed one talk at a time; its card links to the series page on computationalmedicine.stanford.edu, which lists past talks and the current one, nothing later.'
-        - 'Two cards (the colloquium and the AI4MH Seminar) link to other hosts; the link is the url of the event and is not fetched. The detail pages of the native cards in the window are fetched (3 on 2026-11-12); they add the abstract or a description of the series.'
+        - '7 upcoming events on 2026-11-12: 5 talks in the window of talks and the 2 events of May 2027. The weekly Computational Medicine Research Colloquium (Thursdays at noon) is listed one talk at a time; its card links to the series page on computationalmedicine.stanford.edu, which lists past talks and the current one, nothing later.'
+        - 'Two cards (the colloquium and the AI4MH Seminar) link to other hosts; the link is the url of the event and is not fetched. The detail pages of the native cards in the fetch window (a year ahead, meeting_horizon) are fetched: 5 in the recording, those of the 3 talks (recorded 2026-11-12) and of the 2 events of May 2027 (recorded 2026-11-18); they add the abstract or a description of the series.'
         - 'The title holds series, talk title and speaker ("<series>: <talk title> - <speaker>, <degrees>"); see title_patterns.'
-        - 'The HAILS leadership course (2027-05-14) and the AIMI Symposium (2027-05-17) are outside the window; the course is a paid executive program, not a talk, and the taxonomy excludes it as a course ("leadership strategy course").'
+        - 'The HAILS leadership course (2027-05-14 to 05-15) and the AIMI Symposium + Summit Series 2027 (2027-05-17 to 05-19) lie beyond the window of talks. The symposium is a meeting (a conference by its title) and is kept; the course is not a meeting and is dropped. It is a paid executive program, not a talk, and the taxonomy would exclude it as a course ("leadership strategy course").'
         - 'Overlap: none. localist.yaml maps the departments "Center for Artificial Intelligence in Medicine and Imaging (AIMI)" and IBIIS, but no record of the Stanford Events calendar carried either in the window of 2026-11-12, and no other recording names one of these talks or speakers.'
 
   - <<: *site

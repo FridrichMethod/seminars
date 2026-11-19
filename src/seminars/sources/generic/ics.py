@@ -88,6 +88,11 @@ Parameters (``params``; any other key is a ``ConfigError`` that names it,
   ``abstract``, ``url``, ``stream_url``. The first pattern that sets a
   field wins, and what the patterns set wins over ``property_fields``. A
   pattern is applied to at most ``MAX_PATTERN_INPUT`` characters.
+* ``allow_empty`` (default false): with ``true``, a run in which every
+  feed is a calendar without a VEVENT is healthy
+  (``seminars.outputs.health.allows_empty``). For feeds that are empty
+  now and then, such as the categories of workshops an institute lists
+  only months ahead; a body that is no calendar stays a ``ParseError``.
 * ``calendar_ids`` and ``embed_selector``: research notes (where the feed
   was found); not read.
 
@@ -212,6 +217,7 @@ class IcsParams(Model):
 
     property_fields: dict[Property, Target | None] = {}
     patterns: dict[TextProperty, PatternList] = {}
+    allow_empty: bool = False
     calendar_ids: list[str] = []
     embed_selector: str | None = None
 

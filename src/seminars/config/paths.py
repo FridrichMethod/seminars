@@ -30,7 +30,8 @@ class ProjectPaths:
         public/
           index.html, status.html, ...   copied from site/
           locales/<lang>.json            copied from locales/
-          feeds/<feed id>.ics            the nine calendar feeds
+          feeds/<feed id>.ics            the ten calendar feeds
+          feeds/deadlines.ics            the feed of the deadlines (not a feed id)
           events.json, status.json       the public payloads
     """
 
@@ -89,6 +90,11 @@ class ProjectPaths:
     @property
     def health_file(self) -> Path:
         return self.data_dir / "health.json"
+
+    @property
+    def deadlines_file(self) -> Path:
+        """The deadlines of the registry of meetings (``seminars.models.Deadline``)."""
+        return self.data_dir / "deadlines.json"
 
     @property
     def last_run_file(self) -> Path:

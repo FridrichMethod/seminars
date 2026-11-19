@@ -149,7 +149,11 @@ def assert_matches_golden(name: str, text: str) -> None:
 
 
 def golden_events() -> list[Event]:
-    """Talks of the golden week; only "tba" and "next-month" are new since the last issue."""
+    """Talks and meetings of the golden week.
+
+    Of the talks, only "tba" and "next-month" are new since the last issue; of the
+    meetings, "retreat" and "iclr-workshop" are, and "in-april" is too far ahead.
+    """
     seen_before = PREVIOUS_ISSUE - timedelta(days=3)
 
     def event(uid: str, title: str, start: datetime, **overrides: Any) -> Event:
@@ -241,6 +245,56 @@ def golden_events() -> list[Event]:
             fields=["ai-ml", "bio"],
             first_seen=PREVIOUS_ISSUE + timedelta(hours=1),
         ),
+        event(
+            "symposium",
+            "Bay Area RNA Symposium",
+            at(11, 19, 0),
+            end=at(11, 21, 0),
+            all_day=True,
+            event_type="conference",
+            speakers=[],
+            series=None,
+            host_org="Stanford Biochemistry",
+            location="Li Ka Shing Center",
+            fields=["bio", "chem"],
+            picks_score=6.0,
+            picks_reasons=['"RNA" in title (+3)'],
+        ),
+        event(
+            "retreat",
+            "Protein design retreat",
+            at(1, 8, 9, year=2027),
+            end=at(1, 8, 17, year=2027),
+            event_type="workshop",
+            speakers=[],
+            series="Bioengineering workshops",
+            location="Asilomar",
+            fields=["bio"],
+            first_seen=PREVIOUS_ISSUE + timedelta(days=1),
+        ),
+        event(
+            "iclr-workshop",
+            "Workshops of ICLR 2027",
+            at(4, 29, 0, year=2027),
+            end=at(5, 1, 0, year=2027),
+            all_day=True,
+            event_type="workshop",
+            speakers=[],
+            series="ICLR 2027",
+            location="San Francisco",
+            fields=["ai-ml", "bio"],
+            first_seen=PREVIOUS_ISSUE + timedelta(days=4),
+        ),
+        event(
+            "in-april",
+            "Stanford Drug Discovery Symposium",
+            at(4, 26, 0, year=2027),
+            end=at(4, 28, 0, year=2027),
+            all_day=True,
+            event_type="conference",
+            speakers=[],
+            fields=["med"],
+        ),
     ]
 
 
@@ -298,6 +352,7 @@ class TestDocument:
             f"# {checked('digest.heading', date='2026-11-16')}",
             f"## {checked('digest.sections.picks')}",
             *(f"## {checked(f'fields.{field}')}" for field in FIELD_IDS),
+            f"## {checked('digest.sections.meetings')}",
             f"## {checked('digest.sections.new')}",
             f"## {checked('digest.sections.health')}",
         ]
@@ -312,6 +367,7 @@ class TestDocument:
             "0 talks this week, 0 of them picks.",
             "No picks this week.",
             *["No talks this week."] * 7,
+            "No conferences or workshops until 2027-01-10.",
             "First issue: everything is new.",
             "All 0 sources are healthy.",
             "Field tagging used rules only (no LLM).",
@@ -509,6 +565,159 @@ class TestTalks:
         assert more == f"5 more\n{zh('digest.labels.more', count=5)}"
 
 
+MEETINGS = "Conferences and workshops"
+NEW = both("digest.labels.new")
+PICK = both("digest.labels.pick")
+
+
+def meeting(uid: str, first: date, last: date, **overrides: Any) -> Event:
+    """A conference held all day from ``first`` to ``last``, first seen long ago."""
+    after = last + timedelta(days=1)
+    defaults: dict[str, Any] = {
+        "uid": uid,
+        "title": f"Meeting {uid}",
+        "event_type": "conference",
+        "start": at(first.month, first.day, 0, year=first.year),
+        "end": at(after.month, after.day, 0, year=after.year),
+        "all_day": True,
+        "first_seen": PREVIOUS_ISSUE - timedelta(days=30),
+    }
+    return make_event(**{**defaults, **overrides})
+
+
+def listed_meetings(body: str) -> list[str]:
+    """The titles of the table of meetings, or the sentence that stands in its place."""
+    parts = section(body, MEETINGS)
+    if not parts[0].startswith("|"):
+        return parts
+    return [cells[2].split("<br>")[0] for cells in rows(parts[0])]
+
+
+class TestMeetings:
+    def test_a_meeting_is_listed_in_its_own_section_only(self, app_config: AppConfig) -> None:
+        symposium = meeting(
+            "symposium",
+            date(2026, 11, 19),
+            date(2026, 11, 20),
+            fields=["bio", "chem"],
+            picks_score=9.0,
+            picks_reasons=['"RNA" in title (+3)'],
+            first_seen=PREVIOUS_ISSUE + timedelta(days=1),
+        )
+        body = render(app_config, [symposium], previous_issue_at=PREVIOUS_ISSUE)
+        (table,) = section(body, MEETINGS)
+        keys = ("date", "time", "title", "location", "field", "note", "link")
+        assert table.split("\n")[0] == f"| {' | '.join(both(f'digest.table.{k}') for k in keys)} |"
+        (cells,) = rows(table)
+        chemistry_biology = f"Chemistry, Biology<br>{zh('fields.chem')}, {zh('fields.bio')}"
+        assert cells == [
+            "2026-11-19 - 2026-11-20",
+            ALL_DAY,
+            "Meeting symposium<br>Bioengineering Seminar",
+            "Shriram Center, Room 104",
+            chemistry_biology,
+            f"{NEW}, {PICK}",
+            DETAILS,
+        ]
+        assert body.count("Meeting symposium") == 1
+        for heading in ("Picks", "Biology", "Chemistry", "New since last issue"):
+            assert not section(body, heading)[0].startswith("|")
+        assert "0 talks this week, 0 of them picks." in body
+
+    def test_the_next_eight_weeks_and_later_meetings_that_are_new(
+        self, app_config: AppConfig
+    ) -> None:
+        new = {"first_seen": PREVIOUS_ISSUE + timedelta(seconds=1)}
+        seen = {"first_seen": PREVIOUS_ISSUE}
+        long_workshop = make_event(
+            uid="long", title="Long workshop", event_type="workshop", end=at(11, 17, 19), **seen
+        )
+        short_workshop = make_event(
+            uid="short", title="Short workshop", event_type="workshop", **seen
+        )
+        events = [
+            meeting("over", date(2026, 11, 13), date(2026, 11, 15), **new),
+            meeting("running", date(2026, 11, 14), date(2026, 11, 16)),
+            meeting("last-day", date(2027, 1, 10), date(2027, 1, 12)),
+            meeting("too-far", date(2027, 1, 11), date(2027, 1, 12)),
+            meeting("new-and-far", date(2027, 4, 29), date(2027, 4, 30), **new),
+            long_workshop,
+            short_workshop,
+        ]
+        body = render(app_config, events, previous_issue_at=PREVIOUS_ISSUE)
+        assert listed_meetings(body) == [
+            "Meeting running",
+            "Long workshop",
+            "Meeting last-day",
+            "Meeting new-and-far",
+        ]
+        notes = [cells[5] for cells in rows(section(body, MEETINGS)[0])]
+        assert notes == ["-", "-", "-", NEW]
+        (biology,) = section(body, "Biology")
+        assert [cells[2].split("<br>")[0] for cells in rows(biology)] == ["Short workshop"]
+        assert "1 talks this week, 0 of them picks." in body
+        first_issue = render(app_config, events)
+        assert listed_meetings(first_issue)[-1] == "Meeting last-day"
+
+    def test_a_meeting_with_hours_lasts_until_its_end(self, app_config: AppConfig) -> None:
+        def timed(uid: str, start: datetime, end: datetime, event_type: str) -> Event:
+            title = f"Meeting {uid}"
+            return make_event(uid=uid, title=title, event_type=event_type, start=start, end=end)
+
+        indico = (datetime(2026, 12, 9, 16, 30, tzinfo=UTC), datetime(2026, 12, 11, 1, tzinfo=UTC))
+        events = [
+            timed("over", at(11, 13, 9), at(11, 15, 17), "conference"),
+            timed("weekend", at(11, 14, 9), at(11, 17, 17), "conference"),
+            timed("midweek", at(11, 18, 9), at(11, 20, 17), "workshop"),
+            timed("evening", at(11, 21, 18), at(11, 22, 0), "conference"),
+            timed("indico", *indico, "workshop"),
+        ]
+        late_talk = make_event(
+            uid="late", title="Late talk", start=at(11, 15, 22), end=at(11, 16, 1)
+        )
+        body = render(app_config, [*events, late_talk])
+        (table,) = section(body, MEETINGS)
+        assert [cells[:3] for cells in rows(table)] == [
+            ["2026-11-14 - 2026-11-17", "09:00-17:00", "Meeting weekend<br>Bioengineering Seminar"],
+            ["2026-11-18 - 2026-11-20", "09:00-17:00", "Meeting midweek<br>Bioengineering Seminar"],
+            ["2026-11-21", "18:00-00:00", "Meeting evening<br>Bioengineering Seminar"],
+            ["2026-12-09 - 2026-12-10", "08:30-17:00", "Meeting indico<br>Bioengineering Seminar"],
+        ]
+        assert "Late talk" not in body  # a talk counts for the day it starts
+
+    def test_no_meeting(self, app_config: AppConfig) -> None:
+        body = render(app_config, [make_event()], week_start=date(2026, 11, 30))
+        assert listed_meetings(body) == [
+            "No conferences or workshops until 2027-01-24.\n"
+            + zh("digest.empty.meetings", end="2027-01-24")
+        ]
+
+    def test_the_table_of_meetings_has_a_limit_of_its_own(self, app_config: AppConfig) -> None:
+        week = [meeting(f"m{i:02}", date(2026, 11, 17), date(2026, 11, 18)) for i in range(45)]
+        talks = [make_event(uid=f"t{i:02}", start=at(11, 17, 9, i), end=None) for i in range(45)]
+        table, more = section(render(app_config, [*week, *talks]), MEETINGS)
+        assert len(rows(table)) == 40
+        assert more == f"5 more\n{zh('digest.labels.more', count=5)}"
+        text = "&<>|`*_[]~\\ " * 40
+        hostile = [
+            hostile_event(text, uid=f"e{i:03}").evolve(fields=list(FIELD_IDS)) for i in range(120)
+        ]
+        crowded = [
+            hostile_event(text, uid=f"m{i:02}").evolve(event_type="conference") for i in range(45)
+        ]
+        shrunk = []
+        for meetings in (week, crowded):
+            body = render(app_config, [*hostile, *meetings], previous_issue_at=PREVIOUS_ISSUE)
+            assert len(body) <= MAX_BODY_CHARS
+            tables = [part for part in blocks(body) if part.startswith("|")]
+            counts = [len(rows(table)) for table in tables]  # picks, fields, meetings, new
+            assert len(set(counts[:8] + counts[9:])) == 1
+            shrunk.append((counts[0], counts[8]))
+        (talk_rows, meeting_rows), (fewest, fewer) = shrunk
+        assert 1 < talk_rows < 40 == meeting_rows  # the other tables shrink first
+        assert fewest == 1 < fewer < 40
+
+
 class TestNewSinceLastIssue:
     def test_only_what_was_first_seen_later_and_is_still_ahead(self, app_config: AppConfig) -> None:
         seen = {"first_seen": PREVIOUS_ISSUE + timedelta(seconds=1)}
@@ -633,10 +842,13 @@ def hostile_event(text: str, uid: str = "hostile") -> Event:
 
 
 def hostile_document(config: AppConfig, text: str) -> str:
+    """A talk and a conference whose every text is ``text``, and a source of that name."""
     config = dataclasses.replace(config, sources=(make_source(name=text),))
     health = ran(HealthFile(), "sites-bioengineering", "failed", error=text)
     health = health.with_llm_entry(text, LLMHealthEntry(at=REFERENCE_NOW, status="ok", calls=1))
-    return render(config, [hostile_event(text)], health, previous_issue_at=PREVIOUS_ISSUE)
+    meeting = hostile_event(text, uid="hostile-meeting").evolve(event_type="conference")
+    events = [hostile_event(text), meeting]
+    return render(config, events, health, previous_issue_at=PREVIOUS_ISSUE)
 
 
 class TestUntrustedText:
@@ -648,8 +860,8 @@ class TestUntrustedText:
         tokens, rendered = parsed(body)
         kinds = [token.type for token in tokens]
         expected = " ".join(text.split())
-        assert kinds.count("heading_open") == 11
-        assert kinds.count("table_open") == 4  # picks, biology, new, health
+        assert kinds.count("heading_open") == 12
+        assert kinds.count("table_open") == 5  # picks, biology, meetings, new, health
         assert kinds.count("hr") == 1
         allowed = {"heading", "paragraph", "table", "thead", "tbody", "tr", "th", "td", "link"}
         structure = {kind.rsplit("_", 1)[0] for kind in kinds if kind.endswith(("_open", "_close"))}
@@ -659,14 +871,18 @@ class TestUntrustedText:
         )
         assert {token.content for token in tokens if token.type == "html_inline"} <= {"<br>"}
         links = [token.attrs["href"] for token in tokens if token.type == "link_open"]
-        assert links == [DETAIL_URL] * 3
+        assert links == [DETAIL_URL] * 4
         cells = re.findall(r"<td>(.*?)</td>", rendered, re.DOTALL)
-        assert len(cells) == 8 + 6 + 7 + 5
+        assert len(cells) == 8 + 6 + 7 + 7 + 5
         shown = [html.unescape(re.sub(r"</?code>", "", cell)) for cell in cells]
         assert shown[4] == expected  # the location, in the picks table
         assert shown[2].split("<br>") == [expected, expected]  # title and series
         assert shown[3] == shortened(f"{expected} ({expected})", SPEAKERS_MAX_CHARS)
         assert shown[6] == expected  # why picked
+        meeting = shown[8 + 6 : 8 + 6 + 7]
+        assert meeting[2].split("<br>") == [expected, expected]  # title and series
+        assert meeting[3] == expected  # the location
+        assert meeting[5] == f"{both('digest.labels.new')}, {both('digest.labels.pick')}"
         assert (shown[-5], shown[-1]) == (expected, expected)  # name and error of the source
 
     @pytest.mark.parametrize("text", HOSTILE)
@@ -733,26 +949,31 @@ class TestUntrustedText:
         self, events: list[Event], app_config: AppConfig
     ) -> None:
         week = date(2027, 6, 7)
-        body = render(app_config, events, week_start=week, previous_issue_at=PREVIOUS_ISSUE)
-        assert body == render(
-            app_config, events[::-1], week_start=week, previous_issue_at=PREVIOUS_ISSUE
-        )
-        assert decorative_characters(body) == []
-        assert len(body) <= MAX_BODY_CHARS
-        tokens, _ = parsed(body)
-        kinds = [token.type for token in tokens]
-        assert kinds.count("heading_open") == 11
-        assert not {
-            "image",
-            "html_block",
-            "fence",
-            "code_block",
-            "em_open",
-            "bullet_list_open",
-        } & set(kinds)
-        assert {token.content for token in tokens if token.type == "html_inline"} <= {"<br>"}
-        links = {token.attrs["href"] for token in tokens if token.type == "link_open"}
-        assert all(link.startswith("https://") and ".example.edu/" in link for link in links)
+        meetings = [
+            event.evolve(event_type="conference") if index % 2 else event
+            for index, event in enumerate(events)
+        ]
+        for listed in (events, meetings):
+            body = render(app_config, listed, week_start=week, previous_issue_at=PREVIOUS_ISSUE)
+            assert body == render(
+                app_config, listed[::-1], week_start=week, previous_issue_at=PREVIOUS_ISSUE
+            )
+            assert decorative_characters(body) == []
+            assert len(body) <= MAX_BODY_CHARS
+            tokens, _ = parsed(body)
+            kinds = [token.type for token in tokens]
+            assert kinds.count("heading_open") == 12
+            assert not {
+                "image",
+                "html_block",
+                "fence",
+                "code_block",
+                "em_open",
+                "bullet_list_open",
+            } & set(kinds)
+            assert {token.content for token in tokens if token.type == "html_inline"} <= {"<br>"}
+            links = {token.attrs["href"] for token in tokens if token.type == "link_open"}
+            assert all(link.startswith("https://") and ".example.edu/" in link for link in links)
 
 
 class TestPublishing:

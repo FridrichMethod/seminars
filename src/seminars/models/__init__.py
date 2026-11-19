@@ -5,6 +5,7 @@ implementation detail. All models are frozen pydantic models that reject
 unknown keys; use ``model.evolve(...)`` to derive a changed copy.
 
 * event.py      Event, Speaker: the record stored in data/events.json
+* deadline.py   Deadline: a milestone of a registered meeting, stored in data/deadlines.json
 * draft.py      EventDraft, RawPayload, FetchedDocument, TimeWindow: adapter I/O
 * source.py     SourceConfig, ResearchInfo: one entry of config/sources.d/*.yaml
 * classify.py   Candidate, EventHints, TagDecision, FilterResult, ...: classification I/O
@@ -55,6 +56,20 @@ from seminars.models.classify import (
     ScopeResult,
     TagDecision,
 )
+from seminars.models.deadline import (
+    DEADLINE_SHOWN,
+    DEADLINE_UID_PREFIX,
+    DEADLINES_FEED,
+    DEADLINES_SCHEMA_VERSION,
+    Deadline,
+    DeadlineQualifier,
+    DeadlineRegion,
+    deadline_to_line,
+    deadline_uid,
+    dump_deadlines,
+    load_deadlines,
+    ordered_deadlines,
+)
 from seminars.models.draft import (
     DRAFT_TEXT_LIMITS,
     MAX_DRAFT_AFFILIATION,
@@ -73,7 +88,13 @@ from seminars.models.draft import (
     SpeakerDraft,
     TimeWindow,
 )
-from seminars.models.event import TBA_TITLE, Event, Speaker
+from seminars.models.event import (
+    MEETING_MIN_TIMED_HOURS,
+    TBA_TITLE,
+    Event,
+    Speaker,
+    is_meeting_span,
+)
 from seminars.models.health import (
     HEALTH_HISTORY_LIMIT,
     HealthFile,
@@ -150,6 +171,10 @@ from seminars.models.source import (
 
 __all__ = [
     "CREDENTIAL_QUERY_PARAMS",
+    "DEADLINES_FEED",
+    "DEADLINES_SCHEMA_VERSION",
+    "DEADLINE_SHOWN",
+    "DEADLINE_UID_PREFIX",
     "DEFAULT_TIMEZONE",
     "DRAFT_TEXT_LIMITS",
     "EVENTS_SCHEMA_VERSION",
@@ -168,12 +193,16 @@ __all__ = [
     "MAX_DRAFT_TIME",
     "MAX_DRAFT_URL",
     "MAX_ROLLOVER",
+    "MEETING_MIN_TIMED_HOURS",
     "PUBLIC_SCHEMA_VERSION",
     "SOURCE_GROUP_PREFIXES",
     "SOURCE_ID_PATTERN",
     "TBA_TITLE",
     "UID_PATTERN",
     "Candidate",
+    "Deadline",
+    "DeadlineQualifier",
+    "DeadlineRegion",
     "DigestDocument",
     "DigestOutcome",
     "Event",
@@ -241,16 +270,22 @@ __all__ = [
     "canonical_fields",
     "check_http_url",
     "check_timezone",
+    "deadline_to_line",
+    "deadline_uid",
     "dump_ascii_json",
+    "dump_deadlines",
     "dump_event_lines",
     "dump_events",
     "dump_json",
     "event_from_line",
     "event_to_line",
     "feed_path",
+    "is_meeting_span",
+    "load_deadlines",
     "load_event_lines",
     "load_events",
     "load_json",
+    "ordered_deadlines",
     "read_events",
     "read_model",
     "signed_points",

@@ -21,14 +21,14 @@ before it and writes new ones, and the daily commit holds only what changed.
 config/            sources, fields, interests, settings, LLM settings
    |
 seminars run       fetch -> parse -> normalize -> filter -> merge -> classify
-   |               -> scope -> picks -> persist -> health -> write -> check
+   |               -> scope -> picks -> persist -> deadlines -> health -> write -> check
    v
-data/              events.json, uid_map.json, health.json, archive/, llm_cache/,
-   |               last_run.json, run_report.json  (committed)
+data/              events.json, uid_map.json, health.json, deadlines.json, archive/,
+   |               llm_cache/, last_run.json, run_report.json  (committed)
 seminars build-site
    v
-public/            index.html, status.html, events.json, status.json, feeds/<id>.ics
-                   (deployed to GitHub Pages)
+public/            index.html, status.html, events.json, status.json, feeds/<id>.ics,
+                   feeds/deadlines.ics  (deployed to GitHub Pages)
 ```
 
 ## Module map
@@ -43,6 +43,8 @@ modules (`http*.py`, `robots.py`), `fixtures.py` and the text modules (`textrule
 
 - `pipeline/collect.py` takes the adapter registry and its errors from `sources/base.py`,
   and `detail_pages_optional` from `sources/generic/common.py`;
+- `pipeline/deadlines.py` reads the editions of the registry of meetings with
+  `registry_editions` of `sources/custom/registry.py`;
 - `sources/generic/common.py` takes `MAX_SPEAKERS` from `pipeline/normalize.py`;
 - the LLM page extractor (`sources/generic/llm_page.py`) and the LLM tagger
   (`classify/llm_tagger.py`) take `record_skipped_too_long` from `llm/base.py`, and the
@@ -67,7 +69,8 @@ modules (`http*.py`, `robots.py`), `fixtures.py` and the text modules (`textrule
 | `textrules.py` | the charset rule for text and for `data/` |
 
 Configuration lives in `config/`: `settings.yaml` (time zone, the window of 14 days back
-and 120 ahead, HTTP limits, de-duplication and health thresholds), `sources.d/` (one file
+and 120 ahead, the meetings of a source with `meeting_horizon` up to 365 days ahead, HTTP
+limits, de-duplication and health thresholds), `sources.d/` (one file
 per group of sources), `taxonomy.yaml` (the seven fields, exclusions, department labels),
 `interests.yaml` (the picks score) and `llm.yaml` (providers, models, caps). An unknown key
 is an error everywhere. The texts of the site and the digest are in `locales/en.json` and
@@ -89,16 +92,27 @@ time, and none reads the clock.
    the calling thread, source after source in the order of the configuration, so the result
    does not depend on which fetch finished first. For a source with `llm_fallback: true` or
    `adapter: llm_page`, the LLM page extractor reads the pages when the rules read nothing.
-3. **Normalize** (`pipeline/normalize.py`). Times follow the zone of the source, and events
-   that start outside the window are dropped. Every text is cleaned (markup, the charset
-   rule, length), loses meeting credentials, e-mail addresses and telephone numbers
-   (`pipeline/privacy.py`) and credential-shaped strings (`pipeline/secret_scan.py`). The
-   speaker line is split into people (`pipeline/speakers.py`); a draft without speakers gets
-   the people its title names in a common form (`pipeline/title_speakers.py`). The event gets
-   its source key and its uid (`pipeline/ids.py`).
+3. **Normalize** (`pipeline/normalize.py`). Times follow the zone of the source. An event
+   is dropped when it starts after the window or ended before the window starts (one
+   without an end: started before it), so a workshop of three weeks stays while it runs.
+   A meeting, that is a conference, an all-day workshop of two days or more or a workshop
+   with times of day of at least 3 hours (`pipeline/meetings.py`), of a source with `meeting_horizon` may start up to 365 days
+   ahead; its talks keep the window. A seminar, lecture or other event that is all day or
+   at least 3 hours long and whose title names a meeting (a symposium, conference, summit,
+   workshop, boot camp or summer school, among others) becomes a conference or a workshop
+   first. A meeting with times of day over more than a week keeps its days as an all-day
+   event when its hours are those of a meeting: its end lies at least 3 hours after its
+   start in the day, or both are midnight; a weekly talk of an hour listed from its first
+   to its last week stays a talk. Every text is cleaned (markup, the charset rule, length),
+   loses meeting credentials, e-mail addresses and telephone numbers (`pipeline/privacy.py`)
+   and credential-shaped strings (`pipeline/secret_scan.py`). The speaker line is split
+   into people (`pipeline/speakers.py`); a draft without speakers gets the people its title
+   names in a common form (`pipeline/title_speakers.py`). The event gets its source key and
+   its uid (`pipeline/ids.py`).
 4. **Filter** (`classify/filters.py`). Phrases of `config/taxonomy.yaml` exclude what is no
-   academic talk (receptions, office hours, courses and the like), and some department
-   labels are always out of scope.
+   academic talk (receptions, office hours, courses and the like), a numbered exhibitor's
+   booth at a meeting is no talk either, and some department labels are always out of
+   scope.
 5. **Merge** (`pipeline/dedup.py`). Stored uids are handed on to keys that changed, and the
    listings of one talk become one event.
 6. **Classify** (`pipeline/tagging.py`). Fields come from the source and from the rules
@@ -109,12 +123,25 @@ time, and none reads the clock.
    add up to a score; an event at or above the threshold is a pick, with its reasons.
 9. **Persist** (`pipeline/diff.py`). The events of the run are compared with the stored ones:
    see "Stored events" below.
-10. **Health** (`outputs/health.py`). The outcome of each source and LLM provider is added to
+10. **Deadlines** (`pipeline/deadlines.py`). Every milestone of an enabled registry source,
+    of `bay-area` and `world` editions alike, becomes a deadline; it is read from the
+    configuration and nothing is fetched for it. The deadlines are compared with
+    `data/deadlines.json` by uid, `dl.<edition id>.<kind>` with `-<n>` for the n-th
+    milestone of one kind counted by date: a new one starts at `sequence` 0, a change of a
+    fact that the feed or the digest shows (`DEADLINE_SHOWN`) raises its `sequence` and sets
+    `last_changed` to the time of the run, a change of another fact (`series`, `region`,
+    `fields`) is stored with the stamps as they were, and one that the configuration no
+    longer holds, or whose day lies before the window, leaves the file; there is no archive
+    of deadlines. A registry whose `params` cannot be read keeps its
+    stored deadlines, and the run report says so in a warning.
+11. **Health** (`outputs/health.py`). The outcome of each source and LLM provider is added to
     the history, and the issues `source-broken` and `llm-auth` are opened, updated or
     closed.
-11. **Write** (`pipeline/store.py`). The data files first, then the feeds and the site data,
-    and the two records of the run (`data/run_report.json`, `data/last_run.json`) last.
-12. **Check** (`pipeline/checks.py`). The secret scan and the charset rule of `data/` look at
+12. **Write** (`pipeline/store.py`). The data files first (`data/deadlines.json` among them,
+    one deadline per line by date and uid), then the feeds with `deadlines.ics` and the site
+    data, and the two records of the run (`data/run_report.json`, `data/last_run.json`)
+    last.
+13. **Check** (`pipeline/checks.py`). The secret scan and the charset rule of `data/` look at
     the files before they are written and at `data/` and `public/` on disk afterwards.
 
 Exit status of `seminars run`, which the update workflow acts on:
@@ -133,7 +160,8 @@ does everything in a scratch directory and changes nothing.
 
 ## Sources
 
-Sources are configured in `config/sources.d/` and fall into four tiers:
+Sources are configured in `config/sources.d/` and fall into four tiers, with the
+registry of meetings kept by hand beside them:
 
 | Tier | Group | What | Adapters |
 |---|---|---|---|
@@ -141,6 +169,7 @@ Sources are configured in `config/sources.d/` and fall into four tiers:
 | 2 | `stanford-sites` | department sites on Stanford Sites (Drupal) | `drupal_jsonapi`, `rss` |
 | 3 | `stanford-custom`, `researchseminars` | labs, centers and series with pages of their own; series on researchseminars.org | `html_list` and custom adapters |
 | Bay Area | `bayarea` | SLAC, CZ Biohub and other Bay Area institutes | `rss`, `html_list`, `drupal_jsonapi`, `slac_drupal` |
+| Registry | `conferences` | conferences and workshops that no source delivers, kept by hand in the entry of the source; nothing is fetched | `registry` |
 
 The extraction method is chosen in this order: a structured API, a feed, JSON-LD in the
 page, an HTML list read with CSS selectors, and only then the LLM page extractor. The two
@@ -179,40 +208,74 @@ source offers:
 1. the native id of the source (Localist instance, JSON:API resource, RSS guid, ICS UID):
    `<source id>:<native id>`;
 2. the address of its own detail page, when no other draft of its source points at it in
-   the run:
+   the run and it is not the front page of a site, which a conference site shares among
+   all its editions; the page of a meeting counts only when its address names the year
+   the meeting starts in, since the page of a series of meetings serves one edition after
+   the other:
    `<source id>:url:<address>`;
 3. the local day of the start plus the first speaker, or else the title, or else the time of
-   day: `<source id>:day:<date>:<words>`.
+   day: `<source id>:day:<date>:<words>`. A meeting names its title first.
 
 `data/uid_map.json` binds every key ever seen to its uid. A known key gives the same uid in
 every run; a new key gets a uid derived from the key alone. When a key changes while the
 talk stays (a day key after a move or a new speaker spelling, a renamed page), the stored
-uid is handed on to the new key, so the uid stays. In the feeds the UID is
+uid is handed on to the new key, so the uid stays. The same holds when a listing whose page
+names no year becomes or stops being a meeting and its key moves between that page and its
+day, as for a one-day workshop listed by its date that gets its hours: the same source, the
+same local day and similar titles hand the uid on. In the feeds the UID is
 `<uid>@seminars.fridrichmethod.github.io`.
 
 Two listings are one talk (`pipeline/dedup.py`) when they share a uid or a key, or when
 their starts are at most 15 minutes apart and their titles are similar (a token set ratio
 of at least 85), they share a speaker, the title of one names a speaker of the other, or
-they point at the same detail page. Guards keep unrelated talks apart: "TBA" never matches "TBA", a
-one-word title is not compared, a page that a source is fetched from or that lists a whole
-series is no detail page, and two listings of one source that name different speakers are
-never one talk. A merged event keeps the uid seen first, the best title (not "TBA", not the
-bare name of the series), the longest abstract, all speakers and keys, and the details of
-the host's own listing over those of an aggregator (the campus calendar,
-researchseminars.org). The result does not depend on the order of the input.
+they point at the same detail page. An all-day listing and a listing with hours are one
+when one of them is a meeting, they point at the same detail page, and the one with hours
+starts on one of the days of the other and lasts at least 3 hours: a meeting that one
+source gives as whole days and a calendar with its hours, once or day by day. A meeting is
+one with another listing by its title only when the folded titles are equal: "ICML 2027"
+and "ICLR 2027" are similar by any fuzzy measure, and the opening keynote of a symposium
+is not the symposium. Within those 15 minutes, a listing with hours that is no meeting
+and ends before a meeting does is a part of it, such as that keynote, unless it has the
+title of that meeting or of a meeting merged with it: the page or a speaker it shares with
+the meeting does not join them, nor does a third listing that is one with both, unless the
+part and the third listing merge under the title of the meeting. Listings that share a page
+or a speaker and have similar titles are joined first, so the host's own listing of the
+symposium goes with the symposium, not with the keynote. On the meeting's days only the day
+rule above joins them, so a listing of the meeting's page that lasts at least 3 hours is
+taken as the hours of that day. Guards keep
+unrelated talks apart: "TBA" never matches "TBA", a one-word title
+is not compared, a page that a source is fetched from or that lists a whole series is no
+detail page, and two listings of one source that name different speakers are never one
+talk. A merged event keeps the uid seen first, the best title (not "TBA", not the bare
+name of the series), the longest abstract, all speakers and keys, and the details of the
+host's own listing over those of an aggregator (the campus calendar,
+researchseminars.org). A merged event with a meeting among its listings is a meeting: it
+takes the type of that meeting and, when the leading listing is no meeting, its times; an
+all-day listing with more days gives its days, so a meeting keeps them against a
+calendar's listing of its first day. Its title comes from a listing that covers as many
+days as the one that gives the times, from a meeting among those when there is one, and
+from an all-day listing when those times are whole days, so neither a listing of one day
+of a meeting of several days nor a session that is no meeting names it. The result does
+not depend on the order of the input.
 
 ## Stored events
 
-`data/events.json` holds every event of the current window, one per line, sorted by uid.
+`data/events.json` holds every event of the current window, and the meetings ahead of it
+of the sources with `meeting_horizon`, one per line, sorted by uid.
 When a stored event comes back with a change a reader can see, its `sequence` goes up and
 `last_changed` becomes the time of the run; both go into the feeds, so subscribed calendars
 update the event. An event that the run did not deliver is judged by what is known about
-it: one that started before the window goes to `data/archive/<year>.jsonl`; one of a
+it: one that ended before the window starts (one without an end: started before it) goes
+to `data/archive/<year>.jsonl`, so a meeting of several weeks stays while it runs; one of a
 disabled or removed source leaves at once; one that has started or is cancelled stays as it
 is; one whose sources were all read in full counts a missing run, and it is removed once it
 has missed 3 such runs without coming back. A source that failed, came back empty or was not read in full says nothing
 about its events, so a broken site never deletes talks. When one source of a merged event
-fails, the stored event stands in for its missing listing.
+fails, the stored event stands in for its missing listing. A meeting merged from its whole
+days and the hours of some of them keeps its stored times while either source fails, and
+its days, type and title for as long as the runs deliver only hours within fewer of its
+days: a new title of that listing, or hours moved within the days, are not followed, and
+wrong days are corrected in the listing of the whole days.
 
 ## Classification
 
@@ -269,15 +332,44 @@ replaced by an empty placeholder.
 
 ## Outputs
 
-- **Feeds** (`outputs/ics.py`): nine calendars, `all`, `picks` and one per field. A timed
-  event is written in the zone of the settings with one VTIMEZONE sub-component per change
-  of the offset; a cancelled talk stays with `STATUS:CANCELLED`. The bytes depend only on
-  the events, so a calendar sees a change only when an event changed. `seminars validate`
-  checks every feed with a validator of its own.
+- **Feeds** (`outputs/ics.py`): ten calendars, `all`, `picks`, one per field and
+  `conferences`. `conferences` holds the meetings (`Event.is_meeting`: a conference, an
+  all-day workshop of two days or more, or a workshop with times of day of at least three
+  hours), which are in `all` and in their field feeds as well, so the download of
+  selected talks reads `all` alone. A timed event is written in the zone of the settings
+  with one VTIMEZONE sub-component per change of the offset. An all-day event is free time (`TRANSP:TRANSPARENT` and
+  `X-MICROSOFT-CDO-BUSYSTATUS:FREE`), so a conference of a week does not fill a calendar
+  with busy days; no event has an alarm. A cancelled talk stays with `STATUS:CANCELLED`.
+  The bytes depend only on the events, so a calendar sees a change only when an event
+  changed. `seminars validate` checks every feed with a validator of its own.
+- **Feed of the deadlines** (`outputs/deadlines.py`, written by `outputs/ics.py` with the
+  feeds): `deadlines.ics` holds the deadlines of `data/deadlines.json` and is no feed id, so
+  neither the event feeds nor the download of selected talks know it. Each deadline is one
+  all-day event of free time on its day (`DTEND` the day after), without an alarm; its
+  `SUMMARY` is the name of the edition and the label, followed by the time and the zone as
+  the organizer's page states them (`(23:59 AoE)`, `(AoE)`, `(by this day)`), its
+  `DESCRIPTION` names the edition, its days and its place, the advice to check the
+  organizer's page that states the date (the page of the milestone, or else the page of the
+  last check) and the day of the last check, and its `URL` is the organizer's page of the edition. The name of an edition is its
+  `short_title`, or the series and the year, or its title when another edition of the
+  registry would get the same name (`display_names`). The bytes depend only on the
+  deadlines. `seminars validate` checks the feed with the rules of every feed and its own:
+  only VTIMEZONE and VEVENT components, a calendar name and description, and per VEVENT the
+  uid of a deadline, a summary that is not empty, a DATE value as `DTSTART` and the day
+  after as `DTEND` with no rule or date of repetition, free time and no alarm.
 - **Site** (`site/`, `outputs/site_data.py`): static HTML and JavaScript without a build
   step, reading `events.json` and `status.json`; English and Chinese from `locales/`. All
   text from the web is escaped. `seminars build-site` assembles `public/` from the committed
-  data alone.
+  data alone. The filters (fields, institutions, organizer, kind, time range, picks, and
+  the search of titles, people, series, places and abstracts) are part of the address.
+  The kind tells the talks from the meetings by the flag `meeting` of `events.json`, and
+  an event that began before today and has not ended is listed once, under Ongoing above
+  today. The subscription panel lists the feeds of `events.json` and, below them,
+  `deadlines.ics` (`site/subscribe.js`), with the sentence that it is kept by hand and that
+  the submission deadlines of the main tracks of machine-learning and computer-science
+  conferences are not collected, and a link to the calendar of ccfddl for the AI ones; the
+  address of that calendar is a message of the locale files, since no file of the site
+  holds the address of another host.
 - **Download of selected talks** (`site/calendar.js`): the talks a reader ticks in the list
   are page state held in memory, never written to the address or to storage. The selection
   bar above the list is a region landmark; while talks are selected and the bar is
@@ -308,10 +400,16 @@ replaced by an empty placeholder.
   nor `events.json` has anything of its own for the download: the file is made from the
   feed that `outputs/ics.py` writes.
 - **Digest** (`outputs/digest.py`): the talks of the week (Monday to Sunday), the picks first,
-  then one table per field, the talks new since the previous issue and the state of the
-  sources, with every label in English and Chinese. No state is kept: "new" is measured from
-  the time the previous digest issue was opened, and an issue with the title of this week
-  is looked for first.
+  then one table per field, the conferences and workshops, the deadlines of the next days,
+  the talks new since the previous issue and the state of the sources, with every label in
+  English and Chinese. The meetings (`Event.is_meeting`) are in their own table only: those
+  with a day in the eight weeks from the Monday and the later ones new since the previous
+  issue, each marked when it is new or a pick. That table has a row limit of its own, which
+  shrinks only once the other tables are down to one row. The deadlines (`data/deadlines.json`) of the 21 days from the Monday
+  follow, each with the time and the zone that the organizer's page states and a link to
+  that page, in a table with a fixed limit of 25 rows; without such a deadline the section is
+  left out. No state is kept: "new" is measured from the time the previous digest issue was
+  opened, and an issue with the title of this week is looked for first.
 - **Health** (`outputs/health.py`): the last 30 runs of each source and provider in
   `data/health.json`. A source that failed 3 runs in a row, that delivered talks and then
   came back empty 3 runs in a row, or that was not read in full 3 runs in a row gets a

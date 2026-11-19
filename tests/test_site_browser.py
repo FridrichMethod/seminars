@@ -102,7 +102,7 @@ document.addEventListener("securitypolicyviolation", (event) => {
 
 CJK = re.compile(r"[\u3400-\u9fff]")
 LATIN = re.compile(r"[A-Za-z]")
-KEY_LIKE = re.compile(r"\b(?:site|fields|feeds)\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*")
+KEY_LIKE = re.compile(r"\b(?:site|fields|feeds|deadlines)\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*")
 WEB_PROTOCOLS = {"http", "https"}
 
 
@@ -536,7 +536,7 @@ class TestFilters:
     ) -> None:
         current = session().open("index.html")
         assert current.shown() == UPCOMING
-        assert current.page.locator("#count").text_content() == "11 upcoming talks"
+        assert current.page.locator("#count").text_content() == "11 upcoming events"
         assert current.page.locator("#clear").is_disabled()
         current.assert_clean()
 
@@ -586,7 +586,13 @@ class TestFilters:
             ),
             ("q=zoe+muller", ["sample-tba"]),
             ("q=EVIL+corp", ["sample-xss"]),
-            ("field=nope&inst=mars&range=forever&host=Nobody&picks=yes", UPCOMING),
+            ("q=kavli", ["sample-all-day"]),
+            ("q=packard", ["sample-defense"]),
+            ("kind=meetings", ["sample-all-day"]),
+            ("kind=talks", [uid for uid in UPCOMING if uid != "sample-all-day"]),
+            ("kind=meetings&inst=stanford", []),
+            ("field=nope&inst=mars&range=forever&host=Nobody&picks=yes&kind=all", UPCOMING),
+            ("kind=conferences", UPCOMING),
         ],
     )
     def test_filters_are_read_from_the_address(
@@ -606,6 +612,51 @@ class TestFilters:
         assert current.shown() == []
         assert page.locator("#events .notice").text_content() == catalog("en")["site.results.empty"]
         assert current.query()["range"] == ["week"]
+        current.assert_clean()
+
+    def test_the_kind_of_event_changes_the_address_and_is_cleared(
+        self, session: Callable[..., Session]
+    ) -> None:
+        current = session().open("index.html?kind=meetings")
+        page = current.page
+        kind = page.locator("#kind")
+        assert kind.input_value() == "meetings"
+        assert page.locator('label[for="kind"]').text_content() == "Kind"
+        options = kind.locator("option").evaluate_all("es => es.map((e) => [e.value, e.text])")
+        assert options == [
+            ["all", "All events"],
+            ["talks", "Talks"],
+            ["meetings", "Conferences and workshops"],
+        ]
+        assert current.shown() == ["sample-all-day"]
+        assert current.page.locator("#count").text_content() == "1 upcoming event"
+        assert not page.locator("#clear").is_disabled()
+        kind.select_option("talks")
+        assert "sample-all-day" not in current.shown()
+        assert len(current.shown()) == len(UPCOMING) - 1
+        assert current.query() == {"kind": ["talks"]}
+        kind.select_option("all")
+        assert current.shown() == UPCOMING
+        assert current.query() == {}
+        assert page.locator("#clear").is_disabled()
+        kind.select_option("meetings")
+        page.locator("#clear").click()
+        assert kind.input_value() == "all"
+        assert current.shown() == UPCOMING
+        current.assert_clean()
+
+    @pytest.mark.parametrize("value", ["conferences", ""])
+    def test_an_unknown_kind_in_the_address_is_all_events(
+        self, session: Callable[..., Session], value: str
+    ) -> None:
+        current = session().open(f"index.html?kind={value}")
+        page = current.page
+        assert page.locator("#kind").input_value() == "all"
+        assert page.locator("#clear").is_disabled()
+        assert current.shown() == UPCOMING
+        page.locator("#range").select_option("week")
+        assert current.query() == {"range": ["week"]}  # the next address leaves the kind out
+        assert current.shown() == ["sample-xss", "sample-cancelled", "sample-online"]
         current.assert_clean()
 
     def test_institution_chips_and_the_organizer_list_change_the_address(
@@ -639,7 +690,7 @@ class TestFilters:
     ) -> None:
         current = session().open("index.html?range=today")
         assert current.shown() == []
-        assert current.page.locator("#count").text_content() == "0 upcoming talks"
+        assert current.page.locator("#count").text_content() == "0 upcoming events"
         current.assert_clean()
 
     def test_a_talk_in_progress_is_listed_today_and_an_ended_one_is_not(
@@ -679,6 +730,44 @@ class TestPanels:
         )
         steps = page.locator("#apple-steps li").all_text_contents()
         assert len(steps) == 5
+        current.assert_clean()
+
+    def test_the_feed_of_the_deadlines_comes_below_the_event_feeds(
+        self, session: Callable[..., Session]
+    ) -> None:
+        current = session().open("index.html")
+        page = current.page
+        messages = catalog("en")
+        order = page.eval_on_selector_all(
+            "#subscribe h3, #subscribe ul", "es => es.map((e) => e.id || e.dataset.i18n)"
+        )
+        assert order[-4:] == [
+            "site.subscribe.feeds",
+            "feeds",
+            "site.subscribe.deadlines",
+            "deadline-feeds",
+        ]
+        items = page.eval_on_selector_all(
+            "#deadline-feeds li", "es => es.map((e) => e.dataset.feed)"
+        )
+        assert items == ["deadlines"]
+        item = page.locator('#deadline-feeds li[data-feed="deadlines"]')
+        host = urlsplit(current.base_url).netloc
+        hrefs = item.locator(".feed-row a").evaluate_all("es => es.map((e) => e.href)")
+        assert hrefs == [
+            f"webcal://{host}/feeds/deadlines.ics",
+            f"{current.base_url}feeds/deadlines.ics",
+        ]
+        assert item.locator(".feed-name").text_content() == messages["deadlines.feed.name"]
+        note = item.locator(".feed-note")
+        name = messages["deadlines.ccfddl.name"]
+        assert note.text_content() == messages["site.subscribe.deadlines_note"].replace(
+            "{ccfddl}", name
+        )
+        ccfddl = note.locator("a")
+        assert ccfddl.text_content() == name
+        assert ccfddl.get_attribute("href") == messages["deadlines.ccfddl.url"]
+        assert ccfddl.get_attribute("rel") == "noopener noreferrer"
         current.assert_clean()
 
     def test_without_a_clipboard_the_copy_button_says_so(

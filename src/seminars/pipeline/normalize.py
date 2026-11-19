@@ -3,8 +3,12 @@
 A draft says what a page says. An ``Event`` is what the project stores and
 publishes, so this is where the rules for stored data are applied:
 
-* times follow ``seminars.pipeline.times``; an event that starts outside
-  the window of the run is dropped and counted. An end that the length
+* times follow ``seminars.pipeline.times``; an event outside the window of
+  the run is dropped and counted: one that starts after it, or ended
+  before it began. A meeting of a source with ``meeting_horizon`` has a
+  longer window, a title can make a talk a meeting, and a meeting with
+  times of day that lasts more than a week keeps its days as an all-day
+  event (``seminars.pipeline.meetings``). Any other end that the length
   rule drops (the same wall time on a later day, or more than a week after
   the start) is logged as a warning with the source and the uids, at most
   ``MAX_LOGGED_UIDS`` of them, once per source;
@@ -59,6 +63,7 @@ from seminars.models import (
     EventDraft,
     EventHints,
     EventStatus,
+    EventType,
     ExcludedEvent,
     SourceConfig,
     Speaker,
@@ -66,9 +71,11 @@ from seminars.models import (
     UidMap,
     ascii_url,
     check_http_url,
+    is_meeting_span,
     url_has_credential,
 )
 from seminars.pipeline.ids import draft_key, resolve_uid, shared_urls
+from seminars.pipeline.meetings import in_window, meeting_over_days, meeting_type
 from seminars.pipeline.privacy import is_private_link, scrub_private, scrub_title, strip_markers
 from seminars.pipeline.speakers import ParsedSpeaker, split_speakers
 from seminars.pipeline.text import (
@@ -319,18 +326,38 @@ def _place(draft: EventDraft, cleaner: _Cleaner) -> tuple[str | None, bool, Http
     return location, online or bool(_HYBRID_WORDS.intersection(words)), stream
 
 
-def _times(draft: EventDraft, source: SourceConfig, context: NormalizeContext) -> EventTimes:
+def _times(
+    draft: EventDraft, source: SourceConfig, context: NormalizeContext, *, all_day: bool = False
+) -> EventTimes:
+    """The times of ``draft``; with ``all_day`` read as all day whatever the draft says."""
     try:
         return resolve_times(
             draft.start,
             draft.end,
-            all_day=draft.all_day,
+            all_day=all_day or draft.all_day,
             source_zone=draft.timezone or source.timezone,
             project_zone=context.settings.timezone,
             reference=context.now,
         )
     except TimeError as error:
         raise _Invalid(f"start: {error}") from error
+
+
+def _listed_end(
+    draft: EventDraft, source: SourceConfig, context: NormalizeContext
+) -> datetime | None:
+    """The end of ``draft`` as a moment in the zone of the project, read as a start would be.
+
+    The times of an event drop an end that breaks the length rule; the
+    hours of a meeting over its days are told by it (``meeting_over_days``).
+    """
+    if draft.end is None:
+        return None
+    end = draft.model_copy(update={"start": draft.end, "end": None})
+    try:
+        return _times(end, source, context).start
+    except _Invalid:
+        return None
 
 
 def _labels(labels: Iterable[str], cleaner: _Cleaner) -> list[str]:
@@ -343,6 +370,8 @@ def _event(
     draft: EventDraft,
     source: SourceConfig,
     times: EventTimes,
+    event_type: EventType,
+    meeting: bool,
     shared: frozenset[str],
     cleaner: _Cleaner,
 ) -> Event:
@@ -363,6 +392,7 @@ def _event(
         title=None if title == TBA_TITLE else title,
         shared=shared,
         is_secret=context.is_secret,
+        meeting=meeting,
     )
     seen = context.now.astimezone(UTC)
     return Event(
@@ -372,7 +402,7 @@ def _event(
         series=cleaner.title(draft.series, MAX_SERIES) or cleaner.title(source.series, MAX_SERIES),
         host_org=cleaner.line(draft.host_org, MAX_HOST) or source.host_org,
         institution=source.institution,
-        event_type=draft.event_type_hint or source.default_event_type,
+        event_type=event_type,
         start=times.start,
         end=times.end,
         all_day=times.all_day,
@@ -433,6 +463,7 @@ def normalize_drafts(
     """
     cleaner = _Cleaner(context)
     shared = shared_urls(drafts, source)
+    meeting_window = context.settings.meeting_window_at(context.now)
     candidates: list[Candidate] = []
     invalid: list[ExcludedEvent] = []
     outside = 0
@@ -442,10 +473,24 @@ def normalize_drafts(
             if draft.source_id != source.id:
                 raise _Invalid("source_id: the draft belongs to another source")
             times = _times(draft, source, context)
-            if not context.window.contains(times.start):
+            stated = draft.event_type_hint or source.default_event_type
+            event_type = meeting_type(stated, draft.title, times)
+            if times.end_dropped_as_too_long and (end := _listed_end(draft, source, context)):
+                days = _times(draft, source, context, all_day=True)
+                typed = meeting_over_days(stated, draft.title, days, start=times.start, end=end)
+                if typed is not None:
+                    times, event_type = days, typed
+            meeting = is_meeting_span(event_type, times.start, times.end, all_day=times.all_day)
+            if not in_window(
+                times,
+                meeting=meeting,
+                source=source,
+                window=context.window,
+                meeting_window=meeting_window,
+            ):
                 outside += 1
                 continue
-            event = _event(draft, source, times, shared, cleaner)
+            event = _event(draft, source, times, event_type, meeting, shared, cleaner)
         except _Invalid as error:
             invalid.append(_invalid(draft, source, str(error), cleaner))
             continue

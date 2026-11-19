@@ -222,6 +222,164 @@ class TestWindow:
         assert (result.outside_window, result.invalid) == (2, ())
 
 
+class TestMeetings:
+    @staticmethod
+    def far_ahead(**overrides: Any) -> list[EventDraft]:
+        """A conference and a talk 200 days after the run: past the window, within a year."""
+        start = REFERENCE_NOW + timedelta(days=200)
+        values: dict[str, Any] = {"start": start, "end": start + timedelta(hours=8)}
+        return [
+            make_draft(native_id="conference", event_type_hint="conference", **values, **overrides),
+            make_draft(native_id="talk", **{**values, "end": start + timedelta(hours=1)}),
+        ]
+
+    def test_a_source_with_a_meeting_horizon_keeps_its_meetings_a_year_ahead(self) -> None:
+        result = normalize(*self.far_ahead(), source=make_source(meeting_horizon=True))
+        assert [c.event.uid for c in result.candidates] == ["sites-bioengineering.conference"]
+        assert result.candidates[0].event.is_meeting
+        assert result.outside_window == 1  # the talk keeps the window of the run
+
+    def test_a_source_without_it_keeps_neither(self) -> None:
+        result = normalize(*self.far_ahead())
+        assert (result.candidates, result.outside_window) == ((), 2)
+
+    def test_a_meeting_beyond_the_meeting_window_is_dropped(self) -> None:
+        end = SETTINGS.meeting_window_at(REFERENCE_NOW).end
+        late = make_draft(native_id="late", event_type_hint="conference", start=end, end=None)
+        result = normalize(late, source=make_source(meeting_horizon=True))
+        assert (result.candidates, result.outside_window) == ((), 1)
+
+    def test_the_title_makes_a_talk_a_meeting_before_the_window_is_applied(self) -> None:
+        start = date(2027, 5, 17)  # all day, about six months after the run
+        draft = make_draft(title="AIMI Symposium 2027", start=start, end=start)
+        event = one(draft, source=make_source(meeting_horizon=True)).event
+        assert (event.event_type, event.all_day, event.is_meeting) == ("conference", True, True)
+
+    def test_a_long_talk_named_a_symposium_is_stored_as_a_conference(self) -> None:
+        draft = make_draft(
+            title="Wu Tsai Human Performance Alliance Research Symposium 2026",
+            event_type_hint="lecture",
+            start=datetime(2026, 11, 12, 9, 0),
+            end=datetime(2026, 11, 12, 18, 0),
+        )
+        assert one(draft).event.event_type == "conference"
+
+    def test_a_symposium_lecture_of_an_hour_stays_a_lecture(self) -> None:
+        draft = make_draft(title="Symposium Lecture: Jane Doe", event_type_hint="lecture")
+        assert one(draft).event.event_type == "lecture"
+
+    def test_a_timed_meeting_of_more_than_a_week_is_kept_over_its_days(self) -> None:
+        # From 9:00 on a Monday to 17:00 on the Friday of the next week: twelve days.
+        start, end = datetime(2027, 8, 2, 9, 0), datetime(2027, 8, 13, 17, 0)
+        school = make_draft(
+            native_id="school", title="Summer School on Diffusion", start=start, end=end
+        )
+        typed = make_draft(native_id="typed", event_type_hint="workshop", start=start, end=end)
+        result = normalize(school, typed, source=make_source(meeting_horizon=True))
+        for candidate in result.candidates:
+            event = candidate.event
+            assert (event.event_type, event.all_day, event.is_meeting) == ("workshop", True, True)
+            assert event.start.isoformat() == "2027-08-02T00:00:00-07:00"
+            assert event.end is not None
+            assert event.end.isoformat() == "2027-08-14T00:00:00-07:00"
+        assert len(result.candidates) == 2
+
+    def test_a_long_timed_talk_still_loses_its_end(self, caplog: pytest.LogCaptureFixture) -> None:
+        start, end = datetime(2027, 1, 4, 9, 0), datetime(2027, 1, 15, 17, 0)
+        series = make_draft(title="Applied Physics Seminar Series", start=start, end=end)
+        slip = make_draft(
+            native_id="slip",
+            event_type_hint="conference",
+            start=datetime(2026, 11, 17, 12, 0),
+            end=datetime(2026, 11, 18, 12, 0),
+        )
+        result = normalize(series, slip)
+        times = [(c.event.event_type, c.event.all_day, c.event.end) for c in result.candidates]
+        assert times == [("seminar", False, None), ("conference", False, None)]
+        (record,) = caplog.records
+        assert "the end of 2 timed event(s) is not kept" in record.getMessage()
+
+    def test_a_long_series_of_short_talks_stays_a_series_of_talks(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # Weekly talks of an hour that a source lists from the first to the last week, with
+        # a word of a meeting in the title or typed as a workshop: no meeting of ten weeks.
+        start, end = datetime(2026, 11, 20, 12, 0), datetime(2027, 1, 29, 13, 0)
+        drafts = [
+            make_draft(
+                native_id="a", title="Applied Microeconomics Workshop", start=start, end=end
+            ),
+            make_draft(
+                native_id="b",
+                title="Symposium Lecture",
+                event_type_hint="lecture",
+                start=start.replace(hour=16),
+                end=end.replace(hour=17),
+            ),
+            make_draft(native_id="c", event_type_hint="workshop", start=start, end=end),
+        ]
+        result = normalize(*drafts, source=make_source(meeting_horizon=True))
+        found = [
+            (c.event.event_type, c.event.all_day, c.event.end, c.event.is_meeting)
+            for c in result.candidates
+        ]
+        assert found == [
+            ("seminar", False, None, False),
+            ("lecture", False, None, False),
+            ("workshop", False, None, False),
+        ]
+        (record,) = caplog.records
+        assert "the end of 3 timed event(s) is not kept" in record.getMessage()
+
+    def test_a_timed_meeting_with_a_date_as_its_end_has_no_hours_of_a_meeting(self) -> None:
+        # A start with its time of day and a last day without one: the hours are unknown.
+        draft = make_draft(
+            title="Winter School on Diffusion",
+            start=datetime(2027, 1, 4, 9, 0),
+            end=date(2027, 1, 15),
+        )
+        event = one(draft).event
+        assert (event.event_type, event.all_day, event.end) == ("seminar", False, None)
+
+    def test_a_meeting_on_the_page_of_its_series_is_known_by_its_day(self) -> None:
+        # The page of a series serves every edition: as a key it would hand the uid of this
+        # symposium on to the next one. The page of an edition, or of a talk, is a key.
+        series = "https://www.proteinsociety.org/annualsymposium"
+        edition = "https://www.proteinsociety.org/annualsymposium-2026"
+        symposium = {
+            "native_id": None,
+            "title": "Protein Society Symposium",
+            "speaker_text": None,
+            "start": datetime(2026, 11, 20, 9, 0, tzinfo=PACIFIC),
+            "end": datetime(2026, 11, 20, 17, 0, tzinfo=PACIFIC),
+        }
+        keys = [one(make_draft(url=url, **symposium)).event.source_ids for url in (series, edition)]
+        assert keys == [
+            ["sites-bioengineering:day:2026-11-20:protein-society-symposium"],
+            [f"sites-bioengineering:url:{edition}"],
+        ]
+        talk = one(make_draft(native_id=None, url=series)).event
+        assert talk.source_ids == [f"sites-bioengineering:url:{series}"]
+
+    def test_an_ongoing_meeting_is_kept_by_its_end(self) -> None:
+        # A workshop of three weeks that began twenty days before the run, all day.
+        first = (REFERENCE_NOW - timedelta(days=20)).date()
+        last = first + timedelta(days=20)
+        begun = make_draft(native_id="begun", event_type_hint="workshop", start=first, end=last)
+        over = make_draft(
+            native_id="over",
+            event_type_hint="workshop",
+            start=first - timedelta(days=30),
+            end=last - timedelta(days=30),
+        )
+        result = normalize(begun, over)
+        assert [c.event.uid for c in result.candidates] == ["sites-bioengineering.begun"]
+        event = result.candidates[0].event
+        assert event.end is not None
+        assert event.start < make_window().start < event.end
+        assert result.outside_window == 1
+
+
 class TestInvalidDrafts:
     def test_an_unusable_start_is_reported_and_the_rest_goes_on(self) -> None:
         bad = make_draft(native_id="bad", title="Broken <b>talk</b>", start="no idea", end=None)

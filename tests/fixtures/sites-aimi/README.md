@@ -2,7 +2,8 @@
 
 Stanford Center for Artificial Intelligence in Medicine and Imaging (AIMI),
 https://aimi.stanford.edu. Recorded on 2026-11-12 (Pacific time) through the polite
-client.
+client. The detail pages of the two events of May 2027, which the fetch window of a
+year (`meeting_horizon`) asks for, were recorded on 2026-11-18 (UTC).
 
 | file | request | what |
 |---|---|---|
@@ -11,6 +12,8 @@ client.
 | `detail-ibiis-aimi-seminar.html` | `/events/ibiis-aimi-seminar-prateek-prasanna-phd` | detail page of the IBIIS-AIMI Seminar of 2026-11-18 |
 | `detail-grand-rounds-tba.html` | `/events/grand-rounds/aimi-grand-rounds-tba-5` | detail page of the AIMI Grand Rounds of 2026-11-24 |
 | `detail-grand-rounds-stankovic.html` | `/events/grand-rounds/aimi-grand-rounds-genetic-diagnosis-and-discovery-enabled-large-language-models` | detail page of the AIMI Grand Rounds of 2026-12-15 |
+| `detail-hails-course.html` | `/events/stanford-ai-healthcare-leadership-strategy-course-hails` | detail page of the HAILS course of 2027-05-14 and 05-15 |
+| `detail-symposium-2027.html` | `/events/aimi-symposium-summit-series-2027` | detail page of the AIMI Symposium + Summit Series 2027, 2027-05-17 to 05-19 |
 
 The bodies were renamed after recording (the manifest names the files above).
 
@@ -25,8 +28,9 @@ the selectors are in `params` of the source in `config/sources.d/stanford-sites.
 
 - The 7 events: the Computational Medicine Research Colloquium of 2026-11-12 (Nigam
   Shah), the AI4MH Seminar and the IBIIS-AIMI Seminar of 2026-11-18, two AIMI Grand
-  Rounds (2026-11-24, title TBA; 2026-12-15, Konstantina Stankovic), and two events in
-  May 2027 outside the run window (the HAILS course, the AIMI Symposium).
+  Rounds (2026-11-24, title TBA; 2026-12-15, Konstantina Stankovic), and two all-day
+  events in May 2027 beyond the window of talks (the HAILS course, the AIMI
+  Symposium). The symposium is a meeting and stays in the run; the course does not.
 - A title reads `<series>: <talk title> - <speaker>, <degrees>`, or
   `<series>: <speaker>, <degrees>` before the talk title is known, or
   `<series>: TBA`.
@@ -38,14 +42,18 @@ the selectors are in `params` of the source in `config/sources.d/stanford-sites.
 - Only the Grand Rounds cards have a type (`Grand Rounds`). Two cards have an
   alternative location (`Hybrid: In-Person | Virtual`, `Zoom Webinar`); no card has
   an address.
-- Detail pages (the three native events in the window): the IBIIS-AIMI page has the
-  body `Details TBA`; the Grand Rounds TBA page has a description of the series;
-  the Stankovic page has speaker, bio and abstract in the body and a Zoom webinar
-  registration link (no passcode).
+- Detail pages (the five native events in the fetch window of a year): the IBIIS-AIMI
+  page has the body `Details TBA`; the Grand Rounds TBA page has a description of the
+  series; the Stankovic page has speaker, bio and abstract in the body and a Zoom
+  webinar registration link (no passcode). The pages of the two events of May give
+  their days as text ("Monday, May 17, 2027 - Wednesday, May 19, 2027") and no time;
+  below the event they show cards of the events listed on 2026-11-18, which no
+  selector reads.
 
 ## What was replaced
 
 `events.html` carried three Drupal contextual-link tokens
 (`data-contextual-token="..."`, values the server computes for the page). They were
-replaced by `REDACTED`, keeping the attribute. The shared address of the center
-(`aimicenter@stanford.edu`) was kept. Nothing else was changed.
+replaced by `REDACTED`, keeping the attribute. The two pages of May carry none. The
+shared address of the center (`aimicenter@stanford.edu`) was kept. Nothing else was
+changed.

@@ -2,7 +2,8 @@
 
 Recorded HTTP responses of the data sources. Adapter tests and
 `seminars run --offline` read these files instead of the network, so every
-source needs at least one recording. The code behind this convention is
+source that sends requests needs at least one recording (the registry,
+`conf-registry`, sends none and has none). The code behind this convention is
 `src/seminars/fixtures.py`. Its command line (`record`, `fetch`, `check`)
 is also the only way to send a request to a source site by hand.
 

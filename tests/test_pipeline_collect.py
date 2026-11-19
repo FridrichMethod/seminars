@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from factories import REFERENCE_NOW, make_document, make_draft, make_source
+from factories import REFERENCE_NOW, make_document, make_draft, make_source, make_window
 from fakes import FakeAdapter, FakeClock, FakeHttpClient
 from fakes_llm import FakePageExtractor
 from seminars.config import AppConfig
@@ -219,13 +219,69 @@ class TestIsolation:
         window = TimeWindow.around(
             REFERENCE_NOW, days_back=1, days_ahead=1, timezone="America/Los_Angeles"
         )
-        assert fetch_sources([], no_http, window=window, timer=FakeClock()) == []
+        assert fetch_sources([], no_http, window_for=lambda _: window, timer=FakeClock()) == []
 
     def test_a_fetch_without_payload_or_error_is_a_failure(self, context: NormalizeContext) -> None:
         outcome = digest_source(
             Fetched(source("sites-a")), context=context, extractor=None, timer=FakeClock()
         )
         assert (outcome.result.status, outcome.result.error_kind) == ("failed", "internal")
+
+
+class TestMeetingHorizon:
+    def test_a_source_with_a_meeting_horizon_is_fetched_with_the_meeting_window(
+        self, fake_adapter: FakeAdapter, context: NormalizeContext
+    ) -> None:
+        settings = context.settings
+        for flagged, expected in (
+            (False, settings.window_at(REFERENCE_NOW)),
+            (True, settings.meeting_window_at(REFERENCE_NOW)),
+        ):
+            fake_adapter.windows.clear()
+            collect_sources(
+                [source("sites-a", meeting_horizon=flagged)],
+                no_http,
+                context=context,
+                extractor=None,
+                timer=FakeClock(),
+            )
+            assert fake_adapter.windows == [expected]
+
+    def test_fetch_sources_fetches_each_source_with_its_window(
+        self, fake_adapter: FakeAdapter
+    ) -> None:
+        window = make_window()
+        meetings = make_window(days_ahead=365)
+        sources = [source("sites-a"), source("sites-b", meeting_horizon=True), source("sites-c")]
+
+        def window_for(chosen: SourceConfig) -> TimeWindow:
+            return meetings if chosen.meeting_horizon else window
+
+        fetched = fetch_sources(sources, no_http, window_for=window_for, timer=FakeClock())
+        assert [item.payload.window for item in fetched if item.payload] == [
+            window,
+            meetings,
+            window,
+        ]
+
+    def test_a_flagged_source_keeps_a_meeting_far_ahead_and_is_ok_with_it(
+        self, fake_adapter: FakeAdapter, context: NormalizeContext
+    ) -> None:
+        far = REFERENCE_NOW + timedelta(days=200)
+        fake_adapter.drafts = [
+            draft("sites-a", "1", start=far, end=None, event_type_hint="conference"),
+            draft("sites-a", "2", start=far, end=None),
+        ]
+        for flagged, counts in ((True, ("ok", 1, 1)), (False, ("empty", 0, 2))):
+            [outcome] = collect_sources(
+                [source("sites-a", meeting_horizon=flagged)],
+                no_http,
+                context=context,
+                extractor=None,
+                timer=FakeClock(),
+            )
+            result = outcome.result
+            assert (result.status, result.events, result.outside_window) == counts
 
 
 class SlowHttp:

@@ -9,12 +9,13 @@ import time
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from factories import make_window
 from fakes import FakeClock, FakeHttpClient
-from seminars.config import load_sources
+from seminars.config import load_settings, load_sources
 from seminars.http import offline_client
 from seminars.models import (
     MAX_DRAFT_SPEAKERS,
@@ -23,6 +24,7 @@ from seminars.models import (
     SourceConfig,
     SpeakerDraft,
 )
+from seminars.pipeline.normalize import NormalizeContext, Normalized, normalize_drafts
 from seminars.sources.base import ParseError, get_adapter
 from seminars.sources.custom import hai_events
 from seminars.sources.custom.hai_events import (
@@ -58,6 +60,8 @@ CHRISTIN = (
 PHYSTAT = f"{SITE}/events/2027-conference-on-physics-and-ai-phystat-2027"
 RECORDED = datetime(2026, 11, 11, 20, 0, tzinfo=UTC)
 PARAMS = load_params(HaiParams, SOURCE)
+SETTINGS = load_settings(REPO_ROOT / "config" / "settings.yaml")
+PACIFIC = ZoneInfo("America/Los_Angeles")
 
 
 def run(source: SourceConfig, http: Any, now: datetime = RECORDED, **window: int) -> list[Any]:
@@ -305,6 +309,53 @@ class TestRecordedPages:
         assert forward in http.requests  # the cards do not know the promo_url
         talk = by_title(drafts, "Best Practices for the Use of LLMs as Judges")
         assert (talk.location, talk.speakers) == (None, [])
+
+
+class TestMeetingHorizon:
+    """The source keeps its conferences a year ahead (meeting_horizon), its talks 120 days."""
+
+    PHYSTAT_TITLE = "2027 Conference on Physics and AI (PhyStat 2027)"
+
+    def normalized(self, source: SourceConfig) -> Normalized:
+        adapter = get_adapter(SOURCE.adapter)
+        window = SETTINGS.fetch_window_at(RECORDED, SOURCE)
+        drafts = adapter.parse(
+            adapter.fetch(offline_client(SOURCE.id), SOURCE, window=window), SOURCE
+        )
+        context = NormalizeContext(
+            settings=SETTINGS, now=RECORDED, window=SETTINGS.window_at(RECORDED)
+        )
+        return normalize_drafts(drafts, source, context)
+
+    def test_the_source_is_fetched_a_year_ahead_with_the_conference_page(self) -> None:
+        assert SOURCE.meeting_horizon
+        window = SETTINGS.fetch_window_at(RECORDED, SOURCE)
+        assert window == SETTINGS.meeting_window_at(RECORDED)
+        http = offline_client(SOURCE.id)
+        get_adapter(SOURCE.adapter).fetch(http, SOURCE, window=window)
+        assert http.requests == [LIST_URL, AI100, CHRISTIN, PHYSTAT]
+        assert len(http.requests) <= 1 + PARAMS.max_detail_pages
+        assert 1 + PARAMS.max_detail_pages <= SETTINGS.http.max_requests_per_host
+
+    def test_phystat_is_a_conference_kept_beyond_the_window_of_talks(self) -> None:
+        result = self.normalized(SOURCE)
+        events = [candidate.event for candidate in result.candidates]
+        (phystat,) = [event for event in events if event.title == self.PHYSTAT_TITLE]
+        assert phystat.event_type == "conference"  # the tag Conference
+        assert phystat.is_meeting
+        assert (phystat.start, phystat.end) == (
+            datetime(2027, 5, 24, 9, tzinfo=PACIFIC),
+            datetime(2027, 5, 26, 17, tzinfo=PACIFIC),
+        )
+        talks_end = SETTINGS.window_at(RECORDED).end
+        assert phystat.start >= talks_end
+        assert [event.title for event in events if event.start >= talks_end] == [self.PHYSTAT_TITLE]
+
+    def test_without_the_meeting_horizon_phystat_is_dropped(self) -> None:
+        with_horizon = self.normalized(SOURCE)
+        without = self.normalized(SOURCE.evolve(meeting_horizon=False))
+        assert self.PHYSTAT_TITLE not in [candidate.event.title for candidate in without.candidates]
+        assert without.outside_window == with_horizon.outside_window + 1
 
 
 # --- hand-written payloads -----------------------------------------------------------------

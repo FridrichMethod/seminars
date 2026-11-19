@@ -7,7 +7,9 @@ import { calendarFor, fetchCalendar, parseCalendar, saveFile } from "./calendar.
 import { h, link, replaceChildren } from "./dom.js";
 import {
   ANY_CHOICES,
+  KINDS,
   NO_FILTERS,
+  ONGOING,
   RANGES,
   filtersFromQuery,
   groupByDay,
@@ -41,6 +43,7 @@ const ui = {
   fields: byId("field-chips"),
   institutions: byId("institution-chips"),
   host: byId("host"),
+  kind: byId("kind"),
   range: byId("range"),
   picks: byId("picks"),
   clear: byId("clear"),
@@ -62,6 +65,7 @@ const ui = {
   subscribeHeading: byId("subscribe-heading"),
   steps: byId("apple-steps"),
   feeds: byId("feeds"),
+  deadlineFeeds: byId("deadline-feeds"),
 };
 
 // The message of each kind of picks reason and of each place a keyword is found in
@@ -236,6 +240,10 @@ function buildControls() {
     choices.hosts.map((host) => option(host, host)),
   );
   replaceChildren(
+    ui.kind,
+    KINDS.map((id) => option(id, t("site.filters.kind_options." + id))),
+  );
+  replaceChildren(
     ui.range,
     Object.keys(RANGES).map((id) => option(id, t("site.filters.range_options." + id))),
   );
@@ -255,6 +263,7 @@ function syncControls() {
     }
   }
   ui.host.value = filters.host;
+  ui.kind.value = filters.kind;
   ui.range.value = filters.range;
   ui.picks.checked = filters.picksOnly;
   ui.clear.disabled = isUnfiltered(filters);
@@ -265,6 +274,7 @@ function connectControls() {
   // Enter or leaving the box: no need to wait for the pause.
   ui.search.addEventListener("change", () => pendingSearch.flush());
   ui.host.addEventListener("change", () => setFilters({ ...view.filters, host: ui.host.value }));
+  ui.kind.addEventListener("change", () => setFilters({ ...view.filters, kind: ui.kind.value }));
   ui.range.addEventListener("change", () => setFilters({ ...view.filters, range: ui.range.value }));
   ui.picks.addEventListener("change", () =>
     setFilters({ ...view.filters, picksOnly: ui.picks.checked }),
@@ -711,11 +721,16 @@ function selectBox(event, ids) {
   );
 }
 
-function when(event, tz, lang) {
+/**
+ * The time of a talk. A talk that began before today is listed under Ongoing, a heading
+ * without a day, so its start is shown with its date.
+ */
+function when(event, tz, lang, today) {
   if (event.allDay) {
     return t("site.event.all_day");
   }
-  const start = tz.formatTime(event.start, lang);
+  const ongoing = event.startDay < today;
+  const start = ongoing ? tz.formatMoment(event.start, lang) : tz.formatTime(event.start, lang);
   if (event.end === null) {
     return start;
   }
@@ -815,7 +830,7 @@ function renderEvent(event, tz, lang, today, ids) {
     h(
       "p",
       { class: "event-when", id: ids.when },
-      h("time", { datetime: event.start.toISOString() }, when(event, tz, lang)),
+      h("time", { datetime: event.start.toISOString() }, when(event, tz, lang, today)),
     ),
     h(
       "div",
@@ -895,10 +910,11 @@ function renderList() {
   const positions = new Map(shown.map((event, index) => [event, index + 1]));
   const days = [...groupByDay(shown, today)].map(([day, events], index) => {
     const dayId = `day-${index + 1}`;
+    const heading = day === ONGOING ? t("site.results.ongoing") : tz.formatDay(day, lang, today);
     return h(
       "section",
       { class: "day", "data-day": day },
-      h("h2", { class: "day-heading", id: dayId }, tz.formatDay(day, lang, today)),
+      h("h2", { class: "day-heading", id: dayId }, heading),
       events.map((event) => {
         const position = positions.get(event);
         const ids = { title: `event-title-${position}`, when: `event-when-${position}`, day: dayId };
@@ -951,7 +967,11 @@ function render() {
   renderList();
   renderNote();
   renderOneTimeCopy();
-  renderSubscribe(view.model?.feeds ?? [], { steps: ui.steps, list: ui.feeds });
+  renderSubscribe(view.model?.feeds ?? [], {
+    steps: ui.steps,
+    list: ui.feeds,
+    deadlines: ui.deadlineFeeds,
+  });
 }
 
 async function main() {

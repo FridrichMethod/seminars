@@ -342,6 +342,74 @@ sources:
         - Talks that have no speaker yet are called "TBA" and have "TBA" as description.
 
   - <<: *bayarea
+    id: bayarea-slac-workshops
+    name: SLAC workshops and schools
+    adapter: ics
+    # The category exports of the public workshop categories of Indico, one feed each:
+    # 170 RL4AA, 171 SSRL Workshops, 20 QIS Workshop, 16 SLAC Summer Institute and 19
+    # ML@SLAC Workshop. Not the parent category 5, whose feed takes in the weekly
+    # CIDeR-ML General Meetings of category 110 (internal, with Zoom links), and not
+    # categories 129 and 14, the seminars of bayarea-slac-theory and
+    # bayarea-slac-experimental.
+    url: https://indico.slac.stanford.edu/category/170/events.ics
+    urls:
+      - https://indico.slac.stanford.edu/category/171/events.ics
+      - https://indico.slac.stanford.edu/category/20/events.ics
+      - https://indico.slac.stanford.edu/category/16/events.ics
+      - https://indico.slac.stanford.edu/category/19/events.ics
+    homepage: https://indico.slac.stanford.edu/category/5/
+    # robots.txt of indico.slac.stanford.edu disallows every path, as for
+    # bayarea-slac-theory; the owner chose to fetch these public feeds: five requests
+    # per run.
+    ignore_robots: [indico.slac.stanford.edu]
+    institution: slac
+    host_org: SLAC National Accelerator Laboratory
+    default_fields: [physics]
+    # The feeds give no event type; the categories hold workshops and a school. One that
+    # runs all day over two days or more, or for at least three hours of a day, is a
+    # meeting (one all-day day is not), and
+    # meeting_horizon keeps it up to a year ahead.
+    default_event_type: workshop
+    meeting_horizon: true
+    params:
+      # The categories list a workshop now and then and drop it four weeks after its
+      # end, so a run in which no category lists one is healthy.
+      allow_empty: true
+      # DESCRIPTION: an optional line "Speakers: Name (Affiliation), Name (Affiliation),
+      # ...", blank lines, the description of the event and, after a blank line, the
+      # address of the Indico event. The abstract is the description alone. The speaker
+      # line of a workshop lists its organisers and speakers, which a pattern cannot
+      # split (it sets one speaker), and its names would count as keywords of a field
+      # ("Dula Parkinson" for med). An event with a speaker line and no description has
+      # no abstract. The second pattern takes the description to its end when the first
+      # finds no address at the end: a description without it, or one longer than the
+      # adapter reads (MAX_PATTERN_INPUT).
+      property_fields: {DESCRIPTION: null}
+      patterns:
+        DESCRIPTION:
+          - '\A(?:Speakers: [^\n]*\n\s*)?(?P<abstract>(?!Speakers: )\S[\s\S]*?)\s*\nhttps://indico\.slac\.stanford\.edu/event/\d+/\s*\Z'
+          - '\A(?:Speakers: [^\n]*\n\s*)?(?P<abstract>(?!Speakers: |https://indico\.slac\.stanford\.edu/event/)\S[\s\S]*)'
+    research:
+      verified: 2026-11-18
+      sample_events: 3
+      has_rss: false
+      has_ics: true
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: feed
+      crawl_delay: 0
+      robots: "indico.slac.stanford.edu: User-agent * / Disallow / (every path); ignored, see ignore_robots"
+      requests_per_run: 5
+      notes:
+        - The export of a category lists the events of the category and its subcategories that ended at most four weeks before the request, with no upper bound, so a feed already holds the meetings of next year.
+        - 170 RL4AA holds RL4AA'27 (2027-04-20 to 04-23, free, places limited); 171 SSRL Workshops holds "Re-envisioning X-ray Science in the Age of SI and Automation" (2026-12-09 to 12-10, hybrid); 20 QIS Workshop holds "Q-NEXT All Hands 2027" (2027-03-16 to 03-17), a meeting of the Q-NEXT center that the taxonomy drops as administrative ("all-hands"); its last public workshop was RISQ26 (June 2026).
+        - '16 SLAC Summer Institute (under 13, "Schools, Seminars and Courses") is empty: SSI 2026 (2026-08-10 to 08-14) has ended and the next institute is not listed yet. 19 ML@SLAC Workshop is empty, its last event the ML Initiatives School of December 2021; it stays for the next one, at one request.'
+        - The other public subcategories of 5 (AD, Astronomy, HEP, ICALEPCS, LCLS, NP and TID workshops, SLAC Colloquium, Faculty Retreat, SLACmass, Snowmass, Graduate Student Orientation, US-Japan Meeting) were not looked at and are not collected.
+        - The feeds give no event type, CATEGORIES, registration or abstract deadline. DTSTART and DTEND are in UTC; LOCATION is "<room> (<venue>)" or "SLAC"; CONTACT holds an e-mail address, which the adapter does not read.
+        - DESCRIPTION is free text. A Zoom link of a hybrid workshop in it loses its password in normalization (pipeline/privacy.py); none of the recorded events has one.
+        - The categories list workshops now and then (16 and 19 none, 170, 171 and 20 one each), and a feed drops an event four weeks after its end. With the recorded events no category lists one after 2027-05-21, unless SLAC lists another workshop by then; allow_empty keeps such runs healthy.
+
+  - <<: *bayarea
     id: bayarea-slac-ais
     name: SLAC Advanced Instrumentation Seminars (AIS)
     adapter: llm_page
@@ -774,6 +842,15 @@ sources:
       # other hosts (booth cards point to ascb.org and neurips.cc) are never fetched:
       # the skip patterns drop those cards first, and a remaining card whose link is
       # not on biohub.org is dropped as well.
+      # A booth card that links to a page of biohub.org ("Biohub at NeurIPS 2026",
+      # "meet the Biohub team at Booth 72", with the booth in the location of its
+      # page) is left to the event filter, which excludes a numbered booth as
+      # not_a_talk (seminars.classify.filters). The uid of an excluded event leaves
+      # the stored events in the same run. A card dropped here never reaches them:
+      # a booth that an earlier run stored would leave only in the third run without
+      # it (events.delete_after_missing_runs), and, while the source lists no other
+      # event, only once it has ended. Do not add "Other Locations" to
+      # exclude_regions: the online webinars carry it too.
       exclude_regions: [Chicago, New York]
       skip_title_patterns: ['\(Invite Only\)']
       skip_summary_patterns: ['will be at booth']
@@ -831,3 +908,86 @@ sources:
           upcoming block, so the list is fetched unfiltered.
         - Region labels are San Francisco Bay Area, Chicago, New York, Other Locations
           (online webinars and outside conferences such as NeurIPS booths).
+
+  - <<: *bayarea
+    id: bayarea-simons-workshops
+    name: Simons Institute workshops
+    adapter: html_list
+    # Workshops, boot camps and symposia of the Simons Institute for the Theory of
+    # Computing (Calvin Lab, UC Berkeley). The list runs about a year ahead (the Fall
+    # 2027 Diffusion Generative Modeling workshops were listed in November 2026), so
+    # the source keeps its meetings up to meetings.days_ahead (meeting_horizon).
+    url: https://simons.berkeley.edu/programs-events/workshop-symposia
+    urls:
+      - https://simons.berkeley.edu/programs-events/workshop-symposia?page=1
+      - https://simons.berkeley.edu/programs-events/workshop-symposia?page=2
+    homepage: https://simons.berkeley.edu/programs-events/workshop-symposia
+    institution: other
+    host_org: Simons Institute for the Theory of Computing
+    # Theoretical computer science. A card has only a title and dates, and titles
+    # such as "Random CSPs" match no term of config/taxonomy.yaml; the rules add
+    # ai-ml (or math) where a title names it.
+    default_fields: [cs]
+    default_event_type: workshop
+    meeting_horizon: true
+    params:
+      # The page holds both tabs, "Upcoming" (#nav-upcoming) and "Past" (#nav-past),
+      # in one HTML; the item selector takes the upcoming cards only. The two pagers
+      # share the parameter ?page=N: page 0 lists 10 upcoming cards, page 1 the other
+      # 5, page 2 none. Page 2 is read so that a list that grows past 20 cards is
+      # still complete. A page past the end keeps the empty upcoming view (no
+      # clamping to the last page) and the past cards, which run to ?page=45: that
+      # is a page without items (allow_empty). A page without the upcoming view was
+      # redesigned or replaced, and that is a parse error.
+      allow_empty: true
+      empty_marker: '#nav-upcoming .view-pattern--block_upcoming_all_workshops'
+      selectors:
+        item: '#nav-upcoming .event-card'
+        title: '.event-card__title a'
+        link: '.event-card__title a'
+        date: '.event-card__date'
+      link_attribute: href
+      # Several days: "Monday, Nov. 30 - Friday, Dec. 4, 2026", the year only at the
+      # end (an en dash in the page; html_list gives the first day the year of the
+      # last). One day: "Wednesday, Nov. 18, 2026 | 9 a.m. - 5 p.m.". A range is an
+      # all-day event, as the page prints it; the datetime attributes of its <time>
+      # elements (9 a.m. of the first day and 5 p.m. of the last, in UTC) are not
+      # read. The list names no place; the six detail pages that were checked say
+      # "Calvin Lab auditorium", and no detail page is fetched.
+      date_pattern: '^(?P<date>[A-Z][a-z]+, [A-Z][a-z]+\.? \d{1,2}(?:, \d{4})?)(?: ?[-\u2013] ?(?P<end_date>[A-Z][a-z]+, [A-Z][a-z]+\.? \d{1,2}, \d{4}))?(?: ?\| ?(?P<start>[^|\u2013]+?) ?[-\u2013] ?(?P<end>[^|\u2013]+))?$'
+      default_location: Calvin Lab, UC Berkeley
+      require: [title, date]
+      # Not open to the public, as their detail pages say:
+      # - a reunion workshop is for the long-term participants of a past program,
+      #   "Participation in the workshop is by invitation only" (Complexity and Linear
+      #   Algebra Reunion, 2026-12-07);
+      # - the partner Industry Day ("Twelfth Annual Industry Day") "is open to the
+      #   Simons Institute's Industry partners and sponsors, organizers, research
+      #   fellows, and scientists in Institute programs, and members of the Berkeley
+      #   community". The Quantum Industry Day ("5th Annual Quantum Industry Day
+      #   2026") asks for registration because space is limited and restricts nobody,
+      #   so it is kept.
+      # The detail page of "Experimental Focus Fortnight" (A Quantum Sprint, 2027-03-15
+      # to 03-25) names no audience. The program page says "The program will start
+      # with a boot camp and experimental focus fortnight", and the institute's page
+      # "Participating in a Workshop" (/participating-workshop) says "Everyone is
+      # welcome to attend the boot camp and workshops that are part of the program",
+      # so it is kept.
+      skip_title_patterns:
+        - '(?i)\breunion\b'
+        - '(?i)^\w+ Annual Industry Day$'
+    research:
+      verified: 2026-11-18
+      sample_events: 15
+      has_rss: false
+      has_ics: false
+      has_jsonld: false
+      has_jsonapi: false
+      extraction: html
+      crawl_delay: 0
+      robots: "Drupal's stock robots.txt: nothing under /programs-events/ or /workshops/ is disallowed"
+      requests_per_run: 3  # the three list pages; no detail page
+      notes:
+        - Drupal 10, server-rendered. /jsonapi and /rss.xml answer 404, the pages hold no JSON-LD and link no feed. A detail page (/workshops/<slug>) names the room and has Google, iCal, Yahoo and Outlook links with times (9 a.m. on the first day to 5 p.m. on the last), but the list has what the feeds need, so no detail page is fetched.
+        - "15 upcoming cards on 2026-11-18, from 2026-11-18 to 2027-11-19: TCS workshops and boot camps of the programs of spring 2027, two Industry Days, AI Risk, Evaluation and Governance (2027-03-31) and the Fall 2027 Diffusion Generative Modeling boot camp and workshops (2027-08-30 to 2027-11-19). A card has a program label on some items, no speaker, no place and no abstract."
+        - The footer says "All Rights Reserved" and the pages link no terms of use; only the facts of a card (title, dates, link) are used.

@@ -12,10 +12,18 @@ that hold:
    * the address of its own detail page: ``<source id>:url:<address>``. A
      page counts as the detail page of an event only when no other draft
      of the same source and run points at it and it is not one of the
-     addresses the source itself is fetched from. A page that lists a
-     whole series would otherwise make all its talks one event;
+     addresses the source itself is fetched from or the front page of a
+     site. A page that lists a whole series would otherwise make all its
+     talks one event, and the front page of a conference site is that of
+     every edition. The page of a meeting (``seminars.models.is_meeting_span``)
+     counts only when its address names the year the meeting starts in
+     ("/symposium-2027"): the page of a series of meetings
+     ("/annualsymposium") serves one edition after the other, and as a key
+     it would hand the uid of one edition on to the next;
    * the local day of the start plus the first speaker, or else the title,
-     or else the time of day: ``<source id>:day:<date>:<words>``. The
+     or else the time of day: ``<source id>:day:<date>:<words>``. A
+     meeting is named by its title first, since the people it lists
+     change while it stays the same meeting. The
      words are ASCII (``slug``): accents are folded, a Latin letter without
      a decomposition is spelled out, and a name in another script becomes a
      short digest of itself, so two such talks of one day stay apart.
@@ -38,7 +46,10 @@ one leaves (``reclaim_timed_keys``).
 Some keys change while the talk stays: a day key when the talk moves to
 another day, gains its title (without a speaker) or a speaker, or the
 speaker's name is spelled anew; the address of a page when the site
-renames it. ``seminars.pipeline.dedup.adopt_stored_uids`` then hands the
+renames it; and the key of a listing whose page names no year when it
+becomes or stops being a meeting, from its page to its day or back (a
+one-day workshop listed by its date that gets its hours).
+``seminars.pipeline.dedup.adopt_stored_uids`` then hands the
 stored uid on to the new key (with ``same_people`` and
 ``follow_changed_keys``), so the uid stays.
 
@@ -171,6 +182,22 @@ def shared_urls(drafts: Iterable[EventDraft], source: SourceConfig) -> frozenset
     return frozenset(repeated | {canonical_url(url) for url in own})
 
 
+def is_site_root(url: str) -> bool:
+    """Whether ``url`` is the front page of a site (no path), which is no event's own page.
+
+    A conference site of one edition ("https://iclr.cc/") is the address
+    of every later edition as well; as a key it would hand the uid of one
+    edition on to the next.
+    """
+    return not urlsplit(url).path.strip("/")
+
+
+def names_year(url: str, year: int) -> bool:
+    """Whether the path or the query of ``url`` holds ``year`` as a number of its own."""
+    parts = urlsplit(url)
+    return re.search(rf"(?<!\d){year}(?!\d)", f"{parts.path}?{parts.query}") is not None
+
+
 def draft_key(
     draft: EventDraft,
     *,
@@ -179,19 +206,29 @@ def draft_key(
     title: str | None,
     shared: frozenset[str],
     is_secret: Callable[[str], bool],
+    meeting: bool = False,
 ) -> str:
     """The source key of a draft (see the module docstring for the order of preference).
 
     ``start`` is the normalized start, ``speaker`` the name of the first
     speaker and ``title`` the title unless it is still "TBA"; ``shared`` is
-    the result of ``shared_urls`` for the drafts of the run.
+    the result of ``shared_urls`` for the drafts of the run. ``meeting``
+    tells whether the event is a meeting (``seminars.models.is_meeting_span``).
     """
     native = safe_native_id(draft.native_id or "", is_secret)
     if native:
         return source_key(draft.source_id, native)
-    if draft.url and canonical_url(draft.url) not in shared and not is_secret(draft.url):
-        return source_key(draft.source_id, URL_KEY_PREFIX + canonical_url(draft.url))
-    words = slug(speaker or "") or slug(title or "") or start.strftime(TIME_OF_DAY_FORMAT)
+    page = canonical_url(draft.url) if draft.url else None
+    if (
+        page
+        and page not in shared
+        and not is_site_root(page)
+        and (not meeting or names_year(page, start.year))
+        and not is_secret(draft.url or "")
+    ):
+        return source_key(draft.source_id, URL_KEY_PREFIX + page)
+    first, second = (title, speaker) if meeting else (speaker, title)
+    words = slug(first or "") or slug(second or "") or start.strftime(TIME_OF_DAY_FORMAT)
     return source_key(draft.source_id, f"{DAY_KEY_PREFIX}{start.date().isoformat()}:{words}")
 
 
@@ -494,6 +531,40 @@ def _renamed(orphan: Event, event: Event) -> bool:
     )
 
 
+def _known_by_the_page_of(paged: Event, dated: Event) -> bool:
+    """Whether a source knows ``paged`` by the page of ``dated`` and ``dated`` only by its day.
+
+    That source knows ``paged`` only by url keys, one of which is the
+    address of ``dated`` (``Event.url``, which is the page of a talk
+    whatever its key), and ``dated`` only by day keys.
+    """
+    page = URL_KEY_PREFIX + canonical_url(str(dated.url))
+    known = sources_known_by(paged, is_url_key) & sources_known_by(dated, is_day_key)
+    return any(
+        source_id in known and native == page
+        for source_id, native in map(split_source_key, paged.source_ids)
+    )
+
+
+def _page_or_day(orphan: Event, event: Event, title_similarity: int) -> bool:
+    """Whether ``event`` is ``orphan`` known by its day instead of its page, or back (step 6).
+
+    The page of a meeting gives its key only when it names the year of
+    the meeting (``draft_key``), so a listing whose page names none
+    changes between its url key and its day key when it becomes or stops
+    being a meeting: a one-day workshop listed by its date that gets its
+    hours. Both start on one local day, their titles are similar, and when
+    both name speakers they name the same people.
+    """
+    if orphan.start.date() != event.start.date():
+        return False
+    if orphan.speakers and event.speakers and not same_people(_names(orphan), _names(event)):
+        return False
+    if not _similar_titles(orphan, event, title_similarity):
+        return False
+    return _known_by_the_page_of(orphan, event) or _known_by_the_page_of(event, orphan)
+
+
 def follow_changed_keys(
     events: Sequence[Event],
     orphans: Sequence[Event],
@@ -503,11 +574,13 @@ def follow_changed_keys(
 ) -> dict[int, str]:
     """Which of ``events`` (new keys) are ``orphans`` (stored, not delivered) under a new key.
 
-    Steps 2 to 5 of ``seminars.pipeline.dedup.adopt_stored_uids``, for keys
+    Steps 2 to 6 of ``seminars.pipeline.dedup.adopt_stored_uids``, for keys
     that change while the talk stays: a day key when the talk moves to
     another day, a day key without a speaker when the title changes, the
-    address of a TBA page when it is renamed, and a day key without a
-    speaker when the talk moves. That step comes last because its only
+    address of a TBA page when it is renamed, a day key without a
+    speaker when the talk moves, and the page of a listing that gives way
+    to its day or back (``_page_or_day``). Step 5 comes after the slots of
+    step 3 because its only
     evidence is the title: a TBA slot that gains its talk keeps its uid
     even when a new TBA slot appears in another week of the same run.
     ``orphans`` are in the order in which they were first seen, ``now`` is
@@ -547,4 +620,5 @@ def follow_changed_keys(
     pairs(_renamed)
     if now is not None:
         pairs(lambda orphan, event: _moved_without_speakers(orphan, event, now, title_similarity))
+    pairs(lambda orphan, event: _page_or_day(orphan, event, title_similarity))
     return adopted

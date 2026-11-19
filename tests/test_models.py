@@ -102,9 +102,12 @@ class TestVocabularies:
         assert FIELD_IDS == ("math", "cs", "ai-ml", "chem", "bio", "physics", "med")
         assert get_args(FieldId) == FIELD_IDS
 
-    def test_nine_feeds(self) -> None:
-        assert FEED_IDS == ("all", "picks", "math", "cs", "ai-ml", "chem", "bio", "physics", "med")
+    def test_ten_feeds(self) -> None:
+        assert FEED_IDS[:2] == ("all", "picks")
+        assert FEED_IDS[2:-1] == ("math", "cs", "ai-ml", "chem", "bio", "physics", "med")
+        assert FEED_IDS[-1] == "conferences"
         assert feed_path("ai-ml") == "feeds/ai-ml.ics"
+        assert feed_path("conferences") == "feeds/conferences.ics"
 
     def test_out_of_scope_is_an_exclusion_reason(self) -> None:
         assert "out_of_scope" in get_args(ExclusionReason)
@@ -670,7 +673,7 @@ INTERNAL_EVENT_FIELDS = {
 class TestPublicPayloads:
     def test_public_event_never_exposes_internal_state(self) -> None:
         assert not INTERNAL_EVENT_FIELDS & set(PublicEvent.model_fields)
-        assert set(PublicEvent.model_fields) - set(Event.model_fields) == {"is_pick"}
+        assert set(PublicEvent.model_fields) - set(Event.model_fields) == {"is_pick", "meeting"}
 
     def test_from_event(self) -> None:
         event = make_event(picks_score=4.0, picks_reasons=["title: protein design"], missing_runs=2)
@@ -680,6 +683,23 @@ class TestPublicPayloads:
         assert public.uid == event.uid
         assert "missing_runs" not in public.model_dump()
         assert not PublicEvent.from_event(event, picks_threshold=5.0).is_pick
+
+    def test_the_meeting_flag_is_that_of_the_event(self) -> None:
+        talk = make_event()
+        conference = make_event(event_type="conference")
+        short_workshop = make_event(event_type="workshop")
+        long_workshop = make_event(event_type="workshop", end=talk.start + timedelta(hours=3))
+        flags = [
+            PublicEvent.from_event(event, picks_threshold=3.0).meeting
+            for event in (talk, conference, short_workshop, long_workshop)
+        ]
+        assert flags == [False, True, False, True]
+
+    def test_a_payload_without_the_meeting_flag_reads_as_talks(self) -> None:
+        public = PublicEvent.from_event(make_event(event_type="conference"), picks_threshold=3.0)
+        older = public.model_dump(mode="json")
+        del older["meeting"]
+        assert PublicEvent.model_validate(older).meeting is False
 
     def test_events_payload_defaults(self) -> None:
         payload = PublicEventsPayload(generated_at=REFERENCE_NOW, timezone="America/Los_Angeles")

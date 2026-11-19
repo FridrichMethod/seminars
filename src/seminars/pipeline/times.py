@@ -32,11 +32,16 @@ naive one, a date, a string). This module applies those rules:
 
 Nothing in here reads the clock. ``reference`` supplies the year for a
 string that has none: the year that puts the date closest to it, so that
-"Jan 15" read in December is next January, not the one before.
+"Jan 15" read in December is next January, not the one before. The time
+zones that a string can name are in ``parse_moment``; "AoE" and an offset
+such as "UTC-8" are read before ``dateutil`` sees the text, because it
+does not know the one and reads the sign of the other the POSIX way
+("UTC-8" as eight hours ahead of UTC).
 """
 
 from __future__ import annotations
 
+import re
 import warnings
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta, timezone, tzinfo
@@ -44,6 +49,7 @@ from typing import Final
 from zoneinfo import ZoneInfo
 
 from dateutil import parser as date_parser
+from dateutil import tz as date_zones
 
 from seminars.models import MAX_ROLLOVER
 
@@ -70,6 +76,11 @@ _ZONE_ABBREVIATIONS: Final[dict[str, str]] = {
     "EST": "America/New_York",
     "EDT": "America/New_York",
     "ET": "America/New_York",
+    "CET": "Europe/Berlin",
+    "CEST": "Europe/Berlin",
+    "BST": "Europe/London",
+    "EET": "Europe/Athens",
+    "EEST": "Europe/Athens",
     "UTC": "UTC",
     "GMT": "UTC",
     "Z": "UTC",
@@ -77,6 +88,34 @@ _ZONE_ABBREVIATIONS: Final[dict[str, str]] = {
 _TZINFOS: Final[dict[str, tzinfo]] = {
     name: ZoneInfo(zone) for name, zone in _ZONE_ABBREVIATIONS.items()
 }
+_AOE: Final = timedelta(hours=-12)
+"""Anywhere on Earth: UTC-12 all year (the IANA zone ``Etc/GMT+12``, with the POSIX sign)."""
+_OFFSET_LIMITS: Final = (timedelta(hours=-12), timedelta(hours=14))
+"""The offsets from UTC that time zones have, from Baker Island to Kiribati."""
+_SIGN: Final = r"[+\-\u2212]"
+_HOURS: Final = r"(?:[0-9]{4}|[0-9]{1,2}(?::[0-9]{2})?)(?![0-9:]|\.[0-9])"
+"""Hours of an offset: "8", "08:00", "0800"; never the start of a longer number."""
+_WRITTEN_ZONE: Final = (
+    r"(?<![a-z])(?<!etc/)"  # "Etc/GMT+12" is an IANA name, not an offset
+    r"(?:aoe|anywhere[\s-]+on[\s-]+earth"
+    rf"|(?:utc|gmt)\s*{_SIGN}{_HOURS}(?!\s*[ap]\.?m\b))"  # "4 PM GMT-5 PM" is a range
+    r"(?![a-z0-9])"
+)
+_ZONE: Final = re.compile(_WRITTEN_ZONE, re.IGNORECASE)
+_ZONES: Final = re.compile(
+    rf"\(\s*{_WRITTEN_ZONE}(?:\s*[,/;]?\s*{_WRITTEN_ZONE})*\s*\)|{_WRITTEN_ZONE}", re.IGNORECASE
+)
+"""One zone of ``_ZONE``, or several in parentheses: "AoE", "(Anywhere on Earth, UTC-12)"."""
+_UNREAD_OFFSET: Final = re.compile(
+    rf"(?<![a-z])(?<!etc/)(?:utc|gmt)\s*{_SIGN}\s*[0-9]", re.IGNORECASE
+)
+"""An offset that ``_ZONE`` does not read; dateutil would give it a sign of its own."""
+_OFFSET: Final = re.compile(
+    rf"(?P<sign>{_SIGN})(?:(?P<hhmm>[0-9]{{4}})|(?P<hours>[0-9]{{1,2}})(?::(?P<minutes>[0-9]{{2}}))?)"
+)
+"""The sign, the hours and the minutes of an offset that ``_ZONE`` matched."""
+_NAME_IN_PARENTHESES: Final = re.compile(r"\(\s*([A-Z]{2,5})\s*\)")
+"""A name in parentheses, "(PST)" of "UTC-8 (PST)": dateutil reads one only after a number."""
 
 Moment = datetime | date | str
 
@@ -99,7 +138,68 @@ class EventTimes:
 def _parse(text: str, default: datetime) -> datetime:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        return date_parser.parse(text, default=default, tzinfos=_TZINFOS)
+        moment = date_parser.parse(text, default=default, tzinfos=_TZINFOS)
+    # dateutil takes a name it does not know as local time of the machine when the
+    # machine's own zone uses it ("IST" in Kolkata): such a name is ignored on every machine.
+    return moment.replace(tzinfo=None) if isinstance(moment.tzinfo, date_zones.tzlocal) else moment
+
+
+def _offset(zone: str) -> timedelta:
+    """The offset from UTC of a match of ``_ZONE``: "AoE", "UTC-8", "GMT+0530"."""
+    found = _OFFSET.search(zone)
+    if zone[:1].lower() == "a" or found is None:  # AoE, Anywhere on Earth
+        return _AOE
+    digits = found["hhmm"]
+    hours, minutes = (digits[:2], digits[2:]) if digits else (found["hours"], found["minutes"])
+    offset = timedelta(hours=int(hours), minutes=int(minutes or 0))
+    offset = offset if found["sign"] == "+" else -offset
+    low, high = _OFFSET_LIMITS
+    if int(minutes or 0) > 59 or not low <= offset <= high:
+        raise TimeError("time text has an offset from UTC that no time zone has")
+    return offset
+
+
+def _written_offset(text: str) -> tuple[str, timedelta | None]:
+    """``text`` without its AoE and UTC offsets, and the offset from UTC that they name."""
+    offsets = {
+        _offset(zone[0]) for found in _ZONES.finditer(text) for zone in _ZONE.finditer(found[0])
+    }
+    rest = _ZONES.sub(" ", text)
+    if offsets:  # the name that followed the offset stays, so that both are compared
+        rest = _NAME_IN_PARENTHESES.sub(r" \1 ", rest)
+    if _UNREAD_OFFSET.search(rest):  # "UTC - 8", "UTC+530": dateutil would guess the sign
+        raise TimeError("time text has an offset from UTC that cannot be read")
+    if len(offsets) > 1:
+        raise TimeError("time text names different offsets from UTC")
+    return rest, next(iter(offsets), None)
+
+
+def _seasons(zone: ZoneInfo, year: int) -> set[timedelta | None]:
+    """The offsets from UTC that ``zone`` has in winter and in summer of ``year``."""
+    return {datetime(year, month, 1, 12, tzinfo=zone).utcoffset() for month in (1, 7)}
+
+
+def _at_offset(moment: datetime, offset: timedelta) -> datetime:
+    """``moment`` at ``offset`` from UTC; an error when its text names another zone too.
+
+    The offset settles which of the two times is meant in the hour that the
+    clocks repeat or skip. A region that the text names as well keeps
+    ``moment`` in its zone when ``offset`` is the region's offset of the
+    other season: "4 PM UTC-8 (PST)" in July is Pacific daylight time, as
+    "4 PM PST" is.
+    """
+    zone = moment.tzinfo
+    if zone is None:
+        return moment.replace(tzinfo=timezone(offset))
+    try:
+        named = {moment.replace(fold=fold).utcoffset() for fold in (0, 1)}
+    except ValueError as error:  # an offset of dateutil of a day or more
+        raise TimeError("time text has an offset from UTC that no time zone has") from error
+    if offset in named:
+        return moment.replace(tzinfo=timezone(offset))
+    if isinstance(zone, ZoneInfo) and offset in _seasons(zone, moment.year):
+        return moment
+    raise TimeError("time text names two different time zones")
 
 
 def _nearest_year(moment: datetime, reference: datetime) -> datetime:
@@ -121,20 +221,43 @@ def parse_moment(text: str, *, reference: datetime) -> datetime | date:
 
     A missing year is the one that puts the date closest to ``reference``
     (the year before, of, or after it); a text without month and day, such
-    as "4pm" or "Thursday", is an error. Common North American zone
-    abbreviations are understood; an unknown one is ignored and the time is
-    then taken as wall time of the source.
+    as "4pm" or "Thursday", is an error. The time zone a text names:
+
+    * a North American or European abbreviation ("PST", "ET", "CET",
+      "BST", the keys of ``_ZONE_ABBREVIATIONS``) is the time zone of its
+      region in every season, so "PST" in July is Pacific daylight time and
+      "CET" in July is Central European summer time;
+    * an offset from UTC is read as people write it, from UTC-12 to UTC+14:
+      "UTC-8", "UTC -8" and "GMT-08:00" are eight hours behind UTC,
+      "UTC+5:30" and "GMT+0530" five and a half hours ahead. One that
+      cannot be read that way ("UTC - 8", "UTC+530") is an error, and so is
+      an offset that no time zone has ("UTC-13");
+    * "AoE" and "Anywhere on Earth", in any case, in parentheses or not,
+      are UTC-12.
+
+    A zone written twice must say the same ("23:59 AoE (UTC-12)", "4 PM PST
+    (UTC-8)", "4 PM UTC-8 (PST)"); two different ones are an error ("AoE
+    (UTC+8)", "UTC+8 (CST)"). An abbreviation next to an offset that its
+    region has in summer or in winter stays the zone of its region, as it is
+    alone: "4 PM UTC-8 (PST)" in July is 4 PM Pacific daylight time, and "4
+    PM PDT (UTC-7)" in January is 4 PM Pacific standard time. An unknown
+    abbreviation is ignored and the time is then taken as wall time of the
+    source. A text without a time of day is a date in any zone: "Jan 29,
+    2027 AoE" is January 29.
     """
     if len(text) > MAX_TEXT_LENGTH:
         raise TimeError("time text is too long")
+    rest, offset = _written_offset(text)
     try:
-        first, other = (_parse(text, default) for default in _PROBE_DEFAULTS)
+        first, other = (_parse(rest, default) for default in _PROBE_DEFAULTS)
     except (ValueError, OverflowError, TypeError) as error:
         raise TimeError("time text cannot be parsed") from error
     if (first.month, first.day) != (other.month, other.day):
         raise TimeError("time text has no day")
     moment = first if first.year == other.year else _nearest_year(first, reference)
-    return moment.date() if first.time() != other.time() else moment  # no time of day: a date
+    if first.time() != other.time():  # no time of day: a date
+        return moment.date()
+    return moment if offset is None else _at_offset(moment, offset)
 
 
 def _typed(moment: Moment, reference: datetime) -> datetime | date:

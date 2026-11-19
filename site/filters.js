@@ -12,12 +12,27 @@ import { addDays, parseTimestamp } from "./time.js";
 export const RANGES = Object.freeze({ today: 1, week: 7, two_weeks: 14, all: 0 });
 export const DEFAULT_RANGE = "all";
 
+/**
+ * Kinds of events: every event, the talks, or the meetings (conferences, all-day workshops
+ * of two days or more and workshops with times of day of at least three hours: the flag
+ * ``meeting`` of events.json).
+ */
+export const KINDS = Object.freeze(["all", "talks", "meetings"]);
+export const DEFAULT_KIND = "all";
+
+/**
+ * The group of the list that holds the events that began before today and have not ended:
+ * listed once, above today, instead of at the top of every day they last.
+ */
+export const ONGOING = "ongoing";
+
 /** Names of the query string parameters that hold the filters. */
 export const PARAMS = Object.freeze({
   query: "q",
   field: "field",
   institution: "inst",
   host: "host",
+  kind: "kind",
   range: "range",
   picks: "picks",
 });
@@ -62,6 +77,7 @@ export const NO_FILTERS = Object.freeze({
   fields: Object.freeze([]),
   institutions: Object.freeze([]),
   host: "",
+  kind: DEFAULT_KIND,
   range: DEFAULT_RANGE,
   picksOnly: false,
 });
@@ -200,6 +216,7 @@ export function prepareEvent(raw, zone, fieldIds, placeholders = placeholderTitl
     host: optional(raw.host_org),
     institution: str(raw.institution),
     type: str(raw.event_type),
+    meeting: raw.meeting === true,
     start,
     end: end !== null && end > start ? end : null,
     ends: allDay ? null : timedEnd(start, end),
@@ -222,6 +239,7 @@ export function prepareEvent(raw, zone, fieldIds, placeholders = placeholderTitl
     ...speakers.flatMap((speaker) => [speaker.name, speaker.affiliation ?? ""]),
     event.series ?? "",
     event.host ?? "",
+    event.location ?? "",
     event.abstract ?? "",
   ].join("\n");
   return Object.freeze({ ...event, haystack: fold(haystack) });
@@ -262,6 +280,12 @@ export function matches(event, filters, today) {
   if (filters.host && event.host !== filters.host) {
     return false;
   }
+  if (filters.kind === "talks" && event.meeting) {
+    return false;
+  }
+  if (filters.kind === "meetings" && !event.meeting) {
+    return false;
+  }
   const days = RANGES[filters.range];
   if (days && event.startDay >= addDays(today, days)) {
     return false;
@@ -269,12 +293,19 @@ export function matches(event, filters, today) {
   return searchTerms(filters.query).every((term) => event.haystack.includes(term));
 }
 
-/** Events grouped by day (a talk that began before today is listed under today). */
+/**
+ * Events grouped by the day they start. The events that began before today (the list
+ * holds only those that have not ended, such as a conference in progress) form the group
+ * ONGOING, which comes first.
+ */
 export function groupByDay(events, today) {
-  const groups = new Map();
+  const groups = new Map([[ONGOING, []]]);
   for (const event of events) {
-    const key = event.startDay < today ? today : event.startDay;
+    const key = event.startDay < today ? ONGOING : event.startDay;
     groups.set(key, [...(groups.get(key) ?? []), event]);
+  }
+  if (groups.get(ONGOING).length === 0) {
+    groups.delete(ONGOING);
   }
   return groups;
 }
@@ -286,6 +317,7 @@ export function isUnfiltered(filters) {
     filters.fields.length === 0 &&
     filters.institutions.length === 0 &&
     filters.host === "" &&
+    filters.kind === DEFAULT_KIND &&
     filters.range === DEFAULT_RANGE &&
     !filters.picksOnly
   );
@@ -307,12 +339,13 @@ function chosen(values, allowed) {
  * the values that exist (``fields``, ``institutions``, ``hosts``; see ANY_CHOICES).
  */
 export function withinChoices(filters, choices) {
-  const { host, range } = filters;
+  const { host, kind, range } = filters;
   return Object.freeze({
     query: filters.query.slice(0, MAX_QUERY_LENGTH),
     fields: chosen(strings(filters.fields), choices.fields),
     institutions: chosen(strings(filters.institutions), choices.institutions),
     host: choices.hosts === null || choices.hosts.includes(host) ? host : "",
+    kind: KINDS.includes(kind) ? kind : DEFAULT_KIND,
     range: Object.hasOwn(RANGES, range) ? range : DEFAULT_RANGE,
     picksOnly: filters.picksOnly,
   });
@@ -327,6 +360,7 @@ export function filtersFromQuery(search, choices) {
       fields: params.getAll(PARAMS.field),
       institutions: params.getAll(PARAMS.institution),
       host: params.get(PARAMS.host) ?? "",
+      kind: params.get(PARAMS.kind) ?? "",
       range: params.get(PARAMS.range) ?? "",
       picksOnly: params.get(PARAMS.picks) === "1",
     },
@@ -351,6 +385,9 @@ export function queryFromFilters(filters, search) {
   }
   if (filters.host !== "") {
     params.set(PARAMS.host, filters.host);
+  }
+  if (filters.kind !== DEFAULT_KIND) {
+    params.set(PARAMS.kind, filters.kind);
   }
   if (filters.range !== DEFAULT_RANGE) {
     params.set(PARAMS.range, filters.range);

@@ -5,7 +5,9 @@ their protocols: it asks ``seminars.contracts.load_implementation`` for each
 implementation and uses it through its protocol. From the sources package,
 ``seminars.pipeline.collect`` imports two shared helpers directly: the
 adapter registry and errors of ``seminars.sources.base`` and
-``detail_pages_optional`` of ``seminars.sources.generic.common``. Within the
+``detail_pages_optional`` of ``seminars.sources.generic.common``; and
+``seminars.pipeline.deadlines`` reads the editions of the registry of
+meetings with ``seminars.sources.custom.registry`` (no request). Within the
 pipeline, this module is the only place where implementations are loaded:
 ``build_services`` loads and wires the real implementations for a command,
 and a test builds a ``Services`` from fakes instead.

@@ -7,6 +7,11 @@ there is no value), so the site never has to test for missing keys. Anything
 internal (``missing_runs``, ``sequence``, source ids, tagging method) is left
 out on purpose.
 
+``schema_version`` (``PUBLIC_SCHEMA_VERSION``) changes only when a key is
+removed or changes its meaning. A key that is added has a default, which is
+also what the site assumes while a payload lacks the key, so a page that is
+newer than its data (or the other way round) keeps working.
+
 Picks reasons. The stored events hold every reason of their picks score as
 one line of plain ASCII text (``Event.picks_reasons``), which is what the
 ICS feeds show. ``PickReason`` is the same reason taken apart, so that the
@@ -151,6 +156,11 @@ class PublicEvent(Model):
 
     All text comes from scraped web pages and is untrusted: the site must
     render it with ``textContent`` and must only link http(s) URLs.
+    ``meeting`` is ``Event.is_meeting``: a conference, an all-day workshop
+    of two days or more, or a workshop with times of day that lasts at
+    least three hours (what the site's filter of the kind calls conferences
+    and workshops). Every other event is a talk, a workshop listed all day
+    on a single day among them.
     """
 
     uid: Uid
@@ -160,6 +170,7 @@ class PublicEvent(Model):
     host_org: NonEmptyStr
     institution: Institution
     event_type: EventType
+    meeting: bool = False
     start: Timestamp  # ISO 8601 with offset, wall time of the payload's timezone
     end: Timestamp | None = None
     all_day: bool = False
@@ -184,6 +195,7 @@ class PublicEvent(Model):
             host_org=event.host_org,
             institution=event.institution,
             event_type=event.event_type,
+            meeting=event.is_meeting,
             start=event.start,
             end=event.end,
             all_day=event.all_day,
@@ -202,10 +214,11 @@ class PublicEvent(Model):
 class PublicEventsPayload(Model):
     """Content of public/events.json.
 
-    ``events`` holds every stored event of the current window (past ones
-    included, cancelled ones included) sorted by ``start`` and then ``uid``;
-    the site decides what to show. ``generated_at`` is the "last updated"
-    time shown on the page.
+    ``events`` holds every stored event: those of the current window (past
+    ones included, cancelled ones included) and the meetings ahead of it of
+    the sources with ``meeting_horizon``, sorted by ``start`` and then
+    ``uid``; the site decides what to show. ``generated_at`` is the "last
+    updated" time shown on the page.
     """
 
     schema_version: Literal[1] = 1

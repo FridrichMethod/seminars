@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "source_id": "bayarea-slac-workshops",
+  "entries": {
+    "https://indico.slac.stanford.edu/category/16/events.ics": {
+      "file": "category-16-events-ics-98771cb7.ics",
+      "status": 200,
+      "content_type": "text/calendar",
+      "fetched_at": "2026-11-18T09:50:19Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://indico.slac.stanford.edu/category/170/events.ics": {
+      "file": "category-170-events-ics-cb77e3e8.ics",
+      "status": 200,
+      "content_type": "text/calendar",
+      "fetched_at": "2026-11-18T09:50:16Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://indico.slac.stanford.edu/category/171/events.ics": {
+      "file": "category-171-events-ics-40096cb3.ics",
+      "status": 200,
+      "content_type": "text/calendar",
+      "fetched_at": "2026-11-18T09:50:17Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://indico.slac.stanford.edu/category/19/events.ics": {
+      "file": "category-19-events-ics-48eb9df4.ics",
+      "status": 200,
+      "content_type": "text/calendar",
+      "fetched_at": "2026-11-18T09:50:20Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://indico.slac.stanford.edu/category/20/events.ics": {
+      "file": "category-20-events-ics-8241921a.ics",
+      "status": 200,
+      "content_type": "text/calendar",
+      "fetched_at": "2026-11-18T09:50:18Z",
+      "final_url": null,
+      "volatile_params": []
+    }
+  }
+}

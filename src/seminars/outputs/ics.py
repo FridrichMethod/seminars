@@ -1,10 +1,13 @@
 """ICS calendar feeds (RFC 5545) and the validator behind ``seminars validate``.
 
 ``write_ics_feeds`` writes one calendar per feed id: ``all`` holds every
-event it is given, ``picks`` the events at or above the picks threshold and
-each field feed the events tagged with that field. The files are a pure
-function of the arguments. Events are ordered by start and uid, every time
-stamp comes from the event (``DTSTAMP`` and ``LAST-MODIFIED`` are its
+event it is given, ``picks`` the events at or above the picks threshold,
+each field feed the events tagged with that field and ``conferences`` the
+meetings (``Event.is_meeting``: a conference, an all-day workshop of two
+days or more, or a workshop with times of day of at least three hours),
+which are in ``all`` and in their field feeds as well. The files are a
+pure function of the arguments. Events are ordered by start and uid, every
+time stamp comes from the event (``DTSTAMP`` and ``LAST-MODIFIED`` are its
 ``last_changed``) and nothing reads the clock, so the same events give the
 same bytes and a subscriber only sees a change when an event changed.
 
@@ -21,7 +24,12 @@ A calendar holds
 * one VEVENT per event. ``UID`` is ``<uid>@<uid_domain>`` and never changes;
   ``SEQUENCE`` is the counter of the event. A timed event is written in the
   zone of the settings and gets the default duration when it has no end; an
-  all-day event is written with DATE values and an exclusive end. A
+  all-day event is written with DATE values and an exclusive end. An all-day
+  event is free time (``TRANSP:TRANSPARENT``, and
+  ``X-MICROSOFT-CDO-BUSYSTATUS:FREE`` for Outlook, which reads only that),
+  so a conference of a week does not mark the days of a subscriber as busy;
+  a timed event keeps the default of RFC 5545, busy. No event has an alarm:
+  calendar programs ignore the alarms of a subscribed calendar. A
   cancelled event stays in the feed with ``STATUS:CANCELLED`` and a marked
   summary, because not every program shows the status.
 
@@ -32,11 +40,24 @@ newline) before the calendar library escapes and folds it. What should be
 one line (summary, location) has its line breaks turned into spaces. The
 labels inside a description come from the English locale as well.
 
+``write_ics_feeds`` writes the feed of the deadlines as well,
+``deadlines.ics`` (``DEADLINES_FEED``, not one of FEED_IDS): the header of
+the other feeds with the name and description of ``deadlines.feed.*``, one
+VTIMEZONE of the zone of the settings for the years of the deadlines (no
+value refers to it; it keeps a feed without deadlines from being a calendar
+without a component), and one VEVENT per deadline by date and uid, whose
+content ``seminars.outputs.deadlines`` describes.
+
 ``validate_ics`` does not use the library that wrote the feed for its own
 rules: it checks line endings, line lengths, folding, the nesting of
 components, required and repeated properties, the form of dates, offsets,
 escapes and references to time zones, and only then lets the library parse
-the document as a second opinion.
+the document as a second opinion. Asked to check the feed of the deadlines
+(``deadlines=True``), it also checks its own rules: a calendar name and
+description, no component but VTIMEZONE and VEVENT, and VEVENTs of one day
+each (``DTSTART`` a DATE, ``DTEND`` the day after, no ``RRULE``, ``RDATE`` or
+``EXDATE``), free time, with a uid of a deadline, a summary that is not
+empty, a description, a page, a sequence, and no alarm.
 """
 
 from __future__ import annotations
@@ -56,7 +77,17 @@ import icalendar
 
 from seminars.config import AppConfig
 from seminars.i18n import DEFAULT_LOCALE, Locale
-from seminars.models import FEED_IDS, TBA_TITLE, Event, Speaker, ascii_url
+from seminars.models import (
+    DEADLINE_UID_PREFIX,
+    FEED_IDS,
+    TBA_TITLE,
+    Deadline,
+    Event,
+    Speaker,
+    ascii_url,
+    ordered_deadlines,
+)
+from seminars.outputs.deadlines import DEADLINES_FILE, FEED_NAMES, deadline_vevent, deadline_years
 from seminars.textio import write_text_atomic
 from seminars.textrules import ascii_printable, clean_text
 
@@ -71,6 +102,9 @@ ZONE_MAX_YEARS: Final = 10
 
 EMPTY_RUN_YEAR: Final = 1970
 """Year of the time zone definition when a run has no event at all."""
+
+MEETINGS_FEED: Final = "conferences"
+"""The feed of the meetings (``Event.is_meeting``), one of FEED_IDS."""
 
 _LABEL_SPEAKER: Final = "digest.table.speaker"
 _LABEL_REASONS: Final = "digest.table.reasons"
@@ -276,6 +310,9 @@ def _vevent(event: Event, ctx: _Context) -> icalendar.Event:
     component.add("description", _description(event, ctx))
     component.add("url", ascii_url(str(event.url)))
     component.add("status", event.status.upper())
+    if event.all_day:
+        component.add("transp", "TRANSPARENT")
+        component.add("x-microsoft-cdo-busystatus", "FREE")
     location = _location(event, ctx)
     if location:
         component.add("location", location)
@@ -378,15 +415,15 @@ def _years(events: Sequence[Event], ctx: _Context) -> tuple[int, int]:
     return first, min(max(end.year for _, end in spans), first + ZONE_MAX_YEARS)
 
 
-def _calendar_text(feed_id: str, parts: Sequence[icalendar.Component], ctx: _Context) -> str:
-    """One feed as text with CRLF line endings."""
+def _calendar_text(names: str, parts: Sequence[icalendar.Component], ctx: _Context) -> str:
+    """One feed as text with CRLF line endings; ``names`` is the locale prefix of its name."""
     calendar = icalendar.Calendar()
     calendar.add("version", "2.0")
     calendar.add("prodid", f"-//{ctx.uid_domain}//seminars//EN")
     calendar.add("calscale", "GREGORIAN")
     calendar.add("method", "PUBLISH")
-    calendar.add("x-wr-calname", icalendar.vText(ctx.locale.t(f"feeds.{feed_id}.name")))
-    calendar.add("x-wr-caldesc", icalendar.vText(ctx.locale.t(f"feeds.{feed_id}.description")))
+    calendar.add("x-wr-calname", icalendar.vText(ctx.locale.t(f"{names}.name")))
+    calendar.add("x-wr-caldesc", icalendar.vText(ctx.locale.t(f"{names}.description")))
     calendar.add("x-wr-timezone", icalendar.vText(ctx.zone_name))
     calendar.add("refresh-interval", ctx.refresh, parameters={"VALUE": "DURATION"})
     calendar.add("x-published-ttl", icalendar.vDuration(ctx.refresh))
@@ -410,26 +447,50 @@ def _in_feed(event: Event, feed_id: str, ctx: _Context) -> bool:
         return True
     if feed_id == "picks":
         return event.is_pick(ctx.picks_threshold)
+    if feed_id == MEETINGS_FEED:
+        return event.is_meeting
     return feed_id in event.fields
 
 
-def write_ics_feeds(events: Sequence[Event], out_dir: Path, *, config: AppConfig) -> list[Path]:
-    """Write ``<out_dir>/<feed id>.ics`` for all nine FEED_IDS; return the paths.
+def _deadlines_text(deadlines: Sequence[Deadline], ctx: _Context) -> str:
+    """The feed of the deadlines as text (see the module docstring)."""
+    ordered = ordered_deadlines(deadlines)
+    zone = _vtimezone(ctx, *deadline_years(ordered))
+    parts = [
+        deadline_vevent(item, uid_domain=ctx.uid_domain, locale=ctx.locale) for item in ordered
+    ]
+    return _calendar_text(FEED_NAMES, [zone, *parts], ctx)
 
-    The contract is ``seminars.contracts.IcsFeedWriter``. Every event given
-    is written, cancelled and past ones included; choosing the events is the
-    caller's business. Nothing is written when two events share a uid.
+
+def write_ics_feeds(
+    events: Sequence[Event],
+    out_dir: Path,
+    *,
+    config: AppConfig,
+    deadlines: Sequence[Deadline] = (),
+) -> list[Path]:
+    """Write ``<out_dir>/<feed id>.ics`` for all ten FEED_IDS and the feed of the deadlines.
+
+    The contract is ``seminars.contracts.IcsFeedWriter``; the paths are
+    returned in the order of FEED_IDS, ``deadlines.ics`` last. Every event
+    and deadline given is written, cancelled and past ones included;
+    choosing them is the caller's business. Nothing is written when two
+    events or two deadlines share a uid.
     """
     ordered = _ordered(events)
     ctx = _context(config)
     zone = _vtimezone(ctx, *_years(ordered, ctx))
     rendered = [(event, _vevent(event, ctx)) for event in ordered]
+    deadlines_text = _deadlines_text(deadlines, ctx)
     paths: list[Path] = []
     for feed_id in FEED_IDS:
         chosen = [vevent for event, vevent in rendered if _in_feed(event, feed_id, ctx)]
         path = out_dir / f"{feed_id}.ics"
-        write_text_atomic(path, _calendar_text(feed_id, [zone, *chosen], ctx))
+        write_text_atomic(path, _calendar_text(f"feeds.{feed_id}", [zone, *chosen], ctx))
         paths.append(path)
+    path = out_dir / DEADLINES_FILE
+    write_text_atomic(path, deadlines_text)
+    paths.append(path)
     return paths
 
 
@@ -453,6 +514,8 @@ _ESCAPES_ONLY: Final = re.compile(r"(?:[^\\]|\\[\\;,nN])*")
 _SEPARATORS: Final = re.compile(r"(?<!\\)(?:\\\\)*[;,]")
 _LIST_SEPARATORS: Final = re.compile(r"(?<!\\)(?:\\\\)*;")
 _EVENT_STATUSES: Final = frozenset({"TENTATIVE", "CONFIRMED", "CANCELLED"})
+_TRANSPARENCIES: Final = re.compile("(?i)OPAQUE|TRANSPARENT")
+_BUSY_STATUSES: Final = re.compile("(?i)FREE|TENTATIVE|BUSY|OOF|WORKINGELSEWHERE")
 _OBSERVANCES: Final = ("STANDARD", "DAYLIGHT")
 _PARSER_DETAIL_CHARS: Final = 200
 
@@ -615,6 +678,10 @@ _RULES: Final[Mapping[tuple[str, str], Callable[[_Line], str | None]]] = {
     ("VEVENT", "STATUS"): lambda line: (
         None if line.value.upper() in _EVENT_STATUSES else "STATUS is not a status of an event"
     ),
+    ("VEVENT", "TRANSP"): _pattern_rule(_TRANSPARENCIES, "is neither OPAQUE nor TRANSPARENT"),
+    ("VEVENT", "X-MICROSOFT-CDO-BUSYSTATUS"): _pattern_rule(
+        _BUSY_STATUSES, "is not a busy status of Outlook"
+    ),
     ("STANDARD", "DTSTART"): _local_rule,
     ("DAYLIGHT", "DTSTART"): _local_rule,
     ("*", "DTSTAMP"): _utc_rule,
@@ -643,6 +710,7 @@ _AT_MOST_ONCE: Final[Mapping[str, tuple[str, ...]]] = {
         *("UID", "DTSTAMP", "DTSTART", "DTEND", "DURATION", "SUMMARY", "DESCRIPTION"),
         *("LOCATION", "STATUS", "SEQUENCE", "LAST-MODIFIED", "CREATED", "URL", "CLASS"),
         *("TRANSP", "PRIORITY", "ORGANIZER", "GEO", "RECURRENCE-ID"),
+        "X-MICROSOFT-CDO-BUSYSTATUS",
     ),
     "VTIMEZONE": ("TZID", "LAST-MODIFIED", "TZURL"),
     "STANDARD": ("DTSTART", "TZOFFSETFROM", "TZOFFSETTO"),
@@ -746,14 +814,80 @@ def _parser_problems(text: str) -> list[str]:
     ]
 
 
-def validate_ics(text: str) -> list[str]:
+_DEADLINE_UID: Final = re.compile(
+    rf"{DEADLINE_UID_PREFIX}\.[a-z0-9]+(?:-[a-z0-9]+)*\.[a-z][a-z_]*(?:-[1-9][0-9]*)?@[^@\s]+"
+)
+_DEADLINE_PARTS: Final = frozenset({"VTIMEZONE", "VEVENT"})
+_DEADLINE_REQUIRED: Final = (
+    *("UID", "DTSTAMP", "DTSTART", "DTEND", "SUMMARY", "DESCRIPTION", "URL", "SEQUENCE"),
+    *("TRANSP", "X-MICROSOFT-CDO-BUSYSTATUS"),
+)
+_DEADLINE_REPEATS: Final = ("RRULE", "RDATE", "EXDATE")
+"""Properties that would make a deadline more than its one day."""
+_DEADLINE_CALENDAR: Final = ("X-WR-CALNAME", "X-WR-CALDESC")
+
+
+def _deadline_event_problems(event: _Component) -> list[str]:
+    """The rules of a VEVENT of the feed of the deadlines (see the module docstring)."""
+    by_name = {line.name: line for line in event.lines}
+    where = f"line {event.number}: VEVENT"
+    problems = [f"{where} has no {name}" for name in _DEADLINE_REQUIRED if name not in by_name]
+    problems.extend(f"line {part.number}: {part.name} inside a deadline" for part in event.parts)
+    problems.extend(
+        f"line {line.number}: {line.name} in a deadline"
+        for line in event.lines
+        if line.name in _DEADLINE_REPEATS
+    )
+    summary = by_name.get("SUMMARY")
+    if summary is not None and not summary.value.strip():
+        problems.append(f"line {summary.number}: SUMMARY of a deadline is empty")
+    uid = by_name.get("UID")
+    if uid is not None and not _DEADLINE_UID.fullmatch(uid.value):
+        problems.append(f"line {uid.number}: UID is not the uid of a deadline")
+    for name, wanted in (("TRANSP", "TRANSPARENT"), ("X-MICROSOFT-CDO-BUSYSTATUS", "FREE")):
+        line = by_name.get(name)
+        if line is not None and line.value.upper() != wanted:
+            problems.append(f"line {line.number}: {name} of a deadline is not {wanted}")
+    start, end = by_name.get("DTSTART"), by_name.get("DTEND")
+    days = [
+        line
+        for line in (start, end)
+        if line is not None and line.params.get("VALUE", "").upper() != "DATE"
+    ]
+    problems.extend(f"line {line.number}: {line.name} of a deadline is not a date" for line in days)
+    if start is not None and end is not None and not days:
+        first, after = _moment(start), _moment(end)
+        if first is not None and after is not None and after - first != _ONE_DAY:
+            problems.append(f"line {end.number}: DTEND of a deadline is not the day after DTSTART")
+    return problems
+
+
+def _deadline_feed_problems(calendar: _Component) -> list[str]:
+    """The rules of the feed of the deadlines beyond those of every feed."""
+    names = {line.name for line in calendar.lines}
+    problems = [
+        f"line {calendar.number}: VCALENDAR has no {name}"
+        for name in _DEADLINE_CALENDAR
+        if name not in names
+    ]
+    for part in calendar.parts:
+        if part.name not in _DEADLINE_PARTS:
+            problems.append(f"line {part.number}: {part.name} is not part of the feed of deadlines")
+        elif part.name == "VEVENT":
+            problems.extend(_deadline_event_problems(part))
+    return problems
+
+
+def validate_ics(text: str, *, deadlines: bool = False) -> list[str]:
     """Problems found in one ICS document; an empty list means valid.
 
     The contract is ``seminars.contracts.IcsValidator``. ``text`` has to be
     the document with its line endings as stored (read it without newline
     translation, as ``seminars.textio.read_text`` does): a feed whose lines
-    do not end with CRLF is not valid. Every problem is one line of
-    printable ASCII that names the line it is about and never quotes a value.
+    do not end with CRLF is not valid. With ``deadlines`` the document is the
+    feed of the deadlines and has to follow its rules as well. Every problem
+    is one line of printable ASCII that names the line it is about and never
+    quotes a value.
     """
     if not text:
         return ["the document is empty"]
@@ -771,4 +905,6 @@ def validate_ics(text: str) -> list[str]:
     problems.extend(nesting_problems)
     for calendar in calendars:
         problems.extend(_calendar_problems(calendar))
+        if deadlines:
+            problems.extend(_deadline_feed_problems(calendar))
     return problems or _parser_problems(text)

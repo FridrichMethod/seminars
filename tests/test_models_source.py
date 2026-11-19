@@ -35,6 +35,7 @@ def test_schema_has_all_common_keys() -> None:
         "homepage",
         "aggregator",
         "llm_fallback",
+        "meeting_horizon",
         "ignore_robots",
     }
 
@@ -162,13 +163,14 @@ def test_built_in_groups_require_their_id_prefix(group: str, prefix: str) -> Non
         make_source(group=group, id="wrong-example")
 
 
-def test_group_prefixes_cover_the_five_research_groups() -> None:
+def test_group_prefixes_cover_the_five_research_groups_and_the_registry() -> None:
     assert SOURCE_GROUP_PREFIXES == {
         "localist": "localist-",
         "stanford-sites": "sites-",
         "stanford-custom": "custom-",
         "bayarea": "bayarea-",
         "researchseminars": "rsorg-",
+        "conferences": "conf-",
     }
 
 

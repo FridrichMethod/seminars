@@ -10,12 +10,14 @@ data is the end of the last run, so the same data gives the same files.
 
 ``validate_project`` backs ``seminars validate``. It reads every file
 below data/ against its schema, the site data in public/ against the
-public payloads, every feed with the ICS validator, and runs the output
-checks of a run (secret scan and the charset rule of data/). The files a
-published site needs (data/events.json, public/events.json,
-public/status.json and every feed) must exist: a project without them has
+public payloads, every feed with the ICS validator (the feed of the
+deadlines with its own rules as well), and runs the output checks of a run
+(secret scan and the charset rule of data/). The files a published site
+needs (data/events.json, public/events.json, public/status.json, every feed
+and the feed of the deadlines) must exist: a project without them has
 nothing to publish and does not pass, so "seminars validate passes" says
-that a run and a build of the site happened.
+that a run and a build of the site happened. data/deadlines.json may be
+missing, which is a project without deadlines.
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ from pydantic import BaseModel, ValidationError
 from seminars.config import AppConfig, ProjectPaths
 from seminars.contracts import IcsFeedWriter, IcsValidator, SecretScanner, SiteDataWriter
 from seminars.models import (
+    DEADLINES_FEED,
     FEED_IDS,
     PublicEventsPayload,
     PublicStatusPayload,
@@ -100,7 +103,9 @@ def assemble_site(
             written += _copy_tree(directory, target)
         else:
             missing.append(f"{directory.relative_to(paths.root).as_posix()}/")
-    written += write_ics_feeds(state.events, paths.public_feeds_dir, config=config)
+    written += write_ics_feeds(
+        state.events, paths.public_feeds_dir, config=config, deadlines=state.deadlines
+    )
     generated_at = state.last_run.finished_at if state.last_run else fallback_time
     written += write_site_data(
         state.events,
@@ -159,14 +164,15 @@ def _feed_problems(paths: ProjectPaths, validator: IcsValidator | None) -> list[
     feeds_dir = paths.public_feeds_dir
     problems = [
         f"{_relative(feeds_dir, paths.root)}/{feed}.ics: missing"
-        for feed in FEED_IDS
+        for feed in (*FEED_IDS, DEADLINES_FEED)
         if not (feeds_dir / f"{feed}.ics").is_file()
     ]
     feeds = sorted(feeds_dir.glob("*.ics"))
     if validator is None:
         return [*problems, *(f"{_relative(f, paths.root)}: no ICS validator" for f in feeds)]
     for feed in feeds:
-        found = validator(feed.read_bytes().decode("utf-8", errors="replace"))
+        text = feed.read_bytes().decode("utf-8", errors="replace")
+        found = validator(text, deadlines=feed.stem == DEADLINES_FEED)
         problems += [f"{_relative(feed, paths.root)}: {ascii_printable(p)}" for p in found]
     return problems
 

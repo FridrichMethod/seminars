@@ -22,6 +22,8 @@ PRESET_KEYWORDS: list[str] = [
     "protein design",
     "protein engineering",
     "enzyme design",
+    "enzyme engineering",
+    "biomolecular design",
     "de novo",
     "inverse folding",
     "protein language model",

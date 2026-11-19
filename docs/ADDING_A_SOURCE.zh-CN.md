@@ -53,6 +53,7 @@ uv run python -m seminars.fixtures fetch --save-dir .scratch/example \
 | `stanford-custom` | `stanford-custom.yaml` | `custom-` | 有自己页面的 Stanford 实验室和中心 |
 | `bayarea` | `bayarea.yaml` | `bayarea-` | SLAC、CZ Biohub 和其他湾区研究机构 |
 | `researchseminars` | `researchseminars.yaml` | `rsorg-` | researchseminars.org 上的系列报告 |
+| `conferences` | `conferences.yaml` | `conf-` | 会议登记表：人工维护的会议和 workshop |
 
 使用通用 adapter 的一条记录：
 
@@ -82,8 +83,17 @@ sources:
 - `research` 记录调研结果：检查的日期、样本里有多少事件、网站提供哪些格式、它的
   `Crawl-delay`、备注。
 - 其他 key：`homepage`、`series`、`default_event_type`、`timezone`、`aggregator`、
-  `llm_fallback`、`ignore_robots`、`enabled`。完整的 schema 和每个 key 的说明在
+  `llm_fallback`、`meeting_horizon`、`ignore_robots`、`enabled`。完整的 schema 和每个 key 的说明在
   `src/seminars/models/source.py` 的 `SourceConfig` 里；未知的 key 会报错。
+- `meeting_horizon: true` 让这个数据源的会议（conference，以及跨好几天或者至少 3 小时的
+  workshop，即 `Event.is_meeting`）保留到往后 `meetings.days_ahead` 天（365 天，在
+  `config/settings.yaml` 里），而不是 `window.days_ahead` 的 120 天；它的报告仍然用平常的窗口。
+  标题里写着会议（symposium、conference、summit、workshop、boot camp、summer school 等）、并且是
+  全天或者至少 3 小时的 seminar、lecture 或 other 类型事件会变成 conference 或 workshop，因而按上面的
+  规则算会议；只有一天的全天 workshop（比如黑客松的某一天）不算。只给提前几个月公布会议的
+  数据源设置它，不要给报告日历设置：这个数据源会用更长的窗口抓取，所以按日期范围查询、翻列表页
+  或者每个事件读一个详情页的 adapter 会发出更多请求，而每个 host 的请求预算和每个数据源 15 分钟的
+  上限都不变。提交之前，对比加和不加这个 key 时 `seminars sources check <id>` 报告的请求数和用时。
 - `ignore_robots` 列出这个数据源自己的 host（来自 `url`、`urls`、`homepage` 或
   `params.extra_hosts`），这个数据源不遵守这些 host 的 robots.txt `Disallow` 规则；见“开始之前”。
   列出别的网站的 host 会报错。
@@ -287,3 +297,121 @@ uv run pytest
 提交 YAML 记录、adapter 模块（如果有）、fixture 和测试。不要提交本地运行改写的 `data/`：
 它归每日更新管。pull request 只运行 CI workflow，那里没有任何凭证；改动合并之后，新数据源就会
 加入每日更新。
+
+## 没有数据源的会议和 workshop
+
+有些会议提前几个月就在没有任何数据源读取的页面上公布：某个学会在 San Francisco 的年会、
+某个中心只发一次的 symposium、网站要靠浏览器渲染的研究所的 workshop。会议登记表（registry）
+人工维护这些会议。它是 `config/sources.d/conferences.yaml` 里的数据源 `conf-registry`，
+adapter 是 `registry`（`src/seminars/sources/custom/registry.py`，它的 docstring 说明每个键）。
+这个 adapter 不发任何请求：每个会议是 `params.meetings` 里的一条记录；数据源的 `url` 是这个文件在
+GitHub 上的页面，状态页链接到它，但没有任何东西抓取它；也没有 fixture 可录。这个数据源设了
+`meeting_horizon: true`，所以它的会议最多提前一年保留（只有一天的 workshop 不算会议，见下面的
+`event_type`）；还设了 `allow_empty: true`，所以会议全部结束的登记表不算坏掉的数据源。
+
+只登记没有任何已启用数据源提供的会议：先在 `data/events.json` 和网站上搜它的标题。一条记录只写
+一届会议的事实，每一项都取自组织方这一届的页面，别的都不写：不写简介、不写联系方式、不写任何人的
+地址，也绝不写按往届推算出来的日期。
+
+```yaml
+- id: iclr-2027
+  title: "ICLR 2027: The Fifteenth International Conference on Learning Representations"
+  series: ICLR
+  host_org: International Conference on Learning Representations (ICLR)
+  start: 2027-04-26
+  end: 2027-04-30
+  region: bay-area
+  location: Moscone Center, San Francisco, CA
+  url: https://iclr.cc/Conferences/2027
+  fields: [ai-ml, cs]
+  event_type: conference
+  status: confirmed
+  verified: {date: 2026-11-18, url: "https://iclr.cc/Conferences/2027"}
+  milestones:
+    - kind: workshop_paper
+      date: 2027-02-01
+      label: Suggested workshop paper deadline
+      url: https://iclr.cc/Conferences/2027/CallForWorkshops
+    - kind: notification
+      date: 2027-02-26
+      time: "23:59"
+      zone: AoE
+      label: Workshop paper notification deadline
+      url: https://iclr.cc/Conferences/2027/CallForWorkshops
+```
+
+- `id` 写成 `<series slug>-<year>`，以这一届开始的年份结尾。它是事件的键（`conf-registry:<id>`），
+  所以永远不改名：改了名的记录是一个新事件，旧事件要到第三次没有它的运行时才离开。事件的 uid 是
+  `conf-registry.<id>`，除非另一个数据源的条目和这条记录合并（见 `url`）：事件保留最先出现的 uid，
+  条目比这条记录先存下时是条目的 uid，两个 uid 在同一次运行里出现时是排在前面的那个。
+- `short_title`（可选）是这一届在 `deadlines.ics` 和摘要里的名字，一行、最多 40 个字符，比如标题很长的
+  workshop 写 `GEM at ICLR 2027`。不写时，名字是 `series` 加上这一届开始的年份（`ICLR 2027`），`series`
+  本身已经含有四位数的年份时则不加年份。会因此同名的几届（比如同一个研究所同一年的几个 workshop）改用各自的
+  `title` 作名字；标题很长时，给这样的一届写一个 `short_title`。有 milestone 的两届如果仍然同名（比如两个相同的
+  `short_title`），`tests/test_custom_registry_deadlines.py` 会失败。
+- `start` 和 `end` 是当地日期，`end` 包含在内。只有 `region: bay-area` 的记录会成为事件；
+  `world` 的记录只带它的 milestone。
+- `event_type` 写 `conference` 或 `workshop`。只有一天（`start` 等于 `end`）的 `workshop` 不算会议
+  （`Event.is_meeting`），就像黑客松的某一天不算一样：运行把它当作类型为 workshop 的报告，等它进入
+  `window.days_ahead` 的 120 天之内才保留；它在 `all.ics` 和它的领域的 feed 里，不在 `conferences.ics`
+  里，在网站和摘要里列在报告当中。只有一天的 `conference` 算会议。不论哪种，它的 milestone 都是
+  `deadlines.ics` 里的截止日期。
+- `url` 是组织方这一届的页面：这一届自己的网站，或者公布它的系列或项目的页面（记录的 notes 会
+  说明）。另一个数据源列出同一个会议时，它的条目只要指向同一个页面、给出具体时间、在这条记录的
+  某一天开始、并且至少 3 小时长，就和这条记录合并成一个事件（`pipeline/dedup.py`），不必覆盖整个会议。开始时间和
+  这条记录相差不超过 15 分钟的条目也会合并（`dedup.max_start_difference_minutes`；这条记录从第一天的
+  午夜开始，那一天的全天条目就是这样）：在同一个页面上，或者标题和这条记录相同（不计大小写、重音
+  和标点）时在任何页面上。否则这个会议会出现两次：指向别的页面（Localist 日历链接到它自己的事件
+  页面）、标题或开始时间又不同的条目，不到 3 小时的条目，较晚某一天的全天条目。`url` 是网站首页
+  （`https://2027.naacl.org/`）时，首页不算详情页，只有第一天、标题和这条记录相同的全天条目会和它合并。
+- `fields` 是这个会议肯定属于的领域。领域标注器保留它们，并可能加上标题提到的领域。
+- `location` 写页面给出的场地和城市。页面还没写时填 `To be announced`，事件会显示为没有地点。
+- `status: tentative` 表示只是预告了日期（save the date），还没有场地和日程。
+- `verified` 写明事实最后一次是在哪个页面、哪一天核对的。每学期开始时把每条记录重新核对一遍：核对
+  组织方页面上的事实，并查看现在是否已有数据源列出这个会议（在 `data/events.json` 里搜它的标题）。
+  一旦有数据源列出这个会议，就删掉这条记录。一届会议在 120 天内开始、但上次核对已超过 90 天，或者
+  前面没有任何湾区会议时，`tests/test_custom_registry.py` 会失败，并列出需要查看的记录。
+- `milestones` 是读者需要据此行动的日期，不晚于这一届的最后一天：截止日期、开放日期、通知日期，带上
+  页面给出的时间和时区（`AoE`、`PT`、`MT`、`ET`、`UTC` 或 IANA 时区名）。只有时区没有时间时，时区
+  说的是那一天，比如 1 月 22 日 `AoE` 截止。label 用我们自己的几个词。事件的描述按日期列出这些
+  milestone；过去的 milestone 等运行窗口（向前 14 天）越过它之后才会从描述里去掉。每个 milestone
+  也是 `deadlines.ics` 里的一个截止日期（见下文）。它的 `url`（可选）是写明它的页面，在这个页面不是
+  `verified` 的页面时填写。
+- YAML 把不加引号的 `on`、`off`、`yes`、`no` 读成布尔值，把不加引号的 `23:59` 读成数字：所以核对日期的键叫
+  `date`，qualifier 写 `exact` 或 `by`，时间要加引号。
+
+已启用的登记表数据源里的每个 milestone，不论记录是 `bay-area` 还是 `world`，都是 feed `deadlines.ics`
+和摘要里的一个截止日期（`seminars.pipeline.deadlines`）。每次运行都从配置里读取它们，所以改动会出现在
+下一次运行里，不管那次运行抓取哪些数据源。整理它们的规则：
+
+- 每个 milestone 都取自这一届组织方的某个页面，带上页面写明的时间和时区，别的都不写：页面没写的日期
+  不录，按往届推算出来的日期也不录。这个页面就是 `verified` 写的那个页面，除非 milestone 在 `url` 里
+  写了它自己的页面（征稿通知、摘要页面、合办方的页面）。feed 和摘要都链接这个页面，并提醒读者先查看它。
+  每学期开始时在各自的页面上和其他事实一起核对 milestone。
+- 不录机器学习和计算机科学会议主会（NeurIPS、ICML、ICLR、ACL、KDD 等）的投稿截止日期：README 把这些留给
+  ccfddl 的日历。这类会议的 workshop 如果有自己的页面和截止日期，可以登记（`event_type: workshop`），会议
+  本身的 workshop 截止日期也可以录（`workshop_paper`）。一届不是 workshop、`series` 或 `id` 里有这类会议
+  名字的会议，如果有 `paper` 或 `abstract` 类型的 milestone，`tests/test_custom_registry_deadlines.py` 会失败。
+- `world` 的记录只为它的 milestone 而存在，永远不会成为事件：只有当湾区以外的会议有这里的读者需要
+  据此行动的截止日期时，才登记它。
+- 截止日期的 uid 是 `dl.<id>.<kind>`；一届会议里同一类型的第 n 个 milestone 后面加 `-<n>`
+  （`-2`、`-3`），按日期计数。同一类型较晚的一轮要加在较早的几轮后面；只要还列着较晚的一轮，较早的就
+  留在记录里：在同类型的另一个 milestone 之前插入或删除一个 milestone，会让它后面每一个的 uid 都变，
+  日历里看到的就是删掉了一个截止日期、又新增了一个。
+- feed 显示的事实（日期、时间、时区、qualifier、label，这一届的名字、标题、日期、地点或页面，核对的日期，
+  milestone 的 `url`，没有 `url` 时核对的页面）有改动，订阅的日历里的截止日期就会更新：它的 `SEQUENCE` 加一。只改
+  `series`（有 `short_title` 时）、`region` 或 `fields`，改动会存下来，但哪里都不显示。删掉的 milestone
+  在下一次运行时离开 `deadlines.ics`，过去的 milestone 在它的日期之后 14 天离开。
+
+结束了的会议会自己离开登记表的列表，所以删掉它的记录不会改变什么。还没开始的会议的记录删掉后，在第三次
+没有它的运行时从 feed 里移除，和数据源不再列出的报告一样；已经开始的一届会议会一直保留到结束。有两种情况
+会让删掉的记录保留得更久：
+
+- 登记表一个会议都没列出的运行对它的事件不下任何结论，所以这时删掉的记录会保留到会议结束。
+- 每个数据源的每次运行都会和它列表的通常大小比较（`seminars.pipeline.collect`）。一次删掉一半以上、
+  并且至少五条列出的记录，看起来就像列表丢了一部分：删掉的事件会保留，第三次这样的运行会开一个
+  `source-broken` issue，两者一直持续到第 29 次运行把变小的列表当作通常大小并关闭 issue；删掉的事件在
+  第 31 次运行时离开。一次最多删掉列出的记录的一半，或者少于五条，并且隔六次运行再删下一批。
+
+数据源和登记的会议的地址都不能在掠夺性或低质量的会议聚合网站上（waset.org、wikicfp.com、10times.com
+之类；`tests/test_source_denylist.py` 检查这一点）。

@@ -13,9 +13,12 @@ point of view of the contracts)::
     persist   compare with the stored events            seminars.pipeline.diff
               (a source counts as healthy only when it was read in full and
               delivered an event in the window; ``healthy_sources``)
+    deadlines the milestones of the registry against    seminars.pipeline.deadlines
+              the stored deadlines
     health    update_health (history and issues), and   HealthFile.with_llm_run
               what the LLM of the run used (for the digest)
-    write     data files, then ICS feeds and site data  seminars.pipeline.store
+    write     data files, then ICS feeds (the feed of   seminars.pipeline.store
+              the deadlines included) and site data
     check     secret scan and charset rule              seminars.pipeline.checks
 
 What a run guarantees:
@@ -72,6 +75,7 @@ from seminars.config import AppConfig, ProjectPaths
 from seminars.contracts import IssueClient, LLMCache, PicksScorer, SecretScanner
 from seminars.models import (
     Candidate,
+    Deadline,
     Event,
     ExcludedEvent,
     HealthFile,
@@ -91,6 +95,7 @@ from seminars.pipeline.checks import (
     sync_check_issue,
 )
 from seminars.pipeline.collect import Timer, collect_sources, compare_with_history
+from seminars.pipeline.deadlines import configured_deadlines, reconcile_deadlines
 from seminars.pipeline.dedup import adopt_stored_uids, dedupe, separate_listings
 from seminars.pipeline.diff import Reconciled, reconcile
 from seminars.pipeline.ids import canonical_url
@@ -443,12 +448,15 @@ def _write_outputs(
     services: Services,
     target: ProjectPaths,
     events: Sequence[Event],
+    deadlines: Sequence[Deadline],
     health: HealthFile,
     report: RunReport,
 ) -> list[str]:
     """Write the ICS feeds and the site data; a failure becomes a warning, not a crash."""
     try:
-        services.write_ics_feeds(events, target.public_feeds_dir, config=config)
+        services.write_ics_feeds(
+            events, target.public_feeds_dir, config=config, deadlines=deadlines
+        )
         services.write_site_data(
             events,
             health,
@@ -479,6 +487,7 @@ def _publish(
     reconciled: Reconciled,
     processed: _Processed,
     state: State,
+    deadlines: Sequence[Deadline],
     health: HealthFile,
     report: RunReport,
     *,
@@ -498,6 +507,7 @@ def _publish(
         uid_map=uid_map,
         health=health,
         archived=reconciled.archived,
+        deadlines=deadlines,
     )
     files = _retarget(planned, config.paths.root, target.root)
     before = check_texts(files, services.secret_scanner, root=target.root)
@@ -507,7 +517,9 @@ def _publish(
         )
     write_files(files)
     warnings = _prune(services.llm_cache)
-    problems = _write_outputs(config, services, target, reconciled.events, health, report)
+    problems = _write_outputs(
+        config, services, target, reconciled.events, deadlines, health, report
+    )
     checks = before.plus(check_tree(target, services.secret_scanner))
     return _Published(checks, tuple(problems), tuple(warnings))
 
@@ -528,6 +540,7 @@ def _first_report(
     now: datetime,
     finished_at: datetime,
     fresh: bool,
+    deadline_warnings: Sequence[str] = (),
 ) -> RunReport:
     """The report of a run before its outputs are written (what health is updated with)."""
     usage, llm_warnings = _llm_usage(services)
@@ -548,6 +561,7 @@ def _first_report(
             *partial_reads(gathered.results),
             *resized_listings(gathered.results),
             *processed.warnings,
+            *deadline_warnings,
             *llm_warnings,
         ],
     )
@@ -651,6 +665,9 @@ def run_pipeline(
         excluded_uids=processed.excluded_uids,
         absorbed=processed.absorbed,
     )
+    configured = configured_deadlines(config.sources, now=now)
+    since = config.settings.window_at(now).start.date()  # local midnight of the first day
+    deadlines = reconcile_deadlines(state.deadlines, configured, now=now, since=since)
     issues: IssueClient | None = None if options.dry_run else services.issues
     report = _first_report(
         services,
@@ -661,11 +678,21 @@ def run_pipeline(
         now=now,
         finished_at=elapsed(),
         fresh=fresh,
+        deadline_warnings=configured.warnings,
     )
     health = services.update_health(state.health, report, issues, config=config)
     health = health.with_llm_run(report.started_at, report.llm)
     published = _publish(
-        config, services, destination, reconciled, processed, state, health, report, fresh=fresh
+        config,
+        services,
+        destination,
+        reconciled,
+        processed,
+        state,
+        deadlines,
+        health,
+        report,
+        fresh=fresh,
     )
     final = _store_report(
         _final_report(report, published, elapsed()), destination, services.secret_scanner

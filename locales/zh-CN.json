@@ -11,39 +11,63 @@
   "feeds": {
     "all": {
       "name": "学术报告 - 全部",
-      "description": "从 Stanford、SLAC、CZ Biohub 及周边研究机构收集到的全部学术报告。"
+      "description": "从 Stanford、SLAC、CZ Biohub 及周边研究机构收集到的全部学术报告、会议和研讨会。"
     },
     "picks": {
       "name": "学术报告 - 精选",
-      "description": "符合个人兴趣规则的报告。"
+      "description": "符合个人兴趣规则的报告、会议和研讨会。"
     },
     "math": {
       "name": "学术报告 - 数学",
-      "description": "纯数学、应用数学和统计方向的报告。"
+      "description": "纯数学、应用数学和统计方向的报告、会议和研讨会。"
     },
     "cs": {
       "name": "学术报告 - 计算机科学",
-      "description": "计算机科学方向的报告。"
+      "description": "计算机科学方向的报告、会议和研讨会。"
     },
     "ai-ml": {
       "name": "学术报告 - AI/机器学习",
-      "description": "人工智能和机器学习方向的报告。"
+      "description": "人工智能和机器学习方向的报告、会议和研讨会。"
     },
     "chem": {
       "name": "学术报告 - 化学",
-      "description": "化学和化学工程方向的报告。"
+      "description": "化学和化学工程方向的报告、会议和研讨会。"
     },
     "bio": {
       "name": "学术报告 - 生物",
-      "description": "生物、生物工程、结构生物学和遗传学方向的报告。"
+      "description": "生物、生物工程、结构生物学和遗传学方向的报告、会议和研讨会。"
     },
     "physics": {
       "name": "学术报告 - 物理",
-      "description": "物理和应用物理方向的报告。"
+      "description": "物理和应用物理方向的报告、会议和研讨会。"
     },
     "med": {
       "name": "学术报告 - 医学",
-      "description": "医学和生物医学研究方向的报告。"
+      "description": "医学和生物医学研究方向的报告、会议和研讨会。"
+    },
+    "conferences": {
+      "name": "学术报告 - 会议和研讨会",
+      "description": "学术会议和专题研讨会、持续两天或以上的全天研讨会（workshop），以及有具体时间、至少三小时的研讨会。"
+    }
+  },
+  "deadlines": {
+    "feed": {
+      "name": "学术报告 - 截止日期",
+      "description": "学术会议和研讨会的截止日期、开放日期和通知日期，按组织方的页面手工维护。不含机器学习和计算机科学会议主会的投稿截止日期。"
+    },
+    "when": {
+      "by": "不晚于 {when}",
+      "by_day": "不晚于当天"
+    },
+    "event": {
+      "day": "{day}，{location}",
+      "days": "{start} 至 {end}，{location}",
+      "check": "依赖这个日期之前，请先查看组织方的页面：{url}",
+      "verified": "核实于 {date}"
+    },
+    "ccfddl": {
+      "name": "ccfddl",
+      "url": "https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics"
     }
   },
   "digest": {
@@ -53,6 +77,8 @@
     "summary": "本周共 {events} 场报告，其中精选 {picks} 场。",
     "sections": {
       "picks": "精选",
+      "meetings": "会议和研讨会",
+      "deadlines": "未来 {days} 天内的截止日期",
       "new": "上一期以来新增",
       "health": "数据源健康状况"
     },
@@ -64,7 +90,9 @@
       "location": "地点",
       "link": "链接",
       "field": "领域",
-      "reasons": "入选理由"
+      "reasons": "入选理由",
+      "note": "备注",
+      "deadline": "截止事项"
     },
     "labels": {
       "all_day": "全天",
@@ -73,7 +101,12 @@
       "tentative": "待定",
       "tba": "待公布",
       "details": "详情",
-      "more": "另有 {count} 场"
+      "more": "另有 {count} 场",
+      "more_deadlines": "另有 {count} 个截止日期",
+      "new": "新增",
+      "pick": "精选",
+      "organizer": "组织方页面",
+      "deadlines_note": "按组织方的页面手工维护；依赖某个日期之前，请先查看页面。时间和时区照页面原样给出。"
     },
     "reasons": {
       "keyword": "{place}含\"{term}\"（{points}）",
@@ -89,6 +122,7 @@
     "empty": {
       "picks": "本周没有精选报告。",
       "field": "本周没有报告。",
+      "meetings": "{end} 之前没有会议或研讨会。",
       "new": "上一期以来没有新增。",
       "first_issue": "第一期：全部都是新增。"
     },
@@ -120,15 +154,15 @@
   "site": {
     "app": {
       "name": "斯坦福周边学术报告",
-      "tagline": "每天从公开网页收集的 Stanford、SLAC、CZ Biohub 及周边研究机构的学术报告。"
+      "tagline": "每天从公开网页收集的 Stanford、SLAC、CZ Biohub 及周边研究机构的学术报告、会议和研讨会。"
     },
     "page": {
-      "index_title": "学术报告 - 近期报告",
+      "index_title": "学术报告 - 近期活动",
       "status_title": "学术报告 - 数据源状态"
     },
     "nav": {
       "label": "页面",
-      "talks": "报告",
+      "talks": "活动",
       "status": "数据源状态"
     },
     "lang": {
@@ -141,13 +175,19 @@
       "loading": "正在加载..."
     },
     "filters": {
-      "label": "筛选报告",
+      "label": "筛选活动",
       "search_label": "搜索",
-      "search_placeholder": "标题、报告人、单位、系列或摘要",
+      "search_placeholder": "标题、报告人、单位、系列、地点或摘要",
       "fields": "领域",
       "institutions": "机构",
       "host": "主办方",
       "host_all": "全部主办方",
+      "kind": "类型",
+      "kind_options": {
+        "all": "全部活动",
+        "talks": "报告",
+        "meetings": "会议和研讨会"
+      },
       "range": "时间",
       "range_options": {
         "today": "今天",
@@ -159,11 +199,12 @@
       "clear": "清除筛选"
     },
     "results": {
-      "heading": "近期报告",
-      "count_one": "{count} 场即将举行的报告",
-      "count_other": "{count} 场即将举行的报告",
-      "empty": "没有符合筛选条件的报告。",
-      "load_error": "无法加载报告列表，请稍后再试。"
+      "heading": "近期活动",
+      "count_one": "{count} 项即将举行的活动",
+      "count_other": "{count} 项即将举行的活动",
+      "ongoing": "正在进行",
+      "empty": "没有符合筛选条件的活动。",
+      "load_error": "无法加载活动列表，请稍后再试。"
     },
     "select": {
       "label": "已选报告",
@@ -235,8 +276,10 @@
     },
     "subscribe": {
       "title": "订阅日历",
-      "intro": "每个日历都是一个 ICS 订阅源，每隔几小时自动刷新。订阅一次，之后新的报告会自动出现。属于几个领域的报告会出现在这几个领域的日历里，所以你订阅了几个这样的日历，它就会显示几次。",
+      "intro": "每个日历都是一个 ICS 订阅源，每隔几小时自动刷新。订阅一次，之后新的报告会自动出现。属于几个领域的报告会出现在这几个领域的日历里，会议和研讨会还会出现在会议和研讨会的日历里，所以你订阅了几个这样的日历，它就会显示几次。",
       "feeds": "日历",
+      "deadlines": "截止日期",
+      "deadlines_note": "按组织方的页面手工维护；依赖某个日期之前，请先查看该页面。不收集机器学习和计算机科学会议主会的投稿截止日期；{ccfddl} 把 AI 类会议的截止日期发布成了日历。",
       "calendar_link": "日历应用链接",
       "web_link": "网页链接",
       "copy": "复制",
@@ -261,8 +304,8 @@
       "last_run_ok": "上次运行成功。",
       "last_run_failed": "上次运行失败。",
       "no_run": "还没有完成过运行。",
-      "events_one": "网站上共有 {count} 场报告",
-      "events_other": "网站上共有 {count} 场报告",
+      "events_one": "网站上共有 {count} 项活动",
+      "events_other": "网站上共有 {count} 项活动",
       "summary": "{total} 个启用的数据源中有 {ok} 个运行正常。",
       "llm": "领域标签使用了 LLM 提供方 {provider}。",
       "llm_none": "领域标签只使用了规则。",
@@ -289,7 +332,8 @@
         "stanford-sites": "斯坦福院系网站",
         "stanford-custom": "斯坦福实验室与中心网页",
         "bayarea": "湾区研究机构",
-        "researchseminars": "researchseminars.org"
+        "researchseminars": "researchseminars.org",
+        "conferences": "人工整理的会议"
       },
       "states": {
         "ok": "正常",

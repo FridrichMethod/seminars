@@ -27,6 +27,7 @@ from fakes_outputs import FakeEmitters
 from seminars.config import AppConfig, ProjectPaths
 from seminars.http import HttpStatusError
 from seminars.models import (
+    Deadline,
     Event,
     EventDraft,
     ExclusionReason,
@@ -268,14 +269,28 @@ class LeakyFeeds:
         self._emitters = emitters
         self._text = text
 
-    def __call__(self, events: Sequence[Event], out_dir: Path, *, config: AppConfig) -> list[Path]:
-        paths = self._emitters.write_ics_feeds(events, out_dir, config=config)
+    def __call__(
+        self,
+        events: Sequence[Event],
+        out_dir: Path,
+        *,
+        config: AppConfig,
+        deadlines: Sequence[Deadline] = (),
+    ) -> list[Path]:
+        paths = self._emitters.write_ics_feeds(events, out_dir, config=config, deadlines=deadlines)
         paths[0].write_text(f"X-LEAK:{self._text}\n", encoding="utf-8")
         return paths
 
 
 class BrokenFeeds:
-    def __call__(self, events: Sequence[Event], out_dir: Path, *, config: AppConfig) -> list[Path]:
+    def __call__(
+        self,
+        events: Sequence[Event],
+        out_dir: Path,
+        *,
+        config: AppConfig,
+        deadlines: Sequence[Deadline] = (),
+    ) -> list[Path]:
         raise RuntimeError("disk full")
 
 

@@ -116,6 +116,7 @@ def test_sample_covers_the_required_cases(events_payload: PublicEventsPayload) -
     assert all_day.all_day
     assert all_day.end is not None
     assert (all_day.end - all_day.start).days == 1
+    assert [event.uid for event in events_payload.events if event.meeting] == ["sample-all-day"]
 
     assert by_uid["sample-cancelled"].status == "cancelled"
     assert by_uid["sample-tentative-physics"].status == "tentative"

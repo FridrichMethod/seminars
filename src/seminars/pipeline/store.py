@@ -31,9 +31,12 @@ the next run builds on them as on any other stored state.
 
 Files (``seminars.config.ProjectPaths``):
 
-* data/events.json: every event of the current window, one per line;
+* data/events.json: every event of the current window, and the meetings
+  ahead of it of the sources with ``meeting_horizon``, one per line;
 * data/uid_map.json: every source key ever seen with its uid;
 * data/health.json: the run history per source and per LLM provider;
+* data/deadlines.json: the deadlines of the registry of meetings, one per
+  line (``seminars.pipeline.deadlines``); a missing file is no deadline;
 * data/archive/<year>.jsonl: events that left the window, by the year of
   their start; a file only ever grows;
 * data/last_run.json and data/run_report.json: the record of the run.
@@ -52,14 +55,17 @@ from pydantic import BaseModel, ValidationError
 
 from seminars.config import ProjectPaths
 from seminars.models import (
+    Deadline,
     Event,
     HealthFile,
     LastRun,
     RunReport,
     UidMap,
+    dump_deadlines,
     dump_event_lines,
     dump_events,
     dump_json,
+    load_deadlines,
     load_event_lines,
     load_events,
     load_json,
@@ -79,6 +85,7 @@ class State:
     uid_map: UidMap = field(default_factory=UidMap)
     health: HealthFile = field(default_factory=HealthFile)
     last_run: LastRun | None = None
+    deadlines: tuple[Deadline, ...] = ()
 
 
 def _problem(path: Path, error: Exception) -> StoreError:
@@ -109,6 +116,16 @@ def read_events_file(path: Path) -> tuple[Event, ...]:
         raise _problem(path, error) from error
 
 
+def read_deadlines_file(path: Path) -> tuple[Deadline, ...]:
+    """The deadlines of data/deadlines.json; none when the file does not exist."""
+    if not path.exists():
+        return ()
+    try:
+        return tuple(load_deadlines(read_text(path)))
+    except (OSError, ValueError) as error:
+        raise _problem(path, error) from error
+
+
 def finished_health(health: HealthFile, last_run: LastRun | None) -> HealthFile:
     """``health`` without the entries of runs that did not finish (see the module docstring).
 
@@ -130,6 +147,7 @@ def load_state(paths: ProjectPaths) -> State:
         uid_map=_read_model(paths.uid_map_file, UidMap) or UidMap(),
         health=finished_health(health, last_run),
         last_run=last_run,
+        deadlines=read_deadlines_file(paths.deadlines_file),
     )
 
 
@@ -160,13 +178,20 @@ def data_files(
     events: Sequence[Event],
     uid_map: UidMap,
     health: HealthFile,
+    deadlines: Sequence[Deadline],
     archived: Sequence[Event] = (),
 ) -> dict[Path, str]:
-    """The text of every data file of a run except the two records of the run itself."""
+    """The text of every data file of a run except the two records of the run itself.
+
+    ``deadlines`` has no default: data/deadlines.json is written from it, and
+    a call that left it out would empty the stored deadlines, so that the
+    next run counted every one of them as new.
+    """
     return {
         paths.events_file: dump_events(events),
         paths.uid_map_file: dump_json(uid_map),
         paths.health_file: dump_json(health),
+        paths.deadlines_file: dump_deadlines(deadlines),
         **archive_files(paths, archived),
     }
 
@@ -228,12 +253,13 @@ def write_files(files: Mapping[Path, str]) -> None:
 
 
 def state_files(paths: ProjectPaths) -> tuple[Path, ...]:
-    """The files of the stored state that exist: events, uid map, health and the archive.
+    """The files of the stored state that exist: events, uid map, health, deadlines, archive.
 
     The two records of the run and the LLM cache are not part of it.
     """
     archive = sorted(paths.archive_dir.glob("*.jsonl")) if paths.archive_dir.is_dir() else []
-    found = [paths.events_file, paths.uid_map_file, paths.health_file, *archive]
+    found = [paths.events_file, paths.uid_map_file, paths.health_file, paths.deadlines_file]
+    found += archive
     return tuple(path for path in found if path.is_file())
 
 

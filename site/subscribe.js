@@ -1,11 +1,15 @@
 // The subscription panel: every calendar feed with a calendar app (webcal) link and a
 // web (http or https) link, each with a copy button, and the Apple Calendar steps.
+// Below the event feeds of the payload comes the feed of the deadlines, which the
+// backend writes next to them on every run and every build of the site
+// (seminars.outputs.ics); it is no feed id, so the payload does not list it.
 
-import { h, replaceChildren, siteUrl } from "./dom.js";
-import { children, t } from "./i18n.js";
+import { h, link, replaceChildren, siteUrl } from "./dom.js";
+import { children, parts, t } from "./i18n.js";
 
 const FEED_PATH = /^feeds\/[a-z0-9]+(?:-[a-z0-9]+)*\.ics$/;
 const NOTE_MS = 4000;
+const DEADLINES_FEED = Object.freeze({ id: "deadlines", path: "feeds/deadlines.ics" });
 
 /** The two addresses of the feed at ``path``: calendar app (webcal) and web. */
 export function feedAddresses(path) {
@@ -55,26 +59,54 @@ function addressRow(kindKey, address, feedName) {
   return h("div", { class: "feed-row" }, h("span", { class: "feed-kind" }, kind), anchor, button, note);
 }
 
-function feedItem(feed) {
-  const name = t("feeds." + feed.id + ".name");
+function feedItem(feed, { name, description, notes = [] }) {
   const addresses = feedAddresses(feed.path);
   return h(
     "li",
     { class: "feed", "data-feed": feed.id },
     h("p", { class: "feed-name" }, name),
-    h("p", { class: "feed-description" }, t("feeds." + feed.id + ".description")),
+    h("p", { class: "feed-description" }, description),
+    notes.map((note) => h("p", { class: "feed-description feed-note" }, note)),
     addressRow("site.subscribe.calendar_link", addresses.calendar, name),
     addressRow("site.subscribe.web_link", addresses.web, name),
   );
 }
 
-/** Fill the Apple Calendar steps into ``steps`` and the feeds into ``list``. */
-export function renderSubscribe(feeds, { steps, list }) {
+function eventFeedItem(feed) {
+  return feedItem(feed, {
+    name: t("feeds." + feed.id + ".name"),
+    description: t("feeds." + feed.id + ".description"),
+  });
+}
+
+/**
+ * The feed of the deadlines, with the sentence that it is kept by hand and that the
+ * submission deadlines of the main tracks of machine-learning and computer-science
+ * conferences are not collected, and the link to ccfddl's calendar of the AI ones. The
+ * address of that calendar is a message of the locale files, since no file of the site
+ * holds an address of another host, and becomes a link only when it is an http(s)
+ * address (link()).
+ */
+function deadlineFeedItem() {
+  const ccfddl = link(t("deadlines.ccfddl.url"), {}, t("deadlines.ccfddl.name"));
+  return feedItem(DEADLINES_FEED, {
+    name: t("deadlines.feed.name"),
+    description: t("deadlines.feed.description"),
+    notes: [parts("site.subscribe.deadlines_note", { ccfddl })],
+  });
+}
+
+/**
+ * Fill the Apple Calendar steps into ``steps``, the event feeds into ``list`` and the
+ * feed of the deadlines into ``deadlines``.
+ */
+export function renderSubscribe(feeds, { steps, list, deadlines }) {
   replaceChildren(
     steps,
     children("site.subscribe.apple.steps.").map((step) =>
       h("li", {}, t("site.subscribe.apple.steps." + step)),
     ),
   );
-  replaceChildren(list, knownFeeds(feeds).map(feedItem));
+  replaceChildren(list, knownFeeds(feeds).map(eventFeedItem));
+  replaceChildren(deadlines, deadlineFeedItem());
 }

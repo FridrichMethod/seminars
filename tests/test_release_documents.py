@@ -26,7 +26,7 @@ import yaml
 
 from seminars.config import load_config
 from seminars.contracts import llm_cache_refresh_days
-from seminars.models import FEED_IDS, ExtractionMethod
+from seminars.models import FEED_IDS, MEETING_MIN_TIMED_HOURS, ExtractionMethod
 from seminars.models.health import HEALTH_HISTORY_LIMIT
 from seminars.pipeline.collect import MAX_FETCH_WORKERS, SOURCE_FETCH_LIMIT_SECONDS
 from seminars.pipeline.ids import MAX_MOVE
@@ -180,6 +180,8 @@ class TestTrueToTheProject:
         english = [
             f"the window of {settings.window.days_back} days back and "
             f"{settings.window.days_ahead} ahead",
+            f"`meeting_horizon` up to {settings.meetings.days_ahead} days ahead",
+            f"of at least {MEETING_MIN_TIMED_HOURS} hours (`pipeline/meetings.py`)",
             f"at most {MAX_FETCH_WORKERS} at a time",
             f"may take {minutes} minutes in all",
             f"at most {settings.http.max_requests_per_host} requests per run",
@@ -197,6 +199,9 @@ class TestTrueToTheProject:
         chinese = [
             f"\u5f80\u524d {settings.window.days_back} \u5929\u5f80\u540e "
             f"{settings.window.days_ahead} \u5929",
+            f"\u5f80\u540e\u6700\u591a {settings.meetings.days_ahead} \u5929",
+            f"\u81f3\u5c11 {MEETING_MIN_TIMED_HOURS} \u5c0f\u65f6\u7684 workshop "
+            "\uff08`pipeline/meetings.py`\uff09",
             f"\u540c\u65f6\u6700\u591a {MAX_FETCH_WORKERS} \u4e2a",
             f"\u6700\u591a\u7528 {minutes} \u5206\u949f",
             f"\u6700\u591a {settings.http.max_requests_per_host} \u4e2a\u8bf7\u6c42",
@@ -229,7 +234,10 @@ NUMBER_WORDS: Final = {
 def test_the_readme_quotes_the_numbers_of_the_configuration(path: str) -> None:
     settings, llm, health = CONFIG.settings, CONFIG.llm, CONFIG.settings.health
     days_back, days_ahead = settings.window.days_back, settings.window.days_ahead
+    meetings_ahead = settings.meetings.days_ahead
     calls, move = llm.max_calls_per_run, MAX_MOVE.days
+    configured = len(CONFIG.sources)
+    enabled = sum(source.enabled for source in CONFIG.sources)
     failures = NUMBER_WORDS[path][health.source_failure_threshold]
     # A source is broken after that many failed or empty runs, or a mix of both.
     bad_runs = NUMBER_WORDS[path][
@@ -241,8 +249,11 @@ def test_the_readme_quotes_the_numbers_of_the_configuration(path: str) -> None:
             f"and {failures} in a row open a `source-broken` issue",
             f"those of the last {days_back} days and of the next {days_ahead}.",
             f"After {bad_runs} bad runs in a row an issue with the label `source-broken`",
-            f"keeps a talk until {days_back} days after it took place",
+            f"keeps a talk until {days_back} days after it ended",
             f"moves by more than {move} days",
+            f"keeps its conferences and workshops up to {meetings_ahead} days ahead; every "
+            f"talk, and the meetings of the other sources, up to {days_ahead} days ahead.",
+            f"{enabled} of the {configured} configured sources are enabled.",
         ],
         "README.zh-CN.md": [
             f"\u4e00\u6b21\u8fd0\u884c\u6700\u591a\u7ed9 LLM \u53d1 {calls} \u4e2a\u8bf7\u6c42",
@@ -253,6 +264,11 @@ def test_the_readme_quotes_the_numbers_of_the_configuration(path: str) -> None:
             f"\u62a5\u544a\u7ed3\u675f {days_back} \u5929\u540e\uff0cfeed "
             "\u4f1a\u628a\u5b83\u5220\u6389",
             f"\u65f6\u95f4\u79fb\u52a8\u8d85\u8fc7 {move} \u5929",
+            f"\u4f1a\u4fdd\u7559\u672a\u6765 {meetings_ahead} \u5929\u5185\u7684"
+            "\u4f1a\u8bae\u548c\u7814\u8ba8\u4f1a",
+            f"\u53ea\u4fdd\u7559\u672a\u6765 {days_ahead} \u5929\u5185\u7684",
+            f"\u914d\u7f6e\u7684 {configured} \u4e2a\u6570\u636e\u6e90\u91cc"
+            f"\u542f\u7528\u4e86 {enabled} \u4e2a",
         ],
     }
     document = prose(path)

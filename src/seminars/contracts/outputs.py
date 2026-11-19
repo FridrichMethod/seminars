@@ -9,6 +9,7 @@ from typing import Final, Protocol, runtime_checkable
 
 from seminars.config import AppConfig
 from seminars.models import (
+    Deadline,
     DigestDocument,
     DigestOutcome,
     Event,
@@ -24,11 +25,20 @@ from seminars.models import (
 class IcsFeedWriter(Protocol):
     """``seminars.outputs.ics:write_ics_feeds``."""
 
-    def __call__(self, events: Sequence[Event], out_dir: Path, *, config: AppConfig) -> list[Path]:
-        """Write ``<out_dir>/<feed id>.ics`` for all nine FEED_IDS; return the paths.
+    def __call__(
+        self,
+        events: Sequence[Event],
+        out_dir: Path,
+        *,
+        config: AppConfig,
+        deadlines: Sequence[Deadline] = (),
+    ) -> list[Path]:
+        """Write ``<out_dir>/<feed id>.ics`` for all ten FEED_IDS; return the paths.
 
-        Output is a pure function of the arguments: the same events give the
-        same bytes.
+        Then ``<out_dir>/deadlines.ics`` (``DEADLINES_FEED``, not a feed id)
+        with ``deadlines``, whose path comes last. Output is a pure function
+        of the arguments: the same events give the same bytes, and the feed
+        of the deadlines depends on the deadlines alone.
 
         Golden files of this writer. A feed has CRLF line endings (RFC 5545)
         and can contain non-ASCII text, and a file below tests/golden/ can
@@ -50,8 +60,12 @@ class IcsFeedWriter(Protocol):
 class IcsValidator(Protocol):
     """``seminars.outputs.ics:validate_ics`` (backs ``seminars validate``)."""
 
-    def __call__(self, text: str) -> list[str]:
-        """Problems found in one ICS document; an empty list means valid."""
+    def __call__(self, text: str, *, deadlines: bool = False) -> list[str]:
+        """Problems found in one ICS document; an empty list means valid.
+
+        With ``deadlines`` the document is the feed of the deadlines and has
+        to follow its rules as well.
+        """
         ...
 
 
@@ -85,12 +99,15 @@ class DigestRenderer(Protocol):
         week_start: date,
         previous_issue_at: datetime | None,
         owner: str | None = None,
+        deadlines: Sequence[Deadline] = (),
     ) -> DigestDocument:
         """Render the digest for the week starting on ``week_start`` (a Monday).
 
         Events first seen after ``previous_issue_at`` form the "new" section;
         ``None`` means this is the first issue. ``owner`` (a GitHub login) is
-        mentioned in the body so that GitHub sends a notification.
+        mentioned in the body so that GitHub sends a notification. The
+        ``deadlines`` (data/deadlines.json) of the next days have a section of
+        their own.
         """
         ...
 
@@ -108,6 +125,7 @@ class DigestPublisher(Protocol):
         now: datetime,
         owner: str | None = None,
         dry_run: bool = False,
+        deadlines: Sequence[Deadline] = (),
     ) -> DigestOutcome:
         """Open this week's digest issue and close the previous one.
 
@@ -115,9 +133,9 @@ class DigestPublisher(Protocol):
         configured time zone; its Monday is the ``week_start`` of the renderer.
         Idempotent per week: if an issue with this week's title exists,
         nothing is changed. The creation time of the previous digest issue
-        becomes ``previous_issue_at`` of the renderer and ``owner`` is passed
-        on to it. With ``dry_run`` (or without an issue client) nothing is
-        written.
+        becomes ``previous_issue_at`` of the renderer, and ``owner`` and
+        ``deadlines`` are passed on to it. With ``dry_run`` (or without an
+        issue client) nothing is written.
         """
         ...
 

@@ -31,6 +31,8 @@ keywords:
   protein design: 1.0
   protein engineering: 1.0
   enzyme design: 1.0
+  enzyme engineering: 1.0
+  biomolecular design: 1.0
   # "de novo" alone is common in genomics ("de novo mutations"), so it only
   # helps; "de novo design", "de novo designed" and the like count in full.
   de novo: 0.5
@@ -94,6 +96,23 @@ series_allowlist:
   - NLP seminar
   - MLSys seminar
   - SLAC Colloquium
+  # Meetings in the fields above, matched in the title of an edition ("Protein
+  # Society 41st Annual Symposium", "ICLR 2027", "RECOMB-Seq 2027"). The GEM
+  # workshop is listed by its full name: "GEM" alone is a common word. A talk
+  # titled "... for enzyme engineering" gets the bonus of "Enzyme Engineering"
+  # together with the keyword of the same words.
+  - Protein Society
+  - RosettaCon
+  - Rosetta Commons
+  - RosettaCommons
+  - BayLearn
+  - MLSB
+  - MLBio
+  - RECOMB
+  - ISMB
+  - ICLR
+  - Enzyme Engineering
+  - Generative and Experimental Perspectives
 
 speaker_bonus: 3.0
 

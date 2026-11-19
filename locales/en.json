@@ -11,39 +11,63 @@
   "feeds": {
     "all": {
       "name": "Seminars - All",
-      "description": "Every academic talk collected from Stanford, SLAC, CZ Biohub and nearby institutes."
+      "description": "Every academic talk, conference and workshop collected from Stanford, SLAC, CZ Biohub and nearby institutes."
     },
     "picks": {
       "name": "Seminars - Picks",
-      "description": "Talks that match the personal interest rules."
+      "description": "Talks, conferences and workshops that match the personal interest rules."
     },
     "math": {
       "name": "Seminars - Math",
-      "description": "Talks in pure mathematics, applied mathematics and statistics."
+      "description": "Talks, conferences and workshops in pure mathematics, applied mathematics and statistics."
     },
     "cs": {
       "name": "Seminars - Computer Science",
-      "description": "Talks in computer science."
+      "description": "Talks, conferences and workshops in computer science."
     },
     "ai-ml": {
       "name": "Seminars - AI/ML",
-      "description": "Talks in artificial intelligence and machine learning."
+      "description": "Talks, conferences and workshops in artificial intelligence and machine learning."
     },
     "chem": {
       "name": "Seminars - Chemistry",
-      "description": "Talks in chemistry and chemical engineering."
+      "description": "Talks, conferences and workshops in chemistry and chemical engineering."
     },
     "bio": {
       "name": "Seminars - Biology",
-      "description": "Talks in biology, bioengineering, structural biology and genetics."
+      "description": "Talks, conferences and workshops in biology, bioengineering, structural biology and genetics."
     },
     "physics": {
       "name": "Seminars - Physics",
-      "description": "Talks in physics and applied physics."
+      "description": "Talks, conferences and workshops in physics and applied physics."
     },
     "med": {
       "name": "Seminars - Medicine",
-      "description": "Talks in medicine and biomedical research."
+      "description": "Talks, conferences and workshops in medicine and biomedical research."
+    },
+    "conferences": {
+      "name": "Seminars - Conferences and workshops",
+      "description": "Conferences and symposia, all-day workshops of two days or more, and workshops with times of day that last at least three hours."
+    }
+  },
+  "deadlines": {
+    "feed": {
+      "name": "Seminars - Deadlines",
+      "description": "Deadlines, openings and notifications of conferences and workshops, kept by hand from the organizers' pages. The submission deadlines of the main tracks of machine-learning and computer-science conferences are not in it."
+    },
+    "when": {
+      "by": "by {when}",
+      "by_day": "by this day"
+    },
+    "event": {
+      "day": "{day}, {location}",
+      "days": "{start} to {end}, {location}",
+      "check": "Check the organizer's page before you rely on it: {url}",
+      "verified": "Verified {date}"
+    },
+    "ccfddl": {
+      "name": "ccfddl",
+      "url": "https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics"
     }
   },
   "digest": {
@@ -53,6 +77,8 @@
     "summary": "{events} talks this week, {picks} of them picks.",
     "sections": {
       "picks": "Picks",
+      "meetings": "Conferences and workshops",
+      "deadlines": "Deadlines in the next {days} days",
       "new": "New since last issue",
       "health": "Source health"
     },
@@ -64,7 +90,9 @@
       "location": "Location",
       "link": "Link",
       "field": "Field",
-      "reasons": "Why picked"
+      "reasons": "Why picked",
+      "note": "Note",
+      "deadline": "Deadline"
     },
     "labels": {
       "all_day": "All day",
@@ -73,7 +101,12 @@
       "tentative": "Tentative",
       "tba": "TBA",
       "details": "Details",
-      "more": "{count} more"
+      "more": "{count} more",
+      "more_deadlines": "{count} more",
+      "new": "New",
+      "pick": "Pick",
+      "organizer": "Organizer's page",
+      "deadlines_note": "Kept by hand from the organizers' pages; check the page before you rely on a date. Times and zones are as the page states them."
     },
     "reasons": {
       "keyword": "\"{term}\" in {place} ({points})",
@@ -89,6 +122,7 @@
     "empty": {
       "picks": "No picks this week.",
       "field": "No talks this week.",
+      "meetings": "No conferences or workshops until {end}.",
       "new": "Nothing new since the last issue.",
       "first_issue": "First issue: everything is new."
     },
@@ -120,15 +154,15 @@
   "site": {
     "app": {
       "name": "Stanford-area seminars",
-      "tagline": "Academic talks at Stanford, SLAC, CZ Biohub and nearby institutes, collected every day from their public pages."
+      "tagline": "Academic talks, conferences and workshops at Stanford, SLAC, CZ Biohub and nearby institutes, collected every day from their public pages."
     },
     "page": {
-      "index_title": "Seminars - upcoming talks",
+      "index_title": "Seminars - upcoming events",
       "status_title": "Seminars - source status"
     },
     "nav": {
       "label": "Pages",
-      "talks": "Talks",
+      "talks": "Events",
       "status": "Source status"
     },
     "lang": {
@@ -141,13 +175,19 @@
       "loading": "Loading..."
     },
     "filters": {
-      "label": "Filter talks",
+      "label": "Filter events",
       "search_label": "Search",
-      "search_placeholder": "Title, speaker, affiliation, series or abstract",
+      "search_placeholder": "Title, speaker, affiliation, series, place or abstract",
       "fields": "Fields",
       "institutions": "Institutions",
       "host": "Organizer",
       "host_all": "All organizers",
+      "kind": "Kind",
+      "kind_options": {
+        "all": "All events",
+        "talks": "Talks",
+        "meetings": "Conferences and workshops"
+      },
       "range": "When",
       "range_options": {
         "today": "Today",
@@ -159,11 +199,12 @@
       "clear": "Clear filters"
     },
     "results": {
-      "heading": "Upcoming talks",
-      "count_one": "{count} upcoming talk",
-      "count_other": "{count} upcoming talks",
-      "empty": "No talks match these filters.",
-      "load_error": "The list of talks could not be loaded. Please try again later."
+      "heading": "Upcoming events",
+      "count_one": "{count} upcoming event",
+      "count_other": "{count} upcoming events",
+      "ongoing": "Ongoing",
+      "empty": "No events match these filters.",
+      "load_error": "The list of events could not be loaded. Please try again later."
     },
     "select": {
       "label": "Selected talks",
@@ -235,8 +276,10 @@
     },
     "subscribe": {
       "title": "Subscribe to a calendar",
-      "intro": "Each calendar is an ICS feed that refreshes itself every few hours. Subscribe once and new talks appear on their own. A talk in several fields is in each of their calendars, so it appears once per calendar you subscribe to.",
+      "intro": "Each calendar is an ICS feed that refreshes itself every few hours. Subscribe once and new talks appear on their own. A talk in several fields is in each of their calendars, and a conference or workshop is in the calendar of conferences and workshops as well, so it appears once per calendar you subscribe to.",
       "feeds": "Calendars",
+      "deadlines": "Deadlines",
+      "deadlines_note": "Kept by hand from the organizers' pages; check a page before you rely on its date. The submission deadlines of the main tracks of machine-learning and computer-science conferences are not collected; {ccfddl} publishes those of the AI conferences as a calendar.",
       "calendar_link": "Calendar app link",
       "web_link": "Web link",
       "copy": "Copy",
@@ -261,8 +304,8 @@
       "last_run_ok": "The last run succeeded.",
       "last_run_failed": "The last run failed.",
       "no_run": "No run has finished yet.",
-      "events_one": "{count} talk on the site",
-      "events_other": "{count} talks on the site",
+      "events_one": "{count} event on the site",
+      "events_other": "{count} events on the site",
       "summary": "{ok} of {total} active sources are healthy.",
       "llm": "Field tagging used the LLM provider {provider}.",
       "llm_none": "Field tagging used rules only.",
@@ -289,7 +332,8 @@
         "stanford-sites": "Stanford department sites",
         "stanford-custom": "Stanford lab and center pages",
         "bayarea": "Bay Area institutes",
-        "researchseminars": "researchseminars.org"
+        "researchseminars": "researchseminars.org",
+        "conferences": "Conferences kept by hand"
       },
       "states": {
         "ok": "OK",

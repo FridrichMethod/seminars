@@ -3,10 +3,10 @@
 # seminars
 
 每天从公开网页收集 Stanford、SLAC、CZ Biohub 及周边其他研究机构的学术
-seminar、talk 和 colloquium，以三种形式发布：
+seminar、talk 和 colloquium，以及湾区的会议和研讨会，以三种形式发布：
 
-- **日历订阅**（ICS），可以在日历应用里订阅：每个领域一个、个人精选一个、全部一个；
-- 一个**静态网站**，列出即将举行的报告，可以按领域和来源过滤，支持全文搜索；
+- **日历订阅**（ICS），可以在日历应用里订阅：每个领域一个、个人精选一个、会议和研讨会一个、全部一个，另有一个会议和研讨会截止日期的日历；
+- 一个**静态网站**，列出即将举行的报告、会议和研讨会，可以按领域、来源和类型过滤，支持全文搜索；
 - **每周摘要**：每周一早上（太平洋时间）开一个 GitHub issue。
 
 全部运行在 GitHub Actions 和 GitHub Pages 上，没有服务器。数据就存在本仓库里
@@ -16,12 +16,16 @@ seminar、talk 和 colloquium，以三种形式发布：
 
 ### 日历订阅
 
-共 9 个 feed。一个报告可以同时出现在几个领域的 feed 里；`all` 包含至少属于一个领域的全部报告。
+共 10 个 feed。一个报告可以同时出现在几个领域的 feed 里；`all` 包含至少属于一个领域的全部报告。
+`conferences` 收录学术会议和专题研讨会、持续两天或以上的全天研讨会（workshop），以及有具体时间、至少三小时的研讨会；
+它们同时也在 `all` 和所属领域的 feed 里。只有一天、标为全天的研讨会（比如 hackathon 的某一天）不在其中，按报告列出。
+标记了 `meeting_horizon` 的数据源会保留未来 365 天内的会议和研讨会；所有报告，
+以及其他数据源的会议，只保留未来 120 天内的。
 
 | Feed | 内容 | 订阅 |
 |---|---|---|
-| `all` | 从 Stanford、SLAC、CZ Biohub 及周边研究机构收集到的全部报告 | [all.ics](https://fridrichmethod.github.io/seminars/feeds/all.ics) |
-| `picks` | 符合个人兴趣规则（`config/interests.yaml`）的报告 | [picks.ics](https://fridrichmethod.github.io/seminars/feeds/picks.ics) |
+| `all` | 从 Stanford、SLAC、CZ Biohub 及周边研究机构收集到的全部报告、会议和研讨会 | [all.ics](https://fridrichmethod.github.io/seminars/feeds/all.ics) |
+| `picks` | 符合个人兴趣规则（`config/interests.yaml`）的报告、会议和研讨会 | [picks.ics](https://fridrichmethod.github.io/seminars/feeds/picks.ics) |
 | `math` | 纯数学、应用数学和统计 | [math.ics](https://fridrichmethod.github.io/seminars/feeds/math.ics) |
 | `cs` | 计算机科学 | [cs.ics](https://fridrichmethod.github.io/seminars/feeds/cs.ics) |
 | `ai-ml` | 人工智能和机器学习 | [ai-ml.ics](https://fridrichmethod.github.io/seminars/feeds/ai-ml.ics) |
@@ -29,6 +33,7 @@ seminar、talk 和 colloquium，以三种形式发布：
 | `bio` | 生物、生物工程、结构生物学和遗传学 | [bio.ics](https://fridrichmethod.github.io/seminars/feeds/bio.ics) |
 | `physics` | 物理和应用物理 | [physics.ics](https://fridrichmethod.github.io/seminars/feeds/physics.ics) |
 | `med` | 医学和生物医学研究 | [med.ics](https://fridrichmethod.github.io/seminars/feeds/med.ics) |
+| `conferences` | 学术会议和专题研讨会、持续两天或以上的全天研讨会，以及有具体时间、至少三小时的研讨会 | [conferences.ics](https://fridrichmethod.github.io/seminars/feeds/conferences.ics) |
 
 每个 feed 是网站上的文件 `feeds/<feed>.ics`；表里链接的是它的 `https://` 地址，
 "订阅"一节列出了它的 `webcal://` 地址。每个事件都有稳定的标识符，所以标题或时间变了，
@@ -36,18 +41,30 @@ seminar、talk 和 colloquium，以三种形式发布：
 按日期、人和标题来辨认。这样的报告如果在同一次更新里既改了时间又改了标题或报告人，或者时间移动超过
 60 天，或者同一位报告人的两场相似报告同时改动，日历里最多会有两天显示两次。
 
+此外，[deadlines.ics](https://fridrichmethod.github.io/seminars/feeds/deadlines.ics)
+收录学术会议和研讨会的截止日期：会议登记表（`config/sources.d/conferences.yaml`）列出的投稿、注册、
+奖学金和通知日期，包括湾区的会议，也包括少数其他地方的会议。每条都是组织方页面写明的那一天的全天事件，
+标为空闲时间。标题写出届次、要做的事，括号里是页面原样写的时间和时区，例如
+`ICLR 2027: Workshop paper notification deadline (23:59 AoE)`。这些日期由人工从每届会议组织方的页面抄录，
+每个事件都链接这个页面；依赖某个日期之前，请先查看页面。这个 feed 不是那 10 个 feed 之一，截止日期也不会出现在其他
+feed 里。
+
 ### 网站
 
 网站的地址是
 [https://fridrichmethod.github.io/seminars/](https://fridrichmethod.github.io/seminars/)。
-它按时间顺序列出即将举行的报告，可以按领域和来源过滤，支持全文搜索，提供英文和中文界面。
-列表里的每个报告都有一个复选框，勾选的报告可以存成一个日历文件，见"下载选中的报告"一节。
+它按时间顺序列出即将举行的报告、会议和研讨会，可以按领域、来源和类型（报告，或者会议和研讨会）过滤，
+支持在标题、人名、系列、地点和摘要里全文搜索。今天之前开始的活动（比如正在开的会议）只在最上面的"正在进行"下列出一次。
+提供英文和中文界面。
+列表里的每个活动都有一个复选框，勾选的活动可以存成一个日历文件，见"下载选中的报告"一节。
 它的[状态页](https://fridrichmethod.github.io/seminars/status.html)显示最近一次更新的时间和每个数据源的情况。
 
 ### 每周摘要
 
-每周一早上开一个带 `digest` 标签的新 issue，列出本周（周一到周日）的报告和上一期以来新增的报告，
-并关闭上一期摘要。
+每周一早上开一个带 `digest` 标签的新 issue，列出本周（周一到周日）的报告、之后八周的会议和研讨会
+以及上一期以来新增的更晚的会议和研讨会、从这个周一起 21 天内的截止日期、上一期以来新增的报告，
+并关闭上一期摘要。会议和研讨会只列在它们自己的一节里，新增的和精选的会标出来。截止日期列出组织方页面写明的
+时间和时区，并链接这个页面；这些天里没有截止日期时，摘要里就没有这一节。
 
 ## 订阅
 
@@ -64,11 +81,21 @@ webcal://fridrichmethod.github.io/seminars/feeds/chem.ics
 webcal://fridrichmethod.github.io/seminars/feeds/bio.ics
 webcal://fridrichmethod.github.io/seminars/feeds/physics.ics
 webcal://fridrichmethod.github.io/seminars/feeds/med.ics
+webcal://fridrichmethod.github.io/seminars/feeds/conferences.ics
+webcal://fridrichmethod.github.io/seminars/feeds/deadlines.ics
 ```
 
 一个报告属于几个领域，就会出现在这几个领域各自的 feed 里，而日历应用按 feed 显示事件，每个 feed 一次：
 同时订阅其中两个 feed，这个报告就会显示两次。想让每个报告只出现一次，就只订阅 `all`（或者只订阅 `picks`）。
+`conferences` 里的会议也在 `all` 和所属领域的 feed 里：同时订阅 `conferences` 和 `all`，每个会议都会显示两次。
 报告结束 14 天后，feed 会把它删掉，它也会随之从你的日历里消失。
+全天事件（比如持续几天的会议）标为空闲时间，不会让你的日历把这几天显示为忙碌。
+`deadlines.ics` 里的每个截止日期也是如此，它和其他 feed 没有共同的事件。
+
+`deadlines.ics` 只收录会议登记表列出的内容，由人工从组织方的页面维护：这里收集的领域里的 workshop、
+学会年会和其他会议的截止日期。不收集机器学习和计算机科学会议主会（NeurIPS、ICML、ICLR、ACL、KDD
+等）的投稿截止日期。[ccfddl](https://github.com/ccfddl/ccf-deadlines) 项目把 AI 类会议的截止日期发布成可以订阅的日历：
+`https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics`（数据采用 MIT 许可）。
 
 ### Apple Calendar
 
@@ -115,11 +142,12 @@ Google 按自己的节奏刷新订阅的日历，可能要几个小时。
 
 ### 数据源及其状态
 
-配置的 44 个数据源里启用了 35 个，表里全部列出：那次运行中 32 个给出了报告，1 个为空，2 个失败，
-共存储了 438 个报告。一个报告被几个数据源列出，在这张表里就为每个数据源各算一次；失败的数据源
-仍然计入它之前几次运行存下的报告。"抽取方式"是这次运行读取一个数据源的方法：api 取自网站的
-JSON 接口，feed 取自它的 RSS 或 iCalendar feed，html 按规则从页面本身读取；失败或为空的数据源
-写的是它的 adapter 所用的方法。
+配置的 47 个数据源里启用了 38 个。表里列的是那次运行抓取的 35 个：其中 32 个给出了报告，1 个为空，
+2 个失败，共存储了 438 个报告。Simons Institute 的 workshop（`bayarea-simons-workshops`）、
+SLAC 的 workshop 和 school（`bayarea-slac-workshops`）以及会议登记表（`conf-registry`）不在表里。
+一个报告被几个数据源列出，在这张表里就为每个数据源各算一次；失败的数据源仍然计入它之前几次运行存下的报告。
+"抽取方式"是这次运行读取一个数据源的方法：api 取自网站的 JSON 接口，feed 取自它的 RSS 或 iCalendar feed，
+html 按规则从页面本身读取；失败或为空的数据源写的是它的 adapter 所用的方法。
 
 | 数据源 | 组 | 状态 | 未来四周 | 抽取方式 |
 |---|---|---|---:|---|
@@ -162,6 +190,8 @@ JSON 接口，feed 取自它的 RSS 或 iCalendar feed，html 按规则从页面
 ### 每个 feed 的报告数
 
 "feed 里的总数"统计运行之后 feed 里的全部报告：过去 14 天的和未来 120 天的。
+那次运行里没有数据源标记 `meeting_horizon`（feed 会把这类数据源的会议保留得更久，见"日历订阅"一节），
+表里也没有 `conferences` 这个 feed。
 
 | Feed | 未来四周 | feed 里的总数 |
 |---|---:|---:|
@@ -204,10 +234,10 @@ workflow `.github/workflows/update.yml` 每天太平洋时间 04:23 运行，10:
 
 1. 礼貌地抓取每个数据源：遵守 robots.txt（包括 `Crawl-delay`），对每个 host 一次只发一个请求，
    每个 host 的请求数有上限。数据源可以在 `ignore_robots` 里列出 host，不遵守这些 host 的 `Disallow`
-   规则（indico.slac.stanford.edu 上的两个 SLAC 系列和 calendar.google.com 上 Chemical and Systems Biology 的日历）；其他规则照旧。
+   规则（indico.slac.stanford.edu 上的三个 SLAC 数据源：理论 seminar、实验 seminar 和 workshop；以及 calendar.google.com 上 Chemical and Systems Biology 的日历）；其他规则照旧。
 2. 把每个数据源的内容转成事件，去掉重复（同一个报告被两个来源列出），去掉不是学术报告的条目。
 3. 给每个事件标注领域，靠规则；配置了凭证时再借助 LLM；然后计算精选分数。
-4. 写出 `data/`、9 个 feed 和网站数据，然后检查输出：secret 扫描和 `data/` 的字符集规则。
+4. 写出 `data/`、10 个 feed、`deadlines.ics` 和网站数据，然后检查输出：secret 扫描和 `data/` 的字符集规则。
    有任何一项不通过，这次运行以 exit status 3 结束，什么都不提交、不部署。
 5. 校验数据和 feed（`seminars validate`），以 `github-actions[bot]` 的身份提交 `data/`，
    提交信息是 `chore(data): daily update YYYY-MM-DD`，构建网站（`seminars build-site`），
@@ -297,13 +327,15 @@ uv run --extra browser pytest -m browser
 
 ```
 config/            settings, LLM settings, fields, interests, sources.d/ (one file per group)
-data/              the committed data: events, stable ids, health, last run, LLM cache, archive
+data/              the committed data: events, deadlines, stable ids, health, last run, LLM
+                   cache, archive
 docs/              documentation in English and Chinese
 locales/           every text of the web site and the digest (en, zh-CN)
 scripts/           check_ascii.py, set-llm-credential.sh
 site/              the static web site (no build step)
 src/seminars/      the package: sources/, pipeline/, classify/, llm/, outputs/, cli.py
-tests/             tests, and fixtures/ with recorded pages of every source
+tests/             tests, and fixtures/ with recorded pages of every source that sends
+                   requests
 .github/workflows/ ci.yml, update.yml, digest.yml
 ```
 

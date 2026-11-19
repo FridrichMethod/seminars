@@ -3,13 +3,14 @@ English | [&#20013;&#25991;](README.zh-CN.md)
 # seminars
 
 Academic seminars, talks and colloquia at Stanford, SLAC, CZ Biohub and other
-nearby institutes, collected every day from public web pages and published in
-three forms:
+nearby institutes, and the conferences and workshops of the Bay Area, collected
+every day from public web pages and published in three forms:
 
 - **calendar feeds** (ICS) that calendar apps subscribe to: one per field, one of
-  personal picks and one with everything;
-- a **static web site** with the upcoming talks, filters by field and source, and
-  full-text search;
+  personal picks, one of conferences and workshops and one with everything, and a
+  calendar of the deadlines of conferences and workshops;
+- a **static web site** with the upcoming talks, conferences and workshops, filters
+  by field, source and kind, and full-text search;
 - a **weekly digest**, a GitHub issue opened every Monday morning (Pacific time).
 
 Everything runs on GitHub Actions and GitHub Pages; there is no server. The data is
@@ -19,13 +20,19 @@ kept in this repository (`data/`), and every daily update is one commit.
 
 ### Calendar feeds
 
-Nine feeds. A talk can be in several field feeds; `all` holds every talk that belongs
-to at least one field.
+Ten feeds. A talk can be in several field feeds; `all` holds every talk that belongs
+to at least one field. `conferences` holds the conferences and symposia, the all-day
+workshops of two days or more, and the workshops with times of day that last at least
+three hours; they are in `all` and in the feeds of their fields as well. A workshop
+listed all day on a single day, such as one day of a hackathon, is not among them: it is
+listed as a talk. A source marked with `meeting_horizon` keeps its conferences and
+workshops up to 365 days ahead; every talk, and the meetings of the other sources, up to
+120 days ahead.
 
 | Feed | Contents | Subscribe |
 |---|---|---|
-| `all` | Every talk collected from Stanford, SLAC, CZ Biohub and nearby institutes | [all.ics](https://fridrichmethod.github.io/seminars/feeds/all.ics) |
-| `picks` | Talks that match the personal interest rules (`config/interests.yaml`) | [picks.ics](https://fridrichmethod.github.io/seminars/feeds/picks.ics) |
+| `all` | Every talk, conference and workshop collected from Stanford, SLAC, CZ Biohub and nearby institutes | [all.ics](https://fridrichmethod.github.io/seminars/feeds/all.ics) |
+| `picks` | Talks, conferences and workshops that match the personal interest rules (`config/interests.yaml`) | [picks.ics](https://fridrichmethod.github.io/seminars/feeds/picks.ics) |
 | `math` | Pure mathematics, applied mathematics and statistics | [math.ics](https://fridrichmethod.github.io/seminars/feeds/math.ics) |
 | `cs` | Computer science | [cs.ics](https://fridrichmethod.github.io/seminars/feeds/cs.ics) |
 | `ai-ml` | Artificial intelligence and machine learning | [ai-ml.ics](https://fridrichmethod.github.io/seminars/feeds/ai-ml.ics) |
@@ -33,6 +40,7 @@ to at least one field.
 | `bio` | Biology, bioengineering, structural biology and genetics | [bio.ics](https://fridrichmethod.github.io/seminars/feeds/bio.ics) |
 | `physics` | Physics and applied physics | [physics.ics](https://fridrichmethod.github.io/seminars/feeds/physics.ics) |
 | `med` | Medicine and biomedical research | [med.ics](https://fridrichmethod.github.io/seminars/feeds/med.ics) |
+| `conferences` | Conferences and symposia, all-day workshops of two days or more, and workshops with times of day of at least three hours | [conferences.ics](https://fridrichmethod.github.io/seminars/feeds/conferences.ics) |
 
 Each feed is the file `feeds/<feed>.ics` of the web site; the table links its
 `https://` address, and the section Subscribe lists its `webcal://` address. Every
@@ -43,22 +51,40 @@ and changes its title or speakers in the same update, moves by more than 60 days
 similar talks of one speaker change at once, your calendar can show it twice for up to
 two days.
 
+Beside them,
+[deadlines.ics](https://fridrichmethod.github.io/seminars/feeds/deadlines.ics) holds the
+deadlines of conferences and workshops: the dates of submissions, registration,
+scholarships and notifications that the registry of meetings lists
+(`config/sources.d/conferences.yaml`), for the meetings of the Bay Area and for a few
+elsewhere. Each is an all-day event of free time on the day the organizer's page names. Its
+title gives the edition, what is due and, in brackets, the time and the zone as the page
+states them, such as `ICLR 2027: Workshop paper notification deadline (23:59 AoE)`. The
+dates are copied by hand from the organizer's page of each edition, which every event
+links; check that page before you rely on a date. The feed is not one of the ten, and a
+deadline is in no other feed.
+
 ### Web site
 
 The site at
 [https://fridrichmethod.github.io/seminars/](https://fridrichmethod.github.io/seminars/)
-lists the upcoming talks in time order, with filters by field and by source and a
-full-text search. It is available in English and Chinese. Every listed talk has a
-checkbox, and the ticked talks can be saved as one calendar file: see the section
-Download selected talks. Its
+lists the upcoming talks, conferences and workshops in time order, with filters by
+field, by source and by kind (talks, or conferences and workshops) and a full-text search
+of titles, people, series, places and abstracts. An event that began before today, such
+as a conference in progress, is listed once under Ongoing at the top. It is available in
+English and Chinese. Every listed event has a checkbox, and the ticked events can be saved
+as one calendar file: see the section Download selected talks. Its
 [status page](https://fridrichmethod.github.io/seminars/status.html) shows when the last
 update ran and how each source did.
 
 ### Weekly digest
 
 Every Monday morning a new issue with the label `digest` lists the talks of that week
-(Monday to Sunday) and what was added since the previous digest; the previous digest
-issue is closed.
+(Monday to Sunday), the conferences and workshops of the next eight weeks and the later
+ones added since the previous digest, the deadlines of the 21 days from that Monday, and
+the talks added since the previous digest; the previous digest issue is closed. A
+conference or workshop is listed in its own section only, marked when it is new or a pick.
+A deadline is listed with the time and the zone that the organizer's page states and a link
+to that page; when no deadline falls in those days, the digest has no section of them.
 
 ## Subscribe
 
@@ -76,13 +102,28 @@ webcal://fridrichmethod.github.io/seminars/feeds/chem.ics
 webcal://fridrichmethod.github.io/seminars/feeds/bio.ics
 webcal://fridrichmethod.github.io/seminars/feeds/physics.ics
 webcal://fridrichmethod.github.io/seminars/feeds/med.ics
+webcal://fridrichmethod.github.io/seminars/feeds/conferences.ics
+webcal://fridrichmethod.github.io/seminars/feeds/deadlines.ics
 ```
 
 A talk that belongs to several fields is in the feed of each of them, and a calendar
 app shows a talk once per feed: subscribed to two of those feeds, it shows the talk
-twice. To see every talk once, subscribe to `all` alone (or to `picks` alone). A feed
-keeps a talk until 14 days after it took place and then drops it, so the talk also
-leaves your calendar.
+twice. To see every talk once, subscribe to `all` alone (or to `picks` alone). The
+meetings of `conferences` are in `all` and in their field feeds too: subscribed to
+`conferences` and `all`, a calendar shows each of them twice. A feed keeps a talk until
+14 days after it ended and then drops it, so the talk also leaves your calendar. An
+all-day event, such as a conference of several days, is marked as free time, so it does
+not mark those days as busy in your calendar. So is every deadline of `deadlines.ics`,
+which shares no event with the other feeds.
+
+`deadlines.ics` holds only what the registry of meetings lists, kept by hand from the
+organizers' pages: the deadlines of workshops, society meetings and other meetings of the
+fields collected here. The submission deadlines of the main tracks of machine-learning and
+computer-science conferences (NeurIPS, ICML, ICLR, ACL, KDD and the like) are not
+collected. The [ccfddl](https://github.com/ccfddl/ccf-deadlines) project publishes those of
+the AI conferences as a calendar to subscribe to,
+`https://ccfddl.com/conference/deadlines/deadlines_en_AI.ics` (its data is under the MIT
+license).
 
 ### Apple Calendar
 
@@ -143,13 +184,15 @@ source.
 
 ### Sources and their state
 
-35 of the 44 configured sources are enabled, and the table lists them all: in that run 32
-of them delivered talks, 1 was empty and 2 failed, and 438 talks were stored. A talk that
-several sources list counts once for each of them in this table, and a source that failed
-still counts the talks stored from its earlier runs. "Extraction" is how the run read a
-source: api from a JSON interface of the site, feed from its RSS or iCalendar feed, html
-from the page itself by rules; for a source that failed or was empty, it is the method of
-its adapter.
+38 of the 47 configured sources are enabled. The table lists the 35 that the run
+fetched: 32 of them delivered talks, 1 was empty and 2 failed, and 438 talks were stored.
+The workshops of the Simons Institute (`bayarea-simons-workshops`), the SLAC workshops
+and schools (`bayarea-slac-workshops`) and the registry of meetings (`conf-registry`)
+are not in it. A talk that several sources list counts once for each of them in this
+table, and a source that failed still counts the talks stored from its earlier runs.
+"Extraction" is how the run read a source: api from a JSON interface of the site, feed
+from its RSS or iCalendar feed, html from the page itself by rules; for a source that
+failed or was empty, it is the method of its adapter.
 
 | Source | Group | State | Next four weeks | Extraction |
 |---|---|---|---:|---|
@@ -192,7 +235,9 @@ its adapter.
 ### Talks per feed
 
 "In the feed" counts every talk that the feed held after the run: those of the last 14
-days and of the next 120.
+days and of the next 120. No source of that run had `meeting_horizon`, whose meetings a
+feed keeps further ahead (see the section Calendar feeds), and the feed `conferences` is
+not in the table.
 
 | Feed | Next four weeks | In the feed |
 |---|---:|---:|
@@ -244,15 +289,16 @@ day. The schedule follows daylight saving time.
 1. Fetch every source politely: robots.txt is honoured, including `Crawl-delay`, each
    host is asked one request at a time, and the number of requests per host is
    capped. A source may list hosts under `ignore_robots`, whose `Disallow` rules it
-   does not follow (the two SLAC series on indico.slac.stanford.edu and the calendar of
-   Chemical and Systems Biology on calendar.google.com); everything else holds there too.
+   does not follow (the SLAC theory and experimental seminars and the SLAC workshops on
+   indico.slac.stanford.edu, and the calendar of Chemical and Systems Biology on
+   calendar.google.com); everything else holds there too.
 2. Turn what each source says into events, remove duplicates (the same talk listed by
    two sources) and drop what is not an academic talk.
 3. Tag each event with its fields, by rules and, when a credential is configured, with
    the help of an LLM; score the picks.
-4. Write `data/`, the nine feeds and the data of the web site, then check the output:
-   a secret scan and the charset rule of `data/`. When a check fails, the run ends
-   with exit status 3 and nothing is committed or deployed.
+4. Write `data/`, the ten feeds, `deadlines.ics` and the data of the web site, then
+   check the output: a secret scan and the charset rule of `data/`. When a check
+   fails, the run ends with exit status 3 and nothing is committed or deployed.
 5. Validate the data and the feeds (`seminars validate`), commit `data/` as
    `github-actions[bot]` with the message `chore(data): daily update YYYY-MM-DD`,
    build the site (`seminars build-site`) and deploy it to GitHub Pages.
@@ -353,13 +399,15 @@ record test fixtures with the polite client, and the charset rule.
 
 ```
 config/            settings, LLM settings, fields, interests, sources.d/ (one file per group)
-data/              the committed data: events, stable ids, health, last run, LLM cache, archive
+data/              the committed data: events, deadlines, stable ids, health, last run, LLM
+                   cache, archive
 docs/              documentation in English and Chinese
 locales/           every text of the web site and the digest (en, zh-CN)
 scripts/           check_ascii.py, set-llm-credential.sh
 site/              the static web site (no build step)
 src/seminars/      the package: sources/, pipeline/, classify/, llm/, outputs/, cli.py
-tests/             tests, and fixtures/ with recorded pages of every source
+tests/             tests, and fixtures/ with recorded pages of every source that sends
+                   requests
 .github/workflows/ ci.yml, update.yml, digest.yml
 ```
 

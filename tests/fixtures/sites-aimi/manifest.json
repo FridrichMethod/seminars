@@ -10,6 +10,14 @@
       "final_url": null,
       "volatile_params": []
     },
+    "https://aimi.stanford.edu/events/aimi-symposium-summit-series-2027": {
+      "file": "detail-symposium-2027.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-18T09:53:23Z",
+      "final_url": null,
+      "volatile_params": []
+    },
     "https://aimi.stanford.edu/events/all/rss": {
       "file": "events-all-rss.xml",
       "status": 200,
@@ -39,6 +47,14 @@
       "status": 200,
       "content_type": "text/html",
       "fetched_at": "2026-11-12T23:17:06Z",
+      "final_url": null,
+      "volatile_params": []
+    },
+    "https://aimi.stanford.edu/events/stanford-ai-healthcare-leadership-strategy-course-hails": {
+      "file": "detail-hails-course.html",
+      "status": 200,
+      "content_type": "text/html",
+      "fetched_at": "2026-11-18T09:52:53Z",
       "final_url": null,
       "volatile_params": []
     }
