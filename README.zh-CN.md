@@ -17,8 +17,9 @@ seminar、talk 和 colloquium，以及湾区的会议和研讨会，以三种形
 ### 日历订阅
 
 共 10 个 feed。一个报告可以同时出现在几个领域的 feed 里；`all` 包含至少属于一个领域的全部报告。
-`conferences` 收录学术会议和专题研讨会，以及持续多天或至少三小时的研讨会（workshop）；它们同时也在 `all`
-和所属领域的 feed 里。标记了 `meeting_horizon` 的数据源会保留未来 365 天内的会议和研讨会；所有报告，
+`conferences` 收录学术会议和专题研讨会、持续两天或以上的全天研讨会（workshop），以及有具体时间、至少三小时的研讨会；
+它们同时也在 `all` 和所属领域的 feed 里。只有一天、标为全天的研讨会（比如 hackathon 的某一天）不在其中，按报告列出。
+标记了 `meeting_horizon` 的数据源会保留未来 365 天内的会议和研讨会；所有报告，
 以及其他数据源的会议，只保留未来 120 天内的。
 
 | Feed | 内容 | 订阅 |
@@ -32,7 +33,7 @@ seminar、talk 和 colloquium，以及湾区的会议和研讨会，以三种形
 | `bio` | 生物、生物工程、结构生物学和遗传学 | [bio.ics](https://fridrichmethod.github.io/seminars/feeds/bio.ics) |
 | `physics` | 物理和应用物理 | [physics.ics](https://fridrichmethod.github.io/seminars/feeds/physics.ics) |
 | `med` | 医学和生物医学研究 | [med.ics](https://fridrichmethod.github.io/seminars/feeds/med.ics) |
-| `conferences` | 学术会议和专题研讨会，以及持续多天或至少三小时的研讨会 | [conferences.ics](https://fridrichmethod.github.io/seminars/feeds/conferences.ics) |
+| `conferences` | 学术会议和专题研讨会、持续两天或以上的全天研讨会，以及有具体时间、至少三小时的研讨会 | [conferences.ics](https://fridrichmethod.github.io/seminars/feeds/conferences.ics) |
 
 每个 feed 是网站上的文件 `feeds/<feed>.ics`；表里链接的是它的 `https://` 地址，
 "订阅"一节列出了它的 `webcal://` 地址。每个事件都有稳定的标识符，所以标题或时间变了，
@@ -141,11 +142,12 @@ Google 按自己的节奏刷新订阅的日历，可能要几个小时。
 
 ### 数据源及其状态
 
-配置的 44 个数据源里启用了 35 个，表里全部列出：那次运行中 32 个给出了报告，1 个为空，2 个失败，
-共存储了 438 个报告。一个报告被几个数据源列出，在这张表里就为每个数据源各算一次；失败的数据源
-仍然计入它之前几次运行存下的报告。"抽取方式"是这次运行读取一个数据源的方法：api 取自网站的
-JSON 接口，feed 取自它的 RSS 或 iCalendar feed，html 按规则从页面本身读取；失败或为空的数据源
-写的是它的 adapter 所用的方法。
+配置的 47 个数据源里启用了 38 个。表里列的是那次运行抓取的 35 个：其中 32 个给出了报告，1 个为空，
+2 个失败，共存储了 438 个报告。Simons Institute 的 workshop（`bayarea-simons-workshops`）、
+SLAC 的 workshop 和 school（`bayarea-slac-workshops`）以及会议登记表（`conf-registry`）不在表里。
+一个报告被几个数据源列出，在这张表里就为每个数据源各算一次；失败的数据源仍然计入它之前几次运行存下的报告。
+"抽取方式"是这次运行读取一个数据源的方法：api 取自网站的 JSON 接口，feed 取自它的 RSS 或 iCalendar feed，
+html 按规则从页面本身读取；失败或为空的数据源写的是它的 adapter 所用的方法。
 
 | 数据源 | 组 | 状态 | 未来四周 | 抽取方式 |
 |---|---|---|---:|---|
@@ -188,6 +190,8 @@ JSON 接口，feed 取自它的 RSS 或 iCalendar feed，html 按规则从页面
 ### 每个 feed 的报告数
 
 "feed 里的总数"统计运行之后 feed 里的全部报告：过去 14 天的和未来 120 天的。
+那次运行里没有数据源标记 `meeting_horizon`（feed 会把这类数据源的会议保留得更久，见"日历订阅"一节），
+表里也没有 `conferences` 这个 feed。
 
 | Feed | 未来四周 | feed 里的总数 |
 |---|---:|---:|
@@ -330,7 +334,8 @@ locales/           every text of the web site and the digest (en, zh-CN)
 scripts/           check_ascii.py, set-llm-credential.sh
 site/              the static web site (no build step)
 src/seminars/      the package: sources/, pipeline/, classify/, llm/, outputs/, cli.py
-tests/             tests, and fixtures/ with recorded pages of every source
+tests/             tests, and fixtures/ with recorded pages of every source that sends
+                   requests
 .github/workflows/ ci.yml, update.yml, digest.yml
 ```
 

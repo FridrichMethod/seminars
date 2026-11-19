@@ -21,11 +21,13 @@ kept in this repository (`data/`), and every daily update is one commit.
 ### Calendar feeds
 
 Ten feeds. A talk can be in several field feeds; `all` holds every talk that belongs
-to at least one field. `conferences` holds the conferences and symposia, and the
-workshops that run over several days or for at least three hours; they are in `all` and
-in the feeds of their fields as well. A source marked with `meeting_horizon` keeps its
-conferences and workshops up to 365 days ahead; every talk, and the meetings of the
-other sources, up to 120 days ahead.
+to at least one field. `conferences` holds the conferences and symposia, the all-day
+workshops of two days or more, and the workshops with times of day that last at least
+three hours; they are in `all` and in the feeds of their fields as well. A workshop
+listed all day on a single day, such as one day of a hackathon, is not among them: it is
+listed as a talk. A source marked with `meeting_horizon` keeps its conferences and
+workshops up to 365 days ahead; every talk, and the meetings of the other sources, up to
+120 days ahead.
 
 | Feed | Contents | Subscribe |
 |---|---|---|
@@ -38,7 +40,7 @@ other sources, up to 120 days ahead.
 | `bio` | Biology, bioengineering, structural biology and genetics | [bio.ics](https://fridrichmethod.github.io/seminars/feeds/bio.ics) |
 | `physics` | Physics and applied physics | [physics.ics](https://fridrichmethod.github.io/seminars/feeds/physics.ics) |
 | `med` | Medicine and biomedical research | [med.ics](https://fridrichmethod.github.io/seminars/feeds/med.ics) |
-| `conferences` | Conferences and symposia, and workshops of several days or of at least three hours | [conferences.ics](https://fridrichmethod.github.io/seminars/feeds/conferences.ics) |
+| `conferences` | Conferences and symposia, all-day workshops of two days or more, and workshops with times of day of at least three hours | [conferences.ics](https://fridrichmethod.github.io/seminars/feeds/conferences.ics) |
 
 Each feed is the file `feeds/<feed>.ics` of the web site; the table links its
 `https://` address, and the section Subscribe lists its `webcal://` address. Every
@@ -182,13 +184,15 @@ source.
 
 ### Sources and their state
 
-35 of the 44 configured sources are enabled, and the table lists them all: in that run 32
-of them delivered talks, 1 was empty and 2 failed, and 438 talks were stored. A talk that
-several sources list counts once for each of them in this table, and a source that failed
-still counts the talks stored from its earlier runs. "Extraction" is how the run read a
-source: api from a JSON interface of the site, feed from its RSS or iCalendar feed, html
-from the page itself by rules; for a source that failed or was empty, it is the method of
-its adapter.
+38 of the 47 configured sources are enabled. The table lists the 35 that the run
+fetched: 32 of them delivered talks, 1 was empty and 2 failed, and 438 talks were stored.
+The workshops of the Simons Institute (`bayarea-simons-workshops`), the SLAC workshops
+and schools (`bayarea-slac-workshops`) and the registry of meetings (`conf-registry`)
+are not in it. A talk that several sources list counts once for each of them in this
+table, and a source that failed still counts the talks stored from its earlier runs.
+"Extraction" is how the run read a source: api from a JSON interface of the site, feed
+from its RSS or iCalendar feed, html from the page itself by rules; for a source that
+failed or was empty, it is the method of its adapter.
 
 | Source | Group | State | Next four weeks | Extraction |
 |---|---|---|---:|---|
@@ -231,7 +235,9 @@ its adapter.
 ### Talks per feed
 
 "In the feed" counts every talk that the feed held after the run: those of the last 14
-days and of the next 120.
+days and of the next 120. No source of that run had `meeting_horizon`, whose meetings a
+feed keeps further ahead (see the section Calendar feeds), and the feed `conferences` is
+not in the table.
 
 | Feed | Next four weeks | In the feed |
 |---|---:|---:|
@@ -400,7 +406,8 @@ locales/           every text of the web site and the digest (en, zh-CN)
 scripts/           check_ascii.py, set-llm-credential.sh
 site/              the static web site (no build step)
 src/seminars/      the package: sources/, pipeline/, classify/, llm/, outputs/, cli.py
-tests/             tests, and fixtures/ with recorded pages of every source
+tests/             tests, and fixtures/ with recorded pages of every source that sends
+                   requests
 .github/workflows/ ci.yml, update.yml, digest.yml
 ```
 

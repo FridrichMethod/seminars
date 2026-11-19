@@ -47,7 +47,7 @@
     },
     "conferences": {
       "name": "Seminars - Conferences and workshops",
-      "description": "Conferences and symposia, and workshops that run over several days or for at least three hours."
+      "description": "Conferences and symposia, all-day workshops of two days or more, and workshops with times of day that last at least three hours."
     }
   },
   "deadlines": {

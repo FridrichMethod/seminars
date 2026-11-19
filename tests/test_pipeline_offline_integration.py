@@ -3,8 +3,8 @@
 Nothing is faked here: the configured sources, the real adapters, normalization,
 classification and the output writers run over tests/fixtures, as
 ``seminars run --offline --no-llm`` does. The run happens at the latest recording
-time of all fixtures, 2026-11-17T01:26:52Z (17:26 on 16 November in Stanford), so
-the talks of the afternoon of 11 November have already taken place.
+time of all fixtures, ``RUN_TIME``, so the talks of the afternoon of 11 November have
+already taken place.
 """
 
 from __future__ import annotations

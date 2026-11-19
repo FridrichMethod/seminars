@@ -31,7 +31,8 @@ the next run builds on them as on any other stored state.
 
 Files (``seminars.config.ProjectPaths``):
 
-* data/events.json: every event of the current window, one per line;
+* data/events.json: every event of the current window, and the meetings
+  ahead of it of the sources with ``meeting_horizon``, one per line;
 * data/uid_map.json: every source key ever seen with its uid;
 * data/health.json: the run history per source and per LLM provider;
 * data/deadlines.json: the deadlines of the registry of meetings, one per
