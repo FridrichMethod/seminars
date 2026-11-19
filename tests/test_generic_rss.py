@@ -16,6 +16,7 @@ from fakes import FakeHttpClient
 from seminars.config import load_sources
 from seminars.http import offline_client
 from seminars.models import TBA_TITLE, EventDraft, SourceConfig
+from seminars.pipeline import times
 from seminars.sources.base import ForeignHostError, ParseError, get_adapter
 from seminars.sources.generic import rss as rss_module
 from seminars.sources.generic.common import AdapterConfigError
@@ -25,6 +26,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 NOW = datetime(2026, 11, 11, 20, 0, tzinfo=UTC)
 WINDOW = make_window(NOW)
 PST = timezone(timedelta(hours=-8))
+AOE = timezone(timedelta(hours=-12))
+CET = timezone(timedelta(hours=1))
 SOURCES = {source.id: source for source in load_sources(REPO_ROOT / "config" / "sources.d")}
 RSS_SOURCES = sorted(sid for sid, source in SOURCES.items() if source.adapter == "rss")
 
@@ -467,10 +470,14 @@ class TestFeedOnly:
     [
         ("Mon, 16 Nov 2026 16:30:00 -0800", datetime(2026, 11, 16, 16, 30, tzinfo=PST)),
         ("2026-11-16T16:30:00-08:00", datetime(2026, 11, 16, 16, 30, tzinfo=PST)),
-        # -0000 is UTC with no local zone known; no zone at all is the source's local time.
+        # -0000 is UTC with no local zone known.
         ("Mon, 16 Nov 2026 16:30:00 -0000", datetime(2026, 11, 16, 16, 30, tzinfo=UTC)),
         ("Mon, 16 Nov 2026 16:30:00 GMT", datetime(2026, 11, 16, 16, 30, tzinfo=UTC)),
-        ("Mon, 16 Nov 2026 16:30:00", datetime(2026, 11, 16, 16, 30)),
+        ("Mon, 16 Nov 2026 16:30:00 PST", datetime(2026, 11, 16, 16, 30, tzinfo=PST)),
+        # No zone, or one that RFC 822 does not know: normalization reads the text.
+        ("Mon, 16 Nov 2026 16:30:00", "Mon, 16 Nov 2026 16:30:00"),
+        ("Fri, 29 Jan 2027 23:59 AoE", "Fri, 29 Jan 2027 23:59 AoE"),
+        ("January 29, 2027 11:59 pm AoE", "January 29, 2027 11:59 pm AoE"),
         ("2026-11-16", date(2026, 11, 16)),
         ("20261116", date(2026, 11, 16)),
         ("next week", "next week"),
@@ -484,6 +491,32 @@ def test_feed_moments(text: str | None, expected: object) -> None:
     assert type(moment) is type(expected)
     if isinstance(moment, datetime) and isinstance(expected, datetime):
         assert moment.utcoffset() == expected.utcoffset()
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # Without a zone a time of the source's zone, as a naive time was before.
+        ("Mon, 16 Nov 2026 16:30:00", datetime(2026, 11, 16, 16, 30)),
+        ("Fri, 29 Jan 2027 23:59 AoE", datetime(2027, 1, 29, 23, 59, tzinfo=AOE)),
+        ("January 29, 2027 11:59 pm AoE", datetime(2027, 1, 29, 23, 59, tzinfo=AOE)),
+        ("Fri, 29 Jan 2027 10:00 GMT+0100", datetime(2027, 1, 29, 10, tzinfo=CET)),
+        ("Fri, 29 Jan 2027 10:00 UTC-12", datetime(2027, 1, 29, 10, tzinfo=AOE)),
+        ("Fri, 29 Jan 2027 10:00 GMT-8", datetime(2027, 1, 29, 10, tzinfo=PST)),
+        ("Fri, 29 Jan 2027 10:00 CET", datetime(2027, 1, 29, 10, tzinfo=CET)),
+    ],
+)
+def test_a_feed_date_that_rfc_822_misreads_is_read_by_normalization(
+    text: str, expected: datetime
+) -> None:
+    # email.utils reads these as wall time (and "11:59 pm" as 11:59); the text goes on
+    # to normalization, which knows the zones.
+    moment = feed_moment(text)
+    assert isinstance(moment, str)
+    read = times.parse_moment(moment, reference=datetime(2026, 11, 18, tzinfo=UTC))
+    assert read == expected
+    assert isinstance(read, datetime)
+    assert read.utcoffset() == expected.utcoffset()
 
 
 # --- hand-written list pages ---------------------------------------------------------------

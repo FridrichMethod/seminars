@@ -551,6 +551,48 @@ sources:
             - PSB 2028 posts only a call for workshop proposals; add it once its call
               for papers is dated.
 
+        - id: grs-bioinorganic-chemistry-2027
+          title: "Bioinorganic Chemistry GRS: Metals in Biological Reactions: Analyzing Activity and Understanding Function"
+          short_title: "GRS Bioinorganic Chemistry 2027"
+          series: Bioinorganic Chemistry Gordon Research Seminar
+          host_org: Gordon Research Conferences
+          start: 2027-01-22
+          end: 2027-01-25
+          region: world
+          location: Four Points Sheraton / Holiday Inn Express, Ventura, CA
+          url: https://www.grc.org/bioinorganic-chemistry-grs-conference/2027/
+          fields: [chem, bio]
+          event_type: conference
+          status: confirmed
+          verified:
+            date: 2026-11-18
+            url: https://www.grc.org/bioinorganic-chemistry-grs-conference/2027/
+          milestones:
+            - kind: short_talk
+              date: 2026-10-17
+              qualifier: by
+              label: Speaker abstract deadline
+            - {kind: application, date: 2026-12-25, qualifier: by, label: Application deadline}
+
+        - id: grc-metals-in-biology-2027
+          title: "Metals in Biology GRC: Celebrating the Golden Age of Bioinorganic Chemistry"
+          short_title: "GRC Metals in Biology 2027"
+          series: Metals in Biology Gordon Research Conference
+          host_org: Gordon Research Conferences
+          start: 2027-01-24
+          end: 2027-01-29
+          region: world
+          location: Four Points Sheraton / Holiday Inn Express, Ventura, CA
+          url: https://www.grc.org/metals-in-biology-conference/2027/
+          fields: [chem, bio]
+          event_type: conference
+          status: confirmed
+          verified:
+            date: 2026-11-18
+            url: https://www.grc.org/metals-in-biology-conference/2027/
+          milestones:
+            - {kind: application, date: 2026-12-27, qualifier: by, label: Application deadline}
+
         - id: keystone-computational-drug-discovery-2027
           title: "Computational Drug Discovery: Tools Across the Translational Pipeline"
           short_title: "Keystone Comp Drug Discovery 2027"
@@ -625,6 +667,7 @@ sources:
               label: Early registration deadline
             - kind: funding
               date: 2027-01-28
+              qualifier: by
               label: Rosetta Commons member travel and lodging sign-up
               url: https://rosettacommons.org/events/wrc/
             - kind: poster
