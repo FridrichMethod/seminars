@@ -810,8 +810,10 @@ sources:
           milestones:
             - kind: other
               date: 2026-12-17
+              time: "23:59"
+              zone: AoE
               label: Tutorial proposal deadline
-              url: https://www.iscb.org/about-iscb/society-communications/announcements/october-27-2026-ismb-eccb-proposal-and-proceedings-submissions-are-open
+              url: https://www.iscb.org/ismbeccb2027/key-dates
             - kind: paper
               date: 2027-01-14
               time: "23:59"
@@ -819,10 +821,35 @@ sources:
               qualifier: by
               label: Proceedings paper deadline
               url: https://www.iscb.org/ismbeccb2027/call-for-submissions/proceedings
+            - kind: abstract
+              date: 2027-04-08
+              time: "23:59"
+              zone: AoE
+              label: Abstract deadline for talks and posters
+              url: https://www.iscb.org/ismbeccb2027/key-dates
+            - kind: notification
+              date: 2027-05-04
+              label: Abstract acceptance notifications
+              url: https://www.iscb.org/ismbeccb2027/key-dates
+            - kind: poster
+              date: 2027-05-06
+              time: "23:59"
+              zone: AoE
+              label: Late-breaking poster deadline
+              url: https://www.iscb.org/ismbeccb2027/key-dates
+            - kind: scholarship
+              date: 2027-05-20
+              time: "23:59"
+              zone: AoE
+              label: Conference fellowship application deadline
+              url: https://www.iscb.org/ismbeccb2027/key-dates
+            - kind: registration
+              date: 2027-06-10
+              label: Presenter registration deadline
+              url: https://www.iscb.org/ismbeccb2027/key-dates
           notes:
-            - The tutorial deadline is on the ISCB announcement of October 27, 2026.
-            - The key dates page renders its dates in the browser, so abstract, poster and
-              registration dates are not entered; the fellowships page offers none.
+            - The key dates page renders its dates in the browser; the dates of the
+              milestones are read there, and the fellowships are for invited presenters.
 
         - id: grs-protein-engineering-2027
           title: "Protein Engineering GRS: Design and Engineering of Proteins for Healthcare and Industrial Applications"
