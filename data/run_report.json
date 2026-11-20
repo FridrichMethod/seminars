@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "started_at": "2026-11-19T20:49:14Z",
-  "finished_at": "2026-11-19T20:55:45Z",
+  "started_at": "2026-11-20T20:33:01Z",
+  "finished_at": "2026-11-20T20:36:58Z",
   "mode": "live",
   "dry_run": false,
   "ok": true,
@@ -9,10 +9,10 @@
     {
       "source_id": "bayarea-biohub",
       "status": "ok",
-      "duration_seconds": 2.762,
-      "requests": 2,
-      "drafts": 1,
-      "events": 1,
+      "duration_seconds": 4.452,
+      "requests": 3,
+      "drafts": 2,
+      "events": 2,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -27,10 +27,10 @@
     {
       "source_id": "bayarea-glam",
       "status": "ok",
-      "duration_seconds": 83.718,
+      "duration_seconds": 61.198,
       "requests": 2,
-      "drafts": 7,
-      "events": 7,
+      "drafts": 6,
+      "events": 6,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -45,12 +45,12 @@
     {
       "source_id": "bayarea-kipac",
       "status": "ok",
-      "duration_seconds": 326.985,
-      "requests": 4,
-      "drafts": 35,
-      "events": 24,
+      "duration_seconds": 90.223,
+      "requests": 3,
+      "drafts": 22,
+      "events": 22,
       "invalid": 0,
-      "outside_window": 11,
+      "outside_window": 0,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -63,7 +63,7 @@
     {
       "source_id": "bayarea-litp",
       "status": "ok",
-      "duration_seconds": 30.701,
+      "duration_seconds": 30.871,
       "requests": 1,
       "drafts": 6,
       "events": 6,
@@ -81,7 +81,7 @@
     {
       "source_id": "bayarea-pulse",
       "status": "empty",
-      "duration_seconds": 131.253,
+      "duration_seconds": 60.571,
       "requests": 2,
       "drafts": 0,
       "events": 0,
@@ -99,7 +99,7 @@
     {
       "source_id": "bayarea-qfarm",
       "status": "ok",
-      "duration_seconds": 89.696,
+      "duration_seconds": 60.621,
       "requests": 2,
       "drafts": 19,
       "events": 14,
@@ -117,10 +117,10 @@
     {
       "source_id": "bayarea-simons-workshops",
       "status": "ok",
-      "duration_seconds": 5.541,
+      "duration_seconds": 4.092,
       "requests": 3,
-      "drafts": 13,
-      "events": 13,
+      "drafts": 12,
+      "events": 12,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -135,7 +135,7 @@
     {
       "source_id": "bayarea-slac-colloquium",
       "status": "ok",
-      "duration_seconds": 4.517,
+      "duration_seconds": 4.411,
       "requests": 4,
       "drafts": 3,
       "events": 3,
@@ -153,7 +153,7 @@
     {
       "source_id": "bayarea-slac-experimental",
       "status": "ok",
-      "duration_seconds": 1.218,
+      "duration_seconds": 1.215,
       "requests": 1,
       "drafts": 3,
       "events": 2,
@@ -171,7 +171,7 @@
     {
       "source_id": "bayarea-slac-theory",
       "status": "ok",
-      "duration_seconds": 1.082,
+      "duration_seconds": 1.968,
       "requests": 1,
       "drafts": 10,
       "events": 6,
@@ -189,7 +189,7 @@
     {
       "source_id": "bayarea-slac-workshops",
       "status": "ok",
-      "duration_seconds": 5.856,
+      "duration_seconds": 7.258,
       "requests": 5,
       "drafts": 3,
       "events": 3,
@@ -225,7 +225,7 @@
     {
       "source_id": "custom-ai4science",
       "status": "ok",
-      "duration_seconds": 1.306,
+      "duration_seconds": 1.285,
       "requests": 1,
       "drafts": 20,
       "events": 11,
@@ -243,7 +243,7 @@
     {
       "source_id": "custom-csb-calendar",
       "status": "ok",
-      "duration_seconds": 1.99,
+      "duration_seconds": 2.071,
       "requests": 1,
       "drafts": 1150,
       "events": 18,
@@ -261,7 +261,7 @@
     {
       "source_id": "custom-csb-events",
       "status": "ok",
-      "duration_seconds": 3.593,
+      "duration_seconds": 3.594,
       "requests": 3,
       "drafts": 4,
       "events": 2,
@@ -279,12 +279,12 @@
     {
       "source_id": "custom-dbds-workshop",
       "status": "ok",
-      "duration_seconds": 4.875,
+      "duration_seconds": 3.49,
       "requests": 1,
       "drafts": 10,
-      "events": 4,
+      "events": 3,
       "invalid": 0,
-      "outside_window": 6,
+      "outside_window": 7,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -297,7 +297,7 @@
     {
       "source_id": "custom-hai-events",
       "status": "ok",
-      "duration_seconds": 3.75,
+      "duration_seconds": 3.68,
       "requests": 3,
       "drafts": 8,
       "events": 8,
@@ -315,12 +315,12 @@
     {
       "source_id": "custom-isl-colloquium",
       "status": "ok",
-      "duration_seconds": 1.242,
+      "duration_seconds": 1.241,
       "requests": 1,
       "drafts": 152,
-      "events": 4,
+      "events": 3,
       "invalid": 0,
-      "outside_window": 148,
+      "outside_window": 149,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -333,7 +333,7 @@
     {
       "source_id": "custom-mlsys-seminar",
       "status": "empty",
-      "duration_seconds": 1.299,
+      "duration_seconds": 1.281,
       "requests": 1,
       "drafts": 87,
       "events": 0,
@@ -351,7 +351,7 @@
     {
       "source_id": "custom-nlp-seminar",
       "status": "failed",
-      "duration_seconds": 7.145,
+      "duration_seconds": 7.142,
       "requests": 1,
       "drafts": 0,
       "events": 0,
@@ -369,10 +369,10 @@
     {
       "source_id": "custom-rain-seminar",
       "status": "ok",
-      "duration_seconds": 1.281,
+      "duration_seconds": 1.433,
       "requests": 1,
-      "drafts": 10,
-      "events": 7,
+      "drafts": 9,
+      "events": 6,
       "invalid": 0,
       "outside_window": 3,
       "skipped_pages": 0,
@@ -387,7 +387,7 @@
     {
       "source_id": "custom-synbio-events",
       "status": "ok",
-      "duration_seconds": 1.431,
+      "duration_seconds": 1.427,
       "requests": 1,
       "drafts": 96,
       "events": 2,
@@ -405,12 +405,12 @@
     {
       "source_id": "custom-theory-lunch",
       "status": "ok",
-      "duration_seconds": 1.144,
+      "duration_seconds": 1.147,
       "requests": 1,
       "drafts": 11,
-      "events": 5,
+      "events": 4,
       "invalid": 0,
-      "outside_window": 6,
+      "outside_window": 7,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -423,10 +423,10 @@
     {
       "source_id": "localist-stanford",
       "status": "ok",
-      "duration_seconds": 63.012,
+      "duration_seconds": 34.955,
       "requests": 7,
-      "drafts": 574,
-      "events": 574,
+      "drafts": 565,
+      "events": 565,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -437,18 +437,18 @@
       "error_kind": null,
       "error": null,
       "warnings": [
-        "69 text(s) or address(es) held a credential or a meeting password and were withheld"
+        "68 text(s) or address(es) held a credential or a meeting password and were withheld"
       ]
     },
     {
       "source_id": "rsorg-topos-colloquium",
       "status": "ok",
-      "duration_seconds": 4.261,
+      "duration_seconds": 4.015,
       "requests": 1,
       "drafts": 233,
-      "events": 13,
+      "events": 12,
       "invalid": 0,
-      "outside_window": 220,
+      "outside_window": 221,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -461,7 +461,7 @@
     {
       "source_id": "sites-aimi",
       "status": "ok",
-      "duration_seconds": 252.152,
+      "duration_seconds": 156.618,
       "requests": 5,
       "drafts": 5,
       "events": 4,
@@ -479,7 +479,7 @@
     {
       "source_id": "sites-biochemistry",
       "status": "ok",
-      "duration_seconds": 88.595,
+      "duration_seconds": 60.506,
       "requests": 2,
       "drafts": 2,
       "events": 2,
@@ -497,7 +497,7 @@
     {
       "source_id": "sites-biology",
       "status": "ok",
-      "duration_seconds": 30.535,
+      "duration_seconds": 30.476,
       "requests": 1,
       "drafts": 9,
       "events": 9,
@@ -516,17 +516,17 @@
     },
     {
       "source_id": "sites-cheme",
-      "status": "empty",
-      "duration_seconds": 120.601,
+      "status": "ok",
+      "duration_seconds": 60.635,
       "requests": 2,
-      "drafts": 0,
-      "events": 0,
+      "drafts": 2,
+      "events": 2,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
-      "extraction": null,
+      "extraction": "feed",
       "llm_fallback_used": false,
       "error_kind": null,
       "error": null,
@@ -535,10 +535,10 @@
     {
       "source_id": "sites-chemh",
       "status": "ok",
-      "duration_seconds": 165.556,
+      "duration_seconds": 91.218,
       "requests": 3,
-      "drafts": 4,
-      "events": 4,
+      "drafts": 3,
+      "events": 3,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -553,7 +553,7 @@
     {
       "source_id": "sites-chemistry",
       "status": "ok",
-      "duration_seconds": 30.663,
+      "duration_seconds": 30.627,
       "requests": 1,
       "drafts": 15,
       "events": 15,
@@ -571,7 +571,7 @@
     {
       "source_id": "sites-icme",
       "status": "ok",
-      "duration_seconds": 160.86,
+      "duration_seconds": 90.641,
       "requests": 3,
       "drafts": 10,
       "events": 3,
@@ -589,7 +589,7 @@
     {
       "source_id": "sites-mathematics",
       "status": "ok",
-      "duration_seconds": 31.464,
+      "duration_seconds": 30.946,
       "requests": 1,
       "drafts": 44,
       "events": 44,
@@ -607,10 +607,10 @@
     {
       "source_id": "sites-mrc",
       "status": "ok",
-      "duration_seconds": 30.483,
+      "duration_seconds": 30.446,
       "requests": 1,
-      "drafts": 2,
-      "events": 2,
+      "drafts": 1,
+      "events": 1,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -625,7 +625,7 @@
     {
       "source_id": "sites-mse",
       "status": "ok",
-      "duration_seconds": 128.554,
+      "duration_seconds": 60.516,
       "requests": 2,
       "drafts": 3,
       "events": 2,
@@ -643,10 +643,10 @@
     {
       "source_id": "sites-physics",
       "status": "ok",
-      "duration_seconds": 30.648,
+      "duration_seconds": 30.474,
       "requests": 1,
-      "drafts": 7,
-      "events": 7,
+      "drafts": 6,
+      "events": 6,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -657,16 +657,16 @@
       "error_kind": null,
       "error": null,
       "warnings": [
-        "3 text(s) or address(es) held a credential or a meeting password and were withheld"
+        "2 text(s) or address(es) held a credential or a meeting password and were withheld"
       ]
     },
     {
       "source_id": "sites-statistics",
       "status": "ok",
-      "duration_seconds": 30.678,
+      "duration_seconds": 30.385,
       "requests": 1,
-      "drafts": 9,
-      "events": 9,
+      "drafts": 8,
+      "events": 8,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -681,10 +681,10 @@
     {
       "source_id": "sites-systemx",
       "status": "ok",
-      "duration_seconds": 202.002,
-      "requests": 4,
-      "drafts": 2,
-      "events": 2,
+      "duration_seconds": 90.866,
+      "requests": 3,
+      "drafts": 1,
+      "events": 1,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -947,76 +947,6 @@
       "url": "https://events.stanford.edu/event/access-to-experts-webinar-seriesstress-management-from-overwhelmed-to-empowered",
       "reason": "fitness",
       "detail": "title matches \"access to experts webinar\""
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54312343131305"
-      ],
-      "title": "EH&S: Flu & COVID-19 Vaccination Clinic",
-      "start": "2026-11-05T09:00:00-08:00",
-      "url": "https://events.stanford.edu/event/ehs-flu-covid-19-vaccination-clinic-4052",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54352464850249"
-      ],
-      "title": "A Day in the Life of a Climate Strategist & Consultant: Maria Doerr '17",
-      "start": "2026-11-05T10:00:00-08:00",
-      "url": "https://events.stanford.edu/event/a-day-in-the-life-of-a-climate-strategist-consultant-maria-doerr-17",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53741880762244"
-      ],
-      "title": "Building Resilience for High Stress Moments Through Meditation (November 5 - 19)",
-      "start": "2026-11-05T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/building-resilience-for-high-stress-moments-through-meditation-november-5-19",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54321173919252"
-      ],
-      "title": "Green Library Book Display: Witches and Witchcraft",
-      "start": "2026-11-05T13:00:00-08:00",
-      "url": "https://events.stanford.edu/event/green-library-book-display-witches-and-witchcraft",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54364328705950"
-      ],
-      "title": "Critical Carceral Studies | Special Collections & Coffee",
-      "start": "2026-11-05T13:00:00-08:00",
-      "url": "https://events.stanford.edu/event/critical-carceral-studies-special-collections-coffee",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54011243977907"
-      ],
-      "title": "No Ideas But in Things",
-      "start": "2026-11-05T16:30:00-08:00",
-      "url": "https://events.stanford.edu/event/no-ideas-but-in-things",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54378999856446"
-      ],
-      "title": "What's Your Call to Serve? Launching a Career in Government",
-      "start": "2026-11-05T16:30:00-08:00",
-      "url": "https://events.stanford.edu/event/whats-your-call-to-serve-launching-a-career-in-government",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
     },
     {
       "source_ids": [
@@ -1730,6 +1660,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54569174746849"
+      ],
+      "title": "Stanford Law AI Initiative Event on December 3",
+      "start": "2026-12-03T17:30:00-08:00",
+      "url": "https://events.stanford.edu/event/stanford-law-ai-initiative-event-on-december-3",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
+    },
+    {
+      "source_ids": [
         "localist-stanford:54179718433669"
       ],
       "title": "Film Screening of the Latvian submission for the Academy Awards – Ulya",
@@ -2387,156 +2327,6 @@
       "url": "https://events.stanford.edu/event/what-insurance-do-you-really-need",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54231981400422"
-      ],
-      "title": "Introduction to Enverus",
-      "start": "2026-11-05T11:00:00-08:00",
-      "url": "https://events.stanford.edu/event/introduction-to-enverus",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54180690948197"
-      ],
-      "title": "The Body as Monument",
-      "start": "2026-11-05T11:30:00-08:00",
-      "url": "https://events.stanford.edu/event/the-body-as-monument",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54222838213984"
-      ],
-      "title": "ePluribus Stanford Event Series: Free Speech and Academic Freedom",
-      "start": "2026-11-05T11:45:00-08:00",
-      "url": "https://events.stanford.edu/event/epluribus-stanford-event-series-free-speech-and-academic-freedom",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53691925115269"
-      ],
-      "title": "Documentary Objectives: Filming Africa from Colonialism to Independence - Rachel Gabara",
-      "start": "2026-11-05T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/documentary-objectives-filming-africa-from-colonialism-to-independence-rachel-gabara",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53801235932031"
-      ],
-      "title": "Lunchtime Curator Talk | California Current: Art and Histories from the Bay Area",
-      "start": "2026-11-05T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/lunchtime-curator-talk-california-current-art-and-histories-from-the-bay-area",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54004031461183"
-      ],
-      "title": "Marcela Ibáñez — Authoritarian Aid and Democratic Attitudes: Backlash, Not Diffusion",
-      "start": "2026-11-05T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/marcela-ibanez-cddrl-research-seminar",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54365532150638"
-      ],
-      "title": "Historical Architecture in Disaster Zones: Digital Documentation, Archiving, and Preservation",
-      "start": "2026-11-05T12:15:00-08:00",
-      "url": "https://events.stanford.edu/event/historical-architecture-in-disaster-zones-digital-documentation-archiving-and-preservation",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53625066788430"
-      ],
-      "title": "Global Environmental Policy/ESS Seminar with David Keith",
-      "start": "2026-11-05T13:15:00-08:00",
-      "url": "https://events.stanford.edu/event/global-environmental-policy-seminar-with-david-keith",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54222728183993"
-      ],
-      "title": "Music Library Association California Chapter Annual Meeting",
-      "start": "2026-11-05T14:00:00-08:00",
-      "url": "https://events.stanford.edu/event/music-library-association-california-chapter-annual-meeting",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53977038029919"
-      ],
-      "title": "The Fate of the Social in Modern Life: American Social Scientists and Japan as Archive",
-      "start": "2026-11-05T16:30:00-08:00",
-      "url": "https://events.stanford.edu/event/the-fate-of-the-social-in-modern-life-american-social-scientists-and-japan-as-archive",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54303134591081"
-      ],
-      "title": "Stanford Culture Initiative Talk",
-      "start": "2026-11-05T17:00:00-08:00",
-      "url": "https://events.stanford.edu/event/stanford-culture-initiative-talk",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54347981525802"
-      ],
-      "title": "Day of the Dead Celebrations | Lecture by Rubí Tsanda Huerta",
-      "start": "2026-11-05T17:00:00-08:00",
-      "url": "https://events.stanford.edu/event/day-of-the-dead-celebrations-day-3",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54177973515463"
-      ],
-      "title": "The Queer Thing about Sin | Harry Tanner",
-      "start": "2026-11-05T17:30:00-08:00",
-      "url": "https://events.stanford.edu/event/the-queer-thing-about-sin-harry-tanner",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54032052037077"
-      ],
-      "title": "Electric Contrasts Study Evening",
-      "start": "2026-11-05T18:00:00-08:00",
-      "url": "https://events.stanford.edu/event/electric-contrasts-study-evening",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54254461579545"
-      ],
-      "title": "Jamaica Heolimeleikalani Osorio, \"Beyond Inclusion: Indigenous Abundance, Aloha ʻĀina, and Radical Futures\"",
-      "start": "2026-11-05T18:45:00-08:00",
-      "url": "https://events.stanford.edu/event/jamaica-heolimeleikalani-osorio-beyond-inclusion-indigenous-abundance-aloha-aina-and-radical-futures",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
     },
     {
       "source_ids": [
@@ -3561,6 +3351,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54560548123527"
+      ],
+      "title": "Faculty Candidate Talk: “The Acoustics of Accented Labor: Genevieve Nnaji and Industrial Authorship in LIONHEART (2018)” | Rejoice Abutsa, Doctoral Candidate, Cornell University",
+      "start": "2026-11-30T17:30:00-08:00",
+      "url": "https://events.stanford.edu/event/faculty-candidate-talk-the-acoustics-of-accented-labor-genevieve-nnaji-and-industrial-authorship-in-lionheart-2018-rejoice-abutsa-doctoral-candidate-cornell-university",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
         "localist-stanford:54559284847031"
       ],
       "title": "Coalition Impossible? Inside the Race to Form Israel's Next Government",
@@ -3576,6 +3376,16 @@
       "title": "Earth & Planetary Sciences Seminar - Prof. Esteban Gazel \"Oceanic intraplate explosive eruptions fed directly from the mantle\"",
       "start": "2026-12-01T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/earth-planetary-sciences-seminar-prof-esteban-gazel-oceanic-intraplate-explosive-eruptions-fed-directly-from-the-mantle",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54561444047347"
+      ],
+      "title": "Emerging Technologies and Strategic Stability",
+      "start": "2026-12-01T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/emerging-technologies-and-strategic-stability",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -3646,6 +3456,16 @@
       "title": "Book Event with Roland Betancourt and T.L. Taylor, \"Disneyland and the Rise of Automation\"",
       "start": "2026-12-02T16:30:00-08:00",
       "url": "https://events.stanford.edu/event/book-event-with-roland-betancourt-and-tl-taylor-disneyland-and-the-rise-of-automation",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54561153360474"
+      ],
+      "title": "Faculty Candidate Talk: “Sentinel and Storyteller: Black Women’s Cinematic Memory Work” | Yasmina Price, Presidential Postdoctoral Research Fellow, Princeton University",
+      "start": "2026-12-02T17:30:00-08:00",
+      "url": "https://events.stanford.edu/event/faculty-candidate-talk-sentinel-and-storyteller-black-womens-cinematic-memory-work-yasmina-price-presidential-postdoctoral-research-fellow-princeton-university",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -3911,11 +3731,41 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54568944893164"
+      ],
+      "title": "The Alliance for Civics in the Academy discussing Unsettled Foundations: Greek and Roman Classics in Civic Life",
+      "start": "2026-12-17T09:00:00-08:00",
+      "url": "https://events.stanford.edu/event/the-alliance-for-civics-in-the-academy-discussing-unsettled-foundations-greek-and-roman-classics-in-civic-life",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54561379690787"
+      ],
+      "title": "Convenient Morality: Public Opinion on Wartime Conduct | Nivedita Jhunjhunwala",
+      "start": "2027-01-05T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/convenient-morality-public-opinion-on-wartime-conduct-nivedita-jhunjhunwala",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
         "localist-stanford:54552593486619"
       ],
       "title": "Eva Lokey Lecture in Yiddish Studies featuring Rafael Balling",
       "start": "2027-01-11T12:00:00-08:00",
       "url": "https://events.stanford.edu/event/eva-lokey-yiddish-lecture",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54558902050613"
+      ],
+      "title": "Investigating Iran: Khamenei's Secret Corporate Conglomerate",
+      "start": "2027-01-14T10:00:00-08:00",
+      "url": "https://events.stanford.edu/event/investigating-iran-khameneis-secret-corporate-conglomerate",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -3966,6 +3816,26 @@
       "title": "Slavic Colloquium - Sergei Chapnin: A Language No One Speaks: Church Slavonic between Liturgy, Identity, and Ideology",
       "start": "2027-01-20T16:30:00-08:00",
       "url": "https://events.stanford.edu/event/slavic-colloquium-sergei-chapnin-a-language-no-one-speaks-church-slavonic-between-liturgy-identity-and-ideology",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54558932633951"
+      ],
+      "title": "Book Talk: The Legacy of the Jahanian Brothers",
+      "start": "2027-01-21T18:30:00-08:00",
+      "url": "https://events.stanford.edu/event/book-talk-the-legacy-of-the-jahanian-brothers",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54560574222899"
+      ],
+      "title": "Praying for Victory: Loyalty, Dissent, and Repression inside the Russian Orthodox Church Today",
+      "start": "2027-01-22T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/praying-for-victory-loyalty-dissent-and-repression-inside-the-russian-orthodox-church-today",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4031,6 +3901,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54568539410906"
+      ],
+      "title": "Disabling Relations: Wounded Bodyminds and Transnational Praxis",
+      "start": "2027-01-29T10:00:00-08:00",
+      "url": "https://events.stanford.edu/event/disabling-relations-wounded-bodyminds-and-transnational-praxis",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
         "localist-stanford:54481830906346"
       ],
       "title": "Understand Energy Staff Learning Series",
@@ -4068,6 +3948,16 @@
       "url": "https://events.stanford.edu/event/stanford-medicine-neurosurgery-master-class-motion-preservation-of-the-spine",
       "reason": "out_of_scope",
       "detail": "category \"Stanford Center for Continuing Medical Education\" is out of scope"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54568648362467"
+      ],
+      "title": "Lukas Althoff, \"The Economic Origins of Racial Segregation and Disenfranchisement,\" in conversation with Marie Wako (CCSRE Graduate Dissertation Fellow)",
+      "start": "2027-02-04T12:00:00-08:00",
+      "url": "https://events.stanford.edu/event/lukas-althoff-the-economic-origins-of-racial-segregation-and-disenfranchisement-in-conversation-with-marie-wako-ccsre-graduate-dissertation-fellow",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
     },
     {
       "source_ids": [
@@ -4301,6 +4191,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54560557835947"
+      ],
+      "title": "Dead Herzls: A new book talk with Joshua Cohen",
+      "start": "2027-02-25T17:00:00-08:00",
+      "url": "https://events.stanford.edu/event/dead-herzls-a-new-book-talk-with-joshua-cohen",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
         "localist-stanford:54551728906362"
       ],
       "title": "Book Talk: Your Presence Is Mandatory with Sasha Vasilyuk",
@@ -4346,6 +4246,16 @@
       "title": "Slavic Colloquium: Julia Verkholantsev: Etymology as Historical Knowledge in Medieval and Early Modern Historiography: Why Libuše Married a Ploughman and Wanda Refused a Foreign King",
       "start": "2027-03-03T16:30:00-08:00",
       "url": "https://events.stanford.edu/event/slavic-colloquium-julia-verkholantsev-etymology-as-historical-knowledge-in-medieval-and-early-modern-historiography-why-libuse-married-a-ploughman-and-wanda-refused-a-foreign-king",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
+        "localist-stanford:54560588443593"
+      ],
+      "title": "Ladino in Literature with author Leigh Bardugo in conversation with Devin Naar",
+      "start": "2027-03-03T17:00:00-08:00",
+      "url": "https://events.stanford.edu/event/ladino-in-literature-with-author-leigh-bardugo-in-conversation-with-devin-naar",
       "reason": "out_of_scope",
       "detail": "no field after classification"
     },
@@ -4542,38 +4452,38 @@
   ],
   "counts": {
     "sources": 38,
-    "sources_ok": 34,
-    "sources_empty": 3,
+    "sources_ok": 35,
+    "sources_empty": 2,
     "sources_failed": 1,
-    "drafts": 2588,
-    "excluded": 384,
-    "merged": 25,
-    "events": 455,
-    "added": 6,
-    "changed": 14,
-    "missing": 1,
-    "removed": 0,
+    "drafts": 2561,
+    "excluded": 375,
+    "merged": 26,
+    "events": 451,
+    "added": 12,
+    "changed": 12,
+    "missing": 2,
+    "removed": 1,
     "cancelled": 0,
-    "archived": 19,
-    "picks": 34
+    "archived": 15,
+    "picks": 35
   },
   "llm": {
     "enabled": true,
     "stored_answers_only": false,
     "provider": "claude-cli",
-    "calls": 8,
-    "cache_hits": 329,
+    "calls": 19,
+    "cache_hits": 311,
     "skipped_call_cap": 0,
     "skipped_too_long": 0,
-    "input_tokens": 15441,
-    "output_tokens": 1361,
-    "cost_usd": 0.00220834,
+    "input_tokens": 38053,
+    "output_tokens": 3265,
+    "cost_usd": 0.005231060000000001,
     "providers": [
       {
         "provider": "claude-cli",
         "model": "haiku",
         "status": "ok",
-        "calls": 8,
+        "calls": 19,
         "failures": 0,
         "failure_kind": null,
         "error": null,
