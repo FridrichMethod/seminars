@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "started_at": "2026-11-20T20:33:01Z",
-  "finished_at": "2026-11-20T20:36:58Z",
+  "started_at": "2026-11-21T19:29:48Z",
+  "finished_at": "2026-11-21T19:33:11Z",
   "mode": "live",
   "dry_run": false,
   "ok": true,
@@ -9,7 +9,7 @@
     {
       "source_id": "bayarea-biohub",
       "status": "ok",
-      "duration_seconds": 4.452,
+      "duration_seconds": 4.428,
       "requests": 3,
       "drafts": 2,
       "events": 2,
@@ -27,7 +27,7 @@
     {
       "source_id": "bayarea-glam",
       "status": "ok",
-      "duration_seconds": 61.198,
+      "duration_seconds": 61.956,
       "requests": 2,
       "drafts": 6,
       "events": 6,
@@ -45,7 +45,7 @@
     {
       "source_id": "bayarea-kipac",
       "status": "ok",
-      "duration_seconds": 90.223,
+      "duration_seconds": 91.007,
       "requests": 3,
       "drafts": 22,
       "events": 22,
@@ -63,10 +63,10 @@
     {
       "source_id": "bayarea-litp",
       "status": "ok",
-      "duration_seconds": 30.871,
+      "duration_seconds": 31.103,
       "requests": 1,
-      "drafts": 6,
-      "events": 6,
+      "drafts": 4,
+      "events": 4,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -80,17 +80,17 @@
     },
     {
       "source_id": "bayarea-pulse",
-      "status": "empty",
-      "duration_seconds": 60.571,
+      "status": "ok",
+      "duration_seconds": 61.313,
       "requests": 2,
-      "drafts": 0,
-      "events": 0,
+      "drafts": 1,
+      "events": 1,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
-      "extraction": null,
+      "extraction": "feed",
       "llm_fallback_used": false,
       "error_kind": null,
       "error": null,
@@ -99,10 +99,10 @@
     {
       "source_id": "bayarea-qfarm",
       "status": "ok",
-      "duration_seconds": 60.621,
+      "duration_seconds": 61.345,
       "requests": 2,
-      "drafts": 19,
-      "events": 14,
+      "drafts": 18,
+      "events": 13,
       "invalid": 0,
       "outside_window": 5,
       "skipped_pages": 0,
@@ -117,7 +117,7 @@
     {
       "source_id": "bayarea-simons-workshops",
       "status": "ok",
-      "duration_seconds": 4.092,
+      "duration_seconds": 4.204,
       "requests": 3,
       "drafts": 12,
       "events": 12,
@@ -135,7 +135,7 @@
     {
       "source_id": "bayarea-slac-colloquium",
       "status": "ok",
-      "duration_seconds": 4.411,
+      "duration_seconds": 4.409,
       "requests": 4,
       "drafts": 3,
       "events": 3,
@@ -153,7 +153,7 @@
     {
       "source_id": "bayarea-slac-experimental",
       "status": "ok",
-      "duration_seconds": 1.215,
+      "duration_seconds": 1.498,
       "requests": 1,
       "drafts": 3,
       "events": 2,
@@ -171,10 +171,10 @@
     {
       "source_id": "bayarea-slac-theory",
       "status": "ok",
-      "duration_seconds": 1.968,
+      "duration_seconds": 2.449,
       "requests": 1,
-      "drafts": 10,
-      "events": 6,
+      "drafts": 9,
+      "events": 5,
       "invalid": 0,
       "outside_window": 4,
       "skipped_pages": 0,
@@ -189,7 +189,7 @@
     {
       "source_id": "bayarea-slac-workshops",
       "status": "ok",
-      "duration_seconds": 7.258,
+      "duration_seconds": 8.007,
       "requests": 5,
       "drafts": 3,
       "events": 3,
@@ -225,7 +225,7 @@
     {
       "source_id": "custom-ai4science",
       "status": "ok",
-      "duration_seconds": 1.285,
+      "duration_seconds": 1.128,
       "requests": 1,
       "drafts": 20,
       "events": 11,
@@ -243,7 +243,7 @@
     {
       "source_id": "custom-csb-calendar",
       "status": "ok",
-      "duration_seconds": 2.071,
+      "duration_seconds": 1.819,
       "requests": 1,
       "drafts": 1150,
       "events": 18,
@@ -261,7 +261,7 @@
     {
       "source_id": "custom-csb-events",
       "status": "ok",
-      "duration_seconds": 3.594,
+      "duration_seconds": 3.875,
       "requests": 3,
       "drafts": 4,
       "events": 2,
@@ -279,7 +279,7 @@
     {
       "source_id": "custom-dbds-workshop",
       "status": "ok",
-      "duration_seconds": 3.49,
+      "duration_seconds": 4.829,
       "requests": 1,
       "drafts": 10,
       "events": 3,
@@ -297,12 +297,12 @@
     {
       "source_id": "custom-hai-events",
       "status": "ok",
-      "duration_seconds": 3.68,
+      "duration_seconds": 3.597,
       "requests": 3,
       "drafts": 8,
-      "events": 8,
+      "events": 7,
       "invalid": 0,
-      "outside_window": 0,
+      "outside_window": 1,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -315,7 +315,7 @@
     {
       "source_id": "custom-isl-colloquium",
       "status": "ok",
-      "duration_seconds": 1.241,
+      "duration_seconds": 1.524,
       "requests": 1,
       "drafts": 152,
       "events": 3,
@@ -333,7 +333,7 @@
     {
       "source_id": "custom-mlsys-seminar",
       "status": "empty",
-      "duration_seconds": 1.281,
+      "duration_seconds": 1.144,
       "requests": 1,
       "drafts": 87,
       "events": 0,
@@ -351,7 +351,7 @@
     {
       "source_id": "custom-nlp-seminar",
       "status": "failed",
-      "duration_seconds": 7.142,
+      "duration_seconds": 7.356,
       "requests": 1,
       "drafts": 0,
       "events": 0,
@@ -369,7 +369,7 @@
     {
       "source_id": "custom-rain-seminar",
       "status": "ok",
-      "duration_seconds": 1.433,
+      "duration_seconds": 1.142,
       "requests": 1,
       "drafts": 9,
       "events": 6,
@@ -387,7 +387,7 @@
     {
       "source_id": "custom-synbio-events",
       "status": "ok",
-      "duration_seconds": 1.427,
+      "duration_seconds": 1.3,
       "requests": 1,
       "drafts": 96,
       "events": 2,
@@ -405,7 +405,7 @@
     {
       "source_id": "custom-theory-lunch",
       "status": "ok",
-      "duration_seconds": 1.147,
+      "duration_seconds": 1.303,
       "requests": 1,
       "drafts": 11,
       "events": 4,
@@ -423,10 +423,10 @@
     {
       "source_id": "localist-stanford",
       "status": "ok",
-      "duration_seconds": 34.955,
+      "duration_seconds": 27.937,
       "requests": 7,
-      "drafts": 565,
-      "events": 565,
+      "drafts": 548,
+      "events": 548,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -443,7 +443,7 @@
     {
       "source_id": "rsorg-topos-colloquium",
       "status": "ok",
-      "duration_seconds": 4.015,
+      "duration_seconds": 3.529,
       "requests": 1,
       "drafts": 233,
       "events": 12,
@@ -461,7 +461,7 @@
     {
       "source_id": "sites-aimi",
       "status": "ok",
-      "duration_seconds": 156.618,
+      "duration_seconds": 151.557,
       "requests": 5,
       "drafts": 5,
       "events": 4,
@@ -479,7 +479,7 @@
     {
       "source_id": "sites-biochemistry",
       "status": "ok",
-      "duration_seconds": 60.506,
+      "duration_seconds": 60.888,
       "requests": 2,
       "drafts": 2,
       "events": 2,
@@ -497,7 +497,7 @@
     {
       "source_id": "sites-biology",
       "status": "ok",
-      "duration_seconds": 30.476,
+      "duration_seconds": 30.821,
       "requests": 1,
       "drafts": 9,
       "events": 9,
@@ -517,7 +517,7 @@
     {
       "source_id": "sites-cheme",
       "status": "ok",
-      "duration_seconds": 60.635,
+      "duration_seconds": 61.14,
       "requests": 2,
       "drafts": 2,
       "events": 2,
@@ -535,7 +535,7 @@
     {
       "source_id": "sites-chemh",
       "status": "ok",
-      "duration_seconds": 91.218,
+      "duration_seconds": 91.276,
       "requests": 3,
       "drafts": 3,
       "events": 3,
@@ -553,7 +553,7 @@
     {
       "source_id": "sites-chemistry",
       "status": "ok",
-      "duration_seconds": 30.627,
+      "duration_seconds": 30.971,
       "requests": 1,
       "drafts": 15,
       "events": 15,
@@ -571,7 +571,7 @@
     {
       "source_id": "sites-icme",
       "status": "ok",
-      "duration_seconds": 90.641,
+      "duration_seconds": 91.089,
       "requests": 3,
       "drafts": 10,
       "events": 3,
@@ -589,10 +589,10 @@
     {
       "source_id": "sites-mathematics",
       "status": "ok",
-      "duration_seconds": 30.946,
+      "duration_seconds": 31.558,
       "requests": 1,
-      "drafts": 44,
-      "events": 44,
+      "drafts": 39,
+      "events": 39,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -607,7 +607,7 @@
     {
       "source_id": "sites-mrc",
       "status": "ok",
-      "duration_seconds": 30.446,
+      "duration_seconds": 30.703,
       "requests": 1,
       "drafts": 1,
       "events": 1,
@@ -625,7 +625,7 @@
     {
       "source_id": "sites-mse",
       "status": "ok",
-      "duration_seconds": 60.516,
+      "duration_seconds": 60.805,
       "requests": 2,
       "drafts": 3,
       "events": 2,
@@ -643,7 +643,7 @@
     {
       "source_id": "sites-physics",
       "status": "ok",
-      "duration_seconds": 30.474,
+      "duration_seconds": 30.818,
       "requests": 1,
       "drafts": 6,
       "events": 6,
@@ -663,7 +663,7 @@
     {
       "source_id": "sites-statistics",
       "status": "ok",
-      "duration_seconds": 30.385,
+      "duration_seconds": 30.776,
       "requests": 1,
       "drafts": 8,
       "events": 8,
@@ -681,7 +681,7 @@
     {
       "source_id": "sites-systemx",
       "status": "ok",
-      "duration_seconds": 90.866,
+      "duration_seconds": 91.008,
       "requests": 3,
       "drafts": 1,
       "events": 1,
@@ -698,16 +698,6 @@
     }
   ],
   "excluded": [
-    {
-      "source_ids": [
-        "localist-stanford:53741880808330"
-      ],
-      "title": "Making Holiday Connections More Meaningful",
-      "start": "2026-11-06T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/making-holiday-connections-more-meaningful-8287",
-      "reason": "academic_calendar",
-      "detail": "title matches \"holiday\""
-    },
     {
       "source_ids": [
         "localist-stanford:54064922323927"
@@ -947,56 +937,6 @@
       "url": "https://events.stanford.edu/event/access-to-experts-webinar-seriesstress-management-from-overwhelmed-to-empowered",
       "reason": "fitness",
       "detail": "title matches \"access to experts webinar\""
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54312356464980"
-      ],
-      "title": "EH&S: Flu & COVID-19 Vaccination Clinic",
-      "start": "2026-11-06T09:00:00-08:00",
-      "url": "https://events.stanford.edu/event/ehs-flu-covid-19-vaccination-clinic-131",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54223427966945"
-      ],
-      "title": "Bike Safety Checks",
-      "start": "2026-11-06T10:00:00-08:00",
-      "url": "https://events.stanford.edu/event/bike-safety-checks",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54002119865911"
-      ],
-      "title": "First Fridays Collab Lab",
-      "start": "2026-11-06T11:30:00-08:00",
-      "url": "https://events.stanford.edu/event/collab-lab-nov6",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54321173922325"
-      ],
-      "title": "Green Library Book Display: Witches and Witchcraft",
-      "start": "2026-11-06T13:00:00-08:00",
-      "url": "https://events.stanford.edu/event/green-library-book-display-witches-and-witchcraft",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53898107752586"
-      ],
-      "title": "OMAC First Fridays",
-      "start": "2026-11-06T17:00:00-08:00",
-      "url": "https://events.stanford.edu/event/omac-first-fridays",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
     },
     {
       "source_ids": [
@@ -2327,66 +2267,6 @@
       "url": "https://events.stanford.edu/event/what-insurance-do-you-really-need",
       "reason": "not_a_talk",
       "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54222728186042"
-      ],
-      "title": "Music Library Association California Chapter Annual Meeting",
-      "start": "2026-11-06T08:30:00-08:00",
-      "url": "https://events.stanford.edu/event/music-library-association-california-chapter-annual-meeting",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54170450699649"
-      ],
-      "title": "Big Tech, Democracy, and Human Rights",
-      "start": "2026-11-06T09:00:00-08:00",
-      "url": "https://events.stanford.edu/event/big-tech-democracy-and-human-rights",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54384164001934"
-      ],
-      "title": "Finding Maps for Your Research at Stanford University Libraries",
-      "start": "2026-11-06T10:30:00-08:00",
-      "url": "https://events.stanford.edu/event/how-to-search-for-maps-at-stanford-university-libraries",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54108634211737"
-      ],
-      "title": "Paweł Adamowicz and the Civic Ethos of Inclusion: Urban Democracy After the Assassination",
-      "start": "2026-11-06T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/pawel-adamowicz-and-the-civic-ethos-of-inclusion",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54410804942386"
-      ],
-      "title": "Lecture: Visiting Composer – Melody Eötvös",
-      "start": "2026-11-06T15:00:00-08:00",
-      "url": "https://events.stanford.edu/event/guest-lecture-eotvos",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54284955024255"
-      ],
-      "title": "SLE Salon: Orlando Reade Explores How Paradise Lost Has Influenced Political Struggles and Revolutionary Movements over the Past 400 Years",
-      "start": "2026-11-06T16:30:00-08:00",
-      "url": "https://events.stanford.edu/event/sle-salon-orlando-reade-explores-how-paradise-lost-has-influenced-political-struggles-and-revolutionary-movements-over-the-past-400-years",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
     },
     {
       "source_ids": [
@@ -3761,6 +3641,16 @@
     },
     {
       "source_ids": [
+        "localist-stanford:54570552552720"
+      ],
+      "title": "The Long History of Amanuenses: Aides to Scholars and Authors from Antiquity to AI",
+      "start": "2027-01-13T16:30:00-08:00",
+      "url": "https://events.stanford.edu/event/the-long-history-of-amanuenses-aides-to-scholars-and-authors-from-antiquity-to-ai-6807",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
+    },
+    {
+      "source_ids": [
         "localist-stanford:54558902050613"
       ],
       "title": "Investigating Iran: Khamenei's Secret Corporate Conglomerate",
@@ -4452,38 +4342,38 @@
   ],
   "counts": {
     "sources": 38,
-    "sources_ok": 35,
-    "sources_empty": 2,
+    "sources_ok": 36,
+    "sources_empty": 1,
     "sources_failed": 1,
-    "drafts": 2561,
-    "excluded": 375,
-    "merged": 26,
-    "events": 451,
-    "added": 12,
+    "drafts": 2536,
+    "excluded": 364,
+    "merged": 27,
+    "events": 438,
+    "added": 3,
     "changed": 12,
     "missing": 2,
-    "removed": 1,
+    "removed": 0,
     "cancelled": 0,
-    "archived": 15,
-    "picks": 35
+    "archived": 16,
+    "picks": 34
   },
   "llm": {
     "enabled": true,
     "stored_answers_only": false,
     "provider": "claude-cli",
-    "calls": 19,
-    "cache_hits": 311,
+    "calls": 1,
+    "cache_hits": 322,
     "skipped_call_cap": 0,
     "skipped_too_long": 0,
-    "input_tokens": 38053,
-    "output_tokens": 3265,
-    "cost_usd": 0.005231060000000001,
+    "input_tokens": 1986,
+    "output_tokens": 193,
+    "cost_usd": 0.0004935,
     "providers": [
       {
         "provider": "claude-cli",
         "model": "haiku",
         "status": "ok",
-        "calls": 19,
+        "calls": 1,
         "failures": 0,
         "failure_kind": null,
         "error": null,
