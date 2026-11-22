@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "started_at": "2026-11-21T19:29:48Z",
-  "finished_at": "2026-11-21T19:33:11Z",
+  "started_at": "2026-11-22T19:51:21Z",
+  "finished_at": "2026-11-22T19:54:45Z",
   "mode": "live",
   "dry_run": false,
   "ok": true,
@@ -9,7 +9,7 @@
     {
       "source_id": "bayarea-biohub",
       "status": "ok",
-      "duration_seconds": 4.428,
+      "duration_seconds": 4.463,
       "requests": 3,
       "drafts": 2,
       "events": 2,
@@ -27,7 +27,7 @@
     {
       "source_id": "bayarea-glam",
       "status": "ok",
-      "duration_seconds": 61.956,
+      "duration_seconds": 61.013,
       "requests": 2,
       "drafts": 6,
       "events": 6,
@@ -45,7 +45,7 @@
     {
       "source_id": "bayarea-kipac",
       "status": "ok",
-      "duration_seconds": 91.007,
+      "duration_seconds": 90.948,
       "requests": 3,
       "drafts": 22,
       "events": 22,
@@ -63,7 +63,7 @@
     {
       "source_id": "bayarea-litp",
       "status": "ok",
-      "duration_seconds": 31.103,
+      "duration_seconds": 30.851,
       "requests": 1,
       "drafts": 4,
       "events": 4,
@@ -81,7 +81,7 @@
     {
       "source_id": "bayarea-pulse",
       "status": "ok",
-      "duration_seconds": 61.313,
+      "duration_seconds": 60.942,
       "requests": 2,
       "drafts": 1,
       "events": 1,
@@ -99,7 +99,7 @@
     {
       "source_id": "bayarea-qfarm",
       "status": "ok",
-      "duration_seconds": 61.345,
+      "duration_seconds": 61.101,
       "requests": 2,
       "drafts": 18,
       "events": 13,
@@ -117,7 +117,7 @@
     {
       "source_id": "bayarea-simons-workshops",
       "status": "ok",
-      "duration_seconds": 4.204,
+      "duration_seconds": 3.59,
       "requests": 3,
       "drafts": 12,
       "events": 12,
@@ -135,7 +135,7 @@
     {
       "source_id": "bayarea-slac-colloquium",
       "status": "ok",
-      "duration_seconds": 4.409,
+      "duration_seconds": 4.48,
       "requests": 4,
       "drafts": 3,
       "events": 3,
@@ -153,7 +153,7 @@
     {
       "source_id": "bayarea-slac-experimental",
       "status": "ok",
-      "duration_seconds": 1.498,
+      "duration_seconds": 1.65,
       "requests": 1,
       "drafts": 3,
       "events": 2,
@@ -171,7 +171,7 @@
     {
       "source_id": "bayarea-slac-theory",
       "status": "ok",
-      "duration_seconds": 2.449,
+      "duration_seconds": 1.919,
       "requests": 1,
       "drafts": 9,
       "events": 5,
@@ -189,7 +189,7 @@
     {
       "source_id": "bayarea-slac-workshops",
       "status": "ok",
-      "duration_seconds": 8.007,
+      "duration_seconds": 7.52,
       "requests": 5,
       "drafts": 3,
       "events": 3,
@@ -225,7 +225,7 @@
     {
       "source_id": "custom-ai4science",
       "status": "ok",
-      "duration_seconds": 1.128,
+      "duration_seconds": 1.151,
       "requests": 1,
       "drafts": 20,
       "events": 11,
@@ -243,7 +243,7 @@
     {
       "source_id": "custom-csb-calendar",
       "status": "ok",
-      "duration_seconds": 1.819,
+      "duration_seconds": 1.816,
       "requests": 1,
       "drafts": 1150,
       "events": 18,
@@ -261,7 +261,7 @@
     {
       "source_id": "custom-csb-events",
       "status": "ok",
-      "duration_seconds": 3.875,
+      "duration_seconds": 4.02,
       "requests": 3,
       "drafts": 4,
       "events": 2,
@@ -279,7 +279,7 @@
     {
       "source_id": "custom-dbds-workshop",
       "status": "ok",
-      "duration_seconds": 4.829,
+      "duration_seconds": 3.485,
       "requests": 1,
       "drafts": 10,
       "events": 3,
@@ -297,7 +297,7 @@
     {
       "source_id": "custom-hai-events",
       "status": "ok",
-      "duration_seconds": 3.597,
+      "duration_seconds": 3.645,
       "requests": 3,
       "drafts": 8,
       "events": 7,
@@ -315,7 +315,7 @@
     {
       "source_id": "custom-isl-colloquium",
       "status": "ok",
-      "duration_seconds": 1.524,
+      "duration_seconds": 1.502,
       "requests": 1,
       "drafts": 152,
       "events": 3,
@@ -333,7 +333,7 @@
     {
       "source_id": "custom-mlsys-seminar",
       "status": "empty",
-      "duration_seconds": 1.144,
+      "duration_seconds": 1.074,
       "requests": 1,
       "drafts": 87,
       "events": 0,
@@ -351,7 +351,7 @@
     {
       "source_id": "custom-nlp-seminar",
       "status": "failed",
-      "duration_seconds": 7.356,
+      "duration_seconds": 7.343,
       "requests": 1,
       "drafts": 0,
       "events": 0,
@@ -369,7 +369,7 @@
     {
       "source_id": "custom-rain-seminar",
       "status": "ok",
-      "duration_seconds": 1.142,
+      "duration_seconds": 1.154,
       "requests": 1,
       "drafts": 9,
       "events": 6,
@@ -387,7 +387,7 @@
     {
       "source_id": "custom-synbio-events",
       "status": "ok",
-      "duration_seconds": 1.3,
+      "duration_seconds": 1.331,
       "requests": 1,
       "drafts": 96,
       "events": 2,
@@ -405,7 +405,7 @@
     {
       "source_id": "custom-theory-lunch",
       "status": "ok",
-      "duration_seconds": 1.303,
+      "duration_seconds": 1.355,
       "requests": 1,
       "drafts": 11,
       "events": 4,
@@ -423,10 +423,10 @@
     {
       "source_id": "localist-stanford",
       "status": "ok",
-      "duration_seconds": 27.937,
+      "duration_seconds": 31.629,
       "requests": 7,
-      "drafts": 548,
-      "events": 548,
+      "drafts": 546,
+      "events": 546,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -443,7 +443,7 @@
     {
       "source_id": "rsorg-topos-colloquium",
       "status": "ok",
-      "duration_seconds": 3.529,
+      "duration_seconds": 3.341,
       "requests": 1,
       "drafts": 233,
       "events": 12,
@@ -461,7 +461,7 @@
     {
       "source_id": "sites-aimi",
       "status": "ok",
-      "duration_seconds": 151.557,
+      "duration_seconds": 151.735,
       "requests": 5,
       "drafts": 5,
       "events": 4,
@@ -479,7 +479,7 @@
     {
       "source_id": "sites-biochemistry",
       "status": "ok",
-      "duration_seconds": 60.888,
+      "duration_seconds": 60.69,
       "requests": 2,
       "drafts": 2,
       "events": 2,
@@ -497,7 +497,7 @@
     {
       "source_id": "sites-biology",
       "status": "ok",
-      "duration_seconds": 30.821,
+      "duration_seconds": 30.836,
       "requests": 1,
       "drafts": 9,
       "events": 9,
@@ -517,7 +517,7 @@
     {
       "source_id": "sites-cheme",
       "status": "ok",
-      "duration_seconds": 61.14,
+      "duration_seconds": 60.847,
       "requests": 2,
       "drafts": 2,
       "events": 2,
@@ -535,7 +535,7 @@
     {
       "source_id": "sites-chemh",
       "status": "ok",
-      "duration_seconds": 91.276,
+      "duration_seconds": 90.975,
       "requests": 3,
       "drafts": 3,
       "events": 3,
@@ -553,7 +553,7 @@
     {
       "source_id": "sites-chemistry",
       "status": "ok",
-      "duration_seconds": 30.971,
+      "duration_seconds": 30.832,
       "requests": 1,
       "drafts": 15,
       "events": 15,
@@ -571,7 +571,7 @@
     {
       "source_id": "sites-icme",
       "status": "ok",
-      "duration_seconds": 91.089,
+      "duration_seconds": 90.959,
       "requests": 3,
       "drafts": 10,
       "events": 3,
@@ -589,10 +589,10 @@
     {
       "source_id": "sites-mathematics",
       "status": "ok",
-      "duration_seconds": 31.558,
+      "duration_seconds": 31.76,
       "requests": 1,
-      "drafts": 39,
-      "events": 39,
+      "drafts": 40,
+      "events": 40,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -607,7 +607,7 @@
     {
       "source_id": "sites-mrc",
       "status": "ok",
-      "duration_seconds": 30.703,
+      "duration_seconds": 30.661,
       "requests": 1,
       "drafts": 1,
       "events": 1,
@@ -625,7 +625,7 @@
     {
       "source_id": "sites-mse",
       "status": "ok",
-      "duration_seconds": 60.805,
+      "duration_seconds": 60.893,
       "requests": 2,
       "drafts": 3,
       "events": 2,
@@ -643,7 +643,7 @@
     {
       "source_id": "sites-physics",
       "status": "ok",
-      "duration_seconds": 30.818,
+      "duration_seconds": 30.887,
       "requests": 1,
       "drafts": 6,
       "events": 6,
@@ -663,7 +663,7 @@
     {
       "source_id": "sites-statistics",
       "status": "ok",
-      "duration_seconds": 30.776,
+      "duration_seconds": 30.829,
       "requests": 1,
       "drafts": 8,
       "events": 8,
@@ -681,7 +681,7 @@
     {
       "source_id": "sites-systemx",
       "status": "ok",
-      "duration_seconds": 91.008,
+      "duration_seconds": 91.065,
       "requests": 3,
       "drafts": 1,
       "events": 1,
@@ -937,26 +937,6 @@
       "url": "https://events.stanford.edu/event/access-to-experts-webinar-seriesstress-management-from-overwhelmed-to-empowered",
       "reason": "fitness",
       "detail": "title matches \"access to experts webinar\""
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54321173925398"
-      ],
-      "title": "Green Library Book Display: Witches and Witchcraft",
-      "start": "2026-11-07T13:00:00-08:00",
-      "url": "https://events.stanford.edu/event/green-library-book-display-witches-and-witchcraft",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53790868744168"
-      ],
-      "title": "16th Bita Prize for Persian Arts: Sima Bina",
-      "start": "2026-11-07T18:00:00-08:00",
-      "url": "https://events.stanford.edu/event/16th-bita-prize-for-persian-arts-celebrating-sima-bina",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
     },
     {
       "source_ids": [
@@ -4345,16 +4325,16 @@
     "sources_ok": 36,
     "sources_empty": 1,
     "sources_failed": 1,
-    "drafts": 2536,
-    "excluded": 364,
+    "drafts": 2535,
+    "excluded": 362,
     "merged": 27,
     "events": 438,
-    "added": 3,
+    "added": 1,
     "changed": 12,
-    "missing": 2,
-    "removed": 0,
+    "missing": 1,
+    "removed": 1,
     "cancelled": 0,
-    "archived": 16,
+    "archived": 0,
     "picks": 34
   },
   "llm": {
@@ -4365,9 +4345,9 @@
     "cache_hits": 322,
     "skipped_call_cap": 0,
     "skipped_too_long": 0,
-    "input_tokens": 1986,
-    "output_tokens": 193,
-    "cost_usd": 0.0004935,
+    "input_tokens": 931,
+    "output_tokens": 52,
+    "cost_usd": 0.000212,
     "providers": [
       {
         "provider": "claude-cli",
