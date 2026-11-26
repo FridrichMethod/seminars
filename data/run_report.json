@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "started_at": "2026-11-25T21:50:35Z",
-  "finished_at": "2026-11-25T21:54:13Z",
+  "started_at": "2026-11-26T21:43:53Z",
+  "finished_at": "2026-11-26T21:47:46Z",
   "mode": "live",
   "dry_run": false,
   "ok": true,
@@ -9,7 +9,7 @@
     {
       "source_id": "bayarea-biohub",
       "status": "ok",
-      "duration_seconds": 5.01,
+      "duration_seconds": 5.322,
       "requests": 4,
       "drafts": 3,
       "events": 3,
@@ -27,7 +27,7 @@
     {
       "source_id": "bayarea-glam",
       "status": "ok",
-      "duration_seconds": 60.574,
+      "duration_seconds": 60.965,
       "requests": 2,
       "drafts": 6,
       "events": 6,
@@ -45,7 +45,7 @@
     {
       "source_id": "bayarea-kipac",
       "status": "ok",
-      "duration_seconds": 122.573,
+      "duration_seconds": 121.23,
       "requests": 4,
       "drafts": 33,
       "events": 22,
@@ -63,7 +63,7 @@
     {
       "source_id": "bayarea-litp",
       "status": "ok",
-      "duration_seconds": 30.862,
+      "duration_seconds": 30.94,
       "requests": 1,
       "drafts": 4,
       "events": 4,
@@ -81,7 +81,7 @@
     {
       "source_id": "bayarea-pulse",
       "status": "ok",
-      "duration_seconds": 60.62,
+      "duration_seconds": 61.106,
       "requests": 2,
       "drafts": 1,
       "events": 1,
@@ -99,7 +99,7 @@
     {
       "source_id": "bayarea-qfarm",
       "status": "ok",
-      "duration_seconds": 60.634,
+      "duration_seconds": 61.08,
       "requests": 2,
       "drafts": 18,
       "events": 13,
@@ -117,7 +117,7 @@
     {
       "source_id": "bayarea-simons-workshops",
       "status": "ok",
-      "duration_seconds": 5.491,
+      "duration_seconds": 4.714,
       "requests": 3,
       "drafts": 12,
       "events": 12,
@@ -135,7 +135,7 @@
     {
       "source_id": "bayarea-slac-colloquium",
       "status": "ok",
-      "duration_seconds": 4.446,
+      "duration_seconds": 4.405,
       "requests": 4,
       "drafts": 3,
       "events": 3,
@@ -153,7 +153,7 @@
     {
       "source_id": "bayarea-slac-experimental",
       "status": "ok",
-      "duration_seconds": 1.235,
+      "duration_seconds": 1.659,
       "requests": 1,
       "drafts": 2,
       "events": 1,
@@ -171,12 +171,12 @@
     {
       "source_id": "bayarea-slac-theory",
       "status": "ok",
-      "duration_seconds": 2.825,
+      "duration_seconds": 3.624,
       "requests": 1,
       "drafts": 13,
-      "events": 10,
+      "events": 9,
       "invalid": 0,
-      "outside_window": 3,
+      "outside_window": 4,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -189,7 +189,7 @@
     {
       "source_id": "bayarea-slac-workshops",
       "status": "ok",
-      "duration_seconds": 6.588,
+      "duration_seconds": 7.64,
       "requests": 5,
       "drafts": 3,
       "events": 3,
@@ -207,7 +207,7 @@
     {
       "source_id": "conf-registry",
       "status": "ok",
-      "duration_seconds": 0.014,
+      "duration_seconds": 0.017,
       "requests": 0,
       "drafts": 21,
       "events": 20,
@@ -225,12 +225,12 @@
     {
       "source_id": "custom-ai4science",
       "status": "ok",
-      "duration_seconds": 1.274,
+      "duration_seconds": 1.226,
       "requests": 1,
       "drafts": 20,
-      "events": 11,
+      "events": 10,
       "invalid": 0,
-      "outside_window": 9,
+      "outside_window": 10,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -243,12 +243,12 @@
     {
       "source_id": "custom-csb-calendar",
       "status": "ok",
-      "duration_seconds": 1.966,
+      "duration_seconds": 2.182,
       "requests": 1,
       "drafts": 1150,
-      "events": 17,
+      "events": 16,
       "invalid": 0,
-      "outside_window": 1133,
+      "outside_window": 1134,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
@@ -261,7 +261,7 @@
     {
       "source_id": "custom-csb-events",
       "status": "ok",
-      "duration_seconds": 3.555,
+      "duration_seconds": 3.951,
       "requests": 3,
       "drafts": 4,
       "events": 2,
@@ -278,26 +278,26 @@
     },
     {
       "source_id": "custom-dbds-workshop",
-      "status": "ok",
-      "duration_seconds": 5.396,
+      "status": "failed",
+      "duration_seconds": 87.2,
       "requests": 1,
-      "drafts": 10,
-      "events": 3,
+      "drafts": 0,
+      "events": 0,
       "invalid": 0,
-      "outside_window": 7,
+      "outside_window": 0,
       "skipped_pages": 0,
       "shrank_from": null,
       "resized_from": null,
-      "extraction": "html",
+      "extraction": null,
       "llm_fallback_used": false,
-      "error_kind": null,
-      "error": null,
+      "error_kind": "robots",
+      "error": "RobotsUnavailableError: robots.txt is unreachable; host skipped: https://dbds.stanford.edu/robots.txt",
       "warnings": []
     },
     {
       "source_id": "custom-hai-events",
       "status": "ok",
-      "duration_seconds": 4.71,
+      "duration_seconds": 4.684,
       "requests": 3,
       "drafts": 8,
       "events": 6,
@@ -315,7 +315,7 @@
     {
       "source_id": "custom-isl-colloquium",
       "status": "ok",
-      "duration_seconds": 1.204,
+      "duration_seconds": 1.495,
       "requests": 1,
       "drafts": 152,
       "events": 3,
@@ -333,7 +333,7 @@
     {
       "source_id": "custom-mlsys-seminar",
       "status": "empty",
-      "duration_seconds": 1.256,
+      "duration_seconds": 1.195,
       "requests": 1,
       "drafts": 87,
       "events": 0,
@@ -351,7 +351,7 @@
     {
       "source_id": "custom-nlp-seminar",
       "status": "failed",
-      "duration_seconds": 7.116,
+      "duration_seconds": 87.188,
       "requests": 1,
       "drafts": 0,
       "events": 0,
@@ -369,7 +369,7 @@
     {
       "source_id": "custom-rain-seminar",
       "status": "ok",
-      "duration_seconds": 1.252,
+      "duration_seconds": 1.322,
       "requests": 1,
       "drafts": 9,
       "events": 6,
@@ -387,7 +387,7 @@
     {
       "source_id": "custom-synbio-events",
       "status": "ok",
-      "duration_seconds": 1.428,
+      "duration_seconds": 1.398,
       "requests": 1,
       "drafts": 96,
       "events": 1,
@@ -405,7 +405,7 @@
     {
       "source_id": "custom-theory-lunch",
       "status": "ok",
-      "duration_seconds": 1.123,
+      "duration_seconds": 1.279,
       "requests": 1,
       "drafts": 11,
       "events": 4,
@@ -423,10 +423,10 @@
     {
       "source_id": "localist-stanford",
       "status": "ok",
-      "duration_seconds": 37.55,
-      "requests": 7,
-      "drafts": 521,
-      "events": 521,
+      "duration_seconds": 27.259,
+      "requests": 6,
+      "drafts": 506,
+      "events": 506,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -437,13 +437,13 @@
       "error_kind": null,
       "error": null,
       "warnings": [
-        "63 text(s) or address(es) held a credential or a meeting password and were withheld"
+        "61 text(s) or address(es) held a credential or a meeting password and were withheld"
       ]
     },
     {
       "source_id": "rsorg-topos-colloquium",
       "status": "ok",
-      "duration_seconds": 4.003,
+      "duration_seconds": 3.733,
       "requests": 1,
       "drafts": 233,
       "events": 13,
@@ -461,7 +461,7 @@
     {
       "source_id": "sites-aimi",
       "status": "ok",
-      "duration_seconds": 153.277,
+      "duration_seconds": 152.002,
       "requests": 5,
       "drafts": 4,
       "events": 3,
@@ -479,7 +479,7 @@
     {
       "source_id": "sites-biochemistry",
       "status": "ok",
-      "duration_seconds": 60.392,
+      "duration_seconds": 60.803,
       "requests": 2,
       "drafts": 2,
       "events": 2,
@@ -497,10 +497,10 @@
     {
       "source_id": "sites-biology",
       "status": "ok",
-      "duration_seconds": 30.596,
+      "duration_seconds": 30.921,
       "requests": 1,
-      "drafts": 6,
-      "events": 6,
+      "drafts": 7,
+      "events": 7,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -511,13 +511,13 @@
       "error_kind": null,
       "error": null,
       "warnings": [
-        "2 text(s) or address(es) held a credential or a meeting password and were withheld"
+        "3 text(s) or address(es) held a credential or a meeting password and were withheld"
       ]
     },
     {
       "source_id": "sites-cheme",
       "status": "ok",
-      "duration_seconds": 60.511,
+      "duration_seconds": 60.769,
       "requests": 2,
       "drafts": 3,
       "events": 3,
@@ -535,7 +535,7 @@
     {
       "source_id": "sites-chemh",
       "status": "ok",
-      "duration_seconds": 90.471,
+      "duration_seconds": 91.059,
       "requests": 3,
       "drafts": 6,
       "events": 4,
@@ -553,10 +553,10 @@
     {
       "source_id": "sites-chemistry",
       "status": "ok",
-      "duration_seconds": 30.501,
+      "duration_seconds": 30.752,
       "requests": 1,
-      "drafts": 14,
-      "events": 14,
+      "drafts": 13,
+      "events": 13,
       "invalid": 0,
       "outside_window": 0,
       "skipped_pages": 0,
@@ -571,7 +571,7 @@
     {
       "source_id": "sites-icme",
       "status": "ok",
-      "duration_seconds": 90.712,
+      "duration_seconds": 91.187,
       "requests": 3,
       "drafts": 10,
       "events": 2,
@@ -589,7 +589,7 @@
     {
       "source_id": "sites-mathematics",
       "status": "ok",
-      "duration_seconds": 31.432,
+      "duration_seconds": 31.13,
       "requests": 1,
       "drafts": 33,
       "events": 33,
@@ -607,7 +607,7 @@
     {
       "source_id": "sites-mrc",
       "status": "ok",
-      "duration_seconds": 30.51,
+      "duration_seconds": 30.474,
       "requests": 1,
       "drafts": 1,
       "events": 1,
@@ -625,7 +625,7 @@
     {
       "source_id": "sites-mse",
       "status": "ok",
-      "duration_seconds": 60.602,
+      "duration_seconds": 60.744,
       "requests": 2,
       "drafts": 3,
       "events": 2,
@@ -643,7 +643,7 @@
     {
       "source_id": "sites-physics",
       "status": "ok",
-      "duration_seconds": 30.526,
+      "duration_seconds": 30.782,
       "requests": 1,
       "drafts": 5,
       "events": 5,
@@ -663,7 +663,7 @@
     {
       "source_id": "sites-statistics",
       "status": "ok",
-      "duration_seconds": 30.453,
+      "duration_seconds": 30.677,
       "requests": 1,
       "drafts": 6,
       "events": 6,
@@ -681,7 +681,7 @@
     {
       "source_id": "sites-systemx",
       "status": "ok",
-      "duration_seconds": 90.89,
+      "duration_seconds": 91.256,
       "requests": 3,
       "drafts": 1,
       "events": 1,
@@ -917,46 +917,6 @@
       "url": "https://events.stanford.edu/event/access-to-experts-webinar-seriesstress-management-from-overwhelmed-to-empowered",
       "reason": "fitness",
       "detail": "title matches \"access to experts webinar\""
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54322876803293"
-      ],
-      "title": "Graduate Students Writing Session",
-      "start": "2026-11-11T09:00:00-08:00",
-      "url": "https://events.stanford.edu/event/graduate-students-writing-session",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54356689352894"
-      ],
-      "title": "Walk the Labyrinth at MemChu",
-      "start": "2026-11-11T09:00:00-08:00",
-      "url": "https://events.stanford.edu/event/walk-the-labyrinth-at-memchu",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53741880932247"
-      ],
-      "title": "Portraiture as a Creative Path for Mindful Well-being",
-      "start": "2026-11-11T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/portraiture-as-a-creative-path-for-mindful-well-being",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54321173941786"
-      ],
-      "title": "Green Library Book Display: Witches and Witchcraft",
-      "start": "2026-11-11T13:00:00-08:00",
-      "url": "https://events.stanford.edu/event/green-library-book-display-witches-and-witchcraft",
-      "reason": "not_a_talk",
-      "detail": "LLM tagger"
     },
     {
       "source_ids": [
@@ -2190,83 +2150,13 @@
     },
     {
       "source_ids": [
-        "localist-stanford:53497842526080"
+        "localist-stanford:53879279739052"
       ],
-      "title": "Negotiating Childhood: French Colonialism and African Children in Senegal - Kelly Duke Bryant",
-      "start": "2026-11-11T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/children-and-childhood-in-colonial-senegal-kelly-duke-bryant",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53921488445501"
-      ],
-      "title": "Alcohol-Associated Hepatitis and Early Liver Transplantation",
-      "start": "2026-11-11T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/alcohol-associated-hepatitis-and-early-liver-transplantation",
-      "reason": "out_of_scope",
-      "detail": "category \"Stanford Center for Continuing Medical Education\" is out of scope"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54095541213650"
-      ],
-      "title": "CMEMS: Vera Keller presents \"Even better suited for the arts and disciplines than one who uses his eyes\"",
-      "start": "2026-11-11T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/cmems-vera-keller-presents-even-better-suited-for-the-arts-and-disciplines-than-one-who-uses-his-eyes",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54419379183481"
-      ],
-      "title": "Lunch Club Series | Beneath Tiahuanacu’s Streets: Ceramic iconography and Ancient Heritage in an Aymara town",
-      "start": "2026-11-11T12:00:00-08:00",
-      "url": "https://events.stanford.edu/event/lunch-club-series-beneath-tiahuanacus-streets-ceramic-iconography-and-ancient-heritage-in-an-aymara-town",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54046853115683"
-      ],
-      "title": "Reimagining Democracy: America at 250",
-      "start": "2026-11-11T16:00:00-08:00",
-      "url": "https://events.stanford.edu/event/reimagining-democracy-2026",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54004127814166"
-      ],
-      "title": "Lauren Kolodny @ Entrepreneurial Thought Leaders Speaker Series (ETL)",
-      "start": "2026-11-11T16:30:00-08:00",
-      "url": "https://events.stanford.edu/event/lauren-kolodny-entrepreneurial-thought-leaders-speaker-series-etl",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:54222690022196"
-      ],
-      "title": "When We Bridge: Indigenous Peoples’ Guardianship, Knowledge, and Global Impact",
-      "start": "2026-11-11T16:30:00-08:00",
-      "url": "https://events.stanford.edu/event/center-for-just-environmental-futures-inaugural-distinguished-lecture-series-featuring-aulani-wilhelm-ceo-of-nia-tero",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
-    },
-    {
-      "source_ids": [
-        "localist-stanford:53852108956001"
-      ],
-      "title": "BOOK LAUNCH: Literature and Emergency Law in Kashmir and Northern Ireland",
-      "start": "2026-11-11T17:30:00-08:00",
-      "url": "https://events.stanford.edu/event/book-launch-literature-and-emergency-law-in-kashmir-and-northern-ireland",
-      "reason": "out_of_scope",
-      "detail": "no field after classification"
+      "title": "Deadline for departments to update course grading basis, unit, and/or component configuration for classes offered in summer.",
+      "start": "2027-03-26T00:00:00-07:00",
+      "url": "https://events.stanford.edu/event/deadline-for-departments-to-update-course-grading-basis-unit-andor-component-configuration-for-classes-offered-in-summer-4906",
+      "reason": "not_a_talk",
+      "detail": "LLM tagger"
     },
     {
       "source_ids": [
@@ -4161,13 +4051,13 @@
     },
     {
       "source_ids": [
-        "custom-csb-calendar:7trha856lfdodflga4g6u3qfr4@google.com"
+        "localist-stanford:54481830922737"
       ],
-      "title": "CSB Friendsgiving Lunch",
-      "start": "2026-11-11T13:30:00-08:00",
-      "url": "https://chemsysbio.stanford.edu/department/special-programs-events/",
-      "reason": "social",
-      "detail": "title matches \"friendsgiving\""
+      "title": "Understand Energy Staff Learning Series",
+      "start": "2027-03-26T12:30:00-07:00",
+      "url": "https://events.stanford.edu/event/understand-energy-staff-learning-series",
+      "reason": "out_of_scope",
+      "detail": "no field after classification"
     },
     {
       "source_ids": [
@@ -4212,38 +4102,38 @@
   ],
   "counts": {
     "sources": 38,
-    "sources_ok": 36,
+    "sources_ok": 35,
     "sources_empty": 1,
-    "sources_failed": 1,
-    "drafts": 2514,
-    "excluded": 351,
+    "sources_failed": 2,
+    "drafts": 2489,
+    "excluded": 340,
     "merged": 25,
-    "events": 417,
-    "added": 2,
-    "changed": 1,
-    "missing": 1,
+    "events": 410,
+    "added": 5,
+    "changed": 0,
+    "missing": 2,
     "removed": 0,
     "cancelled": 0,
-    "archived": 21,
+    "archived": 12,
     "picks": 31
   },
   "llm": {
     "enabled": true,
     "stored_answers_only": false,
     "provider": "claude-cli",
-    "calls": 5,
-    "cache_hits": 301,
+    "calls": 1,
+    "cache_hits": 295,
     "skipped_call_cap": 0,
     "skipped_too_long": 0,
-    "input_tokens": 10089,
-    "output_tokens": 665,
-    "cost_usd": 0.0014585800000000003,
+    "input_tokens": 1848,
+    "output_tokens": 114,
+    "cost_usd": 0.0004264,
     "providers": [
       {
         "provider": "claude-cli",
         "model": "haiku",
         "status": "ok",
-        "calls": 5,
+        "calls": 1,
         "failures": 0,
         "failure_kind": null,
         "error": null,
